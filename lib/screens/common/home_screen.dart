@@ -143,6 +143,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  /// Handle exit from selection mode - refresh UI to prevent file disappearance
+  void _onExitSelectionMode() {
+    // Trigger immediate UI refresh to prevent files from disappearing
+    if (mounted) {
+      setState(() {});
+
+      // Also trigger a data refresh to ensure consistency
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          _refreshData();
+        }
+      });
+    }
+  }
+
   void _onSearchChanged() {
     if (_searchTimer?.isActive ?? false) _searchTimer!.cancel();
 
@@ -220,7 +235,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           body: Column(
             children: [
               // File selection bar (appears when files are selected)
-              const FileSelectionBar(),
+              FileSelectionBar(onExitSelection: _onExitSelectionMode),
               // Main dashboard content
               Expanded(child: _buildDashboard()),
             ],

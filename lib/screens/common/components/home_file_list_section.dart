@@ -367,6 +367,37 @@ class _HomeFileListSectionState extends State<HomeFileListSection> {
                     ),
                   ),
                 ],
+
+                // Individual file operations menu (only show when NOT in selection mode)
+                if (!isSelectionMode) ...[
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: IconButton(
+                      onPressed: widget.onDocumentMenu != null
+                          ? () => widget.onDocumentMenu!(document)
+                          : null,
+                      icon: const Icon(
+                        Icons.more_vert,
+                        color: AppColors.textSecondary,
+                        size: 18,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: AppColors.textSecondary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -632,6 +663,10 @@ class _HomeFileListSectionState extends State<HomeFileListSection> {
           selectedFiles: selectionProvider.selectedFiles,
           onOperationComplete: () {
             selectionProvider.exitSelectionMode();
+            // Trigger UI refresh after bulk operation completion
+            if (mounted) {
+              setState(() {});
+            }
           },
         );
       }

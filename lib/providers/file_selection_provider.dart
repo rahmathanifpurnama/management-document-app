@@ -16,7 +16,8 @@ class FileSelectionProvider extends ChangeNotifier {
       .toList();
   int get selectedCount => _selectedFileIds.length;
   bool get hasSelection => _selectedFileIds.isNotEmpty;
-  bool get isAllSelected => _availableFiles.isNotEmpty && 
+  bool get isAllSelected =>
+      _availableFiles.isNotEmpty &&
       _selectedFileIds.length == _availableFiles.length;
 
   /// Check if a specific file is selected
@@ -25,7 +26,10 @@ class FileSelectionProvider extends ChangeNotifier {
   }
 
   /// Enter selection mode with an initial file
-  void enterSelectionMode(DocumentModel initialFile, List<DocumentModel> availableFiles) {
+  void enterSelectionMode(
+    DocumentModel initialFile,
+    List<DocumentModel> availableFiles,
+  ) {
     _isSelectionMode = true;
     _availableFiles = availableFiles;
     _selectedFileIds.clear();
@@ -51,12 +55,9 @@ class FileSelectionProvider extends ChangeNotifier {
       _selectedFileIds.add(fileId);
     }
 
-    // Exit selection mode if no files are selected
-    if (_selectedFileIds.isEmpty) {
-      exitSelectionMode();
-    } else {
-      notifyListeners();
-    }
+    // Always notify listeners, don't auto-exit selection mode
+    // Let user explicitly exit via close button or operation completion
+    notifyListeners();
   }
 
   /// Select all available files
@@ -73,21 +74,19 @@ class FileSelectionProvider extends ChangeNotifier {
     if (!_isSelectionMode) return;
 
     _selectedFileIds.clear();
-    exitSelectionMode(); // Exit mode when clearing all
+    // Stay in selection mode, just clear selections
+    notifyListeners();
   }
 
   /// Update available files (useful when files list changes)
   void updateAvailableFiles(List<DocumentModel> files) {
     _availableFiles = files;
-    
+
     // Remove selected files that are no longer available
-    _selectedFileIds.removeWhere((id) => 
-        !files.any((file) => file.id == id));
-    
-    // Exit selection mode if no files are selected
-    if (_selectedFileIds.isEmpty && _isSelectionMode) {
-      exitSelectionMode();
-    } else if (_isSelectionMode) {
+    _selectedFileIds.removeWhere((id) => !files.any((file) => file.id == id));
+
+    // Only notify listeners if in selection mode, don't auto-exit
+    if (_isSelectionMode) {
       notifyListeners();
     }
   }
@@ -97,7 +96,7 @@ class FileSelectionProvider extends ChangeNotifier {
     if (!_isSelectionMode || _selectedFileIds.isEmpty) {
       return '';
     }
-    
+
     final count = _selectedFileIds.length;
     return '$count file${count == 1 ? '' : 's'} selected';
   }
