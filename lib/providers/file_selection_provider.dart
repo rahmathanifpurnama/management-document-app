@@ -41,6 +41,13 @@ class FileSelectionProvider extends ChangeNotifier {
   void exitSelectionMode() {
     _isSelectionMode = false;
     _selectedFileIds.clear();
+    // Don't clear _availableFiles immediately to prevent UI flicker
+    // Files will be cleared when entering new selection mode
+    notifyListeners();
+  }
+
+  /// Safely clear available files (called when needed)
+  void clearAvailableFiles() {
     _availableFiles.clear();
     notifyListeners();
   }

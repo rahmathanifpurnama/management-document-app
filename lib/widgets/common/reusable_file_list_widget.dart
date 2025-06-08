@@ -38,8 +38,35 @@ class ReusableFileListWidget extends StatefulWidget {
   State<ReusableFileListWidget> createState() => _ReusableFileListWidgetState();
 }
 
-class _ReusableFileListWidgetState extends State<ReusableFileListWidget> {
+class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
+    with TickerProviderStateMixin {
   int _currentPage = 0;
+  bool _isTransitioning = false;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Initialize animation controller for smooth transitions
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
+    );
+
+    // Start with animation visible
+    _fadeController.forward();
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +143,31 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget> {
     List<DocumentModel> documents,
     FileSelectionProvider selectionProvider,
   ) {
+    // Show loading state during transitions
+    if (_isTransitioning) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppColors.border.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: const Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+          ),
+        ),
+      );
+    }
+
     if (documents.isEmpty) {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
@@ -150,23 +202,26 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget> {
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.border.withValues(alpha: 0.3),
-          width: 1,
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppColors.border.withValues(alpha: 0.3),
+            width: 1,
+          ),
         ),
-      ),
-      child: Column(
-        children: documents.asMap().entries.map((entry) {
-          final index = entry.key;
-          final document = entry.value;
-          final isLast = index == documents.length - 1;
+        child: Column(
+          children: documents.asMap().entries.map((entry) {
+            final index = entry.key;
+            final document = entry.value;
+            final isLast = index == documents.length - 1;
 
-          return _buildFileListItem(document, isLast, selectionProvider);
-        }).toList(),
+            return _buildFileListItem(document, isLast, selectionProvider);
+          }).toList(),
+        ),
       ),
     );
   }
@@ -423,6 +478,25 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget> {
     });
   }
 
+  /// Handle smooth transition when exiting selection mode
+  Future<void> _handleSmoothTransition() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isTransitioning = true;
+    });
+
+    // Brief fade out and in for smooth transition
+    await _fadeController.reverse();
+
+    if (mounted) {
+      setState(() {
+        _isTransitioning = false;
+      });
+      await _fadeController.forward();
+    }
+  }
+
   /// Get file type color
   Color _getFileTypeColor(String fileType, [String? fileName]) {
     final lowerFileType = fileType.toLowerCase();
@@ -584,8 +658,22 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget> {
         BulkOperationsService.showBulkOperationsMenu(
           context: context,
           selectedFiles: selectionProvider.selectedFiles,
-          onOperationComplete: () {
-            selectionProvider.exitSelectionMode();
+          onOperationComplete: () async {
+            try {
+              // Exit selection mode safely
+              selectionProvider.exitSelectionMode();
+
+              // Use smooth transition for better UX
+              await _handleSmoothTransition();
+            } catch (e) {
+              // Handle any errors gracefully
+              debugPrint('Error during bulk operation completion: $e');
+
+              // Ensure UI is refreshed even if there's an error
+              if (mounted) {
+                setState(() {});
+              }
+            }
           },
         );
       }

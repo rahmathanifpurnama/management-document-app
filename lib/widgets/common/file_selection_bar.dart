@@ -6,10 +6,17 @@ import '../../providers/file_selection_provider.dart';
 import '../../services/bulk_operations_service.dart';
 
 /// Widget that appears at the top when files are selected
-class FileSelectionBar extends StatelessWidget {
+class FileSelectionBar extends StatefulWidget {
   final VoidCallback? onExitSelection;
 
   const FileSelectionBar({super.key, this.onExitSelection});
+
+  @override
+  State<FileSelectionBar> createState() => _FileSelectionBarState();
+}
+
+class _FileSelectionBarState extends State<FileSelectionBar> {
+  bool _isExiting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -34,31 +41,59 @@ class FileSelectionBar extends StatelessWidget {
             children: [
               // Close selection mode button
               IconButton(
-                onPressed: () {
-                  try {
-                    // Exit selection mode safely
-                    selectionProvider.exitSelectionMode();
+                onPressed: _isExiting
+                    ? null
+                    : () async {
+                        try {
+                          setState(() {
+                            _isExiting = true;
+                          });
 
-                    // Call the exit callback if provided
-                    onExitSelection?.call();
-                  } catch (e) {
-                    // Handle any errors gracefully
-                    debugPrint('Error during selection mode exit: $e');
+                          // Exit selection mode safely
+                          selectionProvider.exitSelectionMode();
 
-                    // Ensure selection mode is exited even if there's an error
-                    try {
-                      selectionProvider.exitSelectionMode();
-                    } catch (retryError) {
-                      debugPrint(
-                        'Retry exit selection mode failed: $retryError',
-                      );
-                    }
+                          // Brief delay for smooth transition
+                          await Future.delayed(
+                            const Duration(milliseconds: 150),
+                          );
 
-                    // Still call the callback to ensure UI consistency
-                    onExitSelection?.call();
-                  }
-                },
-                icon: const Icon(Icons.close),
+                          // Call the exit callback if provided
+                          widget.onExitSelection?.call();
+                        } catch (e) {
+                          // Handle any errors gracefully
+                          debugPrint('Error during selection mode exit: $e');
+
+                          // Ensure selection mode is exited even if there's an error
+                          try {
+                            selectionProvider.exitSelectionMode();
+                          } catch (retryError) {
+                            debugPrint(
+                              'Retry exit selection mode failed: $retryError',
+                            );
+                          }
+
+                          // Still call the callback to ensure UI consistency
+                          widget.onExitSelection?.call();
+                        } finally {
+                          if (mounted) {
+                            setState(() {
+                              _isExiting = false;
+                            });
+                          }
+                        }
+                      },
+                icon: _isExiting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.primary,
+                          ),
+                        ),
+                      )
+                    : const Icon(Icons.close),
                 color: AppColors.primary,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -129,7 +164,7 @@ class FileSelectionBar extends StatelessWidget {
           selectionProvider.exitSelectionMode();
 
           // Call the exit callback if provided
-          onExitSelection?.call();
+          widget.onExitSelection?.call();
         } catch (e) {
           // Handle any errors gracefully
           debugPrint('Error during bulk operation completion: $e');
@@ -142,7 +177,7 @@ class FileSelectionBar extends StatelessWidget {
           }
 
           // Still call the callback to ensure UI consistency
-          onExitSelection?.call();
+          widget.onExitSelection?.call();
         }
       },
     );

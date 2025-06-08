@@ -116,6 +116,32 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
     );
   }
 
+  /// Handle exit from selection mode - refresh UI without re-fetching data
+  void _onExitSelectionMode() {
+    try {
+      // Only trigger UI refresh using existing cached data
+      // No need to re-fetch from server as data hasn't changed
+      if (mounted) {
+        // Use a brief delay to ensure smooth transition
+        Future.microtask(() {
+          if (mounted) {
+            setState(() {
+              // This will rebuild the UI with current cached data
+              // The DocumentProvider already has the files in memory
+            });
+          }
+        });
+      }
+    } catch (e) {
+      // Handle any potential errors gracefully
+      debugPrint('Error during selection mode exit: $e');
+      // Even if there's an error, ensure UI is refreshed
+      if (mounted) {
+        setState(() {});
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -148,7 +174,7 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
       body: Column(
         children: [
           // File selection bar (appears when files are selected)
-          const FileSelectionBar(),
+          FileSelectionBar(onExitSelection: _onExitSelectionMode),
           // Main content
           Expanded(
             child: Consumer<DocumentProvider>(
