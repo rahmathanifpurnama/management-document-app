@@ -1,0 +1,266 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'core/services/firebase_service.dart';
+import 'core/constants/app_colors.dart';
+import 'core/constants/app_strings.dart';
+import 'core/constants/app_routes.dart';
+import 'core/utils/anr_detector.dart';
+import 'core/utils/anr_prevention.dart';
+import 'core/utils/anr_recovery.dart';
+import 'providers/auth_provider.dart';
+import 'providers/user_provider.dart';
+import 'providers/document_provider.dart';
+import 'providers/category_provider.dart';
+import 'providers/consolidated_upload_provider.dart';
+import 'providers/file_selection_provider.dart';
+import 'screens/auth/splash_screen.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/common/home_screen.dart';
+import 'screens/admin/user_management_screen.dart';
+import 'screens/admin/create_user_screen.dart';
+import 'screens/admin/edit_user_screen.dart';
+import 'screens/admin/user_details_screen.dart';
+import 'screens/category/category_screen.dart';
+import 'screens/category/manage_category_screen.dart';
+import 'screens/category/category_files_screen.dart';
+import 'screens/category/add_files_to_category_screen.dart';
+import 'screens/profile/profile_screen.dart';
+import 'screens/profile/personal_info_screen.dart';
+import 'screens/profile/edit_profile_screen.dart';
+import 'screens/profile/settings_screen.dart';
+import 'screens/admin/sync_management_screen.dart';
+import 'screens/admin/cloud_functions_settings_screen.dart';
+import 'screens/admin/file_status_management_screen.dart';
+import 'screens/upload/upload_document_screen.dart';
+import 'models/category_model.dart';
+import 'models/user_model.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize ANR recovery system
+  await ANRRecovery.initialize();
+
+  // Initialize Firebase with timeout and error handling
+  try {
+    await ANRPrevention.executeWithTimeout(
+      FirebaseService.initialize(),
+      timeout: const Duration(seconds: 10),
+      operationName: 'Firebase Initialization',
+    );
+  } catch (e) {
+    // Firebase initialization failed, continue with app launch
+    // Continue app launch even if Firebase fails
+  }
+
+  // Start ANR monitoring
+  ANRDetector.instance.startMonitoring();
+
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ANRMonitorWidget(
+      autoStart: true,
+      child: MultiProvider(
+        providers: [
+          ChangeNotifierProvider(
+            create: (_) => AuthProvider(),
+            lazy: false, // Initialize immediately for authentication
+          ),
+          ChangeNotifierProvider(
+            create: (_) => UserProvider(),
+            lazy: true, // Initialize when needed to prevent startup delay
+          ),
+          ChangeNotifierProvider(
+            create: (_) => DocumentProvider(),
+            lazy: true, // Initialize when needed to prevent startup delay
+          ),
+          ChangeNotifierProvider(
+            create: (_) => CategoryProvider(),
+            lazy: true, // Initialize when needed to prevent startup delay
+          ),
+          ChangeNotifierProvider(
+            create: (_) => ConsolidatedUploadProvider(),
+            lazy: true, // Initialize when needed to prevent startup delay
+          ),
+          ChangeNotifierProvider(
+            create: (_) => FileSelectionProvider(),
+            lazy: true, // Initialize when needed to prevent startup delay
+          ),
+        ],
+        child: MaterialApp(
+          title: AppStrings.appName,
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            primarySwatch: Colors.blue,
+            primaryColor: AppColors.primary,
+            scaffoldBackgroundColor: AppColors.background,
+            textTheme: GoogleFonts.poppinsTextTheme(),
+            appBarTheme: AppBarTheme(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.textWhite,
+              elevation: 0,
+              titleTextStyle: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textWhite,
+              ),
+            ),
+            elevatedButtonTheme: ElevatedButtonThemeData(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.textWhite,
+                textStyle: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            inputDecorationTheme: InputDecorationTheme(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppColors.primary),
+              ),
+              filled: true,
+              fillColor: AppColors.surface,
+              hintStyle: GoogleFonts.poppins(color: AppColors.textSecondary),
+            ),
+            cardTheme: CardThemeData(
+              color: AppColors.cardBackground,
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            bottomNavigationBarTheme: BottomNavigationBarThemeData(
+              selectedLabelStyle: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+              unselectedLabelStyle: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ),
+          initialRoute: AppRoutes.splash,
+          onGenerateRoute: (settings) {
+            switch (settings.name) {
+              case AppRoutes.splash:
+                return MaterialPageRoute(
+                  builder: (context) => const SplashScreen(),
+                );
+              case AppRoutes.login:
+                return MaterialPageRoute(
+                  builder: (context) => const LoginScreen(),
+                );
+              case AppRoutes.home:
+                return MaterialPageRoute(
+                  builder: (context) => const HomeScreen(),
+                );
+              case AppRoutes.userManagement:
+                return MaterialPageRoute(
+                  builder: (context) => const UserManagementScreen(),
+                );
+              case AppRoutes.categories:
+                return MaterialPageRoute(
+                  builder: (context) => const CategoryScreen(),
+                );
+              case AppRoutes.manageCategories:
+                return MaterialPageRoute(
+                  builder: (context) => const ManageCategoryScreen(),
+                );
+              case AppRoutes.categoryFiles:
+                final category = settings.arguments as CategoryModel;
+                return MaterialPageRoute(
+                  builder: (context) => CategoryFilesScreen(category: category),
+                );
+              case AppRoutes.addFilesToCategory:
+                final category = settings.arguments as CategoryModel;
+                return MaterialPageRoute(
+                  builder: (context) =>
+                      AddFilesToCategoryScreen(category: category),
+                );
+              case AppRoutes.createUser:
+                return MaterialPageRoute(
+                  builder: (context) => const CreateUserScreen(),
+                );
+              case AppRoutes.editUser:
+                final user = settings.arguments as UserModel;
+                return MaterialPageRoute(
+                  builder: (context) => EditUserScreen(user: user),
+                );
+              case AppRoutes.userDetails:
+                final user = settings.arguments as UserModel;
+                return MaterialPageRoute(
+                  builder: (context) => UserDetailsScreen(user: user),
+                );
+              case AppRoutes.account:
+                return MaterialPageRoute(
+                  builder: (context) => const ProfileScreen(),
+                );
+              case AppRoutes.profile:
+                return MaterialPageRoute(
+                  builder: (context) => const ProfileScreen(),
+                );
+              case AppRoutes.personalInfo:
+                return MaterialPageRoute(
+                  builder: (context) => const PersonalInfoScreen(),
+                );
+              case AppRoutes.editProfile:
+                return MaterialPageRoute(
+                  builder: (context) => const EditProfileScreen(),
+                );
+              case AppRoutes.settings:
+                return MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                );
+              case AppRoutes.uploadDocument:
+                final categoryId = settings.arguments as String?;
+                return MaterialPageRoute(
+                  builder: (context) =>
+                      UploadDocumentScreen(categoryId: categoryId),
+                );
+              case AppRoutes.syncManagement:
+                return MaterialPageRoute(
+                  builder: (context) => const SyncManagementScreen(),
+                );
+              case AppRoutes.cloudFunctionsSettings:
+                return MaterialPageRoute(
+                  builder: (context) => const CloudFunctionsSettingsScreen(),
+                );
+              case AppRoutes.fileStatusManagement:
+                return MaterialPageRoute(
+                  builder: (context) => const FileStatusManagementScreen(),
+                );
+              default:
+                return MaterialPageRoute(
+                  builder: (context) => Scaffold(
+                    appBar: AppBar(title: const Text('Page Not Found')),
+                    body: const Center(child: Text('404 - Page Not Found')),
+                  ),
+                );
+            }
+          },
+        ),
+      ),
+    );
+  }
+}

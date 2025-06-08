@@ -1,0 +1,403 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models/document_model.dart';
+import '../providers/document_provider.dart';
+import '../providers/auth_provider.dart';
+import '../services/file_download_service.dart';
+import '../services/share_service.dart';
+import '../core/constants/app_colors.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+/// Service for handling bulk operations on selected files
+class BulkOperationsService {
+  static final BulkOperationsService _instance =
+      BulkOperationsService._internal();
+  factory BulkOperationsService() => _instance;
+  BulkOperationsService._internal();
+
+  /// Show bulk operations menu
+  static void showBulkOperationsMenu({
+    required BuildContext context,
+    required List<DocumentModel> selectedFiles,
+    required VoidCallback onOperationComplete,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => _BulkOperationsMenu(
+        selectedFiles: selectedFiles,
+        onOperationComplete: onOperationComplete,
+      ),
+    );
+  }
+
+  /// Download multiple files
+  static Future<void> downloadSelectedFiles({
+    required BuildContext context,
+    required List<DocumentModel> files,
+  }) async {
+    final downloadService = FileDownloadService();
+
+    try {
+      // Show progress indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: Text('Downloading ${files.length} files...')),
+            ],
+          ),
+          duration: Duration(seconds: files.length * 10), // Estimate time
+          backgroundColor: AppColors.primary,
+        ),
+      );
+
+      // Download each file
+      for (int i = 0; i < files.length; i++) {
+        final file = files[i];
+        await downloadService.downloadFile(file);
+
+        // Update progress if needed
+        debugPrint('Downloaded ${i + 1}/${files.length}: ${file.fileName}');
+      }
+
+      // Show success message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Successfully downloaded ${files.length} files'),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to download files: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Delete multiple files
+  static Future<void> deleteSelectedFiles({
+    required BuildContext context,
+    required List<DocumentModel> files,
+  }) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Delete Files',
+          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+        ),
+        content: Text(
+          'Are you sure you want to delete ${files.length} files? This action cannot be undone.',
+          style: GoogleFonts.poppins(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancel', style: GoogleFonts.poppins()),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.poppins(
+                color: Colors.red,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final documentProvider = Provider.of<DocumentProvider>(
+        context,
+        listen: false,
+      );
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final currentUserId = authProvider.currentUser?.id ?? 'unknown';
+
+      // Show progress
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Text('Deleting ${files.length} files...')),
+              ],
+            ),
+            duration: Duration(seconds: files.length * 5),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+      }
+
+      // Delete each file
+      for (final file in files) {
+        await documentProvider.removeDocument(file.id, currentUserId);
+      }
+
+      // Show success message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully deleted ${files.length} files'),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete files: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Share multiple files
+  static Future<void> shareSelectedFiles({
+    required BuildContext context,
+    required List<DocumentModel> files,
+  }) async {
+    final shareService = ShareService();
+
+    try {
+      // Show progress
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Preparing to share ${files.length} files...'),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 10),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      }
+
+      // Share files (implementation depends on ShareService capabilities)
+      for (final file in files) {
+        await shareService.shareFileWithLink(
+          document: file,
+          linkExpiration: const Duration(hours: 24),
+          customMessage: 'Sharing ${files.length} files from Management Doc:',
+        );
+      }
+
+      // Show success message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Successfully shared ${files.length} files'),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to share files: ${e.toString()}'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+}
+
+/// Widget for displaying bulk operations menu
+class _BulkOperationsMenu extends StatelessWidget {
+  final List<DocumentModel> selectedFiles;
+  final VoidCallback onOperationComplete;
+
+  const _BulkOperationsMenu({
+    required this.selectedFiles,
+    required this.onOperationComplete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                Icon(Icons.checklist, color: AppColors.primary, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Bulk Operations',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${selectedFiles.length} files',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(),
+
+          // Operations
+          ListTile(
+            leading: const Icon(Icons.download, color: AppColors.primary),
+            title: Text('Download All', style: GoogleFonts.poppins()),
+            subtitle: Text(
+              'Download ${selectedFiles.length} files to device',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              BulkOperationsService.downloadSelectedFiles(
+                context: context,
+                files: selectedFiles,
+              );
+              onOperationComplete();
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.share, color: AppColors.primary),
+            title: Text('Share All', style: GoogleFonts.poppins()),
+            subtitle: Text(
+              'Share ${selectedFiles.length} files with others',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              BulkOperationsService.shareSelectedFiles(
+                context: context,
+                files: selectedFiles,
+              );
+              onOperationComplete();
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.delete, color: Colors.red),
+            title: Text(
+              'Delete All',
+              style: GoogleFonts.poppins(color: Colors.red),
+            ),
+            subtitle: Text(
+              'Permanently delete ${selectedFiles.length} files',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: Colors.red.withValues(alpha: 0.7),
+              ),
+            ),
+            onTap: () {
+              Navigator.pop(context);
+              BulkOperationsService.deleteSelectedFiles(
+                context: context,
+                files: selectedFiles,
+              );
+              onOperationComplete();
+            },
+          ),
+
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}

@@ -1,0 +1,333 @@
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../core/constants/app_colors.dart';
+import '../../models/document_model.dart';
+import '../../services/share_service.dart';
+
+enum ShareButtonStyle {
+  icon,
+  iconWithText,
+  text,
+  menu,
+}
+
+class ShareButtonWidget extends StatefulWidget {
+  final DocumentModel document;
+  final ShareButtonStyle style;
+  final ShareType defaultShareType;
+  final String? ownerName;
+  final VoidCallback? onShareStart;
+  final VoidCallback? onShareComplete;
+  final Function(String)? onShareError;
+  final bool showMultipleOptions;
+  final Color? iconColor;
+  final Color? backgroundColor;
+  final double? iconSize;
+  final EdgeInsets? padding;
+  final String? customTooltip;
+
+  const ShareButtonWidget({
+    super.key,
+    required this.document,
+    this.style = ShareButtonStyle.icon,
+    this.defaultShareType = ShareType.shareableLink,
+    this.ownerName,
+    this.onShareStart,
+    this.onShareComplete,
+    this.onShareError,
+    this.showMultipleOptions = false,
+    this.iconColor,
+    this.backgroundColor,
+    this.iconSize,
+    this.padding,
+    this.customTooltip,
+  });
+
+  @override
+  State<ShareButtonWidget> createState() => _ShareButtonWidgetState();
+}
+
+class _ShareButtonWidgetState extends State<ShareButtonWidget> {
+  final ShareService _shareService = ShareService();
+  bool _isSharing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    switch (widget.style) {
+      case ShareButtonStyle.icon:
+        return _buildIconButton();
+      case ShareButtonStyle.iconWithText:
+        return _buildIconWithTextButton();
+      case ShareButtonStyle.text:
+        return _buildTextButton();
+      case ShareButtonStyle.menu:
+        return _buildMenuButton();
+    }
+  }
+
+  Widget _buildIconButton() {
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: widget.backgroundColor ?? AppColors.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.5),
+          width: 1,
+        ),
+      ),
+      child: IconButton(
+        onPressed: _isSharing ? null : _handleShare,
+        icon: _isSharing
+            ? SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    widget.iconColor ?? AppColors.textSecondary,
+                  ),
+                ),
+              )
+            : Icon(
+                Icons.share,
+                color: widget.iconColor ?? AppColors.textSecondary,
+                size: widget.iconSize ?? 18,
+              ),
+        padding: widget.padding ?? EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+        tooltip: widget.customTooltip ?? 'Share Document',
+      ),
+    );
+  }
+
+  Widget _buildIconWithTextButton() {
+    return Container(
+      decoration: BoxDecoration(
+        color: widget.backgroundColor ?? AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.5),
+          width: 1,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: _isSharing ? null : _handleShare,
+          child: Padding(
+            padding: widget.padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _isSharing
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            widget.iconColor ?? AppColors.primary,
+                          ),
+                        ),
+                      )
+                    : Icon(
+                        Icons.share,
+                        color: widget.iconColor ?? AppColors.primary,
+                        size: widget.iconSize ?? 18,
+                      ),
+                const SizedBox(width: 8),
+                Text(
+                  _isSharing ? 'Sharing...' : 'Share',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: widget.iconColor ?? AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextButton() {
+    return TextButton(
+      onPressed: _isSharing ? null : _handleShare,
+      child: Text(
+        _isSharing ? 'Sharing...' : 'Share',
+        style: GoogleFonts.poppins(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: widget.iconColor ?? AppColors.primary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMenuButton() {
+    return PopupMenuButton<ShareType>(
+      enabled: !_isSharing,
+      icon: _isSharing
+          ? SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  widget.iconColor ?? AppColors.textSecondary,
+                ),
+              ),
+            )
+          : Icon(
+              Icons.share,
+              color: widget.iconColor ?? AppColors.textSecondary,
+              size: widget.iconSize ?? 18,
+            ),
+      tooltip: widget.customTooltip ?? 'Share Options',
+      onSelected: (ShareType shareType) => _handleShare(shareType: shareType),
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: ShareType.shareableLink,
+          child: Row(
+            children: [
+              Icon(ShareService.getShareIcon(ShareType.shareableLink), size: 18),
+              const SizedBox(width: 12),
+              Text(
+                ShareService.getShareTypeName(ShareType.shareableLink),
+                style: GoogleFonts.poppins(fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: ShareType.fileInfo,
+          child: Row(
+            children: [
+              Icon(ShareService.getShareIcon(ShareType.fileInfo), size: 18),
+              const SizedBox(width: 12),
+              Text(
+                ShareService.getShareTypeName(ShareType.fileInfo),
+                style: GoogleFonts.poppins(fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: ShareType.fileDetails,
+          child: Row(
+            children: [
+              Icon(ShareService.getShareIcon(ShareType.fileDetails), size: 18),
+              const SizedBox(width: 12),
+              Text(
+                ShareService.getShareTypeName(ShareType.fileDetails),
+                style: GoogleFonts.poppins(fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _handleShare({ShareType? shareType}) async {
+    if (_isSharing) return;
+
+    setState(() {
+      _isSharing = true;
+    });
+
+    widget.onShareStart?.call();
+
+    try {
+      final type = shareType ?? widget.defaultShareType;
+
+      switch (type) {
+        case ShareType.fileInfo:
+          await _shareService.shareFileInfo(widget.document);
+          break;
+        case ShareType.shareableLink:
+          await _shareService.shareFileWithLink(document: widget.document);
+          break;
+        case ShareType.fileDetails:
+          await _shareService.shareFileDetails(
+            document: widget.document,
+            ownerName: widget.ownerName,
+          );
+          break;
+      }
+
+      widget.onShareComplete?.call();
+    } catch (e) {
+      final errorMessage = 'Failed to share document: ${e.toString()}';
+      widget.onShareError?.call(errorMessage);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSharing = false;
+        });
+      }
+    }
+  }
+}
+
+/// Helper widget for creating share buttons in different contexts
+class ShareButtonHelper {
+  /// Create a share button for file table actions
+  static Widget forFileTable({
+    required DocumentModel document,
+    String? ownerName,
+    VoidCallback? onShareComplete,
+  }) {
+    return ShareButtonWidget(
+      document: document,
+      style: ShareButtonStyle.icon,
+      defaultShareType: ShareType.shareableLink,
+      ownerName: ownerName,
+      onShareComplete: onShareComplete,
+    );
+  }
+
+  /// Create a share button for document menus
+  static Widget forDocumentMenu({
+    required DocumentModel document,
+    String? ownerName,
+    VoidCallback? onShareComplete,
+  }) {
+    return ShareButtonWidget(
+      document: document,
+      style: ShareButtonStyle.menu,
+      showMultipleOptions: true,
+      ownerName: ownerName,
+      onShareComplete: onShareComplete,
+    );
+  }
+
+  /// Create a share button for action bars
+  static Widget forActionBar({
+    required DocumentModel document,
+    String? ownerName,
+    VoidCallback? onShareComplete,
+  }) {
+    return ShareButtonWidget(
+      document: document,
+      style: ShareButtonStyle.iconWithText,
+      defaultShareType: ShareType.shareableLink,
+      ownerName: ownerName,
+      onShareComplete: onShareComplete,
+    );
+  }
+}

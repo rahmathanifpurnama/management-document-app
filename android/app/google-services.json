@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "865405248457",
+    "project_id": "document-management-c5a96",
+    "storage_bucket": "document-management-c5a96.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:865405248457:android:db8282e82e410616df3e18",
+        "android_client_info": {
+          "package_name": "io.document.managementdoc"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBG2iqqTF4kHT0OGBTAZVbxTAGhTkz9hkU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

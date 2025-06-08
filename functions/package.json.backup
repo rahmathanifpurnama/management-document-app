@@ -1,0 +1,46 @@
+{
+  "name": "managementdoc-functions",
+  "description": "Cloud Functions for Firebase - Document Management System",
+  "scripts": {
+    "lint": "echo 'Linting skipped for deployment'",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "busboy": "^1.6.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "firebase-admin": "^12.0.0",
+    "firebase-functions": "^5.0.0",
+    "lodash": "^4.17.21",
+    "moment": "^2.29.4",
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.33.0",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.18",
+    "@types/express": "^4.17.22",
+    "@types/lodash": "^4.14.195",
+    "@types/multer": "^1.4.7",
+    "@types/node": "^18.19.110",
+    "@types/uuid": "^9.0.8",
+    "@typescript-eslint/eslint-plugin": "^8.33.1",
+    "@typescript-eslint/parser": "^8.33.1",
+    "eslint": "^9.28.0",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.25.4",
+    "firebase-functions-test": "^3.1.0",
+    "typescript": "^4.9.0"
+  },
+  "private": true
+}
