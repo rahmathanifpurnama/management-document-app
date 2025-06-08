@@ -94,24 +94,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  # Testing dependencies
-  mockito: ^5.4.4
-  build_runner: ^2.4.7
 
-  # Integration testing
-  integration_test:
-    sdk: flutter
-  flutter_driver:
-    sdk: flutter
-
-  # Firebase Test Lab dependencies
-  test: ^1.24.0
-  patrol: ^3.12.0
-
-  # Additional testing utilities
-  fake_cloud_firestore: ^3.0.3
-  firebase_auth_mocks: ^0.14.1
-  firebase_storage_mocks: ^0.7.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

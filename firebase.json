@@ -22,42 +22,6 @@
   "storage": {
     "rules": "storage.rules"
   },
-  "testlab": {
-    "matrices": {
-      "android": {
-        "device": [
-          {
-            "model": "Pixel2",
-            "version": "28"
-          },
-          {
-            "model": "Pixel3",
-            "version": "30"
-          },
-          {
-            "model": "Pixel4",
-            "version": "31"
-          }
-        ],
-        "locale": ["en"],
-        "orientation": ["portrait", "landscape"]
-      },
-      "ios": {
-        "device": [
-          {
-            "model": "iphone13pro",
-            "version": "15.7"
-          },
-          {
-            "model": "iphone14",
-            "version": "16.6"
-          }
-        ],
-        "locale": ["en"],
-        "orientation": ["portrait"]
-      }
-    }
-  },
   "emulators": {
     "auth": {
       "port": 9099
