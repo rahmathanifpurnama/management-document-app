@@ -1,0 +1,290 @@
+name: Firebase Test Lab CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  FLUTTER_VERSION: '3.24.0'
+  JAVA_VERSION: '17'
+
+jobs:
+  # Quick smoke tests for PRs
+  smoke-tests:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: ${{ env.JAVA_VERSION }}
+        
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        
+    - name: Get dependencies
+      run: flutter pub get
+      
+    - name: Run unit tests
+      run: flutter test
+      
+    - name: Build APK for testing
+      run: |
+        flutter build apk --debug
+        flutter build apk --debug integration_test/test_flows/auth_flow_test.dart
+        
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      
+    - name: Run smoke tests on Firebase Test Lab
+      run: |
+        gcloud firebase test android run \
+          --type instrumentation \
+          --app build/app/outputs/flutter-apk/app-debug.apk \
+          --test build/app/outputs/flutter-apk/app-debug-androidTest.apk \
+          --device model=Pixel4,version=31,locale=en,orientation=portrait \
+          --timeout 15m \
+          --results-bucket gs://${{ secrets.FIREBASE_TEST_RESULTS_BUCKET }} \
+          --results-dir smoke-tests-${{ github.run_id }} \
+          --project ${{ secrets.FIREBASE_PROJECT_ID }}
+
+  # Full test suite for main branch and scheduled runs
+  full-test-suite:
+    if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    
+    strategy:
+      matrix:
+        test-suite:
+          - name: "auth-flow"
+            file: "integration_test/test_flows/auth_flow_test.dart"
+            devices: "model=Pixel2,version=28,locale=en,orientation=portrait"
+          - name: "document-flow"
+            file: "integration_test/test_flows/document_flow_test.dart"
+            devices: "model=Pixel3,version=30,locale=en,orientation=portrait"
+          - name: "navigation-flow"
+            file: "integration_test/test_flows/navigation_flow_test.dart"
+            devices: "model=Pixel4,version=31,locale=en,orientation=portrait"
+          - name: "user-management"
+            file: "integration_test/test_flows/user_management_flow_test.dart"
+            devices: "model=Pixel5,version=32,locale=en,orientation=portrait"
+          - name: "category-flow"
+            file: "integration_test/test_flows/category_flow_test.dart"
+            devices: "model=Pixel6,version=33,locale=en,orientation=portrait"
+          - name: "performance"
+            file: "integration_test/test_flows/performance_test.dart"
+            devices: "model=Pixel6,version=33,locale=en,orientation=portrait"
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: ${{ env.JAVA_VERSION }}
+        
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        
+    - name: Get dependencies
+      run: flutter pub get
+      
+    - name: Run unit tests
+      run: flutter test
+      
+    - name: Build APK for testing
+      run: |
+        flutter build apk --debug
+        flutter build apk --debug ${{ matrix.test-suite.file }}
+        
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      
+    - name: Run ${{ matrix.test-suite.name }} tests
+      run: |
+        gcloud firebase test android run \
+          --type instrumentation \
+          --app build/app/outputs/flutter-apk/app-debug.apk \
+          --test build/app/outputs/flutter-apk/app-debug-androidTest.apk \
+          --device ${{ matrix.test-suite.devices }} \
+          --timeout 30m \
+          --results-bucket gs://${{ secrets.FIREBASE_TEST_RESULTS_BUCKET }} \
+          --results-dir ${{ matrix.test-suite.name }}-${{ github.run_id }} \
+          --project ${{ secrets.FIREBASE_PROJECT_ID }} \
+          --environment-variables coverage=true,coverageFile=/sdcard/coverage.lcov
+          
+    - name: Download test results
+      if: always()
+      run: |
+        mkdir -p test-results
+        gsutil -m cp -r gs://${{ secrets.FIREBASE_TEST_RESULTS_BUCKET }}/${{ matrix.test-suite.name }}-${{ github.run_id }} test-results/
+        
+    - name: Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.test-suite.name }}
+        path: test-results/
+        retention-days: 30
+
+  # iOS tests (runs on macOS)
+  ios-tests:
+    if: github.ref == 'refs/heads/main' || github.event_name == 'schedule'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        
+    - name: Get dependencies
+      run: flutter pub get
+      
+    - name: Build iOS app
+      run: |
+        flutter build ios --debug --no-codesign
+        
+    - name: Create iOS test archive
+      run: |
+        cd ios
+        xcodebuild -workspace Runner.xcworkspace \
+          -scheme Runner \
+          -configuration Debug \
+          -destination generic/platform=iOS \
+          -archivePath build/Runner.xcarchive \
+          archive
+          
+    - name: Export IPA for testing
+      run: |
+        cd ios
+        xcodebuild -exportArchive \
+          -archivePath build/Runner.xcarchive \
+          -exportPath build \
+          -exportOptionsPlist exportOptions.plist
+          
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      
+    - name: Run iOS tests on Firebase Test Lab
+      run: |
+        gcloud firebase test ios run \
+          --test ios/build/Runner.ipa \
+          --device model=iphone14,version=16.6,locale=en,orientation=portrait \
+          --device model=iphone13pro,version=15.7,locale=en,orientation=portrait \
+          --timeout 30m \
+          --results-bucket gs://${{ secrets.FIREBASE_TEST_RESULTS_BUCKET }} \
+          --results-dir ios-tests-${{ github.run_id }} \
+          --project ${{ secrets.FIREBASE_PROJECT_ID }}
+
+  # Test result analysis and reporting
+  analyze-results:
+    needs: [full-test-suite]
+    if: always() && (github.ref == 'refs/heads/main' || github.event_name == 'schedule')
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download all test artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: all-test-results/
+        
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      
+    - name: Generate test report
+      run: |
+        python3 scripts/generate_test_report.py \
+          --results-dir all-test-results/ \
+          --output-file test-report.html \
+          --project-id ${{ secrets.FIREBASE_PROJECT_ID }}
+          
+    - name: Upload test report
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-report
+        path: test-report.html
+        
+    - name: Comment PR with test results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const reportPath = 'test-report.html';
+          if (fs.existsSync(reportPath)) {
+            const report = fs.readFileSync(reportPath, 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Firebase Test Lab Results\n\nTest execution completed. View detailed results in the artifacts.`
+            });
+          }
+
+  # Notification job
+  notify:
+    needs: [full-test-suite, ios-tests]
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Notify on success
+      if: needs.full-test-suite.result == 'success' && needs.ios-tests.result == 'success'
+      run: |
+        echo "All tests passed successfully!"
+        # Add Slack/email notification here
+        
+    - name: Notify on failure
+      if: needs.full-test-suite.result == 'failure' || needs.ios-tests.result == 'failure'
+      run: |
+        echo "Some tests failed. Check the results."
+        # Add Slack/email notification here

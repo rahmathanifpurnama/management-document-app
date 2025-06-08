@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:managementdoc/core/config/cloud_functions_config.dart';
 import 'package:managementdoc/services/cloud_functions_service.dart';
@@ -47,7 +48,9 @@ void main() {
           expect(cloudFunctionsService, isNotNull);
         } else {
           // Expected in test environment without Firebase setup
-          print('Cloud Functions service not available in test environment');
+          debugPrint(
+            'Cloud Functions service not available in test environment',
+          );
           expect(cloudFunctionsService, isNull);
         }
       });
@@ -89,7 +92,7 @@ void main() {
           }
         } catch (e) {
           // Expected in test environment without proper Firebase setup
-          print('Cloud Functions test skipped due to: $e');
+          debugPrint('Cloud Functions test skipped due to: $e');
           expect(e, isA<Exception>());
         }
       });

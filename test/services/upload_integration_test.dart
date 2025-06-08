@@ -1,14 +1,12 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:managementdoc/services/consolidated_upload_service.dart';
 import 'package:managementdoc/services/duplicate_detection_service.dart';
 import 'package:managementdoc/services/file_hash_service.dart';
 import 'package:managementdoc/core/config/upload_config.dart';
 
 void main() {
   group('Upload Integration Tests', () {
-    late ConsolidatedUploadService uploadService;
     late DuplicateDetectionService duplicateService;
     late FileHashService hashService;
     late Directory tempDir;
@@ -23,7 +21,8 @@ void main() {
 
       // Try to initialize Firebase-dependent services
       try {
-        uploadService = ConsolidatedUploadService();
+        // ConsolidatedUploadService would be initialized here in real tests
+        // For now, we'll test the components that don't require Firebase
       } catch (e) {
         // Firebase services might not be available in test environment
         // We'll test what we can without actual Firebase connection
