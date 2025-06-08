@@ -9,10 +9,7 @@ import '../../services/bulk_operations_service.dart';
 class FileSelectionBar extends StatelessWidget {
   final VoidCallback? onExitSelection;
 
-  const FileSelectionBar({
-    super.key,
-    this.onExitSelection,
-  });
+  const FileSelectionBar({super.key, this.onExitSelection});
 
   @override
   Widget build(BuildContext context) {
@@ -38,16 +35,33 @@ class FileSelectionBar extends StatelessWidget {
               // Close selection mode button
               IconButton(
                 onPressed: () {
-                  selectionProvider.exitSelectionMode();
-                  onExitSelection?.call();
+                  try {
+                    // Exit selection mode safely
+                    selectionProvider.exitSelectionMode();
+
+                    // Call the exit callback if provided
+                    onExitSelection?.call();
+                  } catch (e) {
+                    // Handle any errors gracefully
+                    debugPrint('Error during selection mode exit: $e');
+
+                    // Ensure selection mode is exited even if there's an error
+                    try {
+                      selectionProvider.exitSelectionMode();
+                    } catch (retryError) {
+                      debugPrint(
+                        'Retry exit selection mode failed: $retryError',
+                      );
+                    }
+
+                    // Still call the callback to ensure UI consistency
+                    onExitSelection?.call();
+                  }
                 },
                 icon: const Icon(Icons.close),
                 color: AppColors.primary,
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 32,
-                  minHeight: 32,
-                ),
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
               ),
 
               const SizedBox(width: 12),
@@ -71,7 +85,9 @@ class FileSelectionBar extends StatelessWidget {
                       ? selectionProvider.clearSelection
                       : selectionProvider.selectAll,
                   child: Text(
-                    selectionProvider.isAllSelected ? 'Clear All' : 'Select All',
+                    selectionProvider.isAllSelected
+                        ? 'Clear All'
+                        : 'Select All',
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -84,7 +100,8 @@ class FileSelectionBar extends StatelessWidget {
 
                 // Bulk operations button
                 IconButton(
-                  onPressed: () => _showBulkOperations(context, selectionProvider),
+                  onPressed: () =>
+                      _showBulkOperations(context, selectionProvider),
                   icon: const Icon(Icons.more_vert),
                   color: AppColors.primary,
                   tooltip: 'Bulk Operations',
@@ -97,15 +114,36 @@ class FileSelectionBar extends StatelessWidget {
     );
   }
 
-  void _showBulkOperations(BuildContext context, FileSelectionProvider selectionProvider) {
+  void _showBulkOperations(
+    BuildContext context,
+    FileSelectionProvider selectionProvider,
+  ) {
     if (selectionProvider.selectedFiles.isEmpty) return;
 
     BulkOperationsService.showBulkOperationsMenu(
       context: context,
       selectedFiles: selectionProvider.selectedFiles,
       onOperationComplete: () {
-        selectionProvider.exitSelectionMode();
-        onExitSelection?.call();
+        try {
+          // Exit selection mode safely
+          selectionProvider.exitSelectionMode();
+
+          // Call the exit callback if provided
+          onExitSelection?.call();
+        } catch (e) {
+          // Handle any errors gracefully
+          debugPrint('Error during bulk operation completion: $e');
+
+          // Ensure selection mode is exited even if there's an error
+          try {
+            selectionProvider.exitSelectionMode();
+          } catch (retryError) {
+            debugPrint('Retry exit selection mode failed: $retryError');
+          }
+
+          // Still call the callback to ensure UI consistency
+          onExitSelection?.call();
+        }
       },
     );
   }

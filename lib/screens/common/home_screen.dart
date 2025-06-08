@@ -143,18 +143,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  /// Handle exit from selection mode - refresh UI to prevent file disappearance
+  /// Handle exit from selection mode - refresh UI without re-fetching data
   void _onExitSelectionMode() {
-    // Trigger immediate UI refresh to prevent files from disappearing
-    if (mounted) {
-      setState(() {});
-
-      // Also trigger a data refresh to ensure consistency
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (mounted) {
-          _refreshData();
-        }
-      });
+    try {
+      // Only trigger UI refresh using existing cached data
+      // No need to re-fetch from server as data hasn't changed
+      if (mounted) {
+        // Use a brief delay to ensure smooth transition
+        Future.microtask(() {
+          if (mounted) {
+            setState(() {
+              // This will rebuild the UI with current cached data
+              // The DocumentProvider already has the files in memory
+            });
+          }
+        });
+      }
+    } catch (e) {
+      // Handle any potential errors gracefully
+      debugPrint('Error during selection mode exit: $e');
+      // Even if there's an error, ensure UI is refreshed
+      if (mounted) {
+        setState(() {});
+      }
     }
   }
 

@@ -35,13 +35,30 @@ class HomeFileListSection extends StatefulWidget {
   State<HomeFileListSection> createState() => _HomeFileListSectionState();
 }
 
-class _HomeFileListSectionState extends State<HomeFileListSection> {
+class _HomeFileListSectionState extends State<HomeFileListSection>
+    with TickerProviderStateMixin {
   int _currentPage = 0;
   static const int _filesPerPage = 10;
+  bool _isTransitioning = false;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
+
+    // Initialize animation controller for smooth transitions
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
+    );
+
+    // Start with full opacity
+    _fadeController.forward();
+
     // Reset page when search query changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -50,6 +67,12 @@ class _HomeFileListSectionState extends State<HomeFileListSection> {
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    super.dispose();
   }
 
   @override
@@ -136,8 +159,11 @@ class _HomeFileListSectionState extends State<HomeFileListSection> {
             ],
           ),
 
-          // Files List
-          _buildFilesList(currentPageDocuments, selectionProvider),
+          // Files List with smooth transition
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: _buildFilesList(currentPageDocuments, selectionProvider),
+          ),
 
           // Pagination Controls
           if (totalPages > 1) ...[_buildPaginationControls(totalPages)],
@@ -151,6 +177,31 @@ class _HomeFileListSectionState extends State<HomeFileListSection> {
     List<DocumentModel> documents,
     FileSelectionProvider selectionProvider,
   ) {
+    // Show loading state during transitions
+    if (_isTransitioning) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppColors.border.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: const Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+          ),
+        ),
+      );
+    }
+
     if (documents.isEmpty) {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
@@ -490,6 +541,25 @@ class _HomeFileListSectionState extends State<HomeFileListSection> {
     });
   }
 
+  /// Handle smooth transition when exiting selection mode
+  Future<void> _handleSmoothTransition() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isTransitioning = true;
+    });
+
+    // Brief fade out and in for smooth transition
+    await _fadeController.reverse();
+
+    if (mounted) {
+      setState(() {
+        _isTransitioning = false;
+      });
+      await _fadeController.forward();
+    }
+  }
+
   /// Get file type color
   Color _getFileTypeColor(String fileType, [String? fileName]) {
     final lowerFileType = fileType.toLowerCase();
@@ -661,11 +731,21 @@ class _HomeFileListSectionState extends State<HomeFileListSection> {
         BulkOperationsService.showBulkOperationsMenu(
           context: context,
           selectedFiles: selectionProvider.selectedFiles,
-          onOperationComplete: () {
-            selectionProvider.exitSelectionMode();
-            // Trigger UI refresh after bulk operation completion
-            if (mounted) {
-              setState(() {});
+          onOperationComplete: () async {
+            try {
+              // Exit selection mode safely
+              selectionProvider.exitSelectionMode();
+
+              // Use smooth transition for better UX
+              await _handleSmoothTransition();
+            } catch (e) {
+              // Handle any errors gracefully
+              debugPrint('Error during bulk operation completion: $e');
+
+              // Ensure UI is refreshed even if there's an error
+              if (mounted) {
+                setState(() {});
+              }
             }
           },
         );
