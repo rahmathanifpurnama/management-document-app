@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../models/document_model.dart';
 import 'google_drive_service.dart';
 
@@ -12,31 +13,35 @@ class ShareService {
 
   final GoogleDriveService _googleDriveService = GoogleDriveService();
 
-  /// Share Google Drive link for document
+  /// Share document link (Firebase Storage or Google Drive)
   Future<void> shareGoogleDriveLink(DocumentModel document) async {
     try {
-      // Check if document has Google Drive file ID
+      // Check if document has file path
       if (document.filePath.isEmpty) {
-        throw Exception('Document does not have a Google Drive file ID');
+        throw Exception('Document does not have a file path');
       }
 
-      // Generate Google Drive shareable link
-      final shareableLink = _googleDriveService.getShareableLink(
-        document.filePath,
-      );
+      String shareableLink;
 
-      final shareText = _generateGoogleDriveShareText(document, shareableLink);
+      // Check if filePath is a Google Drive file ID (short alphanumeric string)
+      if (_isGoogleDriveFileId(document.filePath)) {
+        // Use Google Drive link
+        shareableLink = _googleDriveService.getShareableLink(document.filePath);
+      } else {
+        // Generate Firebase Storage download link
+        shareableLink = await _getFirebaseStorageDownloadUrl(document.filePath);
+      }
+
+      final shareText = _generateShareText(document, shareableLink);
 
       await Share.share(
         shareText,
         subject: 'Shared Document: ${document.fileName}',
       );
 
-      debugPrint(
-        '✅ Google Drive link shared successfully: ${document.fileName}',
-      );
+      debugPrint('✅ Document link shared successfully: ${document.fileName}');
     } catch (e) {
-      debugPrint('❌ Failed to share Google Drive link: $e');
+      debugPrint('❌ Failed to share document link: $e');
       rethrow;
     }
   }
@@ -84,15 +89,19 @@ class ShareService {
 
       for (int i = 0; i < documents.length; i++) {
         final doc = documents[i];
-        final shareableLink = _googleDriveService.getShareableLink(
-          doc.filePath,
-        );
+
+        String shareableLink;
+        if (_isGoogleDriveFileId(doc.filePath)) {
+          shareableLink = _googleDriveService.getShareableLink(doc.filePath);
+        } else {
+          shareableLink = await _getFirebaseStorageDownloadUrl(doc.filePath);
+        }
 
         buffer.writeln('${i + 1}. ${doc.fileName}');
         buffer.writeln(
           '   ${doc.fileType.toUpperCase()} • ${_formatFileSize(doc.fileSize)}',
         );
-        buffer.writeln('   🔗 Google Drive Link: $shareableLink');
+        buffer.writeln('   🔗 Download Link: $shareableLink');
         if (i < documents.length - 1) buffer.writeln();
       }
 
@@ -103,18 +112,37 @@ class ShareService {
         subject: 'Shared Documents (${documents.length} files)',
       );
 
-      debugPrint('✅ Bulk Google Drive share completed successfully');
+      debugPrint('✅ Bulk document share completed successfully');
     } catch (e) {
-      debugPrint('❌ Bulk Google Drive share failed: $e');
+      debugPrint('❌ Bulk document share failed: $e');
       rethrow;
     }
   }
 
-  /// Generate share text for Google Drive link
-  String _generateGoogleDriveShareText(
-    DocumentModel document,
-    String shareableLink,
-  ) {
+  /// Check if filePath is a Google Drive file ID
+  bool _isGoogleDriveFileId(String filePath) {
+    // Google Drive file IDs are typically 25-44 characters long, alphanumeric with some special chars
+    // Firebase Storage paths contain slashes and are longer
+    return !filePath.contains('/') &&
+        filePath.length >= 25 &&
+        filePath.length <= 44 &&
+        RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(filePath);
+  }
+
+  /// Get Firebase Storage download URL
+  Future<String> _getFirebaseStorageDownloadUrl(String filePath) async {
+    try {
+      final ref = FirebaseStorage.instance.ref().child(filePath);
+      return await ref.getDownloadURL();
+    } catch (e) {
+      debugPrint('❌ Failed to get Firebase Storage download URL: $e');
+      // Fallback: return a generic Firebase Storage URL (may not work without proper permissions)
+      return 'https://firebasestorage.googleapis.com/v0/b/document-management-c5a96.firebasestorage.app/o/${Uri.encodeComponent(filePath)}?alt=media';
+    }
+  }
+
+  /// Generate share text for document link
+  String _generateShareText(DocumentModel document, String shareableLink) {
     return '''
 📄 I'm sharing a document with you:
 
@@ -122,7 +150,7 @@ class ShareService {
 📊 ${document.fileType.toUpperCase()} • ${_formatFileSize(document.fileSize)}
 📂 Category: ${document.category}
 
-🔗 Google Drive Link: $shareableLink
+🔗 Download Link: $shareableLink
 
 📱 Shared via Management Doc App
 ''';

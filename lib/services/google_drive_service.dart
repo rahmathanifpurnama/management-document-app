@@ -21,7 +21,11 @@ class GoogleDriveService {
     if (_isInitialized) return;
 
     try {
-      _googleSignIn = GoogleSignIn(scopes: _scopes);
+      _googleSignIn = GoogleSignIn(
+        scopes: _scopes,
+        // Add your OAuth client ID here if needed for web
+        // clientId: 'your-web-client-id.googleusercontent.com',
+      );
       _isInitialized = true;
       debugPrint('✅ Google Drive service initialized');
     } catch (e) {

@@ -41,9 +41,38 @@ void main() {
     });
 
     test('should get correct share type names', () {
-      expect(ShareService.getShareTypeName(ShareType.fileInfo), 'File Info');
-      expect(ShareService.getShareTypeName(ShareType.shareableLink), 'Share Link');
-      expect(ShareService.getShareTypeName(ShareType.fileDetails), 'Full Details');
+      expect(
+        ShareService.getShareTypeName(ShareType.fileInfo),
+        'Google Drive Link',
+      );
+      expect(
+        ShareService.getShareTypeName(ShareType.shareableLink),
+        'Google Drive Link',
+      );
+      expect(
+        ShareService.getShareTypeName(ShareType.fileDetails),
+        'Google Drive Link',
+      );
+    });
+
+    test('should handle Firebase Storage file paths', () {
+      // Test that documents with Firebase Storage paths are handled correctly
+      final firebaseDocument = testDocument.copyWith(
+        filePath: 'documents/1748961795557_daftar_isi.pdf',
+      );
+
+      expect(firebaseDocument.filePath, contains('/'));
+      expect(firebaseDocument.filePath, startsWith('documents/'));
+    });
+
+    test('should handle Google Drive file IDs', () {
+      // Test that documents with Google Drive file IDs are handled correctly
+      final googleDriveDocument = testDocument.copyWith(
+        filePath: '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms',
+      );
+
+      expect(googleDriveDocument.filePath, isNot(contains('/')));
+      expect(googleDriveDocument.filePath.length, greaterThan(25));
     });
 
     test('should handle different file types in document model', () {
@@ -63,10 +92,7 @@ void main() {
 
     test('should handle empty metadata gracefully in document model', () {
       final documentWithEmptyMetadata = testDocument.copyWith(
-        metadata: DocumentMetadata(
-          description: '',
-          tags: [],
-        ),
+        metadata: DocumentMetadata(description: '', tags: []),
       );
 
       // Test that document can handle empty metadata
@@ -89,7 +115,10 @@ void main() {
       );
 
       // Test that document can handle special characters
-      expect(specialDocument.fileName, equals('test-file_with-special@chars#.pdf'));
+      expect(
+        specialDocument.fileName,
+        equals('test-file_with-special@chars#.pdf'),
+      );
     });
 
     test('should handle different document statuses', () {

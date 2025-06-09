@@ -9,6 +9,7 @@ import '../models/upload_file_model.dart';
 import '../core/services/firebase_service.dart';
 import '../services/image_compression_service.dart';
 import '../services/file_hash_service.dart';
+import '../services/google_drive_service.dart';
 
 /// Consolidated Upload Service
 ///
@@ -66,7 +67,7 @@ class ConsolidatedUploadService {
     'text/plain': ['txt'],
   };
 
-  /// Upload file with comprehensive validation and Cloud Functions processing
+  /// Upload file with comprehensive validation and Google Drive integration
   Future<Map<String, dynamic>> uploadFile(
     UploadFileModel file, {
     required Function(double) onProgress,
@@ -90,6 +91,11 @@ class ConsolidatedUploadService {
       debugPrint('🔢 Calculating file hash for duplicate detection...');
       final fileHash = await _hashService.calculateXFileHash(file.file);
       onProgress(15);
+
+      // Step 4: Initialize Google Drive service
+      final googleDriveService = GoogleDriveService();
+      await googleDriveService.initialize();
+      onProgress(20);
 
       // Step 4: Check for duplicates (with fallback)
       debugPrint('🔍 Checking for duplicate files...');

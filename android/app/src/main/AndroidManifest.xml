@@ -9,6 +9,10 @@
 
     <!-- Camera permission for image picker -->
     <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Google Drive permissions -->
+    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
+    <uses-permission android:name="android.permission.USE_CREDENTIALS" />
     <application
         android:label="SIMDOC BAPELTAN"
         android:name="${applicationName}"
