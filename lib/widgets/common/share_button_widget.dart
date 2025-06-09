@@ -4,12 +4,7 @@ import '../../core/constants/app_colors.dart';
 import '../../models/document_model.dart';
 import '../../services/share_service.dart';
 
-enum ShareButtonStyle {
-  icon,
-  iconWithText,
-  text,
-  menu,
-}
+enum ShareButtonStyle { icon, iconWithText, text, menu }
 
 class ShareButtonWidget extends StatefulWidget {
   final DocumentModel document;
@@ -118,7 +113,9 @@ class _ShareButtonWidgetState extends State<ShareButtonWidget> {
           borderRadius: BorderRadius.circular(12),
           onTap: _isSharing ? null : _handleShare,
           child: Padding(
-            padding: widget.padding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding:
+                widget.padding ??
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -195,7 +192,10 @@ class _ShareButtonWidgetState extends State<ShareButtonWidget> {
           value: ShareType.shareableLink,
           child: Row(
             children: [
-              Icon(ShareService.getShareIcon(ShareType.shareableLink), size: 18),
+              Icon(
+                ShareService.getShareIcon(ShareType.shareableLink),
+                size: 18,
+              ),
               const SizedBox(width: 12),
               Text(
                 ShareService.getShareTypeName(ShareType.shareableLink),
@@ -237,6 +237,14 @@ class _ShareButtonWidgetState extends State<ShareButtonWidget> {
   Future<void> _handleShare({ShareType? shareType}) async {
     if (_isSharing) return;
 
+    final type = shareType ?? widget.defaultShareType;
+
+    // Show confirmation dialog for shareable link type
+    if (type == ShareType.shareableLink) {
+      final confirmed = await _showShareConfirmationDialog();
+      if (!confirmed) return;
+    }
+
     setState(() {
       _isSharing = true;
     });
@@ -244,8 +252,6 @@ class _ShareButtonWidgetState extends State<ShareButtonWidget> {
     widget.onShareStart?.call();
 
     try {
-      final type = shareType ?? widget.defaultShareType;
-
       switch (type) {
         case ShareType.fileInfo:
           await _shareService.shareFileInfo(widget.document);
@@ -265,13 +271,10 @@ class _ShareButtonWidgetState extends State<ShareButtonWidget> {
     } catch (e) {
       final errorMessage = 'Failed to share document: ${e.toString()}';
       widget.onShareError?.call(errorMessage);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -281,6 +284,49 @@ class _ShareButtonWidgetState extends State<ShareButtonWidget> {
         });
       }
     }
+  }
+
+  /// Show confirmation dialog before sharing with link
+  Future<bool> _showShareConfirmationDialog() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text(
+                'Confirm Share',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              content: Text(
+                'Are you sure you want to share "${widget.document.fileName}"? This will generate a shareable link for this file.',
+                style: GoogleFonts.poppins(color: AppColors.textSecondary),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.poppins(color: AppColors.textSecondary),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.textWhite,
+                  ),
+                  child: Text(
+                    'Share',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 }
 

@@ -364,11 +364,18 @@ class _BulkOperationsMenu extends StatelessWidget {
             ),
             onTap: () {
               Navigator.pop(context);
-              BulkOperationsService.shareSelectedFiles(
+              // Show confirmation dialog before sharing
+              _showShareConfirmationDialog(
                 context: context,
                 files: selectedFiles,
+                onConfirm: () {
+                  BulkOperationsService.shareSelectedFiles(
+                    context: context,
+                    files: selectedFiles,
+                  );
+                  onOperationComplete();
+                },
               );
-              onOperationComplete();
             },
           ),
 
@@ -398,6 +405,55 @@ class _BulkOperationsMenu extends StatelessWidget {
           const SizedBox(height: 8),
         ],
       ),
+    );
+  }
+
+  /// Show confirmation dialog before sharing files
+  static void _showShareConfirmationDialog({
+    required BuildContext context,
+    required List<DocumentModel> files,
+    required VoidCallback onConfirm,
+  }) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Confirm Share Operation',
+            style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to share ${files.length} file${files.length == 1 ? '' : 's'}? This will generate shareable links for the selected files.',
+            style: GoogleFonts.poppins(color: AppColors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.poppins(color: AppColors.textSecondary),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                onConfirm();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.textWhite,
+              ),
+              child: Text(
+                'Share',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }

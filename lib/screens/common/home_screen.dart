@@ -303,7 +303,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   // File List Section - Using new component
                   HomeFileListSection(
                     searchQuery: _searchController.text,
-                    onDocumentTap: _showDocumentDetails,
+                    onDocumentTap: _navigateToFilePreview,
                     onDocumentMenu: _showDocumentMenu,
                     onFilterTap: _showFilterMenu,
                   ),
@@ -544,6 +544,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
 
             ListTile(
+              leading: const Icon(Icons.visibility),
+              title: Text('Preview', style: GoogleFonts.poppins()),
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToFilePreview(document);
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.info_outline),
               title: Text('Details', style: GoogleFonts.poppins()),
               onTap: () {
@@ -555,6 +563,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
       ),
     );
+  }
+
+  void _navigateToFilePreview(DocumentModel document) {
+    Navigator.of(context).pushNamed(AppRoutes.filePreview, arguments: document);
   }
 
   void _showDocumentDetails(DocumentModel document) {

@@ -33,8 +33,10 @@ import 'screens/admin/sync_management_screen.dart';
 import 'screens/admin/cloud_functions_settings_screen.dart';
 import 'screens/admin/file_status_management_screen.dart';
 import 'screens/upload/upload_document_screen.dart';
+import 'screens/common/file_preview_screen.dart';
 import 'models/category_model.dart';
 import 'models/user_model.dart';
+import 'models/document_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -249,6 +251,11 @@ class MyApp extends StatelessWidget {
               case AppRoutes.fileStatusManagement:
                 return MaterialPageRoute(
                   builder: (context) => const FileStatusManagementScreen(),
+                );
+              case AppRoutes.filePreview:
+                final document = settings.arguments as DocumentModel;
+                return MaterialPageRoute(
+                  builder: (context) => FilePreviewScreen(document: document),
                 );
               default:
                 return MaterialPageRoute(

@@ -13,6 +13,7 @@ class AppRoutes {
   // Document Routes
   static const String documents = '/documents';
   static const String documentDetails = '/document-details';
+  static const String filePreview = '/file-preview';
   static const String uploadDocument = '/upload-document';
   static const String apiUploadDemo = '/api-upload-demo';
   static const String recentFiles = '/recent-files';

@@ -841,6 +841,10 @@ class _FileTableWidgetState extends State<FileTableWidget> {
     try {
       if (!mounted) return;
 
+      // Show confirmation dialog before sharing
+      final confirmed = await _showShareConfirmationDialog(document);
+      if (!confirmed || !mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -1049,6 +1053,49 @@ class _FileTableWidgetState extends State<FileTableWidget> {
         ],
       ),
     );
+  }
+
+  /// Show confirmation dialog before sharing file
+  Future<bool> _showShareConfirmationDialog(DocumentModel document) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text(
+                'Confirm Share',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              content: Text(
+                'Are you sure you want to share "${document.fileName}"? This will generate a shareable link for this file.',
+                style: GoogleFonts.poppins(color: AppColors.textSecondary),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.poppins(color: AppColors.textSecondary),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.textWhite,
+                  ),
+                  child: Text(
+                    'Share',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 
   // Helper methods

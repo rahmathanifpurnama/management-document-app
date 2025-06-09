@@ -222,7 +222,7 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                             ? ReusableFileListWidget(
                                 documents: filteredDocuments,
                                 title: 'Files',
-                                onDocumentTap: _showDocumentMenu,
+                                onDocumentTap: _navigateToFilePreview,
                                 onDocumentMenu: _showDocumentMenu,
                                 onFilterTap: _showFilterMenu,
                                 showFilter: true,
@@ -559,7 +559,8 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
 
   Widget _buildGridItem(DocumentModel document) {
     return GestureDetector(
-      onTap: () => _showDocumentMenu(document),
+      onTap: () => _navigateToFilePreview(document),
+      onLongPress: () => _showDocumentMenu(document),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
@@ -876,6 +877,14 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              leading: const Icon(Icons.visibility),
+              title: Text('Preview', style: GoogleFonts.poppins()),
+              onTap: () {
+                Navigator.pop(context);
+                _navigateToFilePreview(document);
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.download),
               title: Text('Download', style: GoogleFonts.poppins()),
               onTap: () {
@@ -896,7 +905,7 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
               title: Text('Details', style: GoogleFonts.poppins()),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: Show document details
+                _showDocumentDetails(document);
               },
             ),
             ListTile(
@@ -1003,6 +1012,68 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
         );
       }
     }
+  }
+
+  void _navigateToFilePreview(DocumentModel document) {
+    Navigator.of(context).pushNamed(AppRoutes.filePreview, arguments: document);
+  }
+
+  void _showDocumentDetails(DocumentModel document) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Document Details',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDetailRow('Name', document.fileName),
+            _buildDetailRow('Size', document.fileSizeFormatted),
+            _buildDetailRow('Type', document.fileType),
+            _buildDetailRow('Uploaded', _formatDate(document.uploadedAt)),
+            _buildDetailRow('Status', document.status.toUpperCase()),
+            if (document.metadata.description.isNotEmpty)
+              _buildDetailRow('Description', document.metadata.description),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Close', style: GoogleFonts.poppins()),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.poppins(color: AppColors.textPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showDeleteConfirmation(DocumentModel document) {
