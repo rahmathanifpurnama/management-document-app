@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 import '../../providers/document_provider.dart';
@@ -15,7 +16,6 @@ import '../../services/share_service.dart';
 import '../../utils/download_location_helper.dart';
 import '../../widgets/common/ios_back_button.dart';
 import '../../widgets/common/reusable_file_list_widget.dart';
-import '../../widgets/common/reusable_search_widget.dart';
 import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/file_selection_bar.dart';
 
@@ -174,7 +174,10 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
       body: Column(
         children: [
           // File selection bar (appears when files are selected)
-          FileSelectionBar(onExitSelection: _onExitSelectionMode),
+          FileSelectionBar(
+            onExitSelection: _onExitSelectionMode,
+            categoryId: widget.category.id,
+          ),
           // Main content
           Expanded(
             child: Consumer<DocumentProvider>(
@@ -393,23 +396,9 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
   }
 
   Widget _buildSearchWidget() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.searchBackground,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ReusableSearchWidget(
-        controller: _searchController,
-        hintText: 'Search files...',
-        onChanged: _onSearchChanged,
-        onClear: () {
-          _searchController.clear();
-          _onSearchChanged('');
-        },
-        margin: EdgeInsets.zero,
-      ),
+    return _CategorySearchSection(
+      searchController: _searchController,
+      onSearchChanged: () => _onSearchChanged(_searchController.text),
     );
   }
 
@@ -948,14 +937,6 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.visibility),
-              title: Text('Preview', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                _navigateToFilePreview(document);
-              },
-            ),
             ListTile(
               leading: const Icon(Icons.download),
               title: Text('Download', style: GoogleFonts.poppins()),
@@ -1499,5 +1480,143 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
         );
       }
     }
+  }
+}
+
+// Search widget that matches the home screen style
+class _CategorySearchSection extends StatefulWidget {
+  final TextEditingController searchController;
+  final VoidCallback? onSearchChanged;
+
+  const _CategorySearchSection({
+    required this.searchController,
+    this.onSearchChanged,
+  });
+
+  @override
+  State<_CategorySearchSection> createState() => _CategorySearchSectionState();
+}
+
+class _CategorySearchSectionState extends State<_CategorySearchSection> {
+  Timer? _debounceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.searchController.addListener(_onSearchTextChanged);
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    widget.searchController.removeListener(_onSearchTextChanged);
+    super.dispose();
+  }
+
+  void _onSearchTextChanged() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      widget.onSearchChanged?.call();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Get responsive margin - OPTIMIZED
+    final screenWidth = MediaQuery.of(context).size.width;
+    final responsiveMargin = EdgeInsets.symmetric(
+      horizontal: screenWidth < 400 ? 12.0 : 16.0,
+      vertical: 8, // Add some vertical margin for category files screen
+    );
+
+    return Container(
+      margin: responsiveMargin,
+      child: _CategorySearchField(
+        controller: widget.searchController,
+        onClear: _clearSearch,
+      ),
+    );
+  }
+
+  void _clearSearch() {
+    widget.searchController.clear();
+    widget.onSearchChanged?.call();
+  }
+}
+
+class _CategorySearchField extends StatelessWidget {
+  final TextEditingController controller;
+  final VoidCallback? onClear;
+
+  const _CategorySearchField({required this.controller, this.onClear});
+
+  @override
+  Widget build(BuildContext context) {
+    // Get responsive values - OPTIMIZED
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+
+    final responsiveBorderRadius = isSmallScreen ? 12.0 : 16.0;
+    final responsiveElevation = 2.0;
+    final fontSize = isSmallScreen ? 14.0 : 15.0;
+    final iconSize = isSmallScreen ? 18.0 : 20.0;
+    final verticalPadding = isSmallScreen ? 12.0 : 14.0;
+    final horizontalPadding = isSmallScreen ? 12.0 : 16.0;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(responsiveBorderRadius),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: responsiveElevation * 2,
+            offset: Offset(0, responsiveElevation / 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        style: GoogleFonts.poppins(
+          fontSize: fontSize,
+          color: AppColors.textPrimary,
+        ),
+        decoration: InputDecoration(
+          hintText: 'Search files...',
+          hintStyle: GoogleFonts.poppins(
+            fontSize: fontSize,
+            color: AppColors.textSecondary,
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            color: AppColors.textSecondary,
+            size: iconSize,
+          ),
+          suffixIcon: _buildSuffixIcon(context),
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: verticalPadding,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget? _buildSuffixIcon(BuildContext context) {
+    if (controller.text.isEmpty) return null;
+
+    final screenWidth = MediaQuery.of(context).size.width;
+    final iconSize = screenWidth < 400 ? 18.0 : 20.0;
+
+    return IconButton(
+      icon: Icon(Icons.clear, color: AppColors.textSecondary, size: iconSize),
+      onPressed: onClear,
+      splashRadius: iconSize,
+    );
   }
 }

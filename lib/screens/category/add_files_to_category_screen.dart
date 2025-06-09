@@ -115,9 +115,9 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
   }
 
   List<DocumentModel> _getAvailableDocuments(List<DocumentModel> allDocuments) {
-    // Get documents that are NOT in this category
+    // Get documents that are NOT in any category/folder (category is empty)
     var availableDocuments = allDocuments
-        .where((doc) => doc.category != widget.category.id)
+        .where((doc) => doc.category.isEmpty)
         .toList();
 
     // Apply search filter

@@ -8,8 +8,9 @@ import '../../services/bulk_operations_service.dart';
 /// Widget that appears at the top when files are selected
 class FileSelectionBar extends StatefulWidget {
   final VoidCallback? onExitSelection;
+  final String? categoryId;
 
-  const FileSelectionBar({super.key, this.onExitSelection});
+  const FileSelectionBar({super.key, this.onExitSelection, this.categoryId});
 
   @override
   State<FileSelectionBar> createState() => _FileSelectionBarState();
@@ -158,6 +159,7 @@ class _FileSelectionBarState extends State<FileSelectionBar> {
     BulkOperationsService.showBulkOperationsMenu(
       context: context,
       selectedFiles: selectionProvider.selectedFiles,
+      categoryId: widget.categoryId,
       onOperationComplete: () {
         try {
           // Exit selection mode safely

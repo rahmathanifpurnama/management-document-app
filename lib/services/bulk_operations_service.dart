@@ -20,6 +20,7 @@ class BulkOperationsService {
     required BuildContext context,
     required List<DocumentModel> selectedFiles,
     required VoidCallback onOperationComplete,
+    String? categoryId, // Optional category ID for folder-specific operations
   }) {
     showModalBottomSheet(
       context: context,
@@ -29,6 +30,7 @@ class BulkOperationsService {
       builder: (context) => _BulkOperationsMenu(
         selectedFiles: selectedFiles,
         onOperationComplete: onOperationComplete,
+        categoryId: categoryId,
       ),
     );
   }
@@ -206,6 +208,113 @@ class BulkOperationsService {
     }
   }
 
+  /// Remove multiple files from folder (remove file-folder association)
+  static Future<void> removeFromFolderSelectedFiles({
+    required BuildContext context,
+    required List<DocumentModel> files,
+    required String categoryId,
+  }) async {
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Remove Files from Folder',
+          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
+        ),
+        content: Text(
+          'Are you sure you want to remove ${files.length} files from this folder? The files will not be deleted, only removed from this folder.',
+          style: GoogleFonts.poppins(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancel', style: GoogleFonts.poppins()),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(
+              'Remove',
+              style: GoogleFonts.poppins(
+                color: Colors.orange,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final documentProvider = Provider.of<DocumentProvider>(
+        context,
+        listen: false,
+      );
+
+      // Show progress
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Removing ${files.length} files from folder...'),
+                ),
+              ],
+            ),
+            duration: Duration(seconds: files.length * 2),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+      }
+
+      // Remove each file from folder (update category to empty string)
+      for (final file in files) {
+        final updatedDocument = file.copyWith(category: '');
+        documentProvider.updateDocument(updatedDocument);
+      }
+
+      // Show success message
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Successfully removed ${files.length} files from folder',
+            ),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to remove files from folder: ${e.toString()}',
+            ),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   /// Share multiple files with consolidated operation
   static Future<void> shareSelectedFiles({
     required BuildContext context,
@@ -230,7 +339,9 @@ class BulkOperationsService {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text('Generating share links for ${files.length} files...'),
+                  child: Text(
+                    'Generating share links for ${files.length} files...',
+                  ),
                 ),
               ],
             ),
@@ -285,10 +396,12 @@ class BulkOperationsService {
 class _BulkOperationsMenu extends StatelessWidget {
   final List<DocumentModel> selectedFiles;
   final VoidCallback onOperationComplete;
+  final String? categoryId;
 
   const _BulkOperationsMenu({
     required this.selectedFiles,
     required this.onOperationComplete,
+    this.categoryId,
   });
 
   @override
@@ -376,6 +489,33 @@ class _BulkOperationsMenu extends StatelessWidget {
               );
             },
           ),
+
+          // Show "Remove from Folder" option only if categoryId is provided
+          if (categoryId != null && categoryId!.isNotEmpty) ...[
+            ListTile(
+              leading: const Icon(Icons.folder_off, color: Colors.orange),
+              title: Text(
+                'Remove from Folder',
+                style: GoogleFonts.poppins(color: Colors.orange),
+              ),
+              subtitle: Text(
+                'Remove ${selectedFiles.length} files from this folder',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: Colors.orange.withValues(alpha: 0.7),
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                BulkOperationsService.removeFromFolderSelectedFiles(
+                  context: context,
+                  files: selectedFiles,
+                  categoryId: categoryId!,
+                );
+                onOperationComplete();
+              },
+            ),
+          ],
 
           ListTile(
             leading: const Icon(Icons.delete, color: Colors.red),

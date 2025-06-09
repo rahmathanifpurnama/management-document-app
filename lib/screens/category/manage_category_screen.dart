@@ -25,11 +25,18 @@ class ManageCategoryScreen extends StatefulWidget {
 class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
   bool _isLoading = false;
   final _uuid = const Uuid();
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _loadCategories();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   Future<void> _loadCategories() async {
@@ -38,6 +45,76 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
       listen: false,
     );
     await categoryProvider.loadCategories();
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() {
+      _searchQuery = query.toLowerCase();
+    });
+  }
+
+  List<CategoryModel> _filterCategories(List<CategoryModel> categories) {
+    if (_searchQuery.isEmpty) {
+      return categories;
+    }
+
+    return categories.where((category) {
+      final name = category.name.toLowerCase();
+      final description = category.description.toLowerCase();
+      return name.contains(_searchQuery) || description.contains(_searchQuery);
+    }).toList();
+  }
+
+  Widget _buildSearchWidget() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: _searchController,
+        style: GoogleFonts.poppins(fontSize: 15, color: AppColors.textPrimary),
+        decoration: InputDecoration(
+          hintText: 'Search categories...',
+          hintStyle: GoogleFonts.poppins(
+            fontSize: 15,
+            color: AppColors.textSecondary,
+          ),
+          prefixIcon: Icon(
+            Icons.search,
+            color: AppColors.textSecondary,
+            size: 20,
+          ),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(
+                    Icons.clear,
+                    color: AppColors.textSecondary,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    _searchController.clear();
+                    _onSearchChanged('');
+                  },
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+        ),
+        onChanged: _onSearchChanged,
+      ),
+    );
   }
 
   @override
@@ -63,33 +140,43 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
         }
 
         final categories = categoryProvider.activeCategories;
+        final filteredCategories = _filterCategories(categories);
 
         return RefreshIndicator(
           onRefresh: _loadCategories,
           color: AppColors.primary,
-          child: categories.isEmpty
-              ? EmptyStateWidget.noCategories(
-                  actionButton: ElevatedButton.icon(
-                    onPressed: _showAddCategoryDialog,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
-                    ),
-                    icon: const Icon(Icons.add),
-                    label: Text(
-                      'Create Category',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                )
-              : _buildCategoriesListWithAddButton(categories),
+          child: Column(
+            children: [
+              // Search Widget
+              _buildSearchWidget(),
+              // Categories List
+              Expanded(
+                child: categories.isEmpty
+                    ? EmptyStateWidget.noCategories(
+                        actionButton: ElevatedButton.icon(
+                          onPressed: _showAddCategoryDialog,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 16,
+                            ),
+                          ),
+                          icon: const Icon(Icons.add),
+                          label: Text(
+                            'Create Category',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      )
+                    : _buildCategoriesListWithAddButton(filteredCategories),
+              ),
+            ],
+          ),
         );
       },
     );
