@@ -39,7 +39,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   bool _showApiWidgets = false;
 
   // Filter state
-  String _selectedFileTypeFilter = 'all';
+  final String _selectedFileTypeFilter = 'all';
 
   @override
   void initState() {

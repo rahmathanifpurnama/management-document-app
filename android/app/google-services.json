@@ -12,7 +12,16 @@
           "package_name": "io.document.managementdoc"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "865405248457-6i0h49nl1num78maiqbjcfnlnasn86hf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.document.managementdoc",
+            "certificate_hash": "36:3D:B5:D6:80:B2:CD:A2:7C:03:92:9B:3B:18:B6:FF:7E:A7:60:FA"
+          }
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBG2iqqTF4kHT0OGBTAZVbxTAGhTkz9hkU"
