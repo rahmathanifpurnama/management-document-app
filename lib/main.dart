@@ -14,6 +14,7 @@ import 'providers/document_provider.dart';
 import 'providers/category_provider.dart';
 import 'providers/consolidated_upload_provider.dart';
 import 'providers/file_selection_provider.dart';
+import 'providers/settings_provider.dart';
 import 'screens/auth/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/common/home_screen.dart';
@@ -29,6 +30,7 @@ import 'screens/profile/profile_screen.dart';
 import 'screens/profile/personal_info_screen.dart';
 import 'screens/profile/edit_profile_screen.dart';
 import 'screens/profile/settings_screen.dart';
+import 'screens/profile/change_password_screen.dart';
 import 'screens/admin/sync_management_screen.dart';
 import 'screens/admin/cloud_functions_settings_screen.dart';
 import 'screens/admin/file_status_management_screen.dart';
@@ -62,8 +64,23 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize settings provider
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final settingsProvider = Provider.of<SettingsProvider>(context, listen: false);
+      settingsProvider.loadSettings();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,6 +91,10 @@ class MyApp extends StatelessWidget {
           ChangeNotifierProvider(
             create: (_) => AuthProvider(),
             lazy: false, // Initialize immediately for authentication
+          ),
+          ChangeNotifierProvider(
+            create: (_) => SettingsProvider(),
+            lazy: false, // Initialize immediately for theme support
           ),
           ChangeNotifierProvider(
             create: (_) => UserProvider(),
@@ -96,24 +117,31 @@ class MyApp extends StatelessWidget {
             lazy: true, // Initialize when needed to prevent startup delay
           ),
         ],
-        child: MaterialApp(
-          title: AppStrings.appName,
-          debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            primarySwatch: Colors.blue,
-            primaryColor: AppColors.primary,
-            scaffoldBackgroundColor: AppColors.background,
-            textTheme: GoogleFonts.poppinsTextTheme(),
-            appBarTheme: AppBarTheme(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.textWhite,
-              elevation: 0,
-              titleTextStyle: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textWhite,
-              ),
-            ),
+        child: Consumer<SettingsProvider>(
+          builder: (context, settingsProvider, child) {
+            return MaterialApp(
+              title: AppStrings.appName,
+              debugShowCheckedModeBanner: false,
+              theme: settingsProvider.themeData.copyWith(
+                primaryColor: AppColors.primary,
+                scaffoldBackgroundColor: settingsProvider.darkModeEnabled
+                    ? const Color(0xFF121212)
+                    : AppColors.background,
+                textTheme: GoogleFonts.poppinsTextTheme(
+                  settingsProvider.darkModeEnabled
+                      ? ThemeData.dark().textTheme
+                      : ThemeData.light().textTheme,
+                ),
+                appBarTheme: AppBarTheme(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.textWhite,
+                  elevation: 0,
+                  titleTextStyle: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textWhite,
+                  ),
+                ),
             elevatedButtonTheme: ElevatedButtonThemeData(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
@@ -234,6 +262,10 @@ class MyApp extends StatelessWidget {
                 return MaterialPageRoute(
                   builder: (context) => const SettingsScreen(),
                 );
+              case AppRoutes.changePassword:
+                return MaterialPageRoute(
+                  builder: (context) => const ChangePasswordScreen(),
+                );
               case AppRoutes.uploadDocument:
                 final categoryId = settings.arguments as String?;
                 return MaterialPageRoute(
@@ -265,6 +297,8 @@ class MyApp extends StatelessWidget {
                   ),
                 );
             }
+          },
+        );
           },
         ),
       ),
