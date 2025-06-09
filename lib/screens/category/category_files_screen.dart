@@ -351,11 +351,9 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                       }
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      foregroundColor: AppColors.success,
+                      backgroundColor: AppColors.success,
+                      foregroundColor: AppColors.textWhite,
                       padding: const EdgeInsets.symmetric(vertical: 8),
-                      elevation: 0,
-                      side: BorderSide(color: AppColors.success, width: 1),
                     ),
                     icon: const Icon(Icons.add, size: 16),
                     label: Text(
@@ -375,11 +373,9 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      foregroundColor: AppColors.primary,
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.textWhite,
                       padding: const EdgeInsets.symmetric(vertical: 8),
-                      elevation: 0,
-                      side: BorderSide(color: AppColors.primary, width: 1),
                     ),
                     icon: const Icon(Icons.upload, size: 16),
                     label: Text(
@@ -495,14 +491,12 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  foregroundColor: AppColors.success,
+                  backgroundColor: AppColors.success,
+                  foregroundColor: AppColors.textWhite,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
                     vertical: 12,
                   ),
-                  elevation: 0,
-                  side: BorderSide(color: AppColors.success, width: 1),
                 ),
                 icon: const Icon(Icons.add),
                 label: Text('Add Existing Files', style: GoogleFonts.poppins()),
@@ -517,14 +511,12 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  foregroundColor: AppColors.primary,
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.textWhite,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
                     vertical: 12,
                   ),
-                  elevation: 0,
-                  side: BorderSide(color: AppColors.primary, width: 1),
                 ),
                 icon: const Icon(Icons.upload_file),
                 label: Text('Upload New', style: GoogleFonts.poppins()),

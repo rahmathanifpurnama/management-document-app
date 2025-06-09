@@ -386,6 +386,37 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
                     ),
                   ),
                 ],
+
+                // Individual file operations menu (only show when NOT in selection mode)
+                if (!isSelectionMode) ...[
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: IconButton(
+                      onPressed: widget.onDocumentMenu != null
+                          ? () => widget.onDocumentMenu!(document)
+                          : null,
+                      icon: const Icon(
+                        Icons.more_vert,
+                        color: AppColors.textSecondary,
+                        size: 18,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: AppColors.textSecondary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

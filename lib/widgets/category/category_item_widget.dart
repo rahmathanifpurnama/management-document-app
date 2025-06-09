@@ -147,35 +147,20 @@ class CategoryItemWidget extends StatelessWidget {
         ),
         PopupMenuItem(
           value: 'delete',
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F5F5), // Gray background
-              borderRadius: BorderRadius.circular(8),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              children: [
-                const Icon(Icons.delete_outline, size: 18, color: Colors.red),
-                const SizedBox(width: 8),
-                Text(
-                  'Delete',
-                  style: GoogleFonts.poppins(fontSize: 14, color: Colors.red),
-                ),
-              ],
-            ),
+          child: Row(
+            children: [
+              const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+              const SizedBox(width: 8),
+              Text(
+                'Delete',
+                style: GoogleFonts.poppins(fontSize: 14, color: Colors.red),
+              ),
+            ],
           ),
         ),
       ],
       child: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF5F5F5), // Gray background
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: const Color(0xFFE0E0E0), // Light border
-            width: 1,
-          ),
-        ),
         child: const Icon(Icons.more_vert, size: 18, color: Colors.grey),
       ),
     );
