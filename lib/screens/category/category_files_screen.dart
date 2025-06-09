@@ -1051,6 +1051,16 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
             backgroundColor: AppColors.success,
           ),
         );
+
+        // Navigate back to add files screen to continue adding more files
+        final result = await Navigator.of(
+          context,
+        ).pushNamed(AppRoutes.addFilesToCategory, arguments: widget.category);
+
+        // Refresh the current screen if files were added
+        if (result == true) {
+          setState(() {});
+        }
       }
     } catch (e) {
       if (mounted) {

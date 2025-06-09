@@ -280,10 +280,9 @@ class BulkOperationsService {
         );
       }
 
-      // Remove each file from folder (update category to empty string)
+      // Remove each file from folder (move to uncategorized)
       for (final file in files) {
-        final updatedDocument = file.copyWith(category: '');
-        documentProvider.updateDocument(updatedDocument);
+        await documentProvider.updateDocumentCategory(file.id, 'uncategorized');
       }
 
       // Show success message
