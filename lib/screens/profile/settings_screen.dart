@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/settings_provider.dart';
+import 'help_center_screen.dart';
+import 'privacy_policy_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -12,17 +15,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
-  String _selectedLanguage = 'English';
-
-  final List<String> _languages = [
-    'English',
-    'Bahasa Indonesia',
-    'Español',
-    'Français',
-    'Deutsch',
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -54,35 +46,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSectionHeader('Preferences'),
             const SizedBox(height: 16),
 
-            _buildSwitchTile(
-              icon: Icons.notifications_outlined,
-              title: 'Push Notifications',
-              subtitle: 'Receive notifications about updates',
-              value: _notificationsEnabled,
-              onChanged: (value) {
-                setState(() {
-                  _notificationsEnabled = value;
-                });
+            Consumer<SettingsProvider>(
+              builder: (context, settingsProvider, child) {
+                return Column(
+                  children: [
+                    _buildSwitchTile(
+                      icon: Icons.notifications_outlined,
+                      title: 'Push Notifications',
+                      subtitle: 'Receive notifications about updates',
+                      value: settingsProvider.notificationsEnabled,
+                      onChanged: (value) {
+                        settingsProvider.setNotificationsEnabled(value);
+                      },
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    _buildSwitchTile(
+                      icon: Icons.dark_mode_outlined,
+                      title: 'Dark Mode',
+                      subtitle: 'Switch to dark theme',
+                      value: settingsProvider.darkModeEnabled,
+                      onChanged: (value) {
+                        settingsProvider.setDarkModeEnabled(value);
+                      },
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    _buildLanguageTile(settingsProvider),
+                  ],
+                );
               },
             ),
-
-            const SizedBox(height: 12),
-
-            _buildSwitchTile(
-              icon: Icons.dark_mode_outlined,
-              title: 'Dark Mode',
-              subtitle: 'Switch to dark theme',
-              value: _darkModeEnabled,
-              onChanged: (value) {
-                setState(() {
-                  _darkModeEnabled = value;
-                });
-              },
-            ),
-
-            const SizedBox(height: 12),
-
-            _buildLanguageTile(),
 
             const SizedBox(height: 32),
 
@@ -274,9 +270,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildLanguageTile() {
+  Widget _buildLanguageTile(SettingsProvider settingsProvider) {
     return InkWell(
-      onTap: () => _showLanguageDialog(),
+      onTap: () => _showLanguageDialog(settingsProvider),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -315,7 +311,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    _selectedLanguage,
+                    settingsProvider.selectedLanguage,
                     style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                 ],
@@ -390,7 +386,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showLanguageDialog() {
+  void _showLanguageDialog(SettingsProvider settingsProvider) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -404,16 +400,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            children: _languages.map((language) {
+            children: settingsProvider.availableLanguages.map((language) {
               return RadioListTile<String>(
                 title: Text(language),
                 value: language,
-                groupValue: _selectedLanguage,
+                groupValue: settingsProvider.selectedLanguage,
                 activeColor: AppColors.primary,
                 onChanged: (String? value) {
-                  setState(() {
-                    _selectedLanguage = value!;
-                  });
+                  if (value != null) {
+                    settingsProvider.setSelectedLanguage(value);
+                  }
                   Navigator.of(context).pop();
                 },
               );
@@ -425,10 +421,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _navigateToChangePassword(BuildContext context) {
-    // Navigate to change password screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Change Password feature coming soon')),
-    );
+    Navigator.of(context).pushNamed(AppRoutes.changePassword);
   }
 
   void _navigateToTwoFactor(BuildContext context) {
@@ -441,16 +434,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _navigateToHelp(BuildContext context) {
-    // Navigate to help center
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Help Center feature coming soon')),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const HelpCenterScreen(),
+      ),
     );
   }
 
   void _navigateToPrivacy(BuildContext context) {
-    // Navigate to privacy policy
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Privacy Policy feature coming soon')),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => const PrivacyPolicyScreen(),
+      ),
     );
   }
 
