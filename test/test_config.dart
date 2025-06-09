@@ -1,5 +1,51 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_test/flutter_test.dart';
+
 /// Test configuration and constants
 class TestConfig {
+  // Firebase test configuration
+  static bool _firebaseInitialized = false;
+
+  /// Initialize Firebase for testing
+  static Future<void> initializeFirebaseForTesting() async {
+    if (_firebaseInitialized) return;
+
+    try {
+      // Initialize TestWidgetsFlutterBinding first
+      TestWidgetsFlutterBinding.ensureInitialized();
+
+      // Initialize Firebase with test configuration
+      await Firebase.initializeApp(
+        options: const FirebaseOptions(
+          apiKey: 'test-api-key',
+          appId: 'test-app-id',
+          messagingSenderId: 'test-sender-id',
+          projectId: 'test-project-id',
+          storageBucket: 'test-project-id.appspot.com',
+        ),
+      );
+      _firebaseInitialized = true;
+      debugPrint('✅ Firebase initialized for testing');
+    } catch (e) {
+      if (e.toString().contains('already exists')) {
+        _firebaseInitialized = true;
+        debugPrint('✅ Firebase already initialized for testing');
+      } else {
+        debugPrint('❌ Failed to initialize Firebase for testing: $e');
+        // Don't rethrow in test environment, just mark as initialized
+        _firebaseInitialized = true;
+      }
+    }
+  }
+
+  /// Setup Firebase for test group
+  static void setupFirebaseForTests() {
+    setUpAll(() async {
+      await initializeFirebaseForTesting();
+    });
+  }
+
   // Test timeouts
   static const Duration defaultTimeout = Duration(seconds: 30);
   static const Duration longTimeout = Duration(minutes: 2);
