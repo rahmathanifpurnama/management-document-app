@@ -181,7 +181,13 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
               builder: (context, documentProvider, child) {
                 final categoryDocuments = documentProvider
                     .getDocumentsByCategory(widget.category.id);
-                final filteredDocuments = _filterDocuments(categoryDocuments);
+                // Apply both DocumentProvider filters and local search
+                final providerFilteredDocs = documentProvider.documents
+                    .where((doc) => doc.category == widget.category.id)
+                    .toList();
+                final filteredDocuments = _filterDocuments(
+                  providerFilteredDocs,
+                );
 
                 if (categoryDocuments.isEmpty) {
                   return _buildEmptyState();
@@ -345,9 +351,11 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                       }
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.success,
-                      foregroundColor: AppColors.textWhite,
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: AppColors.success,
                       padding: const EdgeInsets.symmetric(vertical: 8),
+                      elevation: 0,
+                      side: BorderSide(color: AppColors.success, width: 1),
                     ),
                     icon: const Icon(Icons.add, size: 16),
                     label: Text(
@@ -367,9 +375,11 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.textWhite,
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: AppColors.primary,
                       padding: const EdgeInsets.symmetric(vertical: 8),
+                      elevation: 0,
+                      side: BorderSide(color: AppColors.primary, width: 1),
                     ),
                     icon: const Icon(Icons.upload, size: 16),
                     label: Text(
@@ -485,12 +495,14 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                   }
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.success,
-                  foregroundColor: AppColors.textWhite,
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: AppColors.success,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
                     vertical: 12,
                   ),
+                  elevation: 0,
+                  side: BorderSide(color: AppColors.success, width: 1),
                 ),
                 icon: const Icon(Icons.add),
                 label: Text('Add Existing Files', style: GoogleFonts.poppins()),
@@ -505,12 +517,14 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.textWhite,
+                  backgroundColor: Colors.transparent,
+                  foregroundColor: AppColors.primary,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20,
                     vertical: 12,
                   ),
+                  elevation: 0,
+                  side: BorderSide(color: AppColors.primary, width: 1),
                 ),
                 icon: const Icon(Icons.upload_file),
                 label: Text('Upload New', style: GoogleFonts.poppins()),
@@ -530,7 +544,10 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
     final spacing = 16.0;
     final headerHeight = 60.0; // Height for filter header
     final totalHeight =
-        (rows * itemHeight) + ((rows - 1) * spacing) + headerHeight + 32; // Add margin
+        (rows * itemHeight) +
+        ((rows - 1) * spacing) +
+        headerHeight +
+        32; // Add margin
 
     return Container(
       margin: const EdgeInsets.fromLTRB(
@@ -581,11 +598,7 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.grid_view,
-            color: AppColors.primary,
-            size: 20,
-          ),
+          Icon(Icons.grid_view, color: AppColors.primary, size: 20),
           const SizedBox(width: 8),
           Text(
             'Files',
@@ -617,10 +630,7 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
             icon: const Icon(Icons.filter_list),
             color: AppColors.primary,
             tooltip: 'Filter Files',
-            constraints: const BoxConstraints(
-              minWidth: 40,
-              minHeight: 40,
-            ),
+            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
           ),
         ],
       ),

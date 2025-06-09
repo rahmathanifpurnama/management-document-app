@@ -544,14 +544,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
 
             ListTile(
-              leading: const Icon(Icons.visibility),
-              title: Text('Preview', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                _navigateToFilePreview(document);
-              },
-            ),
-            ListTile(
               leading: const Icon(Icons.info_outline),
               title: Text('Details', style: GoogleFonts.poppins()),
               onTap: () {
