@@ -206,7 +206,7 @@ class BulkOperationsService {
     }
   }
 
-  /// Share multiple files
+  /// Share multiple files with consolidated operation
   static Future<void> shareSelectedFiles({
     required BuildContext context,
     required List<DocumentModel> files,
@@ -214,7 +214,7 @@ class BulkOperationsService {
     final shareService = ShareService();
 
     try {
-      // Show progress
+      // Show single progress indicator
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -230,24 +230,22 @@ class BulkOperationsService {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text('Preparing to share ${files.length} files...'),
+                  child: Text('Generating share links for ${files.length} files...'),
                 ),
               ],
             ),
-            duration: const Duration(seconds: 10),
+            duration: const Duration(seconds: 30),
             backgroundColor: AppColors.primary,
           ),
         );
       }
 
-      // Share files (implementation depends on ShareService capabilities)
-      for (final file in files) {
-        await shareService.shareFileWithLink(
-          document: file,
-          linkExpiration: const Duration(hours: 24),
-          customMessage: 'Sharing ${files.length} files from Management Doc:',
-        );
-      }
+      // Use consolidated bulk share operation
+      await shareService.shareBulkFiles(
+        documents: files,
+        linkExpiration: const Duration(hours: 24),
+        customMessage: 'Sharing ${files.length} files from Management Doc:',
+      );
 
       // Show success message
       if (context.mounted) {

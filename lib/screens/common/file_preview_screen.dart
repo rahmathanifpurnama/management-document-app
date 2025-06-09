@@ -14,7 +14,7 @@ import '../../models/document_model.dart';
 import '../../services/file_preview_service.dart';
 import '../../services/file_download_service.dart';
 import '../../core/constants/app_colors.dart';
-import '../../widgets/common/ios_back_button.dart';
+import '../../widgets/share/share_options_widget.dart';
 
 class FilePreviewScreen extends StatefulWidget {
   final DocumentModel document;
@@ -126,9 +126,17 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.primary,
         elevation: 0,
-        leading: const IOSBackButton(),
+        leading: IconButton(
+          icon: const Icon(
+            Icons.chevron_left,
+            size: 28,
+            color: AppColors.textWhite,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+          tooltip: 'Back',
+        ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -137,7 +145,7 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
               style: GoogleFonts.poppins(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: AppColors.textWhite,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -145,19 +153,35 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
               _previewService.getFileTypeDisplayName(_previewType),
               style: GoogleFonts.poppins(
                 fontSize: 12,
-                color: AppColors.textSecondary,
+                color: AppColors.textWhite.withValues(alpha: 0.8),
               ),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline),
+            icon: const Icon(
+              Icons.info_outline,
+              color: AppColors.textWhite,
+            ),
             onPressed: _showFileInfo,
+            tooltip: 'File Info',
           ),
           IconButton(
-            icon: const Icon(Icons.download),
+            icon: const Icon(
+              Icons.download,
+              color: AppColors.textWhite,
+            ),
             onPressed: _downloadFile,
+            tooltip: 'Download',
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.share,
+              color: AppColors.textWhite,
+            ),
+            onPressed: _showShareOptions,
+            tooltip: 'Share',
           ),
         ],
       ),
@@ -584,5 +608,12 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
         );
       }
     }
+  }
+
+  void _showShareOptions() {
+    ShareOptionsWidget.show(
+      context,
+      widget.document,
+    );
   }
 }

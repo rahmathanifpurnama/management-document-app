@@ -528,8 +528,9 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
     final rows = (documents.length / itemsPerRow).ceil();
     final itemHeight = 200.0; // Approximate height per grid item
     final spacing = 16.0;
+    final headerHeight = 60.0; // Height for filter header
     final totalHeight =
-        (rows * itemHeight) + ((rows - 1) * spacing) + 32; // Add margin
+        (rows * itemHeight) + ((rows - 1) * spacing) + headerHeight + 32; // Add margin
 
     return Container(
       margin: const EdgeInsets.fromLTRB(
@@ -539,20 +540,89 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
         16,
       ), // Adjusted margin: no top margin
       height: totalHeight,
-      child: GridView.builder(
-        physics:
-            const NeverScrollableScrollPhysics(), // Disable scrolling since parent handles it
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 0.90, // Reduced from 0.85 to give more height
+      child: Column(
+        children: [
+          // Filter Header for Grid View
+          _buildGridFilterHeader(documents.length),
+          const SizedBox(height: 16),
+          // Grid View
+          Expanded(
+            child: GridView.builder(
+              physics:
+                  const NeverScrollableScrollPhysics(), // Disable scrolling since parent handles it
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 0.90, // Reduced from 0.85 to give more height
+              ),
+              itemCount: documents.length,
+              itemBuilder: (context, index) {
+                final document = documents[index];
+                return _buildGridItem(document);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGridFilterHeader(int documentCount) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.3),
+          width: 1,
         ),
-        itemCount: documents.length,
-        itemBuilder: (context, index) {
-          final document = documents[index];
-          return _buildGridItem(document);
-        },
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.grid_view,
+            color: AppColors.primary,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Files',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '$documentCount',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          const Spacer(),
+          IconButton(
+            onPressed: _showFilterMenu,
+            icon: const Icon(Icons.filter_list),
+            color: AppColors.primary,
+            tooltip: 'Filter Files',
+            constraints: const BoxConstraints(
+              minWidth: 40,
+              minHeight: 40,
+            ),
+          ),
+        ],
       ),
     );
   }

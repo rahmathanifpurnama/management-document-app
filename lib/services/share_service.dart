@@ -234,6 +234,54 @@ class ShareService {
     }
   }
 
+  /// Consolidated bulk share operation for multiple files
+  Future<void> shareBulkFiles({
+    required List<DocumentModel> documents,
+    Duration? linkExpiration,
+    String? customMessage,
+  }) async {
+    if (documents.isEmpty) {
+      throw ArgumentError('No documents provided for sharing');
+    }
+
+    try {
+      debugPrint('🔄 Starting bulk share operation for ${documents.length} files');
+
+      // Generate share links for all files in parallel for better performance
+      final List<Future<String?>> linkFutures = documents.map((document) async {
+        try {
+          // Try to get access URL for each document
+          return await _tryCloudFunctionsUrl(document, linkExpiration);
+        } catch (e) {
+          debugPrint('⚠️ Failed to get URL for ${document.fileName}: $e');
+          return null;
+        }
+      }).toList();
+
+      // Wait for all link generation to complete
+      final List<String?> accessUrls = await Future.wait(linkFutures);
+
+      // Build consolidated share text
+      final shareText = _generateBulkShareText(
+        documents: documents,
+        accessUrls: accessUrls,
+        customMessage: customMessage,
+        expiration: linkExpiration ?? const Duration(hours: 24),
+      );
+
+      // Share all files in one operation
+      await Share.share(
+        shareText,
+        subject: 'Shared Documents (${documents.length} files)',
+      );
+
+      debugPrint('✅ Bulk share operation completed successfully');
+    } catch (e) {
+      debugPrint('❌ Bulk share operation failed: $e');
+      rethrow;
+    }
+  }
+
   /// Generate basic file information text
   String _generateFileInfoText(DocumentModel document) {
     return '''
@@ -315,6 +363,50 @@ ${document.metadata.tags.isNotEmpty ? '🏷️ Tags: ${document.metadata.tags.jo
       );
       buffer.writeln('   Category: ${doc.category}');
       if (i < documents.length - 1) buffer.writeln();
+    }
+
+    buffer.writeln('\n📱 Shared via Management Doc App');
+    return buffer.toString();
+  }
+
+  /// Generate consolidated bulk share text with links
+  String _generateBulkShareText({
+    required List<DocumentModel> documents,
+    required List<String?> accessUrls,
+    String? customMessage,
+    required Duration expiration,
+  }) {
+    final buffer = StringBuffer();
+
+    // Custom message
+    if (customMessage != null && customMessage.isNotEmpty) {
+      buffer.writeln('$customMessage\n');
+    }
+
+    buffer.writeln('📄 Shared Documents (${documents.length} files)\n');
+
+    // List each document with its access link
+    for (int i = 0; i < documents.length; i++) {
+      final doc = documents[i];
+      final accessUrl = accessUrls[i];
+
+      buffer.writeln('${i + 1}. ${doc.fileName}');
+      buffer.writeln('   ${doc.fileType.toUpperCase()} • ${_formatFileSize(doc.fileSize)}');
+      buffer.writeln('   Category: ${doc.category}');
+
+      if (accessUrl != null) {
+        buffer.writeln('   🔗 Access Link: $accessUrl');
+      } else {
+        buffer.writeln('   ⚠️ Direct link unavailable');
+      }
+
+      if (i < documents.length - 1) buffer.writeln();
+    }
+
+    // Add expiration info if any links are available
+    final hasLinks = accessUrls.any((url) => url != null);
+    if (hasLinks) {
+      buffer.writeln('\n⏰ Links expire in ${_formatDuration(expiration)}');
     }
 
     buffer.writeln('\n📱 Shared via Management Doc App');

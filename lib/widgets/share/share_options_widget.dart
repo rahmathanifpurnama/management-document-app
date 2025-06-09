@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/document_model.dart';
 import '../../services/share_service.dart';
@@ -103,6 +104,58 @@ class ShareOptionsWidget extends StatelessWidget {
             title: 'Share Full Details',
             subtitle: 'Share complete file information',
             onTap: () => _shareFullDetails(context),
+          ),
+
+          // Divider for social media options
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Divider(color: AppColors.border),
+          ),
+
+          // Social Media Section Header
+          Text(
+            'Share to Social Media',
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Social Media Options
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildSocialMediaOption(
+                context,
+                icon: Icons.chat,
+                label: 'WhatsApp',
+                color: const Color(0xFF25D366),
+                onTap: () => _shareToWhatsApp(context),
+              ),
+              _buildSocialMediaOption(
+                context,
+                icon: Icons.telegram,
+                label: 'Telegram',
+                color: const Color(0xFF0088CC),
+                onTap: () => _shareToTelegram(context),
+              ),
+              _buildSocialMediaOption(
+                context,
+                icon: Icons.email,
+                label: 'Email',
+                color: AppColors.primary,
+                onTap: () => _shareToEmail(context),
+              ),
+              _buildSocialMediaOption(
+                context,
+                icon: Icons.more_horiz,
+                label: 'More',
+                color: AppColors.textSecondary,
+                onTap: () => _shareToMore(context),
+              ),
+            ],
           ),
 
           const SizedBox(height: 16),
@@ -220,6 +273,143 @@ class ShareOptionsWidget extends StatelessWidget {
         _showErrorMessage(context, 'Failed to share details: $e');
       }
     }
+  }
+
+  Widget _buildSocialMediaOption(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: color.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _shareToWhatsApp(BuildContext context) async {
+    Navigator.pop(context);
+    try {
+      final shareText = await _generateShareText();
+      final encodedText = Uri.encodeComponent(shareText);
+      final whatsappUrl = 'https://wa.me/?text=$encodedText';
+
+      if (await canLaunchUrl(Uri.parse(whatsappUrl))) {
+        await launchUrl(Uri.parse(whatsappUrl), mode: LaunchMode.externalApplication);
+        if (context.mounted) {
+          _showSuccessMessage(context, 'Opened WhatsApp for sharing!');
+        }
+      } else {
+        throw Exception('WhatsApp not available');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        _showErrorMessage(context, 'Failed to open WhatsApp: $e');
+      }
+    }
+  }
+
+  Future<void> _shareToTelegram(BuildContext context) async {
+    Navigator.pop(context);
+    try {
+      final shareText = await _generateShareText();
+      final encodedText = Uri.encodeComponent(shareText);
+      final telegramUrl = 'https://t.me/share/url?text=$encodedText';
+
+      if (await canLaunchUrl(Uri.parse(telegramUrl))) {
+        await launchUrl(Uri.parse(telegramUrl), mode: LaunchMode.externalApplication);
+        if (context.mounted) {
+          _showSuccessMessage(context, 'Opened Telegram for sharing!');
+        }
+      } else {
+        throw Exception('Telegram not available');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        _showErrorMessage(context, 'Failed to open Telegram: $e');
+      }
+    }
+  }
+
+  Future<void> _shareToEmail(BuildContext context) async {
+    Navigator.pop(context);
+    try {
+      final shareText = await _generateShareText();
+      final subject = Uri.encodeComponent('Shared Document: ${document.fileName}');
+      final body = Uri.encodeComponent(shareText);
+      final emailUrl = 'mailto:?subject=$subject&body=$body';
+
+      if (await canLaunchUrl(Uri.parse(emailUrl))) {
+        await launchUrl(Uri.parse(emailUrl));
+        if (context.mounted) {
+          _showSuccessMessage(context, 'Opened email client for sharing!');
+        }
+      } else {
+        throw Exception('Email client not available');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        _showErrorMessage(context, 'Failed to open email client: $e');
+      }
+    }
+  }
+
+  Future<void> _shareToMore(BuildContext context) async {
+    Navigator.pop(context);
+    try {
+      await ShareService().shareFileWithLink(
+        document: document,
+        linkExpiration: const Duration(hours: 24),
+        customMessage: 'I\'m sharing a document with you:',
+      );
+      if (context.mounted) {
+        _showSuccessMessage(context, 'Share options opened!');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        _showErrorMessage(context, 'Failed to open share options: $e');
+      }
+    }
+  }
+
+  Future<String> _generateShareText() async {
+    // Generate basic share text for social media
+    return '''
+📄 Document: ${document.fileName}
+
+📊 File Details:
+• Type: ${document.fileType.toUpperCase()}
+• Size: ${document.fileSizeFormatted}
+• Category: ${document.category}
+
+📱 Shared via Management Doc App
+''';
   }
 
   void _showSuccessMessage(BuildContext context, String message) {
