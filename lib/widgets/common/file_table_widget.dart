@@ -667,7 +667,6 @@ class _FileTableWidgetState extends State<FileTableWidget> {
           child: ShareButtonWidget(
             document: document,
             style: ShareButtonStyle.icon,
-            defaultShareType: ShareType.shareableLink,
             onShareComplete: widget.onDocumentShare != null
                 ? () => widget.onDocumentShare!(document)
                 : null,

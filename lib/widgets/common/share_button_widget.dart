@@ -6,15 +6,14 @@ import '../../services/share_service.dart';
 
 enum ShareButtonStyle { icon, iconWithText, text, menu }
 
+/// Simplified share button widget for Google Drive sharing only
 class ShareButtonWidget extends StatefulWidget {
   final DocumentModel document;
   final ShareButtonStyle style;
-  final ShareType defaultShareType;
   final String? ownerName;
   final VoidCallback? onShareStart;
   final VoidCallback? onShareComplete;
   final Function(String)? onShareError;
-  final bool showMultipleOptions;
   final Color? iconColor;
   final Color? backgroundColor;
   final double? iconSize;
@@ -25,12 +24,10 @@ class ShareButtonWidget extends StatefulWidget {
     super.key,
     required this.document,
     this.style = ShareButtonStyle.icon,
-    this.defaultShareType = ShareType.shareableLink,
     this.ownerName,
     this.onShareStart,
     this.onShareComplete,
     this.onShareError,
-    this.showMultipleOptions = false,
     this.iconColor,
     this.backgroundColor,
     this.iconSize,
@@ -185,46 +182,17 @@ class _ShareButtonWidgetState extends State<ShareButtonWidget> {
               color: widget.iconColor ?? AppColors.textSecondary,
               size: widget.iconSize ?? 18,
             ),
-      tooltip: widget.customTooltip ?? 'Share Options',
-      onSelected: (ShareType shareType) => _handleShare(shareType: shareType),
+      tooltip: widget.customTooltip ?? 'Share via Google Drive',
+      onSelected: (_) => _handleShare(),
       itemBuilder: (context) => [
         PopupMenuItem(
           value: ShareType.shareableLink,
           child: Row(
             children: [
-              Icon(
-                ShareService.getShareIcon(ShareType.shareableLink),
-                size: 18,
-              ),
+              Icon(ShareService.getShareIcon(null), size: 18),
               const SizedBox(width: 12),
               Text(
-                ShareService.getShareTypeName(ShareType.shareableLink),
-                style: GoogleFonts.poppins(fontSize: 14),
-              ),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: ShareType.fileInfo,
-          child: Row(
-            children: [
-              Icon(ShareService.getShareIcon(ShareType.fileInfo), size: 18),
-              const SizedBox(width: 12),
-              Text(
-                ShareService.getShareTypeName(ShareType.fileInfo),
-                style: GoogleFonts.poppins(fontSize: 14),
-              ),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: ShareType.fileDetails,
-          child: Row(
-            children: [
-              Icon(ShareService.getShareIcon(ShareType.fileDetails), size: 18),
-              const SizedBox(width: 12),
-              Text(
-                ShareService.getShareTypeName(ShareType.fileDetails),
+                ShareService.getShareTypeName(null),
                 style: GoogleFonts.poppins(fontSize: 14),
               ),
             ],
@@ -234,16 +202,12 @@ class _ShareButtonWidgetState extends State<ShareButtonWidget> {
     );
   }
 
-  Future<void> _handleShare({ShareType? shareType}) async {
+  Future<void> _handleShare() async {
     if (_isSharing) return;
 
-    final type = shareType ?? widget.defaultShareType;
-
-    // Show confirmation dialog for shareable link type
-    if (type == ShareType.shareableLink) {
-      final confirmed = await _showShareConfirmationDialog();
-      if (!confirmed) return;
-    }
+    // Show confirmation dialog
+    final confirmed = await _showShareConfirmationDialog();
+    if (!confirmed) return;
 
     setState(() {
       _isSharing = true;
@@ -252,21 +216,8 @@ class _ShareButtonWidgetState extends State<ShareButtonWidget> {
     widget.onShareStart?.call();
 
     try {
-      switch (type) {
-        case ShareType.fileInfo:
-          await _shareService.shareFileInfo(widget.document);
-          break;
-        case ShareType.shareableLink:
-          await _shareService.shareFileWithLink(document: widget.document);
-          break;
-        case ShareType.fileDetails:
-          await _shareService.shareFileDetails(
-            document: widget.document,
-            ownerName: widget.ownerName,
-          );
-          break;
-      }
-
+      // Always use Google Drive sharing
+      await _shareService.shareGoogleDriveLink(widget.document);
       widget.onShareComplete?.call();
     } catch (e) {
       final errorMessage = 'Failed to share document: ${e.toString()}';
@@ -341,7 +292,6 @@ class ShareButtonHelper {
     return ShareButtonWidget(
       document: document,
       style: ShareButtonStyle.icon,
-      defaultShareType: ShareType.shareableLink,
       ownerName: ownerName,
       onShareComplete: onShareComplete,
     );
@@ -356,7 +306,6 @@ class ShareButtonHelper {
     return ShareButtonWidget(
       document: document,
       style: ShareButtonStyle.menu,
-      showMultipleOptions: true,
       ownerName: ownerName,
       onShareComplete: onShareComplete,
     );
@@ -371,7 +320,6 @@ class ShareButtonHelper {
     return ShareButtonWidget(
       document: document,
       style: ShareButtonStyle.iconWithText,
-      defaultShareType: ShareType.shareableLink,
       ownerName: ownerName,
       onShareComplete: onShareComplete,
     );

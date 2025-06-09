@@ -87,7 +87,11 @@ dependencies:
   # Cryptography for file hashing
   crypto: ^3.0.3
 
-  # Native sharing functionality
+  # Google Drive integration
+  googleapis: ^13.2.0
+  google_sign_in: ^6.2.1
+
+  # Native sharing functionality (simplified)
   share_plus: ^10.1.2
 
   # File Preview Dependencies

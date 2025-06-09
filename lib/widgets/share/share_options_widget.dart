@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/document_model.dart';
 import '../../services/share_service.dart';
 
-/// Widget that provides multiple share options for documents
+/// Simplified widget for sharing documents via Google Drive only
 class ShareOptionsWidget extends StatelessWidget {
   final DocumentModel document;
   final String? ownerName;
@@ -30,11 +29,11 @@ class ShareOptionsWidget extends StatelessWidget {
           // Header
           Row(
             children: [
-              Icon(Icons.share, color: AppColors.primary, size: 24),
+              Icon(Icons.drive_file_move, color: AppColors.primary, size: 24),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Share Document',
+                  'Share via Google Drive',
                   style: GoogleFonts.poppins(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -83,79 +82,13 @@ class ShareOptionsWidget extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // Share options
+          // Single Google Drive share option
           _buildShareOption(
             context,
-            icon: Icons.info_outline,
-            title: 'Share File Info',
-            subtitle: 'Share basic file information',
-            onTap: () => _shareFileInfo(context),
-          ),
-          _buildShareOption(
-            context,
-            icon: Icons.link,
-            title: 'Share with Link',
-            subtitle: 'Generate a temporary access link',
-            onTap: () => _shareWithLink(context),
-          ),
-          _buildShareOption(
-            context,
-            icon: Icons.description,
-            title: 'Share Full Details',
-            subtitle: 'Share complete file information',
-            onTap: () => _shareFullDetails(context),
-          ),
-
-          // Divider for social media options
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Divider(color: AppColors.border),
-          ),
-
-          // Social Media Section Header
-          Text(
-            'Share to Social Media',
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Social Media Options
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildSocialMediaOption(
-                context,
-                icon: Icons.chat,
-                label: 'WhatsApp',
-                color: const Color(0xFF25D366),
-                onTap: () => _shareToWhatsApp(context),
-              ),
-              _buildSocialMediaOption(
-                context,
-                icon: Icons.telegram,
-                label: 'Telegram',
-                color: const Color(0xFF0088CC),
-                onTap: () => _shareToTelegram(context),
-              ),
-              _buildSocialMediaOption(
-                context,
-                icon: Icons.email,
-                label: 'Email',
-                color: AppColors.primary,
-                onTap: () => _shareToEmail(context),
-              ),
-              _buildSocialMediaOption(
-                context,
-                icon: Icons.more_horiz,
-                label: 'More',
-                color: AppColors.textSecondary,
-                onTap: () => _shareToMore(context),
-              ),
-            ],
+            icon: Icons.drive_file_move,
+            title: 'Share Google Drive Link',
+            subtitle: 'Share a link to this file on Google Drive',
+            onTap: () => _shareGoogleDriveLink(context),
           ),
 
           const SizedBox(height: 16),
@@ -176,22 +109,13 @@ class ShareOptionsWidget extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.all(12),
-        margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
+          border: Border.all(color: AppColors.border),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: AppColors.primary, size: 20),
-            ),
+            Icon(icon, color: AppColors.primary, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -200,7 +124,7 @@ class ShareOptionsWidget extends StatelessWidget {
                   Text(
                     title,
                     style: GoogleFonts.poppins(
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: FontWeight.w500,
                       color: AppColors.textPrimary,
                     ),
@@ -226,204 +150,26 @@ class ShareOptionsWidget extends StatelessWidget {
     );
   }
 
-  Future<void> _shareFileInfo(BuildContext context) async {
+  Future<void> _shareGoogleDriveLink(BuildContext context) async {
     Navigator.pop(context);
     try {
-      await ShareService().shareFileInfo(document);
+      await ShareService().shareGoogleDriveLink(document);
       if (context.mounted) {
-        _showSuccessMessage(context, 'File info shared successfully!');
+        _showSuccessMessage(context, 'Google Drive link shared successfully!');
       }
     } catch (e) {
       if (context.mounted) {
-        _showErrorMessage(context, 'Failed to share file info: $e');
+        _showErrorMessage(context, 'Failed to share Google Drive link: $e');
       }
     }
-  }
-
-  Future<void> _shareWithLink(BuildContext context) async {
-    Navigator.pop(context);
-    try {
-      await ShareService().shareFileWithLink(
-        document: document,
-        linkExpiration: const Duration(hours: 24),
-        customMessage: 'I\'m sharing a document with you:',
-      );
-      if (context.mounted) {
-        _showSuccessMessage(context, 'Document shared with link!');
-      }
-    } catch (e) {
-      if (context.mounted) {
-        _showErrorMessage(context, 'Failed to share with link: $e');
-      }
-    }
-  }
-
-  Future<void> _shareFullDetails(BuildContext context) async {
-    Navigator.pop(context);
-    try {
-      await ShareService().shareFileDetails(
-        document: document,
-        ownerName: ownerName,
-      );
-      if (context.mounted) {
-        _showSuccessMessage(context, 'Full details shared successfully!');
-      }
-    } catch (e) {
-      if (context.mounted) {
-        _showErrorMessage(context, 'Failed to share details: $e');
-      }
-    }
-  }
-
-  Widget _buildSocialMediaOption(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: color.withValues(alpha: 0.3),
-                width: 1,
-              ),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _shareToWhatsApp(BuildContext context) async {
-    Navigator.pop(context);
-    try {
-      final shareText = await _generateShareText();
-      final encodedText = Uri.encodeComponent(shareText);
-      final whatsappUrl = 'https://wa.me/?text=$encodedText';
-
-      if (await canLaunchUrl(Uri.parse(whatsappUrl))) {
-        await launchUrl(Uri.parse(whatsappUrl), mode: LaunchMode.externalApplication);
-        if (context.mounted) {
-          _showSuccessMessage(context, 'Opened WhatsApp for sharing!');
-        }
-      } else {
-        throw Exception('WhatsApp not available');
-      }
-    } catch (e) {
-      if (context.mounted) {
-        _showErrorMessage(context, 'Failed to open WhatsApp: $e');
-      }
-    }
-  }
-
-  Future<void> _shareToTelegram(BuildContext context) async {
-    Navigator.pop(context);
-    try {
-      final shareText = await _generateShareText();
-      final encodedText = Uri.encodeComponent(shareText);
-      final telegramUrl = 'https://t.me/share/url?text=$encodedText';
-
-      if (await canLaunchUrl(Uri.parse(telegramUrl))) {
-        await launchUrl(Uri.parse(telegramUrl), mode: LaunchMode.externalApplication);
-        if (context.mounted) {
-          _showSuccessMessage(context, 'Opened Telegram for sharing!');
-        }
-      } else {
-        throw Exception('Telegram not available');
-      }
-    } catch (e) {
-      if (context.mounted) {
-        _showErrorMessage(context, 'Failed to open Telegram: $e');
-      }
-    }
-  }
-
-  Future<void> _shareToEmail(BuildContext context) async {
-    Navigator.pop(context);
-    try {
-      final shareText = await _generateShareText();
-      final subject = Uri.encodeComponent('Shared Document: ${document.fileName}');
-      final body = Uri.encodeComponent(shareText);
-      final emailUrl = 'mailto:?subject=$subject&body=$body';
-
-      if (await canLaunchUrl(Uri.parse(emailUrl))) {
-        await launchUrl(Uri.parse(emailUrl));
-        if (context.mounted) {
-          _showSuccessMessage(context, 'Opened email client for sharing!');
-        }
-      } else {
-        throw Exception('Email client not available');
-      }
-    } catch (e) {
-      if (context.mounted) {
-        _showErrorMessage(context, 'Failed to open email client: $e');
-      }
-    }
-  }
-
-  Future<void> _shareToMore(BuildContext context) async {
-    Navigator.pop(context);
-    try {
-      await ShareService().shareFileWithLink(
-        document: document,
-        linkExpiration: const Duration(hours: 24),
-        customMessage: 'I\'m sharing a document with you:',
-      );
-      if (context.mounted) {
-        _showSuccessMessage(context, 'Share options opened!');
-      }
-    } catch (e) {
-      if (context.mounted) {
-        _showErrorMessage(context, 'Failed to open share options: $e');
-      }
-    }
-  }
-
-  Future<String> _generateShareText() async {
-    // Generate basic share text for social media
-    return '''
-📄 Document: ${document.fileName}
-
-📊 File Details:
-• Type: ${document.fileType.toUpperCase()}
-• Size: ${document.fileSizeFormatted}
-• Category: ${document.category}
-
-📱 Shared via Management Doc App
-''';
   }
 
   void _showSuccessMessage(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
+        content: Text(message),
         backgroundColor: AppColors.success,
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
@@ -431,15 +177,9 @@ class ShareOptionsWidget extends StatelessWidget {
   void _showErrorMessage(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
+        content: Text(message),
         backgroundColor: AppColors.error,
-        duration: const Duration(seconds: 5),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
