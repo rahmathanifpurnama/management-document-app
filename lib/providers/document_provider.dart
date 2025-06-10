@@ -41,6 +41,7 @@ class DocumentProvider extends ChangeNotifier {
       true; // Enable Firebase sync for data persistence
   bool _isProcessingFirebaseUpdate = false; // Prevent duplicate processing
   Timer? _firebaseUpdateDebouncer; // Debounce Firebase updates
+  bool _isLoadingDocuments = false; // Prevent concurrent document loading
 
   // Getters
   List<DocumentModel> get documents => _filteredDocuments;
@@ -57,6 +58,13 @@ class DocumentProvider extends ChangeNotifier {
 
   // Load documents with Firebase real-time sync
   Future<void> loadDocuments() async {
+    // Prevent concurrent loading operations
+    if (_isLoadingDocuments) {
+      debugPrint('⚠️ Document loading already in progress, skipping...');
+      return;
+    }
+
+    _isLoadingDocuments = true;
     _setLoading(true);
     _clearError();
 
@@ -161,6 +169,7 @@ class DocumentProvider extends ChangeNotifier {
       _setError(e.toString());
     } finally {
       _setLoading(false);
+      _isLoadingDocuments = false; // Reset loading flag
     }
   }
 
@@ -199,9 +208,11 @@ class DocumentProvider extends ChangeNotifier {
 
   // Process Firebase document updates (debounced)
   void _processFirebaseDocumentUpdates(List<QueryDocumentSnapshot> docs) {
-    // Prevent duplicate processing
-    if (_isProcessingFirebaseUpdate) {
-      debugPrint('⚠️ Firebase update already in progress, skipping...');
+    // Prevent duplicate processing or processing during initial load
+    if (_isProcessingFirebaseUpdate || _isLoadingDocuments) {
+      debugPrint(
+        '⚠️ Firebase update already in progress or documents loading, skipping...',
+      );
       return;
     }
 
@@ -241,17 +252,8 @@ class DocumentProvider extends ChangeNotifier {
       _categoryDocuments.clear();
       _documents.clear();
 
-      // Rebuild category documents from Firebase data
-      for (final firebaseDoc in firebaseDocuments) {
-        // Add to main documents list
-        _documents.add(firebaseDoc);
-
-        // Add to category storage
-        if (!_categoryDocuments.containsKey(firebaseDoc.category)) {
-          _categoryDocuments[firebaseDoc.category] = [];
-        }
-        _categoryDocuments[firebaseDoc.category]!.add(firebaseDoc);
-      }
+      // Use the same merge logic to prevent duplicates
+      _mergeFirebaseDocuments(firebaseDocuments, isFromListener: false);
 
       debugPrint(
         '✅ Rebuilt category documents: ${_categoryDocuments.keys.length} categories with ${_documents.length} total documents',
@@ -276,11 +278,11 @@ class DocumentProvider extends ChangeNotifier {
 
     bool hasChanges = false;
 
+    // Create a map of Firebase documents for quick lookup
+    final firebaseDocMap = {for (var doc in firebaseDocuments) doc.id: doc};
+
     // For listener updates, we need to handle document additions, updates, and deletions
     if (isFromListener) {
-      // Create a map of Firebase documents for quick lookup
-      final firebaseDocMap = {for (var doc in firebaseDocuments) doc.id: doc};
-
       // Remove documents that no longer exist in Firebase
       final documentsToRemove = <String>[];
       for (final localDoc in _documents) {
@@ -293,29 +295,23 @@ class DocumentProvider extends ChangeNotifier {
         _removeDocumentFromLocal(docId);
         hasChanges = true;
       }
+    }
 
-      // Update or add documents from Firebase
-      for (final firebaseDoc in firebaseDocuments) {
-        final existingIndex = _documents.indexWhere(
-          (doc) => doc.id == firebaseDoc.id,
-        );
+    // Update or add documents from Firebase (unified logic for both listener and initial load)
+    for (final firebaseDoc in firebaseDocuments) {
+      final existingIndex = _documents.indexWhere(
+        (doc) => doc.id == firebaseDoc.id,
+      );
 
-        if (existingIndex != -1) {
-          // Update existing document
-          final existingDoc = _documents[existingIndex];
-          if (_hasDocumentChanged(existingDoc, firebaseDoc)) {
-            _updateDocumentInLocal(existingDoc, firebaseDoc);
-            hasChanges = true;
-          }
-        } else {
-          // Add new document
-          _addDocumentToLocal(firebaseDoc);
+      if (existingIndex != -1) {
+        // Update existing document only if it has changed
+        final existingDoc = _documents[existingIndex];
+        if (_hasDocumentChanged(existingDoc, firebaseDoc)) {
+          _updateDocumentInLocal(existingDoc, firebaseDoc);
           hasChanges = true;
         }
-      }
-    } else {
-      // For initial load, just add all documents
-      for (final firebaseDoc in firebaseDocuments) {
+      } else {
+        // Add new document (with duplicate prevention)
         _addDocumentToLocal(firebaseDoc);
         hasChanges = true;
       }
@@ -331,6 +327,9 @@ class DocumentProvider extends ChangeNotifier {
   void _addDocumentToLocal(DocumentModel document) {
     // Check if document already exists to prevent duplicates
     if (_documents.any((doc) => doc.id == document.id)) {
+      debugPrint(
+        '⚠️ Skipping duplicate document: ${document.fileName} (ID: ${document.id})',
+      );
       return;
     }
 
@@ -347,11 +346,14 @@ class DocumentProvider extends ChangeNotifier {
       (doc) => doc.id == document.id,
     )) {
       _categoryDocuments[document.category]!.add(document);
+      debugPrint(
+        '✅ Added document to local storage: ${document.fileName} (Category: ${document.category})',
+      );
+    } else {
+      debugPrint(
+        '⚠️ Document already exists in category ${document.category}: ${document.fileName}',
+      );
     }
-
-    debugPrint(
-      '✅ Added document to local storage: ${document.fileName} (Category: ${document.category})',
-    );
   }
 
   // Helper method to update document in local storage
