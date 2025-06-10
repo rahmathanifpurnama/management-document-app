@@ -449,6 +449,6 @@ function getFileTypeFromName(fileName: string): string {
 
 export const syncFunctions = {
   syncStorageWithFirestore,
-  cleanupOrphanedMetadata,
+  cleanupOrphanedMetadata: manualCleanupOrphanedMetadata,
   performComprehensiveSync,
 };
