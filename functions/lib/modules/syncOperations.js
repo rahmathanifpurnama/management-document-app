@@ -153,11 +153,6 @@ const syncStorageWithFirestore = functions.https.onCall(async (data, context) =>
  * This function has been disabled to prevent unwanted metadata deletion
  * Use manual cleanup functions with proper admin controls instead
  */
-<<<<<<< HEAD
-const cleanupOrphanedMetadataDisabled = functions.https.onCall(async (data, context) => {
-    throw new functions.https.HttpsError("failed-precondition", "Automatic orphaned metadata cleanup has been disabled. Use manual cleanup functions instead.");
-});
-=======
 // const cleanupOrphanedMetadataDisabled = functions.https.onCall(
 //   async () => {
 //     throw new functions.https.HttpsError(
@@ -166,7 +161,6 @@ const cleanupOrphanedMetadataDisabled = functions.https.onCall(async (data, cont
 //     );
 //   }
 // );
->>>>>>> 25b3e57f9907ae847e7650af676bea7c1a4a0b6f
 /**
  * Manual cleanup of orphaned metadata (requires admin authentication)
  */

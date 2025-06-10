@@ -77,11 +77,7 @@ const approveDocument = functions.https.onCall(async (data, context) => {
             documentId: documentId,
             userId: context.auth.uid,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-<<<<<<< HEAD
-            details: `Document approved by admin`,
-=======
             details: "Document approved by admin",
->>>>>>> 25b3e57f9907ae847e7650af676bea7c1a4a0b6f
         });
         return {
             success: true,
@@ -205,11 +201,7 @@ const bulkDocumentOperations = functions.https.onCall(async (data, context) => {
                 results.push({ documentId, success: true });
             }
             catch (error) {
-<<<<<<< HEAD
-                results.push({ documentId, success: false, error: error.toString() });
-=======
                 results.push({ documentId, success: false, error: String(error) });
->>>>>>> 25b3e57f9907ae847e7650af676bea7c1a4a0b6f
             }
         }
         await batch.commit();
