@@ -214,6 +214,16 @@ class BulkOperationsService {
     required List<DocumentModel> files,
     required String categoryId,
   }) async {
+    debugPrint(
+      '🚀 Starting bulk remove operation for ${files.length} files from category $categoryId',
+    );
+
+    // Get the provider before any async operations
+    final documentProvider = Provider.of<DocumentProvider>(
+      context,
+      listen: false,
+    );
+
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
@@ -224,7 +234,7 @@ class BulkOperationsService {
           style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.w600),
         ),
         content: Text(
-          'Are you sure you want to remove ${files.length} files from this folder? The files will not be deleted, only removed from this folder.',
+          'Are you sure you want to remove ${files.length} files from this folder?\n\n• Files will NOT be deleted\n• Files will become uncategorized\n• Files can be found in "Add Files to Category"\n• Recent Files will NOT be affected',
           style: GoogleFonts.poppins(fontSize: 14),
         ),
         actions: [
@@ -249,11 +259,6 @@ class BulkOperationsService {
     if (confirmed != true) return;
 
     try {
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
-      );
-
       // Show progress
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -281,22 +286,78 @@ class BulkOperationsService {
       }
 
       // Remove each file from folder (move to uncategorized)
+      int successCount = 0;
+      int failureCount = 0;
+
       for (final file in files) {
-        await documentProvider.updateDocumentCategory(file.id, 'uncategorized');
+        try {
+          debugPrint(
+            '🔄 Removing file ${file.fileName} (${file.id}) from category $categoryId',
+          );
+          await documentProvider.removeFileFromCategory(file.id, categoryId);
+          successCount++;
+          debugPrint('✅ Successfully removed ${file.fileName} from category');
+        } catch (e) {
+          failureCount++;
+          debugPrint('❌ Failed to remove ${file.fileName} from category: $e');
+          // Continue with other files even if one fails
+        }
+      }
+
+      debugPrint(
+        '📊 Bulk remove operation completed: $successCount success, $failureCount failures',
+      );
+
+      // Force refresh the DocumentProvider to ensure UI reflects changes
+      if (context.mounted && successCount > 0) {
+        try {
+          debugPrint(
+            '🔄 Refreshing DocumentProvider after bulk remove operation',
+          );
+          await documentProvider.refreshFolderContents();
+          debugPrint('✅ DocumentProvider refresh completed');
+        } catch (refreshError) {
+          debugPrint('⚠️ Failed to refresh DocumentProvider: $refreshError');
+          // Continue anyway, the operation was successful
+        }
       }
 
       // Show success message
       if (context.mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Successfully removed ${files.length} files from folder',
+
+        if (failureCount == 0) {
+          // All files removed successfully
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Successfully removed $successCount files from folder. Files are now uncategorized.',
+              ),
+              backgroundColor: AppColors.success,
+              duration: const Duration(seconds: 4),
             ),
-            backgroundColor: AppColors.success,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+          );
+        } else if (successCount > 0) {
+          // Partial success
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Removed $successCount files, $failureCount failed',
+              ),
+              backgroundColor: AppColors.warning,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } else {
+          // All failed
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to remove any files from folder'),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {

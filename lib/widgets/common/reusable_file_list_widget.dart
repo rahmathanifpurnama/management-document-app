@@ -19,6 +19,7 @@ class ReusableFileListWidget extends StatefulWidget {
   final int itemsPerPage;
   final String emptyStateMessage;
   final IconData emptyStateIcon;
+  final String? categoryId; // Add categoryId parameter for bulk operations
 
   const ReusableFileListWidget({
     super.key,
@@ -32,6 +33,7 @@ class ReusableFileListWidget extends StatefulWidget {
     this.itemsPerPage = 10,
     this.emptyStateMessage = 'No files found',
     this.emptyStateIcon = Icons.folder_open,
+    this.categoryId, // Optional category ID for folder-specific operations
   });
 
   @override
@@ -689,6 +691,8 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
         BulkOperationsService.showBulkOperationsMenu(
           context: context,
           selectedFiles: selectionProvider.selectedFiles,
+          categoryId: widget
+              .categoryId, // Pass categoryId for folder-specific operations
           onOperationComplete: () async {
             try {
               // Exit selection mode safely

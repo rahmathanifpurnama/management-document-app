@@ -637,6 +637,52 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
+  // Remove file from category (set category to empty string, not uncategorized)
+  Future<void> removeFileFromCategory(
+    String documentId,
+    String categoryId,
+  ) async {
+    try {
+      debugPrint('🔄 Removing file $documentId from category $categoryId');
+
+      // Update document in Firestore to have empty category
+      await _documentService.updateDocumentCategory(documentId, '');
+
+      final documentIndex = _documents.indexWhere(
+        (doc) => doc.id == documentId,
+      );
+
+      if (documentIndex != -1) {
+        final originalDocument = _documents[documentIndex];
+
+        // Update document with empty category (not uncategorized)
+        final updatedDocument = originalDocument.copyWith(category: '');
+
+        // Update main documents list
+        _documents[documentIndex] = updatedDocument;
+
+        // Remove from category storage
+        if (_categoryDocuments.containsKey(categoryId)) {
+          _categoryDocuments[categoryId]!.removeWhere(
+            (doc) => doc.id == documentId,
+          );
+        }
+
+        // Don't add to any category - file becomes uncategorized but available for categorization
+
+        debugPrint('✅ File $documentId removed from category $categoryId');
+
+        // Notify listeners and save
+        notifyListeners();
+        await _saveToStorage();
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to remove file from category: $e');
+      _setError('Failed to remove file from category: $e');
+      rethrow;
+    }
+  }
+
   // Update document
   void updateDocument(DocumentModel document) {
     int index = _documents.indexWhere((d) => d.id == document.id);

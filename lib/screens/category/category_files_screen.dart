@@ -241,6 +241,9 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                                 itemsPerPage: 10,
                                 emptyStateMessage: 'No files in this category',
                                 emptyStateIcon: Icons.folder_open,
+                                categoryId: widget
+                                    .category
+                                    .id, // Pass category ID for bulk operations
                               )
                             : _buildGridView(filteredDocuments),
                         // Add bottom spacing for better UX
