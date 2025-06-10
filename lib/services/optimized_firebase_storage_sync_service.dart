@@ -229,9 +229,37 @@ class OptimizedFirebaseStorageSyncService {
     return allNewDocuments;
   }
 
-  /// Create metadata for a single file with error handling
+  /// Create metadata for a single file with error handling and duplicate prevention
   Future<DocumentModel?> _createSingleMetadata(Reference fileRef) async {
     try {
+      // First check if metadata already exists for this file
+      final existingDocuments = await _documentService.getAllDocuments();
+      final existingDoc = existingDocuments.firstWhere(
+        (doc) =>
+            doc.filePath == fileRef.fullPath ||
+            doc.filePath.contains(fileRef.name),
+        orElse: () => DocumentModel(
+          id: '',
+          fileName: '',
+          fileSize: 0,
+          fileType: '',
+          filePath: '',
+          uploadedBy: '',
+          uploadedAt: DateTime.now(),
+          category: '',
+          status: '',
+          permissions: [],
+          metadata: DocumentMetadata(description: '', tags: []),
+        ),
+      );
+
+      if (existingDoc.id.isNotEmpty) {
+        debugPrint(
+          '⚠️ Metadata already exists for ${fileRef.name}, skipping creation',
+        );
+        return existingDoc;
+      }
+
       // Get file metadata from Storage with timeout
       final metadata = await fileRef.getMetadata().timeout(
         const Duration(seconds: 10),
@@ -249,9 +277,15 @@ class OptimizedFirebaseStorageSyncService {
           metadata.size ??
           0;
 
+      // Generate a more unique document ID using file path hash
+      final documentId = _generateUniqueDocumentId(
+        fileRef.fullPath,
+        originalName,
+      );
+
       // Create document model
       final document = DocumentModel(
-        id: _generateDocumentId(fileRef.name),
+        id: documentId,
         fileName: originalName,
         fileSize: fileSize,
         fileType: _getFileTypeFromName(originalName),
@@ -275,6 +309,7 @@ class OptimizedFirebaseStorageSyncService {
             onTimeout: () => throw TimeoutException('Firestore save timeout'),
           );
 
+      debugPrint('✅ Created new metadata for: $originalName (ID: $documentId)');
       return document;
     } catch (e) {
       debugPrint('❌ Failed to create metadata for ${fileRef.name}: $e');
@@ -356,7 +391,16 @@ class OptimizedFirebaseStorageSyncService {
     }
   }
 
-  /// Generate a unique document ID based on filename and timestamp
+  /// Generate a unique document ID based on file path hash to prevent duplicates
+  String _generateUniqueDocumentId(String filePath, String fileName) {
+    // Use file path hash for uniqueness instead of timestamp
+    final pathHash = filePath.hashCode.abs().toString();
+    final cleanName = fileName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return 'sync_${pathHash}_${timestamp}_$cleanName';
+  }
+
+  /// Generate a unique document ID based on filename and timestamp (legacy method)
   String _generateDocumentId(String fileName) {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final cleanName = fileName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');

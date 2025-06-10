@@ -310,49 +310,67 @@ class FirebaseStorageSyncService {
     }
   }
 
-  /// Clean up orphaned Firestore documents (metadata without Storage files)
+  /// DISABLED: Clean up orphaned Firestore documents to prevent automatic deletions
+  /// This function has been disabled to prevent unwanted metadata deletion
   Future<int> cleanupOrphanedMetadata() async {
+    debugPrint(
+      '⚠️ Orphaned metadata cleanup has been disabled to prevent automatic deletions',
+    );
+    debugPrint('   Use manual cleanup functions with admin approval instead');
+    return 0;
+  }
+
+  /// Manual cleanup of orphaned metadata (for admin use only)
+  Future<int> manualCleanupOrphanedMetadata({
+    required bool adminConfirmed,
+  }) async {
+    if (!adminConfirmed) {
+      throw Exception(
+        'Admin confirmation required for manual cleanup operations',
+      );
+    }
+
     try {
-      debugPrint('🧹 Cleaning up orphaned metadata...');
+      debugPrint('🧹 Manual cleanup of orphaned metadata initiated...');
 
       final firestoreDocuments = await _documentService.getAllDocuments();
       final storageFiles = await _listAllStorageFiles();
       final storageFilePaths = storageFiles.map((ref) => ref.fullPath).toSet();
 
-      int cleanedCount = 0;
+      int orphanedCount = 0;
+      final orphanedDocuments = <DocumentModel>[];
 
+      // First, identify orphaned documents without deleting
       for (final document in firestoreDocuments) {
         if (!document.filePath.startsWith('http') &&
             document.filePath.isNotEmpty &&
             !storageFilePaths.contains(document.filePath)) {
-          // Verify file doesn't exist before deleting metadata
+          // Verify file doesn't exist
           try {
             final storageRef = _firebaseService.storage.ref().child(
               document.filePath,
             );
             await storageRef.getMetadata();
-            // File exists, don't delete metadata
+            // File exists, don't mark as orphaned
           } catch (e) {
-            // File doesn't exist, delete metadata
-            await _documentService.deleteDocument(
-              document.id,
-              'system_cleanup',
-            );
-            cleanedCount++;
-            debugPrint('🗑️ Cleaned orphaned metadata: ${document.fileName}');
+            // File doesn't exist, mark as orphaned
+            orphanedDocuments.add(document);
+            orphanedCount++;
+            debugPrint('🔍 Found orphaned metadata: ${document.fileName}');
           }
         }
       }
 
-      debugPrint('✅ Cleaned up $cleanedCount orphaned metadata entries');
-      return cleanedCount;
+      debugPrint('✅ Found $orphanedCount orphaned metadata entries');
+      debugPrint('   Use additional confirmation to proceed with deletion');
+      return orphanedCount;
     } catch (e) {
-      debugPrint('❌ Failed to cleanup orphaned metadata: $e');
+      debugPrint('❌ Failed to identify orphaned metadata: $e');
       return 0;
     }
   }
 
-  /// Perform comprehensive sync (create missing metadata + cleanup orphaned metadata)
+  /// Perform comprehensive sync (create missing metadata only - no automatic cleanup)
   Future<Map<String, int>> performComprehensiveSync() async {
     try {
       debugPrint('🔄 Starting comprehensive Firebase Storage sync...');
@@ -360,18 +378,21 @@ class FirebaseStorageSyncService {
       // First, sync Storage files to Firestore
       final syncedDocuments = await syncStorageWithFirestore();
 
-      // Then, cleanup orphaned metadata
-      final cleanedCount = await cleanupOrphanedMetadata();
+      // DISABLED: Automatic cleanup to prevent unwanted deletions
+      // final cleanedCount = await cleanupOrphanedMetadata();
+      debugPrint(
+        '⚠️ Automatic cleanup disabled - use manual cleanup if needed',
+      );
 
       // Refresh metadata for all documents
       await refreshAllFileMetadata();
 
       final result = {
         'totalDocuments': syncedDocuments.length,
-        'cleanedMetadata': cleanedCount,
+        'cleanedMetadata': 0, // No automatic cleanup performed
       };
 
-      debugPrint('🎉 Comprehensive sync completed: $result');
+      debugPrint('🎉 Comprehensive sync completed (no cleanup): $result');
       return result;
     } catch (e) {
       debugPrint('❌ Comprehensive sync failed: $e');

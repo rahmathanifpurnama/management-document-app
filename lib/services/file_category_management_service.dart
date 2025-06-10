@@ -249,13 +249,23 @@ class FileCategoryManagementService {
     }
   }
 
-  /// Clean up orphaned files (files without proper category structure)
+  /// DISABLED: Clean up orphaned files to prevent automatic deletions
+  /// This function has been disabled to prevent unwanted metadata deletion
   Future<int> cleanupOrphanedFiles() async {
+    debugPrint(
+      '⚠️ Orphaned files cleanup has been disabled to prevent automatic deletions',
+    );
+    debugPrint('   Use manual cleanup functions with admin approval instead');
+    return 0;
+  }
+
+  /// Manual identification of orphaned files (for admin review only)
+  Future<List<DocumentModel>> identifyOrphanedFiles() async {
     try {
-      debugPrint('🧹 Starting orphaned files cleanup...');
+      debugPrint('🔍 Identifying orphaned files for manual review...');
 
       final allDocuments = await _documentService.getAllDocuments();
-      int cleanedCount = 0;
+      final orphanedDocuments = <DocumentModel>[];
 
       for (final document in allDocuments) {
         try {
@@ -265,18 +275,19 @@ class FileCategoryManagementService {
           );
           await fileRef.getMetadata();
         } catch (e) {
-          // File doesn't exist in Storage, remove metadata
-          await _documentService.deleteDocument(document.id, 'system_cleanup');
-          cleanedCount++;
-          debugPrint('🗑️ Cleaned orphaned metadata: ${document.fileName}');
+          // File doesn't exist in Storage, mark as orphaned
+          orphanedDocuments.add(document);
+          debugPrint('🔍 Found orphaned metadata: ${document.fileName}');
         }
       }
 
-      debugPrint('✅ Cleanup completed: $cleanedCount orphaned files removed');
-      return cleanedCount;
+      debugPrint(
+        '✅ Identification completed: ${orphanedDocuments.length} orphaned files found',
+      );
+      return orphanedDocuments;
     } catch (e) {
-      debugPrint('❌ Failed to cleanup orphaned files: $e');
-      return 0;
+      debugPrint('❌ Failed to identify orphaned files: $e');
+      return [];
     }
   }
 }

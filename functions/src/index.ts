@@ -146,40 +146,97 @@ export const onFileUpload = functions.storage
     console.log(`File uploaded: ${filePath}`);
   });
 
-// Scheduled Functions
-export const dailyCleanup = functions.pubsub
-  .schedule("0 2 * * *") // Run daily at 2 AM
-  .timeZone("Asia/Jakarta")
-  .onRun(async () => {
-    console.log("Starting daily cleanup...");
+// DISABLED: Automatic cleanup functions to prevent unwanted deletions
+// These functions were causing automatic deletion of files and metadata
+// All cleanup operations should now be manual and require admin approval
 
-    // Clean up orphaned metadata
-    console.log("Running orphaned metadata cleanup...");
+// export const dailyCleanup = functions
+//   .runWith({
+//     timeoutSeconds: 540, // 9 minutes timeout
+//     memory: "1GB", // Increased memory for batch operations
+//   })
+//   .pubsub
+//   .schedule("0 3 * * 0") // Run weekly on Sunday at 3 AM (reduced frequency)
+//   .timeZone("Asia/Jakarta")
+//   .onRun(async () => {
+//     console.log("Starting weekly cleanup...");
+//     // DISABLED: Automatic deletion operations
+//   });
 
-    // Clean up old activity logs (older than 90 days)
+// Manual cleanup function that requires admin authentication
+export const manualCleanupActivityLogs = functions.https.onCall(async (data, context) => {
+  // Require authentication and admin role
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
+  }
+
+  try {
+    // Check user permissions
+    const userDoc = await admin.firestore().collection("users").doc(context.auth.uid).get();
+    const user = userDoc.data();
+
+    if (!user || user.role !== "admin") {
+      throw new functions.https.HttpsError("permission-denied", "Only admins can perform cleanup operations");
+    }
+
+    console.log(`Manual activity log cleanup initiated by admin: ${context.auth.uid}`);
+
+    // PERFORMANCE FIX: Clean up old activity logs with smaller batches
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - 90);
 
-    const oldActivities = await admin
-      .firestore()
-      .collection("activities")
-      .where("timestamp", "<", cutoffDate)
-      .get();
+    console.log("Cleaning old activity logs...");
 
-    const batch = admin.firestore().batch();
-    oldActivities.docs.forEach((doc) => {
-      batch.delete(doc.ref);
-    });
+    // Process in smaller batches to prevent timeout
+    const batchSize = 100; // Reduced batch size
+    let totalDeleted = 0;
+    let hasMore = true;
 
-    await batch.commit();
-    console.log(`Cleaned up ${oldActivities.size} old activity logs`);
-  });
+    while (hasMore) {
+      const oldActivities = await admin
+        .firestore()
+        .collection("activities")
+        .where("timestamp", "<", cutoffDate)
+        .limit(batchSize)
+        .get();
 
-// Weekly Sync Function
-export const weeklySync = functions.pubsub
-  .schedule("0 3 * * 0") // Run weekly on Sunday at 3 AM
-  .timeZone("Asia/Jakarta")
-  .onRun(async () => {
-    console.log("Starting weekly comprehensive sync...");
-    console.log("Comprehensive sync completed");
-  });
+      if (oldActivities.empty) {
+        hasMore = false;
+        break;
+      }
+
+      const batch = admin.firestore().batch();
+      oldActivities.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+
+      await batch.commit();
+      totalDeleted += oldActivities.size;
+
+      console.log(`Deleted batch of ${oldActivities.size} activities`);
+
+      // Small delay between batches to prevent overwhelming Firestore
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    console.log(`✅ Manual cleanup completed. Deleted ${totalDeleted} old activity logs`);
+
+    return {
+      success: true,
+      deletedCount: totalDeleted,
+      message: `Successfully deleted ${totalDeleted} old activity logs`
+    };
+  } catch (error) {
+    console.error("❌ Manual cleanup failed:", error);
+    throw new functions.https.HttpsError("internal", `Manual cleanup failed: ${error}`);
+  }
+});
+
+// DISABLED: Weekly automatic sync to prevent unwanted operations
+// export const weeklySync = functions.pubsub
+//   .schedule("0 3 * * 0") // Run weekly on Sunday at 3 AM
+//   .timeZone("Asia/Jakarta")
+//   .onRun(async () => {
+//     console.log("Starting weekly comprehensive sync...");
+//     console.log("Comprehensive sync completed");
+//   });

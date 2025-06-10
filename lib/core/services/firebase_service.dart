@@ -54,20 +54,8 @@ class FirebaseService {
   // Initialize App Check to prevent warnings and improve security
   static Future<void> _initializeAppCheck() async {
     try {
-      // Check configuration for App Check enablement
-      if (kDebugMode && !FirebaseConfig.enableAppCheckInDebug) {
-        debugPrint(
-          '🔧 Skipping App Check initialization in debug mode (disabled in config)',
-        );
-        return;
-      }
-
-      if (!kDebugMode && !FirebaseConfig.enableAppCheckInProduction) {
-        debugPrint(
-          '🔧 Skipping App Check initialization in production mode (disabled in config)',
-        );
-        return;
-      }
+      // CRITICAL FIX: Always enable App Check to prevent placeholder token warnings
+      debugPrint('🔧 Initializing Firebase App Check...');
 
       // Initialize App Check based on build mode
       if (kDebugMode) {
@@ -90,7 +78,8 @@ class FirebaseService {
       _setupAppCheckTokenListener();
     } catch (e) {
       debugPrint('⚠️ App Check initialization failed: $e');
-      // App Check is not critical for app functionality, so we continue
+      // Continue without App Check but log the issue
+      debugPrint('📝 App Check failure may cause placeholder token warnings');
     }
   }
 

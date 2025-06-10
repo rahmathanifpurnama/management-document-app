@@ -24,6 +24,7 @@ class DocumentService {
     try {
       final networkService = OptimizedNetworkService.instance;
 
+      // CRITICAL FIX: Optimized query with proper timeout and error handling
       final querySnapshot = await networkService.executeFirestoreOperation(
         () async {
           Query query = _firebaseService.documentsCollection
@@ -34,13 +35,10 @@ class DocumentService {
             query = query.startAfterDocument(startAfter);
           }
 
-          if (limit != null) {
-            query = query.limit(limit);
-          } else {
-            query = query.limit(
-              ANRConfig.defaultPageSize,
-            ); // Default pagination
-          }
+          // PERFORMANCE FIX: Use smaller page sizes to prevent ANR
+          final effectiveLimit =
+              limit ?? ANRConfig.smallPageSize; // Use smaller default
+          query = query.limit(effectiveLimit);
 
           return await query.get();
         },
@@ -187,18 +185,48 @@ class DocumentService {
     }
   }
 
-  // Get documents by category
-  Future<List<DocumentModel>> getDocumentsByCategory(String categoryId) async {
+  // Get documents by category with optimized pagination
+  Future<List<DocumentModel>> getDocumentsByCategory(
+    String categoryId, {
+    int? limit,
+    DocumentSnapshot? startAfter,
+  }) async {
     try {
-      QuerySnapshot querySnapshot = await _firebaseService.documentsCollection
-          .where('category', isEqualTo: categoryId)
-          .orderBy('uploadedAt', descending: true)
-          .get();
+      final networkService = OptimizedNetworkService.instance;
+
+      final querySnapshot = await networkService.executeFirestoreOperation(
+        () async {
+          Query query = _firebaseService.documentsCollection
+              .where('isActive', isEqualTo: true) // Add isActive filter
+              .where('category', isEqualTo: categoryId)
+              .orderBy('uploadedAt', descending: true);
+
+          if (startAfter != null) {
+            query = query.startAfterDocument(startAfter);
+          }
+
+          // Use pagination to prevent ANR
+          final effectiveLimit = limit ?? ANRConfig.defaultPageSize;
+          query = query.limit(effectiveLimit);
+
+          return await query.get();
+        },
+        operationId:
+            'get_category_documents_${DateTime.now().millisecondsSinceEpoch}',
+        operationName: 'Get Documents by Category',
+        priority: 3,
+      );
+
+      if (querySnapshot == null) {
+        debugPrint('⚠️ Failed to fetch category documents - query timeout');
+        return [];
+      }
 
       return querySnapshot.docs
           .map((doc) => DocumentModel.fromFirestore(doc))
           .toList();
     } catch (e) {
+      debugPrint('❌ Error getting documents by category: $e');
       throw Exception('Failed to get documents by category: ${e.toString()}');
     }
   }
@@ -257,40 +285,99 @@ class DocumentService {
     }
   }
 
-  // Search documents
-  Future<List<DocumentModel>> searchDocuments(String query) async {
+  // Search documents with optimized pagination and ANR prevention
+  Future<List<DocumentModel>> searchDocuments(
+    String query, {
+    int? limit,
+    DocumentSnapshot? startAfter,
+  }) async {
     try {
-      // Search by filename
-      QuerySnapshot nameQuery = await _firebaseService.documentsCollection
-          .where('fileName', isGreaterThanOrEqualTo: query)
-          .where('fileName', isLessThanOrEqualTo: '$query\uf8ff')
-          .get();
+      final networkService = OptimizedNetworkService.instance;
 
-      Set<DocumentModel> documents = {};
+      final querySnapshot = await networkService.executeFirestoreOperation(
+        () async {
+          Query searchQuery = _firebaseService.documentsCollection
+              .where(
+                'isActive',
+                isEqualTo: true,
+              ) // Only search active documents
+              .where('fileName', isGreaterThanOrEqualTo: query)
+              .where('fileName', isLessThanOrEqualTo: '$query\uf8ff')
+              .orderBy('fileName')
+              .orderBy('uploadedAt', descending: true);
 
-      // Add results from name search
-      for (var doc in nameQuery.docs) {
-        documents.add(DocumentModel.fromFirestore(doc));
+          if (startAfter != null) {
+            searchQuery = searchQuery.startAfterDocument(startAfter);
+          }
+
+          // Use pagination to prevent ANR
+          final effectiveLimit = limit ?? ANRConfig.defaultPageSize;
+          searchQuery = searchQuery.limit(effectiveLimit);
+
+          return await searchQuery.get();
+        },
+        operationId:
+            'search_documents_${DateTime.now().millisecondsSinceEpoch}',
+        operationName: 'Search Documents',
+        priority: 3,
+      );
+
+      if (querySnapshot == null) {
+        debugPrint('⚠️ Failed to search documents - query timeout');
+        return [];
       }
-
-      return documents.toList();
-    } catch (e) {
-      throw Exception('Failed to search documents: ${e.toString()}');
-    }
-  }
-
-  // Get recent documents
-  Future<List<DocumentModel>> getRecentDocuments({int limit = 10}) async {
-    try {
-      QuerySnapshot querySnapshot = await _firebaseService.documentsCollection
-          .orderBy('uploadedAt', descending: true)
-          .limit(limit)
-          .get();
 
       return querySnapshot.docs
           .map((doc) => DocumentModel.fromFirestore(doc))
           .toList();
     } catch (e) {
+      debugPrint('❌ Error searching documents: $e');
+      throw Exception('Failed to search documents: ${e.toString()}');
+    }
+  }
+
+  // Get recent documents with optimized query and ANR prevention
+  Future<List<DocumentModel>> getRecentDocuments({
+    int limit = 10,
+    DocumentSnapshot? startAfter,
+  }) async {
+    try {
+      final networkService = OptimizedNetworkService.instance;
+
+      final querySnapshot = await networkService.executeFirestoreOperation(
+        () async {
+          Query query = _firebaseService.documentsCollection
+              .where('isActive', isEqualTo: true) // Only get active documents
+              .orderBy('uploadedAt', descending: true);
+
+          if (startAfter != null) {
+            query = query.startAfterDocument(startAfter);
+          }
+
+          // Limit to prevent ANR
+          final effectiveLimit = limit > ANRConfig.maxItemsPerPage
+              ? ANRConfig.maxItemsPerPage
+              : limit;
+          query = query.limit(effectiveLimit);
+
+          return await query.get();
+        },
+        operationId:
+            'get_recent_documents_${DateTime.now().millisecondsSinceEpoch}',
+        operationName: 'Get Recent Documents',
+        priority: 3,
+      );
+
+      if (querySnapshot == null) {
+        debugPrint('⚠️ Failed to fetch recent documents - query timeout');
+        return [];
+      }
+
+      return querySnapshot.docs
+          .map((doc) => DocumentModel.fromFirestore(doc))
+          .toList();
+    } catch (e) {
+      debugPrint('❌ Error getting recent documents: $e');
       throw Exception('Failed to get recent documents: ${e.toString()}');
     }
   }

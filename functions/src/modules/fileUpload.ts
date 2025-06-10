@@ -307,19 +307,21 @@ const processFileUpload = functions.https.onCall(
       );
 
       if (duplicateCheck.isDuplicate) {
-        // Delete the uploaded file since it's a duplicate
-        try {
-          await fileRef.delete();
-          console.log(`Deleted duplicate file: ${filePath}`);
-        } catch (deleteError) {
-          console.warn(`Failed to delete duplicate file: ${deleteError}`);
-        }
+        // DISABLED: Automatic file deletion to prevent unwanted data loss
+        // Instead, just reject the upload without deleting the file
+        // try {
+        //   await fileRef.delete();
+        //   console.log(`Deleted duplicate file: ${filePath}`);
+        // } catch (deleteError) {
+        //   console.warn(`Failed to delete duplicate file: ${deleteError}`);
+        // }
 
+        console.log(`Duplicate file detected but not deleted: ${filePath}`);
         throw new functions.https.HttpsError(
           "already-exists",
           `File already exists in the system. Original file: ${
             duplicateCheck.existingDocument?.fileName || "Unknown"
-          }`
+          }. The uploaded file has been preserved but not processed.`
         );
       }
 
@@ -873,16 +875,21 @@ const cleanupOrphanedFiles = functions.https.onCall(async (_data, context) => {
 
     let deletedCount = 0;
 
-    // Delete files that don't have corresponding Firestore records
+    // DISABLED: Automatic orphaned file deletion to prevent data loss
+    // Instead, just log orphaned files for manual review
     for (const file of files) {
       if (!documentPaths.has(file.name) && !file.name.endsWith("/.keep")) {
-        try {
-          await file.delete();
-          deletedCount++;
-          console.log(`Deleted orphaned file: ${file.name}`);
-        } catch (error) {
-          console.warn(`Failed to delete file ${file.name}:`, error);
-        }
+        // Log orphaned file but don't delete
+        console.log(`Orphaned file found (not deleted): ${file.name}`);
+        deletedCount++; // Count for reporting, but don't actually delete
+
+        // try {
+        //   await file.delete();
+        //   deletedCount++;
+        //   console.log(`Deleted orphaned file: ${file.name}`);
+        // } catch (error) {
+        //   console.warn(`Failed to delete file ${file.name}:`, error);
+        // }
       }
     }
 

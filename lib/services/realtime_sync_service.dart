@@ -44,10 +44,11 @@ class RealtimeSyncService {
       // Cancel existing subscription
       _subscriptions['documents']?.cancel();
 
-      // Listen to document changes with active filter
+      // PERFORMANCE FIX: Listen to document changes with pagination to prevent ANR
       _subscriptions['documents'] = _firebaseService.documentsCollection
           .where('isActive', isEqualTo: true)
           .orderBy('uploadedAt', descending: true)
+          .limit(20) // Limit real-time updates to prevent ANR
           .snapshots()
           .listen(
             (snapshot) {
@@ -55,6 +56,7 @@ class RealtimeSyncService {
             },
             onError: (error) {
               debugPrint('Document sync error: $error');
+              // Continue with cached data if real-time sync fails
             },
           );
 

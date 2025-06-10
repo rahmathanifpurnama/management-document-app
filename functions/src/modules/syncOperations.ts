@@ -144,9 +144,23 @@ const syncStorageWithFirestore = functions.https.onCall(
 );
 
 /**
- * Clean up orphaned metadata (Firestore documents without Storage files)
+ * DISABLED: Clean up orphaned metadata to prevent automatic deletions
+ * This function has been disabled to prevent unwanted metadata deletion
+ * Use manual cleanup functions with proper admin controls instead
  */
-const cleanupOrphanedMetadata = functions.https.onCall(
+const cleanupOrphanedMetadataDisabled = functions.https.onCall(
+  async (data: any, context) => {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Automatic orphaned metadata cleanup has been disabled. Use manual cleanup functions instead."
+    );
+  }
+);
+
+/**
+ * Manual cleanup of orphaned metadata (requires admin authentication)
+ */
+const manualCleanupOrphanedMetadata = functions.https.onCall(
   async (data: any, context) => {
     if (!context.auth) {
       throw new functions.https.HttpsError(

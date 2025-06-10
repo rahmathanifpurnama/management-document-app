@@ -8,10 +8,13 @@ import '../models/document_model.dart';
 import '../core/services/document_service.dart';
 import '../core/services/firebase_service.dart';
 import '../core/services/category_service.dart';
-import '../services/firebase_storage_sync_service.dart';
+// DISABLED: Regular sync service to prevent duplicate operations
+// import '../services/firebase_storage_sync_service.dart';
+import '../services/optimized_firebase_storage_sync_service.dart';
 import '../services/file_category_management_service.dart';
 import '../services/cloud_functions_service.dart';
 import '../core/utils/anr_prevention.dart';
+import '../core/config/anr_config.dart';
 import 'category_provider.dart';
 
 class DocumentProvider extends ChangeNotifier {
@@ -34,8 +37,9 @@ class DocumentProvider extends ChangeNotifier {
   // Firebase real-time listener
   final FirebaseService _firebaseService = FirebaseService.instance;
   final DocumentService _documentService = DocumentService.instance;
-  final FirebaseStorageSyncService _storageSyncService =
-      FirebaseStorageSyncService.instance;
+  // Use optimized sync service to prevent duplicate operations
+  final OptimizedFirebaseStorageSyncService _optimizedSyncService =
+      OptimizedFirebaseStorageSyncService.instance;
   StreamSubscription? _documentsSubscription;
   final bool _useFirebaseSync =
       true; // Enable Firebase sync for data persistence
@@ -78,8 +82,8 @@ class DocumentProvider extends ChangeNotifier {
 
           // Perform comprehensive sync with timeout to prevent ANR
           final syncedDocuments = await ANRPrevention.executeNetworkOperation(
-            _storageSyncService.syncStorageWithFirestore(),
-            operationName: 'Firebase Storage Sync',
+            _optimizedSyncService.syncStorageWithFirestoreOptimized(),
+            operationName: 'Optimized Firebase Storage Sync',
           );
 
           if (syncedDocuments != null && syncedDocuments.isNotEmpty) {
@@ -174,7 +178,7 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  // Start Firebase real-time listener for document updates
+  // Start Firebase real-time listener for document updates with optimization
   void _startFirebaseListener() {
     try {
       // CRITICAL FIX: Only start listener if not already active
@@ -185,9 +189,11 @@ class DocumentProvider extends ChangeNotifier {
         return;
       }
 
+      // PERFORMANCE FIX: Use pagination for real-time listener to prevent ANR
       _documentsSubscription = _firebaseService.documentsCollection
           .where('isActive', isEqualTo: true) // Only get active documents
           .orderBy('uploadedAt', descending: true)
+          .limit(ANRConfig.defaultPageSize) // Limit real-time updates
           .snapshots()
           .listen(
             (snapshot) {
@@ -196,6 +202,7 @@ class DocumentProvider extends ChangeNotifier {
             onError: (error) {
               debugPrint('Firebase listener error: $error');
               // Continue with local data if Firebase fails
+              _setError('Real-time sync temporarily unavailable');
             },
           );
 
@@ -1297,10 +1304,10 @@ class DocumentProvider extends ChangeNotifier {
     try {
       debugPrint('🔄 Force refreshing with Firebase Storage sync...');
 
-      // Perform comprehensive sync
-      final syncedDocuments = await _storageSyncService
-          .performComprehensiveSync();
-      debugPrint('📊 Sync results: $syncedDocuments');
+      // Perform optimized sync (no automatic cleanup)
+      final syncedDocuments = await _optimizedSyncService
+          .syncStorageWithFirestoreOptimized();
+      debugPrint('📊 Sync results: ${syncedDocuments.length} documents synced');
 
       // Reload documents after sync
       await loadDocuments();
@@ -1325,10 +1332,18 @@ class DocumentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Get sync status information
+  // Get sync status information (simplified for optimized service)
   Future<Map<String, dynamic>> getSyncStatus() async {
     try {
-      return await _storageSyncService.getSyncStatus();
+      // Simplified status since optimized service doesn't have getSyncStatus
+      return {
+        'storageFileCount': 'N/A - Use optimized sync',
+        'firestoreDocumentCount': _documents.length,
+        'orphanedFileCount': 'N/A - Manual check required',
+        'syncNeeded': false,
+        'lastSyncCheck': DateTime.now().toIso8601String(),
+        'note': 'Using optimized sync service - automatic cleanup disabled',
+      };
     } catch (e) {
       return {
         'error': e.toString(),
