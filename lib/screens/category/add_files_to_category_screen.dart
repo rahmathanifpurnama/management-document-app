@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 import '../../core/constants/app_colors.dart';
 import '../../providers/document_provider.dart';
+import '../../providers/file_selection_provider.dart';
 import '../../models/category_model.dart';
 import '../../models/document_model.dart';
 import '../../widgets/common/app_bottom_navigation.dart';
@@ -24,7 +25,6 @@ class AddFilesToCategoryScreen extends StatefulWidget {
 class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchTimer;
-  final Set<String> _selectedFiles = <String>{};
   bool _isLoading = false;
   bool _isFilterExpanded = false;
 
@@ -50,23 +50,8 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     horizontal: 16,
   );
 
-  // Table header text margins - Customize these for each header text
-
-  static const EdgeInsets _fileNameHeaderMargin = EdgeInsets.only(
-    left: 2,
-    right: 2,
-    top: 4,
-    bottom: 4,
-  );
-
-  static const EdgeInsets _dateHeaderMargin = EdgeInsets.symmetric(
-    horizontal: 2,
-    vertical: 4,
-  );
-
   // Internal paddings - Reduced for more compact layout
   static const EdgeInsets _searchSectionPadding = EdgeInsets.all(12);
-  static const EdgeInsets _selectedInfoPadding = EdgeInsets.all(12);
   static const EdgeInsets _emptyStatePadding = EdgeInsets.all(24);
 
   // Spacing between sections - Reduced for more compact layout
@@ -139,59 +124,81 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: CustomAppBar(
-        title: 'Add Files to ${widget.category.name}',
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.textWhite,
-        leading: const IOSBackButton(),
-        actions: [
-          if (_selectedFiles.isNotEmpty)
-            TextButton(
-              onPressed: _isLoading ? null : _addSelectedFiles,
-              child: Text(
-                'Add (${_selectedFiles.length})',
-                style: GoogleFonts.poppins(
-                  color: _isLoading
-                      ? AppColors.textSecondary
-                      : AppColors.textWhite,
-                  fontWeight: FontWeight.w600,
+    return Consumer<FileSelectionProvider>(
+      builder: (context, selectionProvider, child) {
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: CustomAppBar(
+            title: 'Add Files to ${widget.category.name}',
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.textWhite,
+            leading: const IOSBackButton(),
+            actions: [
+              if (selectionProvider.hasSelection)
+                TextButton(
+                  onPressed: _isLoading
+                      ? null
+                      : () => _addSelectedFiles(selectionProvider),
+                  child: Text(
+                    'Add (${selectionProvider.selectedCount})',
+                    style: GoogleFonts.poppins(
+                      color: _isLoading
+                          ? AppColors.textSecondary
+                          : AppColors.textWhite,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-        ],
-      ),
-      bottomNavigationBar: const AppBottomNavigation(currentIndex: 1),
-      body: Consumer<DocumentProvider>(
-        builder: (context, documentProvider, child) {
-          // Apply DocumentProvider filters first, then get available documents
-          final filteredDocuments = documentProvider.documents;
-          final availableDocuments = _getAvailableDocuments(filteredDocuments);
+            ],
+          ),
+          bottomNavigationBar: const AppBottomNavigation(currentIndex: 1),
+          body: Consumer<DocumentProvider>(
+            builder: (context, documentProvider, child) {
+              // Apply DocumentProvider filters first, then get available documents
+              final filteredDocuments = documentProvider.documents;
+              final availableDocuments = _getAvailableDocuments(
+                filteredDocuments,
+              );
 
-          return RefreshIndicator(
-            onRefresh: _loadData,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
+              // Update available files for selection
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                selectionProvider.updateAvailableFiles(availableDocuments);
+              });
+
+              return Column(
                 children: [
-                  // Search Section
-                  _buildSearchSection(),
+                  // Custom selection bar for add-only functionality
+                  _buildAddOnlySelectionBar(selectionProvider),
 
-                  // Filter Section
-                  _buildCollapsibleFilterSection(),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _loadData,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Column(
+                          children: [
+                            // Search Section
+                            _buildSearchSection(),
 
-                  // Selected Files Info
-                  if (_selectedFiles.isNotEmpty) _buildSelectedFilesInfo(),
+                            // Filter Section
+                            _buildCollapsibleFilterSection(),
 
-                  // Files List
-                  _buildFileTableWithHeader(availableDocuments),
+                            // Files List
+                            _buildFileList(
+                              availableDocuments,
+                              selectionProvider,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
-              ),
-            ),
-          );
-        },
-      ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -394,49 +401,106 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     );
   }
 
-  Widget _buildSelectedFilesInfo() {
+  /// Build custom selection bar for add-only functionality
+  Widget _buildAddOnlySelectionBar(FileSelectionProvider selectionProvider) {
+    if (!selectionProvider.isSelectionMode) {
+      return const SizedBox.shrink();
+    }
+
     return Container(
-      margin: _selectedInfoMargin,
-      padding: _selectedInfoPadding,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.primary.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
       ),
       child: Row(
         children: [
-          Icon(Icons.check_circle, color: AppColors.primary, size: 20),
-          const SizedBox(width: 8),
+          // Close selection mode button
+          IconButton(
+            onPressed: () {
+              selectionProvider.exitSelectionMode();
+            },
+            icon: const Icon(Icons.close),
+            color: AppColors.primary,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+
+          const SizedBox(width: 12),
+
+          // Selection count
           Expanded(
             child: Text(
-              '${_selectedFiles.length} file(s) selected to add to ${widget.category.name}',
+              '${selectionProvider.selectedCount} file(s) selected',
               style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: AppColors.primary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                _selectedFiles.clear();
-              });
-            },
-            child: Text(
-              'Clear',
-              style: GoogleFonts.poppins(
-                fontSize: 12,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
                 color: AppColors.primary,
               ),
             ),
           ),
+
+          // Select All / Clear Selection
+          if (selectionProvider.hasSelection) ...[
+            TextButton(
+              onPressed: selectionProvider.isAllSelected
+                  ? selectionProvider.clearSelection
+                  : selectionProvider.selectAll,
+              child: Text(
+                selectionProvider.isAllSelected ? 'Clear All' : 'Select All',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
+            // Add button
+            ElevatedButton.icon(
+              onPressed: () => _addSelectedFiles(selectionProvider),
+              icon: const Icon(Icons.add, size: 18),
+              label: Text(
+                'Add',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildFileTableWithHeader(List<DocumentModel> documents) {
+  /// Build file list with selection support
+  Widget _buildFileList(
+    List<DocumentModel> documents,
+    FileSelectionProvider selectionProvider,
+  ) {
+    if (documents.isEmpty) {
+      return _buildEmptyFileList();
+    }
+
     return Container(
       margin: _tableContainerMargin,
       child: Column(
@@ -444,20 +508,64 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
         children: [
           SizedBox(height: sectionSpacing),
           Container(
-            width: double.infinity, // Ensure full width
+            width: double.infinity,
             decoration: BoxDecoration(
-              color: AppColors.background,
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.shadow.withValues(alpha: 0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Column(
-              mainAxisSize: MainAxisSize.min, // Shrink to content
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Table Header - Always shown
-                _buildTableHeader(),
-                // File List or Empty State
-                documents.isEmpty
-                    ? _buildEmptyFileList()
-                    : _buildFileList(documents),
+                // Header with file count
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.05),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      topRight: Radius.circular(16),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.folder_open,
+                        color: AppColors.primary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Available Files (${documents.length})',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // File list
+                ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(8),
+                  itemCount: documents.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 4),
+                  itemBuilder: (context, index) {
+                    final document = documents[index];
+                    return _buildFileListItem(document, selectionProvider);
+                  },
+                ),
               ],
             ),
           ),
@@ -467,94 +575,150 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     );
   }
 
-  Widget _buildTableHeader() {
+  /// Build individual file list item with selection support
+  Widget _buildFileListItem(
+    DocumentModel document,
+    FileSelectionProvider selectionProvider,
+  ) {
+    final isSelected = selectionProvider.isFileSelected(document.id);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-        ),
-        border: Border(
-          bottom: BorderSide(
-            color: AppColors.border.withValues(alpha: 0.3),
-            width: 1,
-          ),
+        color: isSelected
+            ? AppColors.primary.withValues(alpha: 0.08)
+            : AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSelected
+              ? AppColors.primary.withValues(alpha: 0.3)
+              : AppColors.border.withValues(alpha: 0.2),
+          width: 1,
         ),
       ),
-      child: Table(
-        columnWidths: const {
-          0: FixedColumnWidth(40), // Checkbox space
-          1: FlexColumnWidth(4), // Name
-          3: FlexColumnWidth(2), // Date
-        },
-        children: [
-          TableRow(
-            children: [
-              TableCell(
-                child: Container(
-                  width: 30, // Custom width
-                  height: 30, // Custom height
-                  alignment: Alignment.center, // Custom alignment
-                  margin: EdgeInsets
-                      .zero, // Custom margin - menghapus _fileNameHeaderMargin
-                  child: Consumer<DocumentProvider>(
-                    builder: (context, documentProvider, child) {
-                      final availableDocuments = _getAvailableDocuments(
-                        documentProvider.documents,
-                      );
-                      final allSelected =
-                          availableDocuments.isNotEmpty &&
-                          _selectedFiles.length == availableDocuments.length;
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            selectionProvider.toggleFileSelection(document.id);
+          },
+          onLongPress: () {
+            if (!selectionProvider.isSelectionMode) {
+              selectionProvider.enterSelectionMode(document, [document]);
+            }
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Selection checkbox
+                Checkbox(
+                  value: isSelected,
+                  onChanged: (value) {
+                    selectionProvider.toggleFileSelection(document.id);
+                  },
+                  activeColor: AppColors.primary,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
 
-                      return Checkbox(
-                        value: allSelected,
-                        onChanged: availableDocuments.isEmpty
-                            ? null
-                            : (value) {
-                                setState(() {
-                                  if (value == true) {
-                                    // Select all available documents
-                                    _selectedFiles.clear();
-                                    _selectedFiles.addAll(
-                                      availableDocuments.map((doc) => doc.id),
-                                    );
-                                  } else {
-                                    // Deselect all
-                                    _selectedFiles.clear();
-                                  }
-                                });
-                              },
-                        activeColor: AppColors.primary,
-                        materialTapTargetSize: MaterialTapTargetSize
-                            .shrinkWrap, // Mengurangi tap area
-                        visualDensity:
-                            VisualDensity.compact, // Mengurangi visual density
-                      );
-                    },
+                const SizedBox(width: 12),
+
+                // File type icon
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        _getFileTypeColor(
+                          document.fileType,
+                        ).withValues(alpha: 0.8),
+                        _getFileTypeColor(
+                          document.fileType,
+                        ).withValues(alpha: 0.6),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _getFileTypeColor(
+                          document.fileType,
+                        ).withValues(alpha: 0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Icon(
+                      _getFileTypeIcon(document.fileType),
+                      color: Colors.white,
+                      size: 24,
+                    ),
                   ),
                 ),
-              ),
-              TableCell(
-                child: Container(
-                  margin: _fileNameHeaderMargin,
-                  child: Text('File Name', style: _getTableHeaderStyle()),
-                ),
-              ),
-              TableCell(
-                child: Container(
-                  margin: _dateHeaderMargin,
-                  child: Text(
-                    'Date',
-                    style: _getTableHeaderStyle(),
-                    textAlign: TextAlign.end,
+
+                const SizedBox(width: 16),
+
+                // File info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        document.fileName,
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            _formatFileSize(document.fileSize),
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 4,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.5,
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _formatDate(document.uploadedAt),
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -594,281 +758,10 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     );
   }
 
-  Widget _buildFileList(List<DocumentModel> documents) {
-    // Calculate dynamic height based on number of documents
-    // Each row is approximately 80px, show 7 items max before scrolling
-    final double itemHeight = 80.0;
-    final int maxVisibleItems = 7;
-    final double maxHeight = maxVisibleItems * itemHeight; // 7 * 80 = 560px
-    final double calculatedHeight = documents.length * itemHeight;
-    final double containerHeight = calculatedHeight > maxHeight
-        ? maxHeight
-        : calculatedHeight;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(16),
-          bottomRight: Radius.circular(16),
-        ),
-      ),
-      child: Column(
-        children: [
-          SizedBox(
-            height: containerHeight,
-            child:
-                documents.length >
-                    maxVisibleItems // Show scrollbar if more than 7 items
-                ? Scrollbar(
-                    thumbVisibility: true,
-                    trackVisibility: true,
-                    thickness: 6.0,
-                    radius: const Radius.circular(3.0),
-                    child: ListView.builder(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: EdgeInsets.zero,
-                      itemCount: documents.length,
-                      itemBuilder: (context, index) {
-                        final document = documents[index];
-                        return _buildDocumentRow(document);
-                      },
-                    ),
-                  )
-                : ListView.builder(
-                    physics:
-                        const NeverScrollableScrollPhysics(), // No scroll for 7 or fewer items
-                    padding: EdgeInsets.zero,
-                    shrinkWrap: true, // Shrink to content size
-                    itemCount: documents.length,
-                    itemBuilder: (context, index) {
-                      final document = documents[index];
-                      return _buildDocumentRow(document);
-                    },
-                  ),
-          ),
-          const SizedBox(height: 20), // Bottom padding
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDocumentRow(DocumentModel document) {
-    final isSelected = _selectedFiles.contains(document.id);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: isSelected
-            ? AppColors.primary.withValues(alpha: 0.08)
-            : AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.3)
-              : AppColors.border.withValues(alpha: 0.5),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadow.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            setState(() {
-              if (isSelected) {
-                _selectedFiles.remove(document.id);
-              } else {
-                _selectedFiles.add(document.id);
-              }
-            });
-          },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Table(
-              columnWidths: const {
-                0: FixedColumnWidth(40), // Checkbox
-                1: FlexColumnWidth(4), // Name
-                3: FlexColumnWidth(2), // Date
-              },
-              children: [
-                TableRow(
-                  children: [
-                    TableCell(
-                      verticalAlignment: TableCellVerticalAlignment.middle,
-                      child: Container(
-                        width: 30, // Custom width
-                        height: 30, // Custom height
-                        alignment: Alignment.center, // Custom alignment
-                        child: Checkbox(
-                          value: isSelected,
-                          onChanged: (value) {
-                            setState(() {
-                              if (value == true) {
-                                _selectedFiles.add(document.id);
-                              } else {
-                                _selectedFiles.remove(document.id);
-                              }
-                            });
-                          },
-                          activeColor: AppColors.primary,
-                          materialTapTargetSize: MaterialTapTargetSize
-                              .shrinkWrap, // Reduce tap area
-                          visualDensity:
-                              VisualDensity.compact, // Reduce visual density
-                        ),
-                      ),
-                    ),
-                    TableCell(
-                      verticalAlignment: TableCellVerticalAlignment.middle,
-                      child: Row(
-                        children: [
-                          // Enhanced file type indicator
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  _getFileTypeColor(
-                                    document.fileType,
-                                  ).withValues(alpha: 0.8),
-                                  _getFileTypeColor(
-                                    document.fileType,
-                                  ).withValues(alpha: 0.6),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: _getFileTypeColor(
-                                    document.fileType,
-                                  ).withValues(alpha: 0.2),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Stack(
-                              children: [
-                                Center(
-                                  child: Icon(
-                                    _getFileTypeIcon(document.fileType),
-                                    color: Colors.white,
-                                    size: 24,
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: 2,
-                                  right: 2,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 4,
-                                      vertical: 1,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.9,
-                                      ),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      _getFileTypeLabel(document.fileType),
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 8,
-                                        fontWeight: FontWeight.w600,
-                                        color: _getFileTypeColor(
-                                          document.fileType,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  document.fileName,
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  _formatFileSize(document.fileSize),
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w400,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    TableCell(
-                      verticalAlignment: TableCellVerticalAlignment.middle,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            _formatDate(document.uploadedAt),
-                            style: GoogleFonts.poppins(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textPrimary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.right,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _formatTime(document.uploadedAt),
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w400,
-                              color: AppColors.textSecondary,
-                            ),
-                            textAlign: TextAlign.right,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _addSelectedFiles() async {
-    if (_selectedFiles.isEmpty) return;
+  Future<void> _addSelectedFiles(
+    FileSelectionProvider selectionProvider,
+  ) async {
+    if (!selectionProvider.hasSelection) return;
 
     setState(() {
       _isLoading = true;
@@ -882,7 +775,7 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
 
       // Use batch update for better performance
       await documentProvider.updateMultipleDocumentsCategory(
-        _selectedFiles.toList(),
+        selectionProvider.selectedFileIds.toList(),
         widget.category.id,
       );
 
@@ -890,12 +783,15 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '${_selectedFiles.length} file(s) added to ${widget.category.name}',
+              '${selectionProvider.selectedCount} file(s) added to ${widget.category.name}',
               style: GoogleFonts.poppins(),
             ),
             backgroundColor: AppColors.success,
           ),
         );
+
+        // Clear selection and exit selection mode
+        selectionProvider.exitSelectionMode();
 
         // Navigate back to category files screen with success result
         Navigator.of(context).pop(true);
@@ -922,13 +818,6 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
   }
 
   // Helper methods for styling and formatting
-  TextStyle _getTableHeaderStyle() {
-    return GoogleFonts.poppins(
-      fontSize: 14,
-      fontWeight: FontWeight.w600,
-      color: AppColors.textPrimary,
-    );
-  }
 
   IconData _getFileTypeIcon(String fileType) {
     final lowerFileType = fileType.toLowerCase();
@@ -989,21 +878,6 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     return AppColors.textSecondary;
   }
 
-  String _getFileTypeLabel(String fileType) {
-    if (fileType.contains('pdf')) return 'PDF';
-    if (fileType.contains('word') || fileType.contains('doc')) return 'Word';
-    if (fileType.contains('excel') || fileType.contains('sheet')) {
-      return 'Excel';
-    }
-    if (fileType.contains('powerpoint') || fileType.contains('presentation')) {
-      return 'PowerPoint';
-    }
-    if (fileType.contains('image')) return 'Image';
-    if (fileType.contains('video')) return 'Video';
-    if (fileType.contains('audio')) return 'Audio';
-    return 'File';
-  }
-
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
@@ -1017,10 +891,6 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     } else {
       return '${date.day}/${date.month}/${date.year}';
     }
-  }
-
-  String _formatTime(DateTime date) {
-    return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
   String _formatFileSize(int bytes) {

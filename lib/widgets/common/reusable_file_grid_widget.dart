@@ -108,11 +108,7 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.grid_view,
-            color: AppColors.primary,
-            size: 20,
-          ),
+          Icon(Icons.grid_view, color: AppColors.primary, size: 20),
           const SizedBox(width: 8),
           Text(
             '${widget.documents.length} files',
@@ -126,11 +122,7 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
           if (widget.onFilterTap != null)
             IconButton(
               onPressed: widget.onFilterTap,
-              icon: Icon(
-                Icons.filter_list,
-                color: AppColors.primary,
-                size: 20,
-              ),
+              icon: Icon(Icons.filter_list, color: AppColors.primary, size: 20),
               tooltip: 'Filter files',
             ),
         ],
@@ -204,7 +196,9 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
                       child: Icon(
                         FileIconHelper.getFileIcon(document.fileName),
                         size: 48,
-                        color: AppColors.primary,
+                        color: FileIconHelper.getFileTypeColor(
+                          document.fileName,
+                        ),
                       ),
                     ),
                     // Selection indicator
