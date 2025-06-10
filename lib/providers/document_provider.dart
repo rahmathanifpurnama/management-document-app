@@ -74,6 +74,8 @@ class DocumentProvider extends ChangeNotifier {
     _clearError();
 
     try {
+      debugPrint('🔄 Starting document loading process...');
+
       // First try to sync Firebase Storage with Firestore and load documents
       bool firebaseDataLoaded = false;
       if (_useFirebaseSync) {
@@ -88,13 +90,15 @@ class DocumentProvider extends ChangeNotifier {
 
           if (syncedDocuments != null && syncedDocuments.isNotEmpty) {
             debugPrint(
-              ' Loading ${syncedDocuments.length} synced documents from Firebase',
+              '📥 Loading ${syncedDocuments.length} synced documents from Firebase',
             );
             _handleFirebaseDocumentModels(syncedDocuments);
             firebaseDataLoaded = true;
             _isInitialized = true;
             // Save synced data to local storage for offline access
             await _saveToStorage();
+            // Notify listeners immediately after loading
+            notifyListeners();
           } else {
             // Fallback to regular Firestore query if sync returns empty
             final firebaseDocuments =
@@ -110,6 +114,8 @@ class DocumentProvider extends ChangeNotifier {
               firebaseDataLoaded = true;
               _isInitialized = true;
               await _saveToStorage();
+              // Notify listeners immediately after loading
+              notifyListeners();
             }
           }
         } catch (firebaseError) {
@@ -120,6 +126,7 @@ class DocumentProvider extends ChangeNotifier {
 
       // If Firebase data wasn't loaded, try local storage
       if (!firebaseDataLoaded) {
+        debugPrint('🔄 Loading from local storage...');
         await _loadFromStorage();
 
         // If no local data either, try one more time with Firebase
@@ -137,10 +144,18 @@ class DocumentProvider extends ChangeNotifier {
               firebaseDataLoaded = true;
               _isInitialized = true;
               await _saveToStorage();
+              // Notify listeners after final load
+              notifyListeners();
             }
           } catch (finalError) {
             debugPrint('Final Firebase attempt failed: $finalError');
           }
+        } else {
+          // Notify listeners if we loaded from local storage
+          debugPrint(
+            '📱 Loaded ${_categoryDocuments.length} categories from local storage',
+          );
+          notifyListeners();
         }
 
         // Start with empty state for new users only if no data was found anywhere
@@ -148,6 +163,7 @@ class DocumentProvider extends ChangeNotifier {
           debugPrint('📝 No data found anywhere, starting with empty state');
           _isInitialized = true;
           await _saveToStorage();
+          notifyListeners();
         }
       }
 

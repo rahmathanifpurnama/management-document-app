@@ -460,70 +460,36 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     );
   }
 
-  /// Build enhanced pagination controls with improved styling
+  /// Build clean pagination controls without background styling
   Widget _buildPaginationControls(int totalPages) {
     return Container(
-      margin: const EdgeInsets.only(top: 8),
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.border.withValues(alpha: 0.2),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
+      margin: const EdgeInsets.only(top: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Page info text
-          Text(
-            'Page ${_currentPage + 1} of $totalPages',
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
-            ),
+          // Previous button
+          _buildPaginationButton(
+            icon: Icons.chevron_left,
+            isEnabled: _currentPage > 0,
+            onTap: _currentPage > 0 ? () => _goToPage(_currentPage - 1) : null,
+            tooltip: 'Previous page',
           ),
-          const SizedBox(height: 16),
 
-          // Pagination controls
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Previous button with enhanced styling
-              _buildPaginationButton(
-                icon: Icons.chevron_left,
-                isEnabled: _currentPage > 0,
-                onTap: _currentPage > 0
-                    ? () => _goToPage(_currentPage - 1)
-                    : null,
-                tooltip: 'Previous page',
-              ),
+          const SizedBox(width: 16),
 
-              const SizedBox(width: 20),
+          // Page indicators with smart truncation and ellipsis
+          ..._buildPageIndicators(totalPages),
 
-              // Page indicators with smart truncation
-              ..._buildPageIndicators(totalPages),
+          const SizedBox(width: 16),
 
-              const SizedBox(width: 20),
-
-              // Next button with enhanced styling
-              _buildPaginationButton(
-                icon: Icons.chevron_right,
-                isEnabled: _currentPage < totalPages - 1,
-                onTap: _currentPage < totalPages - 1
-                    ? () => _goToPage(_currentPage + 1)
-                    : null,
-                tooltip: 'Next page',
-              ),
-            ],
+          // Next button
+          _buildPaginationButton(
+            icon: Icons.chevron_right,
+            isEnabled: _currentPage < totalPages - 1,
+            onTap: _currentPage < totalPages - 1
+                ? () => _goToPage(_currentPage + 1)
+                : null,
+            tooltip: 'Next page',
           ),
         ],
       ),
@@ -545,26 +511,23 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            width: 44,
-            height: 44,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              color: isEnabled
-                  ? AppColors.primary.withValues(alpha: 0.1)
-                  : AppColors.background,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: isEnabled
                     ? AppColors.primary.withValues(alpha: 0.3)
                     : AppColors.border.withValues(alpha: 0.2),
-                width: 1.5,
+                width: 1,
               ),
             ),
             child: Icon(
               icon,
-              size: 22,
+              size: 18,
               color: isEnabled
                   ? AppColors.primary
-                  : AppColors.textSecondary.withValues(alpha: 0.4),
+                  : AppColors.textSecondary.withValues(alpha: 0.5),
             ),
           ),
         ),
@@ -613,39 +576,30 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     return indicators;
   }
 
-  /// Build individual page indicator
+  /// Build clean page indicator
   Widget _buildPageIndicator(int index) {
     final isCurrentPage = index == _currentPage;
     return GestureDetector(
       onTap: () => _goToPage(index),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        width: 40,
-        height: 40,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        width: 32,
+        height: 32,
         decoration: BoxDecoration(
           color: isCurrentPage ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isCurrentPage
                 ? AppColors.primary
                 : AppColors.border.withValues(alpha: 0.3),
-            width: 1.5,
+            width: 1,
           ),
-          boxShadow: isCurrentPage
-              ? [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ]
-              : null,
         ),
         child: Center(
           child: Text(
             '${index + 1}',
             style: GoogleFonts.poppins(
-              fontSize: 14,
+              fontSize: 13,
               fontWeight: isCurrentPage ? FontWeight.w600 : FontWeight.w500,
               color: isCurrentPage ? Colors.white : AppColors.textPrimary,
             ),
@@ -655,17 +609,17 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     );
   }
 
-  /// Build ellipsis indicator
+  /// Build clean ellipsis indicator
   Widget _buildEllipsis() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 3),
-      width: 40,
-      height: 40,
+      margin: const EdgeInsets.symmetric(horizontal: 2),
+      width: 32,
+      height: 32,
       child: Center(
         child: Text(
           '...',
           style: GoogleFonts.poppins(
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: FontWeight.w500,
             color: AppColors.textSecondary,
           ),

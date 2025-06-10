@@ -202,6 +202,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (_dataLoaded) return;
 
     try {
+      debugPrint('🏠 Home screen: Starting data load...');
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final documentProvider = Provider.of<DocumentProvider>(
         context,
@@ -212,15 +213,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         listen: false,
       );
 
+      // Load data with proper error handling and immediate UI updates
       await Future.wait([
         userProvider.loadUsers(),
         documentProvider.loadDocuments(),
         categoryProvider.loadCategories(),
       ]);
 
+      debugPrint('🏠 Home screen: Data load completed successfully');
       _dataLoaded = true;
+
+      // Force UI update after data is loaded
+      if (mounted) {
+        setState(() {});
+      }
     } catch (e) {
-      debugPrint('Error loading data: $e');
+      debugPrint('❌ Home screen: Error loading data: $e');
+      // Still mark as loaded to prevent infinite loading attempts
+      _dataLoaded = true;
     }
   }
 

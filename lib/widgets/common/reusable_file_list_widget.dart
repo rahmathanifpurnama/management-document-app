@@ -7,6 +7,7 @@ import '../../core/widgets/optimized_ui_widgets.dart';
 import '../../core/config/anr_config.dart';
 import '../../models/document_model.dart';
 import '../../providers/file_selection_provider.dart';
+import '../../providers/document_provider.dart';
 import '../../services/bulk_operations_service.dart';
 
 /// Reusable file list widget that can be used across different screens
@@ -85,8 +86,8 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
         : widget.documents.length;
     final currentPageDocuments = widget.documents.sublist(startIndex, endIndex);
 
-    return Consumer<FileSelectionProvider>(
-      builder: (context, selectionProvider, child) {
+    return Consumer2<FileSelectionProvider, DocumentProvider>(
+      builder: (context, selectionProvider, documentProvider, child) {
         // Update available files for selection only when necessary
         // Use a more conservative approach to prevent selection interference
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -95,6 +96,49 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
             selectionProvider.updateAvailableFiles(widget.documents);
           }
         });
+
+        // Show loading state if documents are being loaded and no documents available
+        if (documentProvider.isLoading && widget.documents.isEmpty) {
+          return Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header with title and filter
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      widget.title,
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    if (widget.showFilter && widget.onFilterTap != null)
+                      IconButton(
+                        onPressed: widget.onFilterTap,
+                        icon: const Icon(
+                          Icons.filter_list,
+                          color: AppColors.textSecondary,
+                          size: 20,
+                        ),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                          minWidth: 24,
+                          minHeight: 24,
+                        ),
+                        tooltip: 'Filter Files',
+                      ),
+                  ],
+                ),
+                // Loading indicator
+                _buildLoadingState(),
+              ],
+            ),
+          );
+        }
 
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -143,6 +187,44 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
           ),
         );
       },
+    );
+  }
+
+  /// Build loading state widget
+  Widget _buildLoadingState() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Center(
+        child: Column(
+          children: [
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Loading files...',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

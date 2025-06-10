@@ -59,9 +59,14 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
         context,
         listen: false,
       );
+
+      debugPrint(
+        '📁 Category screen: Initializing category ${widget.category.id}',
+      );
       documentProvider.initializeCategory(widget.category.id);
 
       // Always try to load documents from Firebase to ensure fresh data
+      debugPrint('📁 Category screen: Loading documents...');
       await documentProvider.loadDocuments();
 
       // If category is still empty, try async Firebase query
@@ -74,6 +79,8 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
         );
         await documentProvider.getDocumentsByCategoryAsync(widget.category.id);
       }
+
+      debugPrint('📁 Category screen: Initialization completed');
     });
   }
 

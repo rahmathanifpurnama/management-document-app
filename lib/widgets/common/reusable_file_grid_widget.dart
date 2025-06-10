@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/document_model.dart';
 import '../../providers/file_selection_provider.dart';
+import '../../providers/document_provider.dart';
 import '../../services/bulk_operations_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/file_icon_helper.dart';
@@ -60,8 +61,8 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
         : widget.documents.length;
     final currentPageDocuments = widget.documents.sublist(startIndex, endIndex);
 
-    return Consumer<FileSelectionProvider>(
-      builder: (context, selectionProvider, child) {
+    return Consumer2<FileSelectionProvider, DocumentProvider>(
+      builder: (context, selectionProvider, documentProvider, child) {
         // Update available files for selection only when necessary
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (selectionProvider.isSelectionMode) {
@@ -69,6 +70,21 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
             selectionProvider.updateAvailableFiles(widget.documents);
           }
         });
+
+        // Show loading state if documents are being loaded and no documents available
+        if (documentProvider.isLoading && widget.documents.isEmpty) {
+          return Container(
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              children: [
+                // Filter Header
+                if (widget.showFilter) _buildFilterHeader(),
+                // Loading indicator
+                _buildLoadingState(),
+              ],
+            ),
+          );
+        }
 
         return Container(
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -92,6 +108,36 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
           ),
         );
       },
+    );
+  }
+
+  /// Build loading state widget
+  Widget _buildLoadingState() {
+    return Container(
+      padding: const EdgeInsets.all(48),
+      child: Center(
+        child: Column(
+          children: [
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Loading files...',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
