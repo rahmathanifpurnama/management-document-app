@@ -36,6 +36,7 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
 
   @override
   void dispose() {
+    _searchController.dispose();
     super.dispose();
   }
 
