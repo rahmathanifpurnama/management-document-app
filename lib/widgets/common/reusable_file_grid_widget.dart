@@ -61,9 +61,12 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
 
     return Consumer<FileSelectionProvider>(
       builder: (context, selectionProvider, child) {
-        // Update available files for selection
+        // Update available files for selection only when necessary
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          selectionProvider.updateAvailableFiles(widget.documents);
+          if (selectionProvider.isSelectionMode) {
+            // Only update if we're in selection mode to avoid unnecessary calls
+            selectionProvider.updateAvailableFiles(widget.documents);
+          }
         });
 
         return Container(

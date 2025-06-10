@@ -98,9 +98,12 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         // This includes all filters: search, category, status, file type
         final filteredDocuments = documentProvider.documents;
 
-        // Update available files for selection
+        // Update available files for selection only when necessary
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          selectionProvider.updateAvailableFiles(filteredDocuments);
+          if (selectionProvider.isSelectionMode) {
+            // Only update if we're in selection mode to avoid unnecessary calls
+            selectionProvider.updateAvailableFiles(filteredDocuments);
+          }
         });
 
         return Column(
