@@ -9,6 +9,7 @@ import '../../theme/app_colors.dart';
 import '../../utils/file_icon_helper.dart';
 import '../../utils/file_size_formatter.dart';
 import '../../utils/date_formatter.dart';
+import '../common/responsive_layout_widget.dart';
 
 /// Reusable file grid widget with pagination support
 class ReusableFileGridWidget extends StatefulWidget {
@@ -126,7 +127,7 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
     );
   }
 
-  /// Build grid view
+  /// Build grid view with responsive layout
   Widget _buildGrid(
     List<DocumentModel> documents,
     FileSelectionProvider selectionProvider,
@@ -135,11 +136,21 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.only(top: 16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-        childAspectRatio: 0.90,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: ResponsiveHelper.getResponsiveGridCount(context),
+        crossAxisSpacing: ResponsiveHelper.getResponsiveValue(
+          context,
+          mobile: 12,
+          tablet: 16,
+          desktop: 20,
+        ),
+        mainAxisSpacing: ResponsiveHelper.getResponsiveValue(
+          context,
+          mobile: 12,
+          tablet: 16,
+          desktop: 20,
+        ),
+        childAspectRatio: ResponsiveHelper.getResponsiveAspectRatio(context),
       ),
       itemCount: documents.length,
       itemBuilder: (context, index) {
@@ -191,7 +202,12 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
                     Center(
                       child: Icon(
                         FileIconHelper.getFileIcon(document.fileName),
-                        size: 48,
+                        size: ResponsiveHelper.getResponsiveValue(
+                          context,
+                          mobile: 40,
+                          tablet: 48,
+                          desktop: 56,
+                        ),
                         color: FileIconHelper.getFileTypeColor(
                           document.fileName,
                         ),
@@ -283,7 +299,12 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
                     Text(
                       document.fileName,
                       style: GoogleFonts.poppins(
-                        fontSize: 12,
+                        fontSize: ResponsiveHelper.getResponsiveFontSize(
+                          context,
+                          mobile: 11,
+                          tablet: 12,
+                          desktop: 14,
+                        ),
                         fontWeight: FontWeight.w500,
                         color: AppColors.textPrimary,
                       ),
@@ -295,7 +316,12 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
                     Text(
                       '${FileSizeFormatter.formatBytes(document.fileSize)} • ${DateFormatter.formatRelative(document.uploadedAt)}',
                       style: GoogleFonts.poppins(
-                        fontSize: 10,
+                        fontSize: ResponsiveHelper.getResponsiveFontSize(
+                          context,
+                          mobile: 9,
+                          tablet: 10,
+                          desktop: 12,
+                        ),
                         color: AppColors.textSecondary,
                       ),
                       maxLines: 1,

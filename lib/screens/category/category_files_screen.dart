@@ -19,8 +19,12 @@ import '../../widgets/common/reusable_file_list_widget.dart';
 import '../../widgets/common/reusable_file_grid_widget.dart';
 import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/file_selection_bar.dart';
-
-enum ViewMode { list, grid }
+import '../../widgets/category/category_info_header_widget.dart';
+import '../../widgets/category/category_empty_state_widget.dart';
+import '../../widgets/category/no_search_results_widget.dart';
+import '../../widgets/category/document_menu_widget.dart';
+import '../../widgets/category/view_mode_toggle_widget.dart';
+import '../../widgets/common/responsive_layout_widget.dart';
 
 class CategoryFilesScreen extends StatefulWidget {
   final CategoryModel category;
@@ -152,23 +156,14 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
         foregroundColor: AppColors.textWhite,
         leading: const IOSBackButton(),
         actions: [
-          IconButton(
-            onPressed: () {
+          ViewModeToggleWidget(
+            currentMode: _currentViewMode,
+            onModeChanged: (mode) {
               setState(() {
-                _currentViewMode = _currentViewMode == ViewMode.list
-                    ? ViewMode.grid
-                    : ViewMode.list;
+                _currentViewMode = mode;
               });
             },
-            icon: Icon(
-              _currentViewMode == ViewMode.list
-                  ? Icons.grid_view
-                  : Icons.view_list,
-              color: AppColors.textWhite,
-            ),
-            tooltip: _currentViewMode == ViewMode.list
-                ? 'Switch to Grid View'
-                : 'Switch to List View',
+            iconColor: AppColors.textWhite,
           ),
         ],
       ),
@@ -194,7 +189,11 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                 );
 
                 if (categoryDocuments.isEmpty) {
-                  return _buildEmptyState();
+                  return CategoryEmptyStateWidget(
+                    categoryName: widget.category.name,
+                    onAddExisting: () => _navigateToAddFiles(),
+                    onUploadNew: () => _navigateToUpload(),
+                  );
                 }
 
                 return RefreshIndicator(
@@ -222,12 +221,23 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                     child: Column(
                       children: [
                         // Category Info Header
-                        _buildCategoryInfoHeader(categoryDocuments.length),
+                        CategoryInfoHeaderWidget(
+                          category: widget.category,
+                          fileCount: categoryDocuments.length,
+                          onAddExisting: () => _navigateToAddFiles(),
+                          onUploadNew: () => _navigateToUpload(),
+                        ),
                         // Search Widget
                         _buildSearchWidget(),
                         // Files List
                         filteredDocuments.isEmpty && _searchQuery.isNotEmpty
-                            ? _buildNoSearchResults()
+                            ? NoSearchResultsWidget(searchQuery: _searchQuery)
+                            : filteredDocuments.isEmpty
+                            ? CategoryEmptyStateWidget(
+                                categoryName: widget.category.name,
+                                onAddExisting: () => _navigateToAddFiles(),
+                                onUploadNew: () => _navigateToUpload(),
+                              )
                             : _currentViewMode == ViewMode.list
                             ? ReusableFileListWidget(
                                 documents: filteredDocuments,
@@ -252,7 +262,11 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                                 onFilterTap: _showFilterMenu,
                                 showFilter: true,
                                 showPagination: true,
-                                itemsPerPage: 8, // 4x2 grid per page
+                                itemsPerPage:
+                                    ResponsiveHelper.getResponsiveGridCount(
+                                      context,
+                                    ) *
+                                    2, // Responsive grid
                                 emptyStateMessage: 'No files in this category',
                                 emptyStateIcon: Icons.folder_open,
                                 categoryId: widget.category.id,
@@ -271,146 +285,6 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
     );
   }
 
-  Widget _buildCategoryInfoHeader(int fileCount) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8), // Optimized margins
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(
-          12,
-        ), // Rounded corners like other components
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadow.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: _getCategoryColor().withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    _getCategoryIcon(),
-                    color: _getCategoryColor(),
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.category.name,
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      if (widget.category.description.isNotEmpty)
-                        Text(
-                          widget.category.description,
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    '$fileCount files',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            // Action Buttons Row for non-empty folders
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () async {
-                      // Navigate to add existing files to category
-                      final result = await Navigator.of(context).pushNamed(
-                        AppRoutes.addFilesToCategory,
-                        arguments: widget.category,
-                      );
-                      // Only refresh if files were actually added
-                      if (mounted && result == true) {
-                        // Just trigger a rebuild, data is already updated in provider
-                        setState(() {});
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.success,
-                      foregroundColor: AppColors.textWhite,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                    icon: const Icon(Icons.add, size: 16),
-                    label: Text(
-                      'Add Existing',
-                      style: GoogleFonts.poppins(fontSize: 11),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      // Navigate to upload with pre-selected category
-                      Navigator.of(context).pushNamed(
-                        AppRoutes.uploadDocument,
-                        arguments: widget.category.id,
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.textWhite,
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                    ),
-                    icon: const Icon(Icons.upload, size: 16),
-                    label: Text(
-                      'Upload New',
-                      style: GoogleFonts.poppins(fontSize: 11),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildSearchWidget() {
     return _CategorySearchSection(
       searchController: _searchController,
@@ -418,212 +292,33 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
     );
   }
 
-  Widget _buildNoSearchResults() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.search_off,
-            size: 64,
-            color: AppColors.textSecondary.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No files found',
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Try searching with different keywords',
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.folder_open,
-            size: 80,
-            color: AppColors.textSecondary.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'No Files in This Category',
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Upload documents to this category to see them here',
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () async {
-                  // Navigate to add existing files to category
-                  final result = await Navigator.of(context).pushNamed(
-                    AppRoutes.addFilesToCategory,
-                    arguments: widget.category,
-                  );
-                  // Only refresh if files were actually added
-                  if (mounted && result == true) {
-                    // Just trigger a rebuild, data is already updated in provider
-                    setState(() {});
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.success,
-                  foregroundColor: AppColors.textWhite,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                ),
-                icon: const Icon(Icons.add),
-                label: Text('Add Existing Files', style: GoogleFonts.poppins()),
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton.icon(
-                onPressed: () {
-                  // Navigate to upload with pre-selected category
-                  Navigator.of(context).pushNamed(
-                    AppRoutes.uploadDocument,
-                    arguments: widget.category.id,
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: AppColors.textWhite,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
-                  ),
-                ),
-                icon: const Icon(Icons.upload_file),
-                label: Text('Upload New', style: GoogleFonts.poppins()),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Helper methods
-  IconData _getCategoryIcon() {
-    final name = widget.category.name.toLowerCase();
-    if (name.contains('surat') || name.contains('mail')) {
-      return Icons.mail;
-    } else if (name.contains('laporan') || name.contains('report')) {
-      return Icons.assessment;
-    } else if (name.contains('notulen') || name.contains('meeting')) {
-      return Icons.event_note;
-    } else if (name.contains('sk') || name.contains('keputusan')) {
-      return Icons.gavel;
-    } else if (name.contains('proposal') || name.contains('project')) {
-      return Icons.business_center;
-    } else {
-      return Icons.folder;
-    }
-  }
-
-  Color _getCategoryColor() {
-    final name = widget.category.name.toLowerCase();
-    if (name.contains('surat') || name.contains('mail')) {
-      return Colors.blue;
-    } else if (name.contains('laporan') || name.contains('report')) {
-      return Colors.green;
-    } else if (name.contains('notulen') || name.contains('meeting')) {
-      return Colors.orange;
-    } else if (name.contains('sk') || name.contains('keputusan')) {
-      return Colors.red;
-    } else if (name.contains('proposal') || name.contains('project')) {
-      return Colors.purple;
-    } else {
-      return AppColors.primary;
-    }
-  }
-
   void _showDocumentMenu(DocumentModel document) {
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.download),
-              title: Text('Download', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                _downloadFile(document);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.share),
-              title: Text('Share', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                _shareDocument(document);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: Text('Details', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                _showDocumentDetails(document);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.remove_circle, color: Colors.orange),
-              title: Text(
-                'Remove from Folder',
-                style: GoogleFonts.poppins(color: Colors.orange),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _showRemoveFileDialog(document);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title: Text(
-                'Delete File Permanently',
-                style: GoogleFonts.poppins(color: Colors.red),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _showDeleteConfirmation(document);
-              },
-            ),
-          ],
-        ),
+      backgroundColor: Colors.transparent,
+      builder: (context) => DocumentMenuWidget(
+        document: document,
+        categoryName: widget.category.name,
+        onDownload: () {
+          Navigator.pop(context);
+          _downloadFile(document);
+        },
+        onShare: () {
+          Navigator.pop(context);
+          _shareDocument(document);
+        },
+        onDetails: () {
+          Navigator.pop(context);
+          _showDocumentDetails(document);
+        },
+        onRemoveFromFolder: () {
+          Navigator.pop(context);
+          _showRemoveFileDialog(document);
+        },
+        onDelete: () {
+          Navigator.pop(context);
+          _showDeleteConfirmation(document);
+        },
       ),
     );
   }
@@ -718,6 +413,23 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
 
   void _navigateToFilePreview(DocumentModel document) {
     Navigator.of(context).pushNamed(AppRoutes.filePreview, arguments: document);
+  }
+
+  Future<void> _navigateToAddFiles() async {
+    final result = await Navigator.of(
+      context,
+    ).pushNamed(AppRoutes.addFilesToCategory, arguments: widget.category);
+    // Only refresh if files were actually added
+    if (mounted && result == true) {
+      // Just trigger a rebuild, data is already updated in provider
+      setState(() {});
+    }
+  }
+
+  void _navigateToUpload() {
+    Navigator.of(
+      context,
+    ).pushNamed(AppRoutes.uploadDocument, arguments: widget.category.id);
   }
 
   // Helper method for date formatting

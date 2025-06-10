@@ -12,8 +12,10 @@ import '../../models/document_model.dart';
 import '../../widgets/common/app_bottom_navigation.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/ios_back_button.dart';
-import '../../widgets/common/embedded_file_filter_widget.dart';
 import '../../widgets/common/reusable_file_list_widget.dart';
+import '../../widgets/category/add_only_selection_bar_widget.dart';
+import '../../widgets/category/collapsible_filter_section_widget.dart';
+import '../../widgets/category/available_files_empty_state_widget.dart';
 import '../../widgets/common/reusable_search_widget.dart';
 
 class AddFilesToCategoryScreen extends StatefulWidget {
@@ -30,8 +32,6 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchTimer;
 
-  bool _isFilterExpanded = false;
-
   // ========== MARGIN CONFIGURATION - Easy to adjust ==========
   // Section margins - Reduced to bring content closer to navbar
   static const EdgeInsets _searchSectionMargin = EdgeInsets.fromLTRB(
@@ -40,12 +40,6 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     16,
     12,
   );
-  static const EdgeInsets _filterSectionMargin = EdgeInsets.symmetric(
-    horizontal: 16,
-    vertical: 4,
-  );
-  // Internal paddings - Reduced for more compact layout
-  static const EdgeInsets _emptyStatePadding = EdgeInsets.all(24);
 
   @override
   void initState() {
@@ -151,7 +145,10 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
               return Column(
                 children: [
                   // Custom selection bar for add-only functionality
-                  _buildAddOnlySelectionBar(selectionProvider),
+                  AddOnlySelectionBarWidget(
+                    selectionProvider: selectionProvider,
+                    onAdd: () => _addSelectedFiles(selectionProvider),
+                  ),
 
                   Expanded(
                     child: RefreshIndicator(
@@ -164,11 +161,18 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
                             _buildSearchSection(),
 
                             // Filter Section (with title and filter button)
-                            _buildCollapsibleFilterSection(),
+                            CollapsibleFilterSectionWidget(
+                              title: 'Available Files',
+                              onFilterApplied: () {
+                                setState(() {
+                                  // Trigger rebuild to apply filters
+                                });
+                              },
+                            ),
 
                             // Files List using ReusableFileListWidget
                             availableDocuments.isEmpty
-                                ? _buildEmptyFileList()
+                                ? const AvailableFilesEmptyStateWidget()
                                 : ReusableFileListWidget(
                                     documents: availableDocuments,
                                     title:
@@ -211,258 +215,6 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
         });
       },
       margin: _searchSectionMargin,
-    );
-  }
-
-  Widget _buildCollapsibleFilterSection() {
-    return Consumer<DocumentProvider>(
-      builder: (context, documentProvider, child) {
-        // Check if any filters are active
-        final bool hasActiveFilters =
-            documentProvider.selectedFileType != 'all' ||
-            documentProvider.sortBy != 'uploadedAt' ||
-            documentProvider.sortAscending != false;
-
-        return Container(
-          margin: _filterSectionMargin,
-          child: Column(
-            children: [
-              // Filter Header - with title and filter button
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Available Files Title
-                    Text(
-                      'Available Files',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    // Filter controls
-                    Row(
-                      children: [
-                        // Active filter indicator
-                        if (hasActiveFilters) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              'Active',
-                              style: GoogleFonts.poppins(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.surface,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        // Filter button
-                        IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _isFilterExpanded = !_isFilterExpanded;
-                            });
-                          },
-                          icon: Icon(
-                            _isFilterExpanded
-                                ? Icons.expand_less
-                                : Icons.filter_list,
-                            color: hasActiveFilters
-                                ? AppColors.primary
-                                : AppColors.textSecondary,
-                            size: 20,
-                          ),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 24,
-                            minHeight: 24,
-                          ),
-                          tooltip: _isFilterExpanded
-                              ? 'Collapse Filter'
-                              : 'Filter Files',
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // Collapsible Filter Content
-              AnimatedCrossFade(
-                duration: const Duration(milliseconds: 300),
-                crossFadeState: _isFilterExpanded
-                    ? CrossFadeState.showSecond
-                    : CrossFadeState.showFirst,
-                firstChild: const SizedBox.shrink(),
-                secondChild: Container(
-                  margin: const EdgeInsets.only(top: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: AppColors.border.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: EmbeddedFileFilterWidget(
-                    onFilterApplied: () {
-                      setState(() {
-                        // Trigger rebuild to apply filters
-                        // Optionally auto-collapse after filter selection
-                        _isFilterExpanded = false;
-                      });
-                    },
-                    onClose: () {
-                      setState(() {
-                        _isFilterExpanded = false;
-                      });
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  /// Build custom selection bar for add-only functionality
-  Widget _buildAddOnlySelectionBar(FileSelectionProvider selectionProvider) {
-    if (!selectionProvider.isSelectionMode) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.1),
-        border: Border(
-          bottom: BorderSide(
-            color: AppColors.primary.withValues(alpha: 0.3),
-            width: 1,
-          ),
-        ),
-      ),
-      child: Row(
-        children: [
-          // Close selection mode button
-          IconButton(
-            onPressed: () {
-              selectionProvider.exitSelectionMode();
-            },
-            icon: const Icon(Icons.close),
-            color: AppColors.primary,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          ),
-
-          const SizedBox(width: 12),
-
-          // Selection count
-          Expanded(
-            child: Text(
-              '${selectionProvider.selectedCount} file(s) selected',
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-
-          // Select All / Clear Selection
-          if (selectionProvider.hasSelection) ...[
-            TextButton(
-              onPressed: selectionProvider.isAllSelected
-                  ? selectionProvider.clearSelection
-                  : selectionProvider.selectAll,
-              child: Text(
-                selectionProvider.isAllSelected ? 'Clear All' : 'Select All',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-
-            const SizedBox(width: 8),
-
-            // Add button
-            ElevatedButton.icon(
-              onPressed: () => _addSelectedFiles(selectionProvider),
-              icon: const Icon(Icons.add, size: 18),
-              label: Text(
-                'Add',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyFileList() {
-    return Container(
-      padding: _emptyStatePadding,
-      child: Column(
-        mainAxisSize: MainAxisSize.min, // Shrink to content
-        children: [
-          Icon(
-            Icons.folder_open,
-            size: 48,
-            color: AppColors.textSecondary.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'No available files found',
-            style: GoogleFonts.poppins(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'All files are already in categories or try adjusting your search',
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: AppColors.textSecondary.withValues(alpha: 0.7),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16), // Bottom spacing
-        ],
-      ),
     );
   }
 
