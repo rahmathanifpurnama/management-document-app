@@ -231,7 +231,7 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                             : _currentViewMode == ViewMode.list
                             ? ReusableFileListWidget(
                                 documents: filteredDocuments,
-                                title: 'Files',
+                                title: widget.category.name,
                                 onDocumentTap: _navigateToFilePreview,
                                 onDocumentMenu: _showDocumentMenu,
                                 onFilterTap: _showFilterMenu,
