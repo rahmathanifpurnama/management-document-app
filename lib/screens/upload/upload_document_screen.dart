@@ -12,7 +12,6 @@ import '../../models/upload_file_model.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/upload/upload_zone_widget.dart';
 
-import '../../widgets/upload/api_storage_quota_widget.dart';
 import '../../widgets/upload/api_upload_security_widget.dart';
 import '../../widgets/upload/api_enhanced_upload_widget.dart';
 import '../../services/ui_refresh_service.dart';
@@ -35,9 +34,6 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   // API Integration state
   List<XFile> _selectedFiles = [];
   bool _showApiWidgets = false;
-
-  // Filter state
-  final String _selectedFileTypeFilter = 'all';
 
   @override
   void initState() {
@@ -207,14 +203,6 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Storage Quota Widget - Always visible
-                  const ApiStorageQuotaWidget(
-                    showCleanupButton: true,
-                    autoRefresh: true,
-                  ),
-
-                  const SizedBox(height: 16),
-
                   // Upload Zone - Always visible for consistency
                   UploadZoneWidget(
                     onFilesSelected: (files) => _handleFilesSelected(files),
@@ -287,7 +275,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
           final errorMessage = e.toString();
 
           // Check if it's a duplicate file error
-          if (errorMessage.contains('duplikasi terdeteksi')) {
+          if (errorMessage.contains('Duplicate files detected')) {
             // Extract duplicate file names from error message
             final duplicateNames = _extractDuplicateNames(errorMessage);
             showDuplicateWarning(
@@ -341,11 +329,11 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   /// Extract duplicate file names from error message
   List<String> _extractDuplicateNames(String errorMessage) {
     try {
-      // Extract names between "terdeteksi: " and "\n"
-      final startIndex = errorMessage.indexOf('terdeteksi: ') + 12;
+      // Extract names between "detected: " and "\n"
+      final startIndex = errorMessage.indexOf('detected: ') + 10;
       final endIndex = errorMessage.indexOf('\n', startIndex);
 
-      if (startIndex > 11 && endIndex > startIndex) {
+      if (startIndex > 9 && endIndex > startIndex) {
         final namesString = errorMessage.substring(startIndex, endIndex);
         return namesString.split(', ').map((name) => name.trim()).toList();
       }
@@ -487,27 +475,9 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
     );
   }
 
-  // Apply file type filter to upload queue
+  // Apply file type filter to upload queue (simplified - no filtering for now)
   List<UploadFileModel> _applyFileTypeFilter(List<UploadFileModel> files) {
-    if (_selectedFileTypeFilter == 'all') return files;
-
-    return files.where((file) {
-      final fileExtension = file.fileName.split('.').last.toLowerCase();
-      switch (_selectedFileTypeFilter) {
-        case 'pdf':
-          return fileExtension == 'pdf';
-        case 'doc':
-          return ['doc', 'docx'].contains(fileExtension);
-        case 'xls':
-          return ['xls', 'xlsx'].contains(fileExtension);
-        case 'ppt':
-          return ['ppt', 'pptx'].contains(fileExtension);
-        case 'image':
-          return ['jpg', 'jpeg', 'png', 'gif'].contains(fileExtension);
-        default:
-          return true;
-      }
-    }).toList();
+    return files; // Return all files without filtering
   }
 
   // Consistent file list that always shows container
@@ -709,7 +679,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
               width: 24,
               height: 24,
               child: CircularProgressIndicator(
-                value: file.progress / 100,
+                value: file.progress,
                 strokeWidth: 2.5,
                 valueColor: AlwaysStoppedAnimation<Color>(statusColor),
               ),

@@ -5,6 +5,8 @@ import '../models/upload_file_model.dart';
 import '../services/consolidated_upload_service.dart';
 import '../services/file_hash_service.dart';
 import '../core/config/cloud_functions_config.dart';
+import '../core/config/file_config.dart';
+import '../services/error_message_service.dart';
 
 /// Consolidated Upload Provider
 ///
@@ -64,15 +66,15 @@ class ConsolidatedUploadProvider with ChangeNotifier {
               .map((r) => r['fileName'])
               .join(', ');
           throw Exception(
-            'File duplikasi terdeteksi: $duplicateNames\n'
-            'Upload dibatalkan untuk mencegah duplikasi.',
+            'Duplicate files detected: $duplicateNames\n'
+            '${ErrorMessageService.getErrorMessage('duplicate_file')}',
           );
         }
       }
 
       // Add files to queue
       for (final file in files) {
-        final uploadFile = UploadFileModel.fromXFile(
+        final uploadFile = await UploadFileModel.fromXFile(
           file,
           categoryId: categoryId,
           customMetadata: customMetadata,
@@ -144,35 +146,7 @@ class ConsolidatedUploadProvider with ChangeNotifier {
 
   /// Get content type based on file extension
   String _getContentType(String fileName) {
-    final extension = fileName.split('.').last.toLowerCase();
-
-    switch (extension) {
-      case 'pdf':
-        return 'application/pdf';
-      case 'doc':
-        return 'application/msword';
-      case 'docx':
-        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      case 'xls':
-        return 'application/vnd.ms-excel';
-      case 'xlsx':
-        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      case 'ppt':
-        return 'application/vnd.ms-powerpoint';
-      case 'pptx':
-        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'gif':
-        return 'image/gif';
-      case 'txt':
-        return 'text/plain';
-      default:
-        return 'application/octet-stream';
-    }
+    return FileConfig.getMimeType(fileName);
   }
 
   /// Start uploading files from queue
@@ -325,9 +299,9 @@ class ConsolidatedUploadProvider with ChangeNotifier {
       if (file.status != UploadStatus.uploading) {
         _uploadQueue.removeAt(index);
 
-        // Close progress controller
+        // Close progress controller safely
         final controller = _progressControllers[fileId];
-        if (controller != null) {
+        if (controller != null && !controller.isClosed) {
           controller.close();
           _progressControllers.remove(fileId);
         }
@@ -355,9 +329,11 @@ class ConsolidatedUploadProvider with ChangeNotifier {
 
   /// Clear all files from queue
   void clearAll() {
-    // Close all progress controllers
+    // Close all progress controllers safely
     for (final controller in _progressControllers.values) {
-      controller.close();
+      if (!controller.isClosed) {
+        controller.close();
+      }
     }
 
     _uploadQueue.clear();
@@ -395,12 +371,12 @@ class ConsolidatedUploadProvider with ChangeNotifier {
 
   /// Check if file type is allowed
   bool isFileTypeAllowed(String fileName) {
-    return _uploadService.isFileTypeAllowed(fileName);
+    return FileConfig.isExtensionAllowed(fileName);
   }
 
   /// Check if file size is allowed
   bool isFileSizeAllowed(int fileSize) {
-    return _uploadService.isFileSizeAllowed(fileSize);
+    return FileConfig.isFileSizeAllowed(fileSize);
   }
 
   /// Clear all files and reset state
@@ -457,9 +433,11 @@ class ConsolidatedUploadProvider with ChangeNotifier {
 
   @override
   void dispose() {
-    // Close all progress controllers
+    // Close all progress controllers safely
     for (final controller in _progressControllers.values) {
-      controller.close();
+      if (!controller.isClosed) {
+        controller.close();
+      }
     }
     _progressControllers.clear();
     super.dispose();

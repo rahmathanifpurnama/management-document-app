@@ -258,8 +258,6 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                                 title: widget.category.name,
                                 onDocumentTap: _navigateToFilePreview,
                                 onDocumentMenu: _showDocumentMenu,
-                                onDocumentDownload: _downloadFile,
-                                onDocumentShare: _shareDocument,
                                 onFilterTap: _showFilterMenu,
                                 showFilter: true,
                                 showPagination: true,

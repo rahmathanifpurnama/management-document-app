@@ -67,7 +67,7 @@ class _ApiUploadSecurityWidgetState extends State<ApiUploadSecurityWidget> {
 
     final results = <Map<String, dynamic>>[];
 
-    for (final file in widget.selectedFiles!) {
+    for (final file in widget.selectedFiles ?? []) {
       try {
         final fileSize = await file.length();
         final fileName = file.name;

@@ -17,8 +17,6 @@ class ReusableFileGridWidget extends StatefulWidget {
   final String title;
   final Function(DocumentModel)? onDocumentTap;
   final Function(DocumentModel)? onDocumentMenu;
-  final Function(DocumentModel)? onDocumentDownload;
-  final Function(DocumentModel)? onDocumentShare;
   final VoidCallback? onFilterTap;
   final bool showFilter;
   final bool showPagination;
@@ -33,8 +31,6 @@ class ReusableFileGridWidget extends StatefulWidget {
     required this.title,
     this.onDocumentTap,
     this.onDocumentMenu,
-    this.onDocumentDownload,
-    this.onDocumentShare,
     this.onFilterTap,
     this.showFilter = true,
     this.showPagination = true,
@@ -246,47 +242,6 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
                               : null,
                         ),
                       ),
-                    // Menu button (only show when NOT in selection mode)
-                    if (!selectionProvider.isSelectionMode)
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: AppColors.surface.withValues(alpha: 0.9),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.shadow.withValues(alpha: 0.1),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: IconButton(
-                            onPressed: widget.onDocumentMenu != null
-                                ? () => widget.onDocumentMenu!(document)
-                                : null,
-                            icon: const Icon(
-                              Icons.more_vert,
-                              color: AppColors.textSecondary,
-                              size: 16,
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 32,
-                              minHeight: 32,
-                            ),
-                            style: IconButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              foregroundColor: AppColors.textSecondary,
-                              shape: const CircleBorder(),
-                            ),
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -299,7 +254,7 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // File name with action buttons row
+                    // File name with menu button row
                     Row(
                       children: [
                         Expanded(
@@ -319,10 +274,36 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        // Action buttons (only show when NOT in selection mode)
+                        // Menu button (only show when NOT in selection mode)
                         if (!selectionProvider.isSelectionMode) ...[
                           const SizedBox(width: 4),
-                          _buildActionButtons(document),
+                          GestureDetector(
+                            onTap: widget.onDocumentMenu != null
+                                ? () => widget.onDocumentMenu!(document)
+                                : null,
+                            child: Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: AppColors.surface.withValues(alpha: 0.9),
+                                borderRadius: BorderRadius.circular(4),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.shadow.withValues(
+                                      alpha: 0.1,
+                                    ),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                Icons.more_vert,
+                                color: AppColors.textSecondary,
+                                size: 14,
+                              ),
+                            ),
+                          ),
                         ],
                       ],
                     ),
@@ -350,64 +331,6 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
         ),
       ),
     );
-  }
-
-  /// Build action buttons for grid items
-  Widget _buildActionButtons(DocumentModel document) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Download button
-        GestureDetector(
-          onTap: () => _handleActionTap('download', document),
-          child: Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Icon(Icons.download, size: 14, color: AppColors.primary),
-          ),
-        ),
-        const SizedBox(width: 4),
-        // Share button
-        GestureDetector(
-          onTap: () => _handleActionTap('share', document),
-          child: Container(
-            width: 24,
-            height: 24,
-            decoration: BoxDecoration(
-              color: AppColors.success.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Icon(Icons.share, size: 14, color: AppColors.success),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Handle action button taps
-  void _handleActionTap(String action, DocumentModel document) {
-    switch (action) {
-      case 'download':
-        // Use specific download callback if available, otherwise fall back to menu
-        if (widget.onDocumentDownload != null) {
-          widget.onDocumentDownload!(document);
-        } else {
-          widget.onDocumentMenu?.call(document);
-        }
-        break;
-      case 'share':
-        // Use specific share callback if available, otherwise fall back to menu
-        if (widget.onDocumentShare != null) {
-          widget.onDocumentShare!(document);
-        } else {
-          widget.onDocumentMenu?.call(document);
-        }
-        break;
-    }
   }
 
   /// Build empty state

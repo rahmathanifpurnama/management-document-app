@@ -10,6 +10,8 @@ import '../core/services/firebase_service.dart';
 import '../services/image_compression_service.dart';
 import '../services/file_hash_service.dart';
 import '../services/google_drive_service.dart';
+import '../core/config/file_config.dart';
+import '../services/error_message_service.dart';
 
 /// Consolidated Upload Service
 ///
@@ -28,25 +30,12 @@ class ConsolidatedUploadService {
   final FileHashService _hashService = FileHashService();
 
   // Configuration constants
-  static const int maxFileSize = 15 * 1024 * 1024; // 15MB
   static const Duration uploadTimeout = Duration(minutes: 5);
   static const int maxRetries = 3;
 
-  // Allowed file types and extensions
-  static const List<String> allowedExtensions = [
-    'pdf',
-    'doc',
-    'docx',
-    'xls',
-    'xlsx',
-    'ppt',
-    'pptx',
-    'jpg',
-    'jpeg',
-    'png',
-    'gif',
-    'txt',
-  ];
+  // Use centralized file configuration
+  static int get maxFileSize => FileConfig.maxFileSize;
+  static List<String> get allowedExtensions => FileConfig.allowedExtensions;
 
   static const Map<String, List<String>> mimeTypeMap = {
     'application/pdf': ['pdf'],
@@ -111,8 +100,8 @@ class ConsolidatedUploadService {
           final existingDoc = duplicateResult['existingDocument'];
           final existingFileName = existingDoc?['fileName'] ?? 'Unknown';
           throw Exception(
-            'File sudah ada di sistem. File asli: $existingFileName\n'
-            'Upload dibatalkan untuk mencegah duplikasi.',
+            'File already exists in the system. Original file: $existingFileName\n'
+            'Upload cancelled to prevent duplication.',
           );
         }
       } catch (e) {
@@ -333,41 +322,12 @@ class ConsolidatedUploadService {
 
   /// Get content type based on file extension
   String _getContentType(String fileName) {
-    final extension = fileName.split('.').last.toLowerCase();
-
-    switch (extension) {
-      case 'pdf':
-        return 'application/pdf';
-      case 'doc':
-        return 'application/msword';
-      case 'docx':
-        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-      case 'xls':
-        return 'application/vnd.ms-excel';
-      case 'xlsx':
-        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      case 'ppt':
-        return 'application/vnd.ms-powerpoint';
-      case 'pptx':
-        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'gif':
-        return 'image/gif';
-      case 'txt':
-        return 'text/plain';
-      default:
-        return 'application/octet-stream';
-    }
+    return FileConfig.getMimeType(fileName);
   }
 
   /// Check if file is an image
   bool _isImageFile(String fileName) {
-    final extension = fileName.split('.').last.toLowerCase();
-    return ['jpg', 'jpeg', 'png', 'gif'].contains(extension);
+    return FileConfig.getFileTypeCategory(fileName) == 'image';
   }
 
   /// Validate multiple files
@@ -376,7 +336,7 @@ class ConsolidatedUploadService {
 
     for (final file in files) {
       try {
-        final uploadFile = UploadFileModel.fromXFile(file);
+        final uploadFile = await UploadFileModel.fromXFile(file);
         await _validateFile(uploadFile);
       } catch (e) {
         errors.add('${file.name}: $e');
@@ -388,13 +348,12 @@ class ConsolidatedUploadService {
 
   /// Check if file type is allowed
   bool isFileTypeAllowed(String fileName) {
-    final extension = fileName.split('.').last.toLowerCase();
-    return allowedExtensions.contains(extension);
+    return FileConfig.isExtensionAllowed(fileName);
   }
 
   /// Check if file size is allowed
   bool isFileSizeAllowed(int fileSize) {
-    return fileSize > 0 && fileSize <= maxFileSize;
+    return FileConfig.isFileSizeAllowed(fileSize);
   }
 
   /// Create document record locally when Cloud Functions are not available
@@ -442,29 +401,6 @@ class ConsolidatedUploadService {
 
   /// Get file type based on extension
   String _getFileType(String fileName) {
-    final extension = fileName.split('.').last.toLowerCase();
-
-    switch (extension) {
-      case 'pdf':
-        return 'PDF';
-      case 'doc':
-      case 'docx':
-        return 'DOC';
-      case 'xls':
-      case 'xlsx':
-        return 'Excel';
-      case 'ppt':
-      case 'pptx':
-        return 'PPT';
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-        return 'Image';
-      case 'txt':
-        return 'Text';
-      default:
-        return 'Other';
-    }
+    return FileConfig.getFileTypeDisplayName(fileName);
   }
 }

@@ -39,15 +39,16 @@ class UploadFileModel {
   });
 
   // Create from XFile
-  factory UploadFileModel.fromXFile(
+  static Future<UploadFileModel> fromXFile(
     XFile file, {
     String? categoryId,
     Map<String, String>? customMetadata,
-  }) {
+  }) async {
+    final fileSize = await file.length();
     return UploadFileModel(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       fileName: file.name,
-      fileSize: 0, // Will be set when file is read
+      fileSize: fileSize,
       fileType: _getFileType(file.name),
       file: file,
       categoryId: categoryId,

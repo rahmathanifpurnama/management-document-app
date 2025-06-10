@@ -3,11 +3,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:file_selector/file_selector.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/cloud_functions_service.dart';
-import 'api_storage_quota_widget.dart';
-import 'api_upload_security_widget.dart';
-import 'api_enhanced_upload_widget.dart';
+import '../upload/api_upload_security_widget.dart';
+import '../upload/api_enhanced_upload_widget.dart';
 
 /// Demo widget showcasing all Firebase Cloud Functions API integrations
+///
+/// ⚠️ FOR DEVELOPMENT/DEBUG PURPOSES ONLY ⚠️
+/// This widget is used for testing and debugging upload functionality.
+/// It should NOT be used in production screens.
 class ApiUploadDemoWidget extends StatefulWidget {
   final String? categoryId;
 
@@ -21,23 +24,37 @@ class _ApiUploadDemoWidgetState extends State<ApiUploadDemoWidget> {
   final CloudFunctionsService _cloudFunctions = CloudFunctionsService.instance;
 
   List<XFile> _selectedFiles = [];
+  List<String> _apiTestResults = [];
   bool _isTestingApis = false;
-  final List<String> _apiTestResults = [];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
         title: Text(
-          'API Upload Demo',
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
+          'Upload API Demo (DEBUG)',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: [
+          Container(
+            margin: const EdgeInsets.all(8),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.red,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              'DEBUG',
+              style: GoogleFonts.poppins(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -50,14 +67,6 @@ class _ApiUploadDemoWidgetState extends State<ApiUploadDemoWidget> {
 
             // API Test Controls
             _buildApiTestControls(),
-            const SizedBox(height: 24),
-
-            // Storage Quota Widget
-            _buildSectionHeader('Storage Quota API Integration'),
-            const ApiStorageQuotaWidget(
-              showCleanupButton: true,
-              autoRefresh: false,
-            ),
             const SizedBox(height: 24),
 
             // File Selection
@@ -92,12 +101,8 @@ class _ApiUploadDemoWidgetState extends State<ApiUploadDemoWidget> {
             // API Test Results
             if (_apiTestResults.isNotEmpty) ...[
               _buildSectionHeader('API Test Results'),
-              _buildApiTestResults(),
-              const SizedBox(height: 24),
+              _buildTestResults(),
             ],
-
-            // Bottom padding
-            const SizedBox(height: 100),
           ],
         ),
       ),
@@ -106,76 +111,39 @@ class _ApiUploadDemoWidgetState extends State<ApiUploadDemoWidget> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.orange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: Colors.orange, width: 2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.api, color: AppColors.primary, size: 24),
-              const SizedBox(width: 12),
+              Icon(Icons.warning, color: Colors.orange, size: 24),
+              const SizedBox(width: 8),
               Text(
-                'Firebase Cloud Functions API Demo',
+                'DEBUG MODE',
                 style: GoogleFonts.poppins(
                   fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           Text(
-            'This demo showcases the integration of deployed Firebase Cloud Functions APIs with Flutter widgets for upload functionality.',
+            'This is a development/debug widget for testing Firebase Cloud Functions API integrations. '
+            'It should NOT be used in production screens.',
             style: GoogleFonts.poppins(
               fontSize: 14,
               color: AppColors.textSecondary,
-              height: 1.5,
             ),
           ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildFeatureChip('File Validation API'),
-              _buildFeatureChip('Storage Quota API'),
-              _buildFeatureChip('Duplicate Check API'),
-              _buildFeatureChip('Upload Processing API'),
-              _buildFeatureChip('Thumbnail Generation API'),
-            ],
-          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildFeatureChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.lightBlue.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.lightBlue),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.poppins(
-          fontSize: 12,
-          color: AppColors.primary,
-          fontWeight: FontWeight.w500,
-        ),
       ),
     );
   }
@@ -186,7 +154,7 @@ class _ApiUploadDemoWidgetState extends State<ApiUploadDemoWidget> {
       child: Text(
         title,
         style: GoogleFonts.poppins(
-          fontSize: 16,
+          fontSize: 18,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
         ),
@@ -225,11 +193,6 @@ class _ApiUploadDemoWidgetState extends State<ApiUploadDemoWidget> {
             runSpacing: 12,
             children: [
               _buildTestButton(
-                'Test Storage Quota',
-                Icons.storage,
-                _testStorageQuotaApi,
-              ),
-              _buildTestButton(
                 'Test File Validation',
                 Icons.security,
                 _testFileValidationApi,
@@ -250,7 +213,13 @@ class _ApiUploadDemoWidgetState extends State<ApiUploadDemoWidget> {
   Widget _buildTestButton(String label, IconData icon, VoidCallback onPressed) {
     return ElevatedButton.icon(
       onPressed: _isTestingApis ? null : onPressed,
-      icon: Icon(icon, size: 16),
+      icon: _isTestingApis
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(icon, size: 16),
       label: Text(label, style: GoogleFonts.poppins(fontSize: 12)),
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.primary,
@@ -278,23 +247,20 @@ class _ApiUploadDemoWidgetState extends State<ApiUploadDemoWidget> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Selected Files',
+                'Selected Files (${_selectedFiles.length})',
                 style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                   color: AppColors.textPrimary,
                 ),
               ),
+              const Spacer(),
               ElevatedButton.icon(
                 onPressed: _selectFiles,
                 icon: const Icon(Icons.file_upload, size: 16),
-                label: Text(
-                  'Select Files',
-                  style: GoogleFonts.poppins(fontSize: 12),
-                ),
+                label: Text('Select Files', style: GoogleFonts.poppins()),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -304,59 +270,89 @@ class _ApiUploadDemoWidgetState extends State<ApiUploadDemoWidget> {
           ),
           const SizedBox(height: 16),
           if (_selectedFiles.isEmpty)
-            Center(
-              child: Text(
-                'No files selected',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: AppColors.lightGray.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.lightGray),
+              ),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.file_upload_outlined,
+                    size: 48,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'No files selected',
+                    style: GoogleFonts.poppins(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             )
           else
-            Column(
-              children: _selectedFiles
-                  .map(
-                    (file) => Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.lightBlue.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.insert_drive_file,
-                            color: AppColors.primary,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              file.name,
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close, size: 16),
-                            onPressed: () => _removeFile(file),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
+            ...(_selectedFiles.map((file) => _buildFileItem(file))),
         ],
       ),
     );
   }
 
-  Widget _buildApiTestResults() {
+  Widget _buildFileItem(XFile file) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.lightBlue.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.lightBlue.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.description, color: AppColors.primary, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  file.name,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  file.mimeType ?? 'Unknown type',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () => _removeFile(file),
+            icon: const Icon(Icons.close, size: 18),
+            color: AppColors.error,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTestResults() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -374,7 +370,7 @@ class _ApiUploadDemoWidgetState extends State<ApiUploadDemoWidget> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'API Test Results',
+            'Test Results',
             style: GoogleFonts.poppins(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -382,26 +378,65 @@ class _ApiUploadDemoWidgetState extends State<ApiUploadDemoWidget> {
             ),
           ),
           const SizedBox(height: 16),
-          ..._apiTestResults.map(
-            (result) => Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.lightGray.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                result,
-                style: GoogleFonts.robotoMono(
-                  fontSize: 12,
-                  color: AppColors.textPrimary,
-                ),
+          Container(
+            width: double.infinity,
+            height: 200,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _apiTestResults
+                    .map(
+                      (result) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          result,
+                          style: GoogleFonts.robotoMono(
+                            fontSize: 12,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  // Event Handlers
+  void _onValidationComplete(List<Map<String, dynamic>> results) {
+    _addTestResult('Validation completed: ${results.length} files processed');
+    for (final result in results) {
+      _addTestResult(
+        '- ${result['fileName']}: ${result['isValid'] ? 'VALID' : 'INVALID'}',
+      );
+    }
+  }
+
+  void _onUploadComplete(List<UploadResult> results) {
+    final successCount = results.where((r) => r.success).length;
+    final failedCount = results.where((r) => !r.success).length;
+
+    _addTestResult(
+      'Upload completed: $successCount success, $failedCount failed',
+    );
+
+    for (final result in results) {
+      if (result.success) {
+        _addTestResult('✅ ${result.fileName}: SUCCESS');
+      } else {
+        _addTestResult('❌ ${result.fileName}: ${result.error}');
+      }
+    }
   }
 
   Future<void> _selectFiles() async {
@@ -425,23 +460,6 @@ class _ApiUploadDemoWidgetState extends State<ApiUploadDemoWidget> {
   void _removeFile(XFile file) {
     setState(() {
       _selectedFiles.remove(file);
-    });
-  }
-
-  Future<void> _testStorageQuotaApi() async {
-    setState(() {
-      _isTestingApis = true;
-    });
-
-    try {
-      final result = await _cloudFunctions.getStorageQuota();
-      _addTestResult('Storage Quota API: ${result.toString()}');
-    } catch (e) {
-      _addTestResult('Storage Quota API Error: $e');
-    }
-
-    setState(() {
-      _isTestingApis = false;
     });
   }
 
@@ -513,17 +531,9 @@ class _ApiUploadDemoWidgetState extends State<ApiUploadDemoWidget> {
 
   void _addTestResult(String result) {
     setState(() {
-      _apiTestResults.add('${DateTime.now().toIso8601String()}: $result');
+      final timestamp = DateTime.now().toString().substring(11, 19);
+      _apiTestResults.add('[$timestamp] $result');
     });
-  }
-
-  void _onValidationComplete(List<Map<String, dynamic>> results) {
-    _addTestResult('Validation completed for ${results.length} files');
-  }
-
-  void _onUploadComplete(List<UploadResult> results) {
-    final successCount = results.where((r) => r.success).length;
-    _addTestResult('Upload completed: $successCount successful uploads');
   }
 
   void _showError(String message) {

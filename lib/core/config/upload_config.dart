@@ -17,6 +17,12 @@ class UploadConfig {
   static const int maxConcurrentUploads = 3;
   static const Duration sequentialUploadDelay = Duration(milliseconds: 200);
 
+  // File count and total size limits
+  static const int maxFilesPerUpload =
+      20; // Maximum 20 files per upload session
+  static const int maxTotalSizeBytes =
+      200 * 1024 * 1024; // Maximum 200MB total size
+
   // Allowed file extensions
   static const List<String> allowedExtensions = [
     'pdf',
@@ -62,6 +68,8 @@ class UploadConfig {
     'cloud_validation_failed':
         'Validasi cloud gagal - menggunakan validasi lokal',
     'generic_error': 'Upload gagal - silakan coba lagi',
+    'too_many_files': 'Terlalu banyak file (maksimal 20 file per upload)',
+    'total_size_too_large': 'Total ukuran file terlalu besar (maksimal 200MB)',
   };
 
   // Helper methods
@@ -72,6 +80,14 @@ class UploadConfig {
   static bool isExtensionAllowed(String fileName) {
     final extension = fileName.split('.').last.toLowerCase();
     return allowedExtensions.contains(extension);
+  }
+
+  static bool isFileCountAllowed(int fileCount) {
+    return fileCount <= maxFilesPerUpload;
+  }
+
+  static bool isTotalSizeAllowed(int totalSize) {
+    return totalSize <= maxTotalSizeBytes;
   }
 
   static String getFileSizeString(int bytes) {

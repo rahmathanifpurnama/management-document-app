@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_selector/file_selector.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/config/file_config.dart';
+import '../../core/config/upload_config.dart';
 import '../../services/file_validation_service.dart';
+import '../../services/error_message_service.dart';
 import 'file_security_warning_widget.dart';
 
 class UploadZoneWidget extends StatefulWidget {
@@ -158,15 +161,10 @@ class _UploadZoneWidgetState extends State<UploadZoneWidget>
                     spacing: 8,
                     runSpacing: 8,
                     alignment: WrapAlignment.center,
-                    children: [
-                      _buildFormatChip('PDF'),
-                      _buildFormatChip('DOC'),
-                      _buildFormatChip('DOCX'),
-                      _buildFormatChip('PPTX'),
-                      _buildFormatChip('TXT'),
-                      _buildFormatChip('JPG'),
-                      _buildFormatChip('PNG'),
-                    ],
+                    children: FileConfig.allowedExtensions
+                        .take(7) // Show first 7 extensions
+                        .map((ext) => _buildFormatChip(ext.toUpperCase()))
+                        .toList(),
                   ),
                 ],
               ),
@@ -205,20 +203,9 @@ class _UploadZoneWidgetState extends State<UploadZoneWidget>
 
   Future<void> _selectFiles() async {
     try {
-      const typeGroup = XTypeGroup(
+      final typeGroup = XTypeGroup(
         label: 'Documents',
-        extensions: [
-          'pdf',
-          'doc',
-          'docx',
-          'pptx',
-          'txt',
-          'jpg',
-          'jpeg',
-          'png',
-          'xlsx',
-          'xls',
-        ],
+        extensions: FileConfig.allowedExtensions,
       );
 
       final files = await openFiles(acceptedTypeGroups: [typeGroup]);
@@ -260,8 +247,102 @@ class _UploadZoneWidgetState extends State<UploadZoneWidget>
     }
 
     try {
-      // Validate all files
-      final validationResults = await _validationService.validateFiles(files);
+      // Check file count limit first
+      if (!UploadConfig.isFileCountAllowed(files.length)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(UploadConfig.getErrorMessage('too_many_files')),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Calculate total size of all files
+      int totalSize = 0;
+      for (final file in files) {
+        totalSize += await file.length();
+      }
+
+      // Check total size limit
+      if (!UploadConfig.isTotalSizeAllowed(totalSize)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                UploadConfig.getErrorMessage('total_size_too_large'),
+              ),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
+      // Pre-validate file sizes and extensions
+      final preValidatedFiles = <XFile>[];
+      final rejectedFiles = <String>[];
+
+      for (final file in files) {
+        // Check file size first
+        final fileSize = await file.length();
+        if (!FileConfig.isFileSizeAllowed(fileSize)) {
+          rejectedFiles.add(
+            '${file.name}: ${ErrorMessageService.getErrorMessage('file_too_large')}',
+          );
+          continue;
+        }
+
+        // Check file extension
+        if (!FileConfig.isExtensionAllowed(file.name)) {
+          rejectedFiles.add(
+            '${file.name}: ${ErrorMessageService.getErrorMessage('invalid_extension')}',
+          );
+          continue;
+        }
+
+        preValidatedFiles.add(file);
+      }
+
+      // Show rejected files if any
+      if (rejectedFiles.isNotEmpty && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${rejectedFiles.length} file(s) rejected:'),
+                ...rejectedFiles
+                    .take(3)
+                    .map(
+                      (error) => Text(
+                        '• $error',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                if (rejectedFiles.length > 3)
+                  Text('... and ${rejectedFiles.length - 3} more'),
+              ],
+            ),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+
+      if (preValidatedFiles.isEmpty) {
+        return; // No valid files to process
+      }
+
+      // Validate remaining files with security checks
+      final validationResults = await _validationService.validateFiles(
+        preValidatedFiles,
+      );
 
       // Separate valid and invalid files
       final validFiles = <XFile>[];
@@ -269,7 +350,7 @@ class _UploadZoneWidgetState extends State<UploadZoneWidget>
 
       for (final entry in validationResults.entries) {
         if (entry.value.isValid) {
-          final file = files.firstWhere((f) => f.name == entry.key);
+          final file = preValidatedFiles.firstWhere((f) => f.name == entry.key);
           validFiles.add(file);
         } else {
           invalidFiles[entry.key] = entry.value;
