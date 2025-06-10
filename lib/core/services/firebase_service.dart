@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import '../../config/firebase_config.dart';
 import '../../services/cloud_functions_service.dart';
 
 class FirebaseService {
@@ -53,34 +54,64 @@ class FirebaseService {
   // Initialize App Check to prevent warnings and improve security
   static Future<void> _initializeAppCheck() async {
     try {
-      // Use debug provider for development
-      // In production, you should use proper App Check providers
-      if (kDebugMode) {
-        await FirebaseAppCheck.instance.activate(
-          // Use debug provider for development
-          androidProvider: AndroidProvider.debug,
-          // For iOS, you would also add:
-          // iosProvider: IOSProvider.debug,
-          // Enable automatic token refresh
-          appleProvider: AppleProvider.debug,
+      // Check configuration for App Check enablement
+      if (kDebugMode && !FirebaseConfig.enableAppCheckInDebug) {
+        debugPrint(
+          '🔧 Skipping App Check initialization in debug mode (disabled in config)',
         );
-      } else {
-        // For production, use proper providers like Play Integrity or Device Check
-        await FirebaseAppCheck.instance.activate(
-          // Configure proper providers for production
-          androidProvider: AndroidProvider.playIntegrity,
-          // For iOS production:
-          appleProvider: AppleProvider.deviceCheck,
-        );
+        return;
       }
 
-      // Set up token refresh listener to handle token expiration
-      FirebaseAppCheck.instance.onTokenChange.listen((token) {
-        // Token refreshed
-      });
+      if (!kDebugMode && !FirebaseConfig.enableAppCheckInProduction) {
+        debugPrint(
+          '🔧 Skipping App Check initialization in production mode (disabled in config)',
+        );
+        return;
+      }
+
+      // Initialize App Check based on build mode
+      if (kDebugMode) {
+        // For debug mode, use debug providers
+        await FirebaseAppCheck.instance.activate(
+          androidProvider: AndroidProvider.debug,
+          appleProvider: AppleProvider.debug,
+        );
+        debugPrint('✅ App Check initialized for debug mode');
+      } else {
+        // For production, use proper providers
+        await FirebaseAppCheck.instance.activate(
+          androidProvider: AndroidProvider.playIntegrity,
+          appleProvider: AppleProvider.deviceCheck,
+        );
+        debugPrint('✅ App Check initialized for production mode');
+      }
+
+      // Set up token refresh listener with rate limiting
+      _setupAppCheckTokenListener();
     } catch (e) {
+      debugPrint('⚠️ App Check initialization failed: $e');
       // App Check is not critical for app functionality, so we continue
     }
+  }
+
+  // Token refresh listener with rate limiting to prevent "too many attempts"
+  static DateTime? _lastTokenRefresh;
+
+  static void _setupAppCheckTokenListener() {
+    FirebaseAppCheck.instance.onTokenChange.listen((token) {
+      final now = DateTime.now();
+
+      // Rate limit token refresh to prevent "too many attempts" error
+      if (_lastTokenRefresh != null &&
+          now.difference(_lastTokenRefresh!) <
+              FirebaseConfig.appCheckTokenRefreshCooldown) {
+        debugPrint('🔄 App Check token refresh skipped (rate limited)');
+        return;
+      }
+
+      _lastTokenRefresh = now;
+      debugPrint('🔄 App Check token refreshed');
+    });
   }
 
   // Collections references

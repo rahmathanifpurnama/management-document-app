@@ -29,6 +29,13 @@ class FirebaseConfig {
       false; // Disabled to reduce Firebase calls
   static const Duration uiRefreshDelay = Duration(milliseconds: 500);
 
+  // App Check settings
+  static const bool enableAppCheckInDebug =
+      false; // Set to true to enable App Check in debug mode
+  static const bool enableAppCheckInProduction =
+      true; // Set to false to disable App Check in production
+  static const Duration appCheckTokenRefreshCooldown = Duration(minutes: 1);
+
   // Performance settings
   static const int maxRetryAttempts = 3;
   static const Duration retryDelay = Duration(seconds: 1);

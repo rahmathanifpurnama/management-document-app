@@ -75,11 +75,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    // Initialize settings provider
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final settingsProvider = Provider.of<SettingsProvider>(context, listen: false);
-      settingsProvider.loadSettings();
-    });
+    // Settings provider will be initialized in the create callback
   }
 
   @override
@@ -93,7 +89,12 @@ class _MyAppState extends State<MyApp> {
             lazy: false, // Initialize immediately for authentication
           ),
           ChangeNotifierProvider(
-            create: (_) => SettingsProvider(),
+            create: (_) {
+              final provider = SettingsProvider();
+              // Initialize settings immediately
+              provider.loadSettings();
+              return provider;
+            },
             lazy: false, // Initialize immediately for theme support
           ),
           ChangeNotifierProvider(
@@ -142,163 +143,168 @@ class _MyAppState extends State<MyApp> {
                     color: AppColors.textWhite,
                   ),
                 ),
-            elevatedButtonTheme: ElevatedButtonThemeData(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.textWhite,
-                textStyle: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-            inputDecorationTheme: InputDecorationTheme(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.primary),
-              ),
-              filled: true,
-              fillColor: AppColors.surface,
-              hintStyle: GoogleFonts.poppins(color: AppColors.textSecondary),
-            ),
-            cardTheme: CardThemeData(
-              color: AppColors.cardBackground,
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            bottomNavigationBarTheme: BottomNavigationBarThemeData(
-              selectedLabelStyle: GoogleFonts.poppins(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-              ),
-              unselectedLabelStyle: GoogleFonts.poppins(
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-              ),
-            ),
-          ),
-          initialRoute: AppRoutes.splash,
-          onGenerateRoute: (settings) {
-            switch (settings.name) {
-              case AppRoutes.splash:
-                return MaterialPageRoute(
-                  builder: (context) => const SplashScreen(),
-                );
-              case AppRoutes.login:
-                return MaterialPageRoute(
-                  builder: (context) => const LoginScreen(),
-                );
-              case AppRoutes.home:
-                return MaterialPageRoute(
-                  builder: (context) => const HomeScreen(),
-                );
-              case AppRoutes.userManagement:
-                return MaterialPageRoute(
-                  builder: (context) => const UserManagementScreen(),
-                );
-              case AppRoutes.categories:
-                return MaterialPageRoute(
-                  builder: (context) => const CategoryScreen(),
-                );
-              case AppRoutes.manageCategories:
-                return MaterialPageRoute(
-                  builder: (context) => const ManageCategoryScreen(),
-                );
-              case AppRoutes.categoryFiles:
-                final category = settings.arguments as CategoryModel;
-                return MaterialPageRoute(
-                  builder: (context) => CategoryFilesScreen(category: category),
-                );
-              case AppRoutes.addFilesToCategory:
-                final category = settings.arguments as CategoryModel;
-                return MaterialPageRoute(
-                  builder: (context) =>
-                      AddFilesToCategoryScreen(category: category),
-                );
-              case AppRoutes.createUser:
-                return MaterialPageRoute(
-                  builder: (context) => const CreateUserScreen(),
-                );
-              case AppRoutes.editUser:
-                final user = settings.arguments as UserModel;
-                return MaterialPageRoute(
-                  builder: (context) => EditUserScreen(user: user),
-                );
-              case AppRoutes.userDetails:
-                final user = settings.arguments as UserModel;
-                return MaterialPageRoute(
-                  builder: (context) => UserDetailsScreen(user: user),
-                );
-              case AppRoutes.account:
-                return MaterialPageRoute(
-                  builder: (context) => const ProfileScreen(),
-                );
-              case AppRoutes.profile:
-                return MaterialPageRoute(
-                  builder: (context) => const ProfileScreen(),
-                );
-              case AppRoutes.personalInfo:
-                return MaterialPageRoute(
-                  builder: (context) => const PersonalInfoScreen(),
-                );
-              case AppRoutes.editProfile:
-                return MaterialPageRoute(
-                  builder: (context) => const EditProfileScreen(),
-                );
-              case AppRoutes.settings:
-                return MaterialPageRoute(
-                  builder: (context) => const SettingsScreen(),
-                );
-              case AppRoutes.changePassword:
-                return MaterialPageRoute(
-                  builder: (context) => const ChangePasswordScreen(),
-                );
-              case AppRoutes.uploadDocument:
-                final categoryId = settings.arguments as String?;
-                return MaterialPageRoute(
-                  builder: (context) =>
-                      UploadDocumentScreen(categoryId: categoryId),
-                );
-              case AppRoutes.syncManagement:
-                return MaterialPageRoute(
-                  builder: (context) => const SyncManagementScreen(),
-                );
-              case AppRoutes.cloudFunctionsSettings:
-                return MaterialPageRoute(
-                  builder: (context) => const CloudFunctionsSettingsScreen(),
-                );
-              case AppRoutes.fileStatusManagement:
-                return MaterialPageRoute(
-                  builder: (context) => const FileStatusManagementScreen(),
-                );
-              case AppRoutes.filePreview:
-                final document = settings.arguments as DocumentModel;
-                return MaterialPageRoute(
-                  builder: (context) => FilePreviewScreen(document: document),
-                );
-              default:
-                return MaterialPageRoute(
-                  builder: (context) => Scaffold(
-                    appBar: AppBar(title: const Text('Page Not Found')),
-                    body: const Center(child: Text('404 - Page Not Found')),
+                elevatedButtonTheme: ElevatedButtonThemeData(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.textWhite,
+                    textStyle: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                );
-            }
-          },
-        );
+                ),
+                inputDecorationTheme: InputDecorationTheme(
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.primary),
+                  ),
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  hintStyle: GoogleFonts.poppins(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                cardTheme: CardThemeData(
+                  color: AppColors.cardBackground,
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                bottomNavigationBarTheme: BottomNavigationBarThemeData(
+                  selectedLabelStyle: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  unselectedLabelStyle: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ),
+              initialRoute: AppRoutes.splash,
+              onGenerateRoute: (settings) {
+                switch (settings.name) {
+                  case AppRoutes.splash:
+                    return MaterialPageRoute(
+                      builder: (context) => const SplashScreen(),
+                    );
+                  case AppRoutes.login:
+                    return MaterialPageRoute(
+                      builder: (context) => const LoginScreen(),
+                    );
+                  case AppRoutes.home:
+                    return MaterialPageRoute(
+                      builder: (context) => const HomeScreen(),
+                    );
+                  case AppRoutes.userManagement:
+                    return MaterialPageRoute(
+                      builder: (context) => const UserManagementScreen(),
+                    );
+                  case AppRoutes.categories:
+                    return MaterialPageRoute(
+                      builder: (context) => const CategoryScreen(),
+                    );
+                  case AppRoutes.manageCategories:
+                    return MaterialPageRoute(
+                      builder: (context) => const ManageCategoryScreen(),
+                    );
+                  case AppRoutes.categoryFiles:
+                    final category = settings.arguments as CategoryModel;
+                    return MaterialPageRoute(
+                      builder: (context) =>
+                          CategoryFilesScreen(category: category),
+                    );
+                  case AppRoutes.addFilesToCategory:
+                    final category = settings.arguments as CategoryModel;
+                    return MaterialPageRoute(
+                      builder: (context) =>
+                          AddFilesToCategoryScreen(category: category),
+                    );
+                  case AppRoutes.createUser:
+                    return MaterialPageRoute(
+                      builder: (context) => const CreateUserScreen(),
+                    );
+                  case AppRoutes.editUser:
+                    final user = settings.arguments as UserModel;
+                    return MaterialPageRoute(
+                      builder: (context) => EditUserScreen(user: user),
+                    );
+                  case AppRoutes.userDetails:
+                    final user = settings.arguments as UserModel;
+                    return MaterialPageRoute(
+                      builder: (context) => UserDetailsScreen(user: user),
+                    );
+                  case AppRoutes.account:
+                    return MaterialPageRoute(
+                      builder: (context) => const ProfileScreen(),
+                    );
+                  case AppRoutes.profile:
+                    return MaterialPageRoute(
+                      builder: (context) => const ProfileScreen(),
+                    );
+                  case AppRoutes.personalInfo:
+                    return MaterialPageRoute(
+                      builder: (context) => const PersonalInfoScreen(),
+                    );
+                  case AppRoutes.editProfile:
+                    return MaterialPageRoute(
+                      builder: (context) => const EditProfileScreen(),
+                    );
+                  case AppRoutes.settings:
+                    return MaterialPageRoute(
+                      builder: (context) => const SettingsScreen(),
+                    );
+                  case AppRoutes.changePassword:
+                    return MaterialPageRoute(
+                      builder: (context) => const ChangePasswordScreen(),
+                    );
+                  case AppRoutes.uploadDocument:
+                    final categoryId = settings.arguments as String?;
+                    return MaterialPageRoute(
+                      builder: (context) =>
+                          UploadDocumentScreen(categoryId: categoryId),
+                    );
+                  case AppRoutes.syncManagement:
+                    return MaterialPageRoute(
+                      builder: (context) => const SyncManagementScreen(),
+                    );
+                  case AppRoutes.cloudFunctionsSettings:
+                    return MaterialPageRoute(
+                      builder: (context) =>
+                          const CloudFunctionsSettingsScreen(),
+                    );
+                  case AppRoutes.fileStatusManagement:
+                    return MaterialPageRoute(
+                      builder: (context) => const FileStatusManagementScreen(),
+                    );
+                  case AppRoutes.filePreview:
+                    final document = settings.arguments as DocumentModel;
+                    return MaterialPageRoute(
+                      builder: (context) =>
+                          FilePreviewScreen(document: document),
+                    );
+                  default:
+                    return MaterialPageRoute(
+                      builder: (context) => Scaffold(
+                        appBar: AppBar(title: const Text('Page Not Found')),
+                        body: const Center(child: Text('404 - Page Not Found')),
+                      ),
+                    );
+                }
+              },
+            );
           },
         ),
       ),
