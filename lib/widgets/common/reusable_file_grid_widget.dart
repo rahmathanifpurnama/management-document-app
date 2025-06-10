@@ -91,39 +91,32 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
     );
   }
 
-  /// Build filter header
+  /// Build filter header - consistent with home screen and list mode
   Widget _buildFilterHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.shadow.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(Icons.grid_view, color: AppColors.primary, size: 20),
-          const SizedBox(width: 8),
           Text(
-            '${widget.documents.length} files',
+            widget.title,
             style: GoogleFonts.poppins(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
             ),
           ),
-          const Spacer(),
           if (widget.onFilterTap != null)
             IconButton(
               onPressed: widget.onFilterTap,
-              icon: Icon(Icons.filter_list, color: AppColors.primary, size: 20),
-              tooltip: 'Filter files',
+              icon: const Icon(
+                Icons.filter_list,
+                color: AppColors.textSecondary,
+                size: 20,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+              tooltip: 'Filter Files',
             ),
         ],
       ),

@@ -246,7 +246,7 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                               )
                             : ReusableFileGridWidget(
                                 documents: filteredDocuments,
-                                title: 'Files',
+                                title: widget.category.name,
                                 onDocumentTap: _navigateToFilePreview,
                                 onDocumentMenu: _showDocumentMenu,
                                 onFilterTap: _showFilterMenu,

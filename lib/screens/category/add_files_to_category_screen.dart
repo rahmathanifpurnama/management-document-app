@@ -12,6 +12,7 @@ import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/ios_back_button.dart';
 import '../../widgets/common/embedded_file_filter_widget.dart';
 import '../../widgets/common/reusable_file_list_widget.dart';
+import '../../widgets/common/reusable_search_widget.dart';
 
 class AddFilesToCategoryScreen extends StatefulWidget {
   final CategoryModel category;
@@ -42,7 +43,6 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     vertical: 4,
   );
   // Internal paddings - Reduced for more compact layout
-  static const EdgeInsets _searchSectionPadding = EdgeInsets.all(12);
   static const EdgeInsets _emptyStatePadding = EdgeInsets.all(24);
 
   @override
@@ -130,10 +130,8 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
                 filteredDocuments,
               );
 
-              // Update available files for selection
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                selectionProvider.updateAvailableFiles(availableDocuments);
-              });
+              // Note: updateAvailableFiles is handled by ReusableFileListWidget
+              // to avoid duplicate calls that can cause selection issues
 
               return Column(
                 children: [
@@ -186,61 +184,17 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
   }
 
   Widget _buildSearchSection() {
-    return Container(
+    return ReusableSearchWidget(
+      controller: _searchController,
+      hintText: 'Search available files',
+      onChanged: (value) => _onSearchChanged(),
+      onClear: () {
+        _searchController.clear();
+        setState(() {
+          // Trigger rebuild to clear filter
+        });
+      },
       margin: _searchSectionMargin,
-      padding: _searchSectionPadding,
-      decoration: BoxDecoration(
-        color: AppColors.searchBackground,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: TextField(
-          controller: _searchController,
-          decoration: InputDecoration(
-            hintText: 'Search available files',
-            hintStyle: GoogleFonts.poppins(
-              color: AppColors.textSecondary,
-              fontSize: 14,
-            ),
-            prefixIcon: const Icon(
-              Icons.search,
-              color: AppColors.textSecondary,
-            ),
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(
-                      Icons.clear,
-                      color: AppColors.textSecondary,
-                    ),
-                    onPressed: () {
-                      _searchController.clear();
-                      setState(() {
-                        // Trigger rebuild to clear filter
-                      });
-                    },
-                  )
-                : null,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide.none,
-            ),
-            filled: true,
-            fillColor: AppColors.surface,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-          ),
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            color: AppColors.textPrimary,
-          ),
-        ),
-      ),
     );
   }
 

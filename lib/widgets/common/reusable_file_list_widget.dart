@@ -85,9 +85,12 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
 
     return Consumer<FileSelectionProvider>(
       builder: (context, selectionProvider, child) {
-        // Update available files for selection
+        // Update available files for selection only if documents list changed
+        // This prevents unnecessary updates that could interfere with selection
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          selectionProvider.updateAvailableFiles(widget.documents);
+          if (mounted) {
+            selectionProvider.updateAvailableFiles(widget.documents);
+          }
         });
 
         return Container(

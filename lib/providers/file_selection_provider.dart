@@ -89,8 +89,19 @@ class FileSelectionProvider extends ChangeNotifier {
   void updateAvailableFiles(List<DocumentModel> files) {
     _availableFiles = files;
 
-    // Remove selected files that are no longer available
-    _selectedFileIds.removeWhere((id) => !files.any((file) => file.id == id));
+    // Only remove selected files that are truly no longer available
+    // Be more conservative to prevent accidental selection loss
+    if (_isSelectionMode && _selectedFileIds.isNotEmpty) {
+      final validFileIds = files.map((file) => file.id).toSet();
+      final invalidSelections = _selectedFileIds
+          .where((id) => !validFileIds.contains(id))
+          .toList();
+
+      // Only remove selections if we're sure they're invalid
+      if (invalidSelections.isNotEmpty) {
+        _selectedFileIds.removeWhere((id) => !validFileIds.contains(id));
+      }
+    }
 
     // Only notify listeners if in selection mode, don't auto-exit
     if (_isSelectionMode) {
