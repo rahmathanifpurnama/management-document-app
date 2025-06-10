@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.weeklySync = exports.dailyCleanup = exports.onFileUpload = exports.onUserCreate = exports.onDocumentCreate = exports.api = exports.healthCheck = exports.onDocumentStatusChange = exports.validateUserSession = exports.handleLogoutOperations = exports.handlePostLoginOperations = exports.cleanupQueue = exports.getQueueStatus = exports.addToProcessingQueue = exports.processQueue = exports.processActivityLog = exports.sendNotification = exports.performComprehensiveSync = exports.cleanupOrphanedMetadata = exports.syncStorageWithFirestore = exports.generateDocumentReport = exports.bulkDocumentOperations = exports.rejectDocument = exports.approveDocument = exports.bulkUserOperations = exports.deleteUser = exports.updateUserPermissions = exports.createUser = exports.refreshCategoryContents = exports.getCategoryDocumentsEnhanced = exports.removeFilesFromCategory = exports.addFilesToCategory = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.batchProcessFiles = exports.cleanupOrphanedFiles = exports.getFileAccessUrl = exports.getStorageQuota = exports.extractMetadata = exports.checkDuplicateFile = exports.validateFile = exports.generateThumbnail = exports.processFileUpload = void 0;
+exports.manualCleanupActivityLogs = exports.onFileUpload = exports.onUserCreate = exports.onDocumentCreate = exports.api = exports.healthCheck = exports.validateUserSession = exports.handleLogoutOperations = exports.handlePostLoginOperations = exports.processActivityLog = exports.sendNotification = exports.performComprehensiveSync = exports.cleanupOrphanedMetadata = exports.syncStorageWithFirestore = exports.generateDocumentReport = exports.bulkDocumentOperations = exports.rejectDocument = exports.approveDocument = exports.bulkUserOperations = exports.deleteUser = exports.updateUserPermissions = exports.createUser = exports.refreshCategoryContents = exports.getCategoryDocumentsEnhanced = exports.removeFilesFromCategory = exports.addFilesToCategory = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.batchProcessFiles = exports.cleanupOrphanedFiles = exports.getFileAccessUrl = exports.getStorageQuota = exports.extractMetadata = exports.checkDuplicateFile = exports.validateFile = exports.generateThumbnail = exports.processFileUpload = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const cors_1 = __importDefault(require("cors"));
@@ -53,11 +53,6 @@ const userManagement_1 = require("./modules/userManagement");
 const documentManagement_1 = require("./modules/documentManagement");
 const syncOperations_1 = require("./modules/syncOperations");
 const notifications_1 = require("./modules/notifications");
-const processingQueue_1 = require("./modules/processingQueue");
-Object.defineProperty(exports, "processQueue", { enumerable: true, get: function () { return processingQueue_1.processQueue; } });
-Object.defineProperty(exports, "addToProcessingQueue", { enumerable: true, get: function () { return processingQueue_1.addToProcessingQueue; } });
-Object.defineProperty(exports, "getQueueStatus", { enumerable: true, get: function () { return processingQueue_1.getQueueStatus; } });
-Object.defineProperty(exports, "cleanupQueue", { enumerable: true, get: function () { return processingQueue_1.cleanupQueue; } });
 const authOperations_1 = require("./auth/authOperations");
 Object.defineProperty(exports, "handlePostLoginOperations", { enumerable: true, get: function () { return authOperations_1.handlePostLoginOperations; } });
 Object.defineProperty(exports, "handleLogoutOperations", { enumerable: true, get: function () { return authOperations_1.handleLogoutOperations; } });
@@ -153,38 +148,85 @@ exports.onFileUpload = functions.storage
     if (!filePath || !filePath.startsWith("documents/")) {
         return;
     }
-    // File upload processing queue removed since status management is removed
+    // File upload processing is now handled directly in upload functions
     console.log(`File uploaded: ${filePath}`);
 });
-// Scheduled Functions
-exports.dailyCleanup = functions.pubsub
-    .schedule("0 2 * * *") // Run daily at 2 AM
-    .timeZone("Asia/Jakarta")
-    .onRun(async () => {
-    console.log("Starting daily cleanup...");
-    // Clean up orphaned metadata
-    console.log("Running orphaned metadata cleanup...");
-    // Clean up old activity logs (older than 90 days)
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 90);
-    const oldActivities = await admin
-        .firestore()
-        .collection("activities")
-        .where("timestamp", "<", cutoffDate)
-        .get();
-    const batch = admin.firestore().batch();
-    oldActivities.docs.forEach((doc) => {
-        batch.delete(doc.ref);
-    });
-    await batch.commit();
-    console.log(`Cleaned up ${oldActivities.size} old activity logs`);
+// DISABLED: Automatic cleanup functions to prevent unwanted deletions
+// These functions were causing automatic deletion of files and metadata
+// All cleanup operations should now be manual and require admin approval
+// export const dailyCleanup = functions
+//   .runWith({
+//     timeoutSeconds: 540, // 9 minutes timeout
+//     memory: "1GB", // Increased memory for batch operations
+//   })
+//   .pubsub
+//   .schedule("0 3 * * 0") // Run weekly on Sunday at 3 AM (reduced frequency)
+//   .timeZone("Asia/Jakarta")
+//   .onRun(async () => {
+//     console.log("Starting weekly cleanup...");
+//     // DISABLED: Automatic deletion operations
+//   });
+// Manual cleanup function that requires admin authentication
+exports.manualCleanupActivityLogs = functions.https.onCall(async (data, context) => {
+    // Require authentication and admin role
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
+    }
+    try {
+        // Check user permissions
+        const userDoc = await admin.firestore().collection("users").doc(context.auth.uid).get();
+        const user = userDoc.data();
+        if (!user || user.role !== "admin") {
+            throw new functions.https.HttpsError("permission-denied", "Only admins can perform cleanup operations");
+        }
+        console.log(`Manual activity log cleanup initiated by admin: ${context.auth.uid}`);
+        // PERFORMANCE FIX: Clean up old activity logs with smaller batches
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - 90);
+        console.log("Cleaning old activity logs...");
+        // Process in smaller batches to prevent timeout
+        const batchSize = 100; // Reduced batch size
+        let totalDeleted = 0;
+        let hasMore = true;
+        while (hasMore) {
+            const oldActivities = await admin
+                .firestore()
+                .collection("activities")
+                .where("timestamp", "<", cutoffDate)
+                .limit(batchSize)
+                .get();
+            if (oldActivities.empty) {
+                hasMore = false;
+                break;
+            }
+            const batch = admin.firestore().batch();
+            oldActivities.docs.forEach((doc) => {
+                batch.delete(doc.ref);
+            });
+            await batch.commit();
+            totalDeleted += oldActivities.size;
+            console.log(`Deleted batch of ${oldActivities.size} activities`);
+            // Small delay between batches to prevent overwhelming Firestore
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        console.log(`✅ Manual cleanup completed. Deleted ${totalDeleted} old activity logs`);
+        return {
+            success: true,
+            deletedCount: totalDeleted,
+            message: `Successfully deleted ${totalDeleted} old activity logs`
+        };
+    }
+    catch (error) {
+        console.error("❌ Manual cleanup failed:", error);
+        throw new functions.https.HttpsError("internal", `Manual cleanup failed: ${error}`);
+    }
 });
-// Weekly Sync Function
-exports.weeklySync = functions.pubsub
-    .schedule("0 3 * * 0") // Run weekly on Sunday at 3 AM
-    .timeZone("Asia/Jakarta")
-    .onRun(async () => {
-    console.log("Starting weekly comprehensive sync...");
-    console.log("Comprehensive sync completed");
-});
+// DISABLED: Weekly automatic sync to prevent unwanted operations
+// export const weeklySync = functions.pubsub
+//   .schedule("0 3 * * 0") // Run weekly on Sunday at 3 AM
+//   .timeZone("Asia/Jakarta")
+//   .onRun(async () => {
+//     console.log("Starting weekly comprehensive sync...");
+//     console.log("Comprehensive sync completed");
+//   });
 //# sourceMappingURL=index.js.map

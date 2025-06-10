@@ -260,15 +260,16 @@ const processFileUpload = functions.https.onCall(async (data, context) => {
         // Check for duplicates
         const duplicateCheck = await checkForDuplicates(fileHash, sanitizedFileName, fileSize, uploadedBy);
         if (duplicateCheck.isDuplicate) {
-            // Delete the uploaded file since it's a duplicate
-            try {
-                await fileRef.delete();
-                console.log(`Deleted duplicate file: ${filePath}`);
-            }
-            catch (deleteError) {
-                console.warn(`Failed to delete duplicate file: ${deleteError}`);
-            }
-            throw new functions.https.HttpsError("already-exists", `File already exists in the system. Original file: ${((_a = duplicateCheck.existingDocument) === null || _a === void 0 ? void 0 : _a.fileName) || "Unknown"}`);
+            // DISABLED: Automatic file deletion to prevent unwanted data loss
+            // Instead, just reject the upload without deleting the file
+            // try {
+            //   await fileRef.delete();
+            //   console.log(`Deleted duplicate file: ${filePath}`);
+            // } catch (deleteError) {
+            //   console.warn(`Failed to delete duplicate file: ${deleteError}`);
+            // }
+            console.log(`Duplicate file detected but not deleted: ${filePath}`);
+            throw new functions.https.HttpsError("already-exists", `File already exists in the system. Original file: ${((_a = duplicateCheck.existingDocument) === null || _a === void 0 ? void 0 : _a.fileName) || "Unknown"}. The uploaded file has been preserved but not processed.`);
         }
         // Extract additional metadata
         const extractedMetadata = await extractMetadataInternal({
@@ -694,17 +695,20 @@ const cleanupOrphanedFiles = functions.https.onCall(async (_data, context) => {
         const documentsSnapshot = await firestore.collection("documents").get();
         const documentPaths = new Set(documentsSnapshot.docs.map((doc) => doc.data().filePath));
         let deletedCount = 0;
-        // Delete files that don't have corresponding Firestore records
+        // DISABLED: Automatic orphaned file deletion to prevent data loss
+        // Instead, just log orphaned files for manual review
         for (const file of files) {
             if (!documentPaths.has(file.name) && !file.name.endsWith("/.keep")) {
-                try {
-                    await file.delete();
-                    deletedCount++;
-                    console.log(`Deleted orphaned file: ${file.name}`);
-                }
-                catch (error) {
-                    console.warn(`Failed to delete file ${file.name}:`, error);
-                }
+                // Log orphaned file but don't delete
+                console.log(`Orphaned file found (not deleted): ${file.name}`);
+                deletedCount++; // Count for reporting, but don't actually delete
+                // try {
+                //   await file.delete();
+                //   deletedCount++;
+                //   console.log(`Deleted orphaned file: ${file.name}`);
+                // } catch (error) {
+                //   console.warn(`Failed to delete file ${file.name}:`, error);
+                // }
             }
         }
         return {
