@@ -1,9 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../config/anr_config.dart';
-import '../utils/anr_prevention.dart';
 
 /// HIGH PRIORITY: Optimized ListView to prevent ANR
 class OptimizedListView extends StatefulWidget {
@@ -62,13 +60,13 @@ class _OptimizedListViewState extends State<OptimizedListView> {
     _scrollTimer?.cancel();
     _scrollTimer = Timer(ANRConfig.debounceDelay, () {
       if (!mounted) return;
-      
+
       // Check if near bottom for load more
-      if (widget.onLoadMore != null && 
-          widget.hasMore && 
+      if (widget.onLoadMore != null &&
+          widget.hasMore &&
           !_isLoadingMore &&
-          _scrollController.position.pixels >= 
-          _scrollController.position.maxScrollExtent - 200) {
+          _scrollController.position.pixels >=
+              _scrollController.position.maxScrollExtent - 200) {
         _loadMore();
       }
     });
@@ -76,7 +74,7 @@ class _OptimizedListViewState extends State<OptimizedListView> {
 
   void _loadMore() async {
     if (_isLoadingMore) return;
-    
+
     setState(() {
       _isLoadingMore = true;
     });
@@ -104,20 +102,17 @@ class _OptimizedListViewState extends State<OptimizedListView> {
       itemCount: widget.itemCount + (_isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
         if (index >= widget.itemCount) {
-          return widget.loadingWidget ?? 
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16.0),
-                child: CircularProgressIndicator(),
-              ),
-            );
+          return widget.loadingWidget ??
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(),
+                ),
+              );
         }
-        
+
         // Wrap item builder with error boundary
-        return _ItemWrapper(
-          index: index,
-          builder: widget.itemBuilder,
-        );
+        return _ItemWrapper(index: index, builder: widget.itemBuilder);
       },
     );
   }
@@ -128,10 +123,7 @@ class _ItemWrapper extends StatelessWidget {
   final int index;
   final Widget Function(BuildContext context, int index) builder;
 
-  const _ItemWrapper({
-    required this.index,
-    required this.builder,
-  });
+  const _ItemWrapper({required this.index, required this.builder});
 
   @override
   Widget build(BuildContext context) {
@@ -196,25 +188,24 @@ class _OptimizedImageWidgetState extends State<OptimizedImageWidget> {
       memCacheHeight: widget.height?.toInt(),
       maxWidthDiskCache: 800,
       maxHeightDiskCache: 600,
-      placeholder: (context, url) => widget.placeholder ?? 
-        Container(
-          width: widget.width,
-          height: widget.height,
-          color: Colors.grey[200],
-          child: const Center(
-            child: CircularProgressIndicator(strokeWidth: 2),
+      placeholder: (context, url) =>
+          widget.placeholder ??
+          Container(
+            width: widget.width,
+            height: widget.height,
+            color: Colors.grey[200],
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           ),
-        ),
-      errorWidget: (context, url, error) => widget.errorWidget ??
-        Container(
-          width: widget.width,
-          height: widget.height,
-          color: Colors.grey[300],
-          child: const Icon(
-            Icons.error_outline,
-            color: Colors.red,
+      errorWidget: (context, url, error) =>
+          widget.errorWidget ??
+          Container(
+            width: widget.width,
+            height: widget.height,
+            color: Colors.grey[300],
+            child: const Icon(Icons.error_outline, color: Colors.red),
           ),
-        ),
     );
   }
 
@@ -262,7 +253,8 @@ class _DebouncedTextFieldState extends State<DebouncedTextField> {
   @override
   void initState() {
     super.initState();
-    _controller = widget.controller ?? TextEditingController(text: widget.initialValue);
+    _controller =
+        widget.controller ?? TextEditingController(text: widget.initialValue);
     _controller.addListener(_onTextChanged);
   }
 
@@ -290,10 +282,12 @@ class _DebouncedTextFieldState extends State<DebouncedTextField> {
       controller: _controller,
       keyboardType: widget.keyboardType,
       maxLines: widget.maxLines,
-      decoration: widget.decoration ?? InputDecoration(
-        hintText: widget.hintText,
-        border: const OutlineInputBorder(),
-      ),
+      decoration:
+          widget.decoration ??
+          InputDecoration(
+            hintText: widget.hintText,
+            border: const OutlineInputBorder(),
+          ),
     );
   }
 }
@@ -363,7 +357,7 @@ class PerformanceMonitor extends StatefulWidget {
   const PerformanceMonitor({
     super.key,
     required this.child,
-    this.enabled = kDebugMode,
+    this.enabled = true,
   });
 
   @override
@@ -396,7 +390,7 @@ class _PerformanceMonitorState extends State<PerformanceMonitor> {
           _fps = _frameCount.toDouble();
           _frameCount = 0;
         });
-        
+
         if (_fps < 30) {
           debugPrint('⚠️ Low FPS detected: ${_fps.toStringAsFixed(1)}');
         }

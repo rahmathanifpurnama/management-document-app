@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import '../config/anr_config.dart';
 import '../utils/anr_prevention.dart';
 
@@ -17,8 +18,10 @@ class PaginationService<T> {
   bool _hasMore = true;
   bool _isLoading = false;
   final List<T> _allItems = [];
-  final StreamController<List<T>> _itemsController = StreamController<List<T>>.broadcast();
-  final StreamController<bool> _loadingController = StreamController<bool>.broadcast();
+  final StreamController<List<T>> _itemsController =
+      StreamController<List<T>>.broadcast();
+  final StreamController<bool> _loadingController =
+      StreamController<bool>.broadcast();
 
   PaginationService({
     required this.collectionName,
@@ -136,7 +139,9 @@ class PaginationService<T> {
       _hasMore = false;
     }
 
-    debugPrint('📄 Loaded ${newItems.length} items for $collectionName (Total: ${_allItems.length})');
+    debugPrint(
+      '📄 Loaded ${newItems.length} items for $collectionName (Total: ${_allItems.length})',
+    );
   }
 
   /// Build Firestore query
@@ -246,7 +251,7 @@ class _PaginatedListWidgetState<T> extends State<PaginatedListWidget<T>> {
     super.initState();
     _scrollController = widget.scrollController ?? ScrollController();
     _scrollController.addListener(_onScroll);
-    
+
     _setupStreams();
     _loadInitialData();
   }
@@ -260,7 +265,9 @@ class _PaginatedListWidgetState<T> extends State<PaginatedListWidget<T>> {
       }
     });
 
-    _loadingSubscription = widget.paginationService.loadingStream.listen((loading) {
+    _loadingSubscription = widget.paginationService.loadingStream.listen((
+      loading,
+    ) {
       if (mounted) {
         setState(() {
           _isLoading = loading;
@@ -276,7 +283,7 @@ class _PaginatedListWidgetState<T> extends State<PaginatedListWidget<T>> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= 
+    if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       widget.paginationService.loadNextPage();
     }
@@ -295,7 +302,8 @@ class _PaginatedListWidgetState<T> extends State<PaginatedListWidget<T>> {
   @override
   Widget build(BuildContext context) {
     if (_items.isEmpty && _isLoading) {
-      return widget.loadingWidget ?? const Center(child: CircularProgressIndicator());
+      return widget.loadingWidget ??
+          const Center(child: CircularProgressIndicator());
     }
 
     if (_items.isEmpty && !_isLoading) {

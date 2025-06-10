@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:isolate';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -9,8 +8,9 @@ import '../utils/anr_prevention.dart';
 /// HIGH PRIORITY: Optimized file service to prevent ANR during file operations
 class OptimizedFileService {
   static OptimizedFileService? _instance;
-  static OptimizedFileService get instance => _instance ??= OptimizedFileService._();
-  
+  static OptimizedFileService get instance =>
+      _instance ??= OptimizedFileService._();
+
   OptimizedFileService._();
 
   final Map<String, Completer<Uint8List?>> _downloadCache = {};
@@ -26,7 +26,7 @@ class OptimizedFileService {
     // Check cache first
     if (useCache && _downloadCache.containsKey(filePath)) {
       final cacheTime = _cacheTimestamps[filePath];
-      if (cacheTime != null && 
+      if (cacheTime != null &&
           DateTime.now().difference(cacheTime) < ANRConfig.cacheExpiry) {
         debugPrint('📦 Using cached file: $filePath');
         return await _downloadCache[filePath]!.future;
@@ -66,7 +66,7 @@ class OptimizedFileService {
     return await ANRPrevention.executeInBackground(
       () async {
         final ref = FirebaseStorage.instance.ref().child(filePath);
-        
+
         // Get file metadata first
         final metadata = await ANRPrevention.executeWithTimeout(
           ref.getMetadata(),
@@ -79,13 +79,24 @@ class OptimizedFileService {
         }
 
         final fileSize = metadata.size ?? 0;
-        debugPrint('📁 Downloading file: $filePath (${_formatFileSize(fileSize)})');
+        debugPrint(
+          '📁 Downloading file: $filePath (${_formatFileSize(fileSize)})',
+        );
 
         // Choose download strategy based on file size
-        if (fileSize > 5 * 1024 * 1024) { // > 5MB
-          return await _downloadLargeFile(ref, fileSize, onProgress);
+        if (fileSize > 5 * 1024 * 1024) {
+          // > 5MB
+          final result = await _downloadLargeFile(ref, fileSize, onProgress);
+          if (result == null) {
+            throw Exception('Failed to download large file');
+          }
+          return result;
         } else {
-          return await _downloadSmallFile(ref, onProgress);
+          final result = await _downloadSmallFile(ref, onProgress);
+          if (result == null) {
+            throw Exception('Failed to download small file');
+          }
+          return result;
         }
       },
       timeout: _getTimeoutForFileSize(0), // Will be updated with actual size
@@ -98,11 +109,13 @@ class OptimizedFileService {
     Reference ref,
     Function(double progress)? onProgress,
   ) async {
-    return await ANRPrevention.executeWithTimeout(
-      ref.getData(),
-      timeout: ANRConfig.smallFileReadTimeout,
-      operationName: 'Small File Download',
-    );
+    try {
+      final data = await ref.getData();
+      return data;
+    } catch (e) {
+      debugPrint('❌ Small file download failed: $e');
+      return null;
+    }
   }
 
   /// Download large file with chunking (>= 5MB)
@@ -119,7 +132,7 @@ class OptimizedFileService {
       while (downloadedBytes < fileSize) {
         final start = downloadedBytes;
         final end = (downloadedBytes + chunkSize - 1).clamp(0, fileSize - 1);
-        
+
         final chunkData = await ANRPrevention.executeWithTimeout(
           ref.getData(end - start + 1),
           timeout: ANRConfig.largeFileReadTimeout,
@@ -142,14 +155,17 @@ class OptimizedFileService {
       }
 
       // Combine chunks
-      final totalBytes = chunks.fold<int>(0, (sum, chunk) => sum + chunk.length);
+      final totalBytes = chunks.fold<int>(
+        0,
+        (sum, chunk) => sum + chunk.length,
+      );
       final result = Uint8List(totalBytes);
       int offset = 0;
-      
+
       for (final chunk in chunks) {
         result.setRange(offset, offset + chunk.length, chunk);
         offset += chunk.length;
-        
+
         // Yield periodically during combination
         if (offset % (chunkSize * 2) == 0) {
           await ANRPrevention.yieldToUI();
@@ -180,16 +196,32 @@ class OptimizedFileService {
     _activeOperations++;
 
     try {
-      final filePath = 'documents/${DateTime.now().millisecondsSinceEpoch}_$fileName';
+      final filePath =
+          'documents/${DateTime.now().millisecondsSinceEpoch}_$fileName';
       final ref = FirebaseStorage.instance.ref().child(filePath);
 
-      debugPrint('📤 Uploading file: $fileName (${_formatFileSize(fileData.length)})');
+      debugPrint(
+        '📤 Uploading file: $fileName (${_formatFileSize(fileData.length)})',
+      );
 
       // Choose upload strategy based on file size
-      if (fileData.length > 5 * 1024 * 1024) { // > 5MB
-        return await _uploadLargeFile(ref, fileData, contentType, metadata, onProgress);
+      if (fileData.length > 5 * 1024 * 1024) {
+        // > 5MB
+        return await _uploadLargeFile(
+          ref,
+          fileData,
+          contentType,
+          metadata,
+          onProgress,
+        );
       } else {
-        return await _uploadSmallFile(ref, fileData, contentType, metadata, onProgress);
+        return await _uploadSmallFile(
+          ref,
+          fileData,
+          contentType,
+          metadata,
+          onProgress,
+        );
       }
     } catch (e) {
       debugPrint('❌ File upload failed: $fileName - $e');
@@ -209,10 +241,7 @@ class OptimizedFileService {
   ) async {
     final uploadTask = ref.putData(
       fileData,
-      SettableMetadata(
-        contentType: contentType,
-        customMetadata: metadata,
-      ),
+      SettableMetadata(contentType: contentType, customMetadata: metadata),
     );
 
     // Monitor progress
@@ -240,7 +269,13 @@ class OptimizedFileService {
   ) async {
     // For now, use standard upload but with better progress tracking
     // In a production app, you might want to implement multipart upload
-    return await _uploadSmallFile(ref, fileData, contentType, metadata, onProgress);
+    return await _uploadSmallFile(
+      ref,
+      fileData,
+      contentType,
+      metadata,
+      onProgress,
+    );
   }
 
   /// Wait for available operation slot
@@ -285,8 +320,10 @@ class OptimizedFileService {
     if (_downloadCache.length > ANRConfig.maxCacheSize) {
       final sortedEntries = _cacheTimestamps.entries.toList()
         ..sort((a, b) => a.value.compareTo(b.value));
-      
-      final toRemove = sortedEntries.take(_downloadCache.length - ANRConfig.maxCacheSize);
+
+      final toRemove = sortedEntries.take(
+        _downloadCache.length - ANRConfig.maxCacheSize,
+      );
       for (final entry in toRemove) {
         _downloadCache.remove(entry.key);
         _cacheTimestamps.remove(entry.key);
@@ -306,8 +343,8 @@ class OptimizedFileService {
     return {
       'cachedFiles': _downloadCache.length,
       'activeOperations': _activeOperations,
-      'oldestCacheEntry': _cacheTimestamps.values.isEmpty 
-          ? null 
+      'oldestCacheEntry': _cacheTimestamps.values.isEmpty
+          ? null
           : _cacheTimestamps.values.reduce((a, b) => a.isBefore(b) ? a : b),
     };
   }

@@ -258,6 +258,11 @@ class ANRPrevention {
     return executeWithTimeout(operation, operationName: operationName);
   }
 
+  /// Yield control to UI thread to prevent ANR
+  static Future<void> yieldToUI() async {
+    await Future.delayed(Duration.zero);
+  }
+
   /// Clean up resources to prevent memory leaks
   static void cleanup() {
     _debounceTimer?.cancel();

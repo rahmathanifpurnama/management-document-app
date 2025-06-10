@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../config/anr_config.dart';
 import '../utils/anr_prevention.dart';
@@ -10,8 +8,9 @@ import '../utils/anr_prevention.dart';
 /// MEDIUM PRIORITY: Optimized image service to prevent ANR from image operations
 class OptimizedImageService {
   static OptimizedImageService? _instance;
-  static OptimizedImageService get instance => _instance ??= OptimizedImageService._();
-  
+  static OptimizedImageService get instance =>
+      _instance ??= OptimizedImageService._();
+
   OptimizedImageService._();
 
   final Map<String, ImageProvider> _imageCache = {};
@@ -29,7 +28,7 @@ class OptimizedImageService {
     // Check cache first
     if (useCache && _imageCache.containsKey(imageUrl)) {
       final cacheTime = _cacheTimestamps[imageUrl];
-      if (cacheTime != null && 
+      if (cacheTime != null &&
           DateTime.now().difference(cacheTime) < ANRConfig.cacheExpiry) {
         debugPrint('📦 Using cached image: $imageUrl');
         return await _loadFromCache(imageUrl);
@@ -52,11 +51,11 @@ class OptimizedImageService {
         maxWidth: maxWidth,
         maxHeight: maxHeight,
       );
-      
+
       if (image != null && useCache) {
         _cacheImage(imageUrl, CachedNetworkImageProvider(imageUrl));
       }
-      
+
       completer.complete(image);
       return image;
     } catch (e) {
@@ -78,10 +77,10 @@ class OptimizedImageService {
       () async {
         final imageProvider = CachedNetworkImageProvider(imageUrl);
         final imageStream = imageProvider.resolve(const ImageConfiguration());
-        
+
         final completer = Completer<ui.Image?>();
         late ImageStreamListener listener;
-        
+
         listener = ImageStreamListener(
           (ImageInfo info, bool synchronousCall) {
             completer.complete(info.image);
@@ -93,9 +92,9 @@ class OptimizedImageService {
             imageStream.removeListener(listener);
           },
         );
-        
+
         imageStream.addListener(listener);
-        
+
         // Add timeout
         Timer(ANRConfig.networkTimeout, () {
           if (!completer.isCompleted) {
@@ -104,14 +103,19 @@ class OptimizedImageService {
             completer.complete(null);
           }
         });
-        
+
         final image = await completer.future;
-        
-        // Resize if needed
-        if (image != null && (maxWidth != null || maxHeight != null)) {
-          return await _resizeImage(image, maxWidth, maxHeight);
+
+        if (image == null) {
+          throw Exception('Failed to load image');
         }
-        
+
+        // Resize if needed
+        if (maxWidth != null || maxHeight != null) {
+          final resized = await _resizeImage(image, maxWidth, maxHeight);
+          return resized ?? image;
+        }
+
         return image;
       },
       timeout: ANRConfig.networkTimeout,
@@ -128,29 +132,29 @@ class OptimizedImageService {
     try {
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
-      
+
       // Calculate new dimensions
       final originalWidth = originalImage.width;
       final originalHeight = originalImage.height;
-      
+
       double scaleX = maxWidth != null ? maxWidth / originalWidth : 1.0;
       double scaleY = maxHeight != null ? maxHeight / originalHeight : 1.0;
       double scale = scaleX < scaleY ? scaleX : scaleY;
-      
+
       if (scale >= 1.0) {
         return originalImage; // No need to resize
       }
-      
+
       final newWidth = (originalWidth * scale).round();
       final newHeight = (originalHeight * scale).round();
-      
+
       // Draw resized image
       canvas.scale(scale);
       canvas.drawImage(originalImage, Offset.zero, Paint());
-      
+
       final picture = recorder.endRecording();
       final resizedImage = await picture.toImage(newWidth, newHeight);
-      
+
       picture.dispose();
       return resizedImage;
     } catch (e) {
@@ -163,12 +167,12 @@ class OptimizedImageService {
   Future<ui.Image?> _loadFromCache(String imageUrl) async {
     final imageProvider = _imageCache[imageUrl];
     if (imageProvider == null) return null;
-    
+
     try {
       final imageStream = imageProvider.resolve(const ImageConfiguration());
       final completer = Completer<ui.Image?>();
       late ImageStreamListener listener;
-      
+
       listener = ImageStreamListener(
         (ImageInfo info, bool synchronousCall) {
           completer.complete(info.image);
@@ -179,7 +183,7 @@ class OptimizedImageService {
           imageStream.removeListener(listener);
         },
       );
-      
+
       imageStream.addListener(listener);
       return await completer.future;
     } catch (e) {
@@ -193,7 +197,7 @@ class OptimizedImageService {
     _imageCache[imageUrl] = imageProvider;
     _cacheTimestamps[imageUrl] = DateTime.now();
     _cacheSize++;
-    
+
     // Clean cache if too large
     if (_cacheSize > ANRConfig.maxImageCacheSize) {
       _cleanCache();
@@ -204,53 +208,54 @@ class OptimizedImageService {
   void _cleanCache() {
     final now = DateTime.now();
     final keysToRemove = <String>[];
-    
+
     // Remove expired entries
     for (final entry in _cacheTimestamps.entries) {
       if (now.difference(entry.value) > ANRConfig.cacheExpiry) {
         keysToRemove.add(entry.key);
       }
     }
-    
+
     // Remove oldest entries if still too large
     if (_cacheSize - keysToRemove.length > ANRConfig.maxImageCacheSize) {
       final sortedEntries = _cacheTimestamps.entries.toList()
         ..sort((a, b) => a.value.compareTo(b.value));
-      
-      final additionalToRemove = _cacheSize - keysToRemove.length - ANRConfig.maxImageCacheSize;
+
+      final additionalToRemove =
+          _cacheSize - keysToRemove.length - ANRConfig.maxImageCacheSize;
       for (int i = 0; i < additionalToRemove && i < sortedEntries.length; i++) {
         if (!keysToRemove.contains(sortedEntries[i].key)) {
           keysToRemove.add(sortedEntries[i].key);
         }
       }
     }
-    
+
     // Remove entries
     for (final key in keysToRemove) {
       _imageCache.remove(key);
       _cacheTimestamps.remove(key);
       _cacheSize--;
     }
-    
-    debugPrint('🧹 Image cache cleaned: removed ${keysToRemove.length} entries');
+
+    debugPrint(
+      '🧹 Image cache cleaned: removed ${keysToRemove.length} entries',
+    );
   }
 
   /// Preload images for better performance
   Future<void> preloadImages(List<String> imageUrls) async {
     debugPrint('🔄 Preloading ${imageUrls.length} images...');
-    
+
     // Process in batches to prevent overwhelming the system
     for (int i = 0; i < imageUrls.length; i += ANRConfig.smallBatchSize) {
       final batch = imageUrls.skip(i).take(ANRConfig.smallBatchSize).toList();
-      
-      await Future.wait(
-        batch.map((url) => loadOptimizedImage(url)),
-      );
-      
+
+      await Future.wait(batch.map((url) => loadOptimizedImage(url)));
+
       // Yield between batches
       await Future.delayed(ANRConfig.batchDelay);
     }
-    
+
     debugPrint('✅ Image preloading completed');
   }
 
@@ -259,11 +264,11 @@ class OptimizedImageService {
     return {
       'cachedImages': _cacheSize,
       'loadingImages': _loadingImages.length,
-      'oldestCacheEntry': _cacheTimestamps.values.isEmpty 
-          ? null 
+      'oldestCacheEntry': _cacheTimestamps.values.isEmpty
+          ? null
           : _cacheTimestamps.values.reduce((a, b) => a.isBefore(b) ? a : b),
-      'newestCacheEntry': _cacheTimestamps.values.isEmpty 
-          ? null 
+      'newestCacheEntry': _cacheTimestamps.values.isEmpty
+          ? null
           : _cacheTimestamps.values.reduce((a, b) => a.isAfter(b) ? a : b),
     };
   }
@@ -363,32 +368,32 @@ class _OptimizedNetworkImageState extends State<OptimizedNetworkImage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return widget.placeholder ?? 
-        Container(
-          width: widget.width,
-          height: widget.height,
-          color: Colors.grey[200],
-          child: const Center(
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        );
+      return widget.placeholder ??
+          Container(
+            width: widget.width,
+            height: widget.height,
+            color: Colors.grey[200],
+            child: const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
     }
 
     if (_hasError || _image == null) {
       return widget.errorWidget ??
-        Container(
-          width: widget.width,
-          height: widget.height,
-          color: Colors.grey[300],
-          child: const Icon(
-            Icons.error_outline,
-            color: Colors.red,
-          ),
-        );
+          Container(
+            width: widget.width,
+            height: widget.height,
+            color: Colors.grey[300],
+            child: const Icon(Icons.error_outline, color: Colors.red),
+          );
     }
 
     return CustomPaint(
-      size: Size(widget.width ?? double.infinity, widget.height ?? double.infinity),
+      size: Size(
+        widget.width ?? double.infinity,
+        widget.height ?? double.infinity,
+      ),
       painter: _ImagePainter(_image!, widget.fit),
     );
   }
@@ -404,28 +409,39 @@ class _ImagePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..filterQuality = FilterQuality.medium;
-    
+
     final imageSize = Size(image.width.toDouble(), image.height.toDouble());
     final fittedSize = _applyBoxFit(fit, imageSize, size);
-    
-    final srcRect = Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
+
+    final srcRect = Rect.fromLTWH(
+      0,
+      0,
+      image.width.toDouble(),
+      image.height.toDouble(),
+    );
     final dstRect = Rect.fromLTWH(
       (size.width - fittedSize.width) / 2,
       (size.height - fittedSize.height) / 2,
       fittedSize.width,
       fittedSize.height,
     );
-    
+
     canvas.drawImageRect(image, srcRect, dstRect, paint);
   }
 
   Size _applyBoxFit(BoxFit fit, Size inputSize, Size outputSize) {
     switch (fit) {
       case BoxFit.contain:
-        final scale = (outputSize.width / inputSize.width).clamp(0.0, outputSize.height / inputSize.height);
+        final scale = (outputSize.width / inputSize.width).clamp(
+          0.0,
+          outputSize.height / inputSize.height,
+        );
         return Size(inputSize.width * scale, inputSize.height * scale);
       case BoxFit.cover:
-        final scale = (outputSize.width / inputSize.width).clamp(outputSize.height / inputSize.height, double.infinity);
+        final scale = (outputSize.width / inputSize.width).clamp(
+          outputSize.height / inputSize.height,
+          double.infinity,
+        );
         return Size(inputSize.width * scale, inputSize.height * scale);
       case BoxFit.fill:
         return outputSize;
