@@ -27,11 +27,27 @@ class RealtimeSyncService {
     if (_context == null) return;
 
     try {
+      // CRITICAL FIX: Check if DocumentProvider already has a listener
+      final documentProvider = Provider.of<DocumentProvider>(
+        _context!,
+        listen: false,
+      );
+
+      // Don't start duplicate listener if DocumentProvider is already handling Firebase sync
+      if (documentProvider.isFirebaseSyncActive) {
+        debugPrint(
+          '⚠️ DocumentProvider Firebase sync already active, skipping RealtimeSyncService listener',
+        );
+        return;
+      }
+
       // Cancel existing subscription
       _subscriptions['documents']?.cancel();
 
-      // Listen to document changes
+      // Listen to document changes with active filter
       _subscriptions['documents'] = _firebaseService.documentsCollection
+          .where('isActive', isEqualTo: true)
+          .orderBy('uploadedAt', descending: true)
           .snapshots()
           .listen(
             (snapshot) {
@@ -41,6 +57,8 @@ class RealtimeSyncService {
               debugPrint('Document sync error: $error');
             },
           );
+
+      debugPrint('✅ RealtimeSyncService document listener started');
     } catch (e) {
       debugPrint('Failed to start document sync: $e');
     }

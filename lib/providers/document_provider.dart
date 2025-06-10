@@ -55,6 +55,7 @@ class DocumentProvider extends ChangeNotifier {
   String get selectedStatus => _selectedStatus;
   String get sortBy => _sortBy;
   bool get sortAscending => _sortAscending;
+  bool get isFirebaseSyncActive => _documentsSubscription != null;
 
   // Load documents with Firebase real-time sync
   Future<void> loadDocuments() async {
@@ -176,8 +177,16 @@ class DocumentProvider extends ChangeNotifier {
   // Start Firebase real-time listener for document updates
   void _startFirebaseListener() {
     try {
-      _documentsSubscription?.cancel();
+      // CRITICAL FIX: Only start listener if not already active
+      if (_documentsSubscription != null) {
+        debugPrint(
+          '⚠️ Firebase listener already active, skipping duplicate listener',
+        );
+        return;
+      }
+
       _documentsSubscription = _firebaseService.documentsCollection
+          .where('isActive', isEqualTo: true) // Only get active documents
           .orderBy('uploadedAt', descending: true)
           .snapshots()
           .listen(

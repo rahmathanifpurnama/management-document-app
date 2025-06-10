@@ -460,80 +460,217 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     );
   }
 
-  /// Build pagination controls
+  /// Build enhanced pagination controls with improved styling
   Widget _buildPaginationControls(int totalPages) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Previous button
-        IconButton(
-          onPressed: _currentPage > 0
-              ? () => _goToPage(_currentPage - 1)
-              : null,
-          icon: const Icon(Icons.chevron_left),
-          style: IconButton.styleFrom(
-            backgroundColor: _currentPage > 0
-                ? AppColors.primary.withValues(alpha: 0.1)
-                : AppColors.background,
-            foregroundColor: _currentPage > 0
-                ? AppColors.primary
-                : AppColors.textSecondary.withValues(alpha: 0.5),
-          ),
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.2),
+          width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Page info text
+          Text(
+            'Page ${_currentPage + 1} of $totalPages',
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 16),
 
-        const SizedBox(width: 16),
-
-        // Page indicators
-        ...List.generate(totalPages, (index) {
-          final isCurrentPage = index == _currentPage;
-          return GestureDetector(
-            onTap: () => _goToPage(index),
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: isCurrentPage ? AppColors.primary : AppColors.background,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isCurrentPage
-                      ? AppColors.primary
-                      : AppColors.border.withValues(alpha: 0.3),
-                  width: 1,
-                ),
+          // Pagination controls
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Previous button with enhanced styling
+              _buildPaginationButton(
+                icon: Icons.chevron_left,
+                isEnabled: _currentPage > 0,
+                onTap: _currentPage > 0
+                    ? () => _goToPage(_currentPage - 1)
+                    : null,
+                tooltip: 'Previous page',
               ),
-              child: Center(
-                child: Text(
-                  '${index + 1}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: isCurrentPage ? Colors.white : AppColors.textPrimary,
-                  ),
-                ),
+
+              const SizedBox(width: 20),
+
+              // Page indicators with smart truncation
+              ..._buildPageIndicators(totalPages),
+
+              const SizedBox(width: 20),
+
+              // Next button with enhanced styling
+              _buildPaginationButton(
+                icon: Icons.chevron_right,
+                isEnabled: _currentPage < totalPages - 1,
+                onTap: _currentPage < totalPages - 1
+                    ? () => _goToPage(_currentPage + 1)
+                    : null,
+                tooltip: 'Next page',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build pagination button with consistent styling
+  Widget _buildPaginationButton({
+    required IconData icon,
+    required bool isEnabled,
+    required VoidCallback? onTap,
+    required String tooltip,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: isEnabled
+                  ? AppColors.primary.withValues(alpha: 0.1)
+                  : AppColors.background,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isEnabled
+                    ? AppColors.primary.withValues(alpha: 0.3)
+                    : AppColors.border.withValues(alpha: 0.2),
+                width: 1.5,
               ),
             ),
-          );
-        }),
-
-        const SizedBox(width: 16),
-
-        // Next button
-        IconButton(
-          onPressed: _currentPage < totalPages - 1
-              ? () => _goToPage(_currentPage + 1)
-              : null,
-          icon: const Icon(Icons.chevron_right),
-          style: IconButton.styleFrom(
-            backgroundColor: _currentPage < totalPages - 1
-                ? AppColors.primary.withValues(alpha: 0.1)
-                : AppColors.background,
-            foregroundColor: _currentPage < totalPages - 1
-                ? AppColors.primary
-                : AppColors.textSecondary.withValues(alpha: 0.5),
+            child: Icon(
+              icon,
+              size: 22,
+              color: isEnabled
+                  ? AppColors.primary
+                  : AppColors.textSecondary.withValues(alpha: 0.4),
+            ),
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  /// Build page indicators with smart truncation for many pages
+  List<Widget> _buildPageIndicators(int totalPages) {
+    const maxVisiblePages = 5;
+
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total is small
+      return List.generate(totalPages, (index) => _buildPageIndicator(index));
+    }
+
+    // Smart truncation for many pages
+    List<Widget> indicators = [];
+
+    // Always show first page
+    indicators.add(_buildPageIndicator(0));
+
+    if (_currentPage > 2) {
+      indicators.add(_buildEllipsis());
+    }
+
+    // Show current page and neighbors
+    int start = (_currentPage - 1).clamp(1, totalPages - 2);
+    int end = (_currentPage + 1).clamp(1, totalPages - 2);
+
+    for (int i = start; i <= end; i++) {
+      if (i != 0 && i != totalPages - 1) {
+        indicators.add(_buildPageIndicator(i));
+      }
+    }
+
+    if (_currentPage < totalPages - 3) {
+      indicators.add(_buildEllipsis());
+    }
+
+    // Always show last page
+    if (totalPages > 1) {
+      indicators.add(_buildPageIndicator(totalPages - 1));
+    }
+
+    return indicators;
+  }
+
+  /// Build individual page indicator
+  Widget _buildPageIndicator(int index) {
+    final isCurrentPage = index == _currentPage;
+    return GestureDetector(
+      onTap: () => _goToPage(index),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 3),
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: isCurrentPage ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isCurrentPage
+                ? AppColors.primary
+                : AppColors.border.withValues(alpha: 0.3),
+            width: 1.5,
+          ),
+          boxShadow: isCurrentPage
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
+        ),
+        child: Center(
+          child: Text(
+            '${index + 1}',
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: isCurrentPage ? FontWeight.w600 : FontWeight.w500,
+              color: isCurrentPage ? Colors.white : AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build ellipsis indicator
+  Widget _buildEllipsis() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 3),
+      width: 40,
+      height: 40,
+      child: Center(
+        child: Text(
+          '...',
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ),
     );
   }
 

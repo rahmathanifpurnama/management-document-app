@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../config/anr_config.dart';
 import '../utils/anr_prevention.dart';
+import '../../models/document_model.dart';
 
 /// HIGH PRIORITY: Pagination service to prevent ANR from large data loads
 class PaginationService<T> {
@@ -86,7 +87,7 @@ class PaginationService<T> {
     await loadFirstPage();
   }
 
-  /// Load page with ANR prevention
+  /// Load page with ANR prevention and duplicate detection
   Future<void> _loadPage() async {
     final query = await ANRPrevention.executeWithTimeout(
       _buildQuery(),
@@ -128,7 +129,15 @@ class PaginationService<T> {
       newItems.addAll(results.where((item) => item != null).cast<T>());
     });
 
-    _allItems.addAll(newItems);
+    // CRITICAL FIX: Check for duplicates before adding items
+    final existingIds = _getExistingItemIds();
+    final uniqueNewItems = newItems.where((item) {
+      final itemId = _getItemId(item);
+      return itemId != null && !existingIds.contains(itemId);
+    }).toList();
+
+    // Only add unique items
+    _allItems.addAll(uniqueNewItems);
     _itemsController.add(_allItems);
 
     // Update pagination state
@@ -140,7 +149,7 @@ class PaginationService<T> {
     }
 
     debugPrint(
-      '📄 Loaded ${newItems.length} items for $collectionName (Total: ${_allItems.length})',
+      '📄 Loaded ${uniqueNewItems.length}/${newItems.length} unique items for $collectionName (Total: ${_allItems.length})',
     );
   }
 
@@ -174,10 +183,13 @@ class PaginationService<T> {
     _loadingController.add(loading);
   }
 
-  /// Add item to beginning (for new uploads)
+  /// Add item to beginning (for new uploads) with duplicate check
   void addItem(T item) {
-    _allItems.insert(0, item);
-    _itemsController.add(_allItems);
+    final itemId = _getItemId(item);
+    if (itemId != null && !_getExistingItemIds().contains(itemId)) {
+      _allItems.insert(0, item);
+      _itemsController.add(_allItems);
+    }
   }
 
   /// Remove item
@@ -201,6 +213,34 @@ class PaginationService<T> {
     _lastDocument = null;
     _hasMore = true;
     _itemsController.add(_allItems);
+  }
+
+  /// Get existing item IDs for duplicate detection
+  Set<String> _getExistingItemIds() {
+    return _allItems
+        .map((item) => _getItemId(item))
+        .where((id) => id != null)
+        .cast<String>()
+        .toSet();
+  }
+
+  /// Get item ID for duplicate detection (override in subclasses if needed)
+  String? _getItemId(T item) {
+    // Try to get ID from common properties
+    try {
+      if (item is Map<String, dynamic>) {
+        return item['id'] as String?;
+      }
+      // Handle DocumentModel specifically
+      if (item is DocumentModel) {
+        return item.id;
+      }
+      // For other types, try to use toString as a unique identifier
+      return item.toString();
+    } catch (e) {
+      debugPrint('❌ Error getting item ID: $e');
+      return null;
+    }
   }
 
   /// Dispose resources
