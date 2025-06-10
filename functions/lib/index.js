@@ -144,7 +144,6 @@ exports.onFileUpload = functions.storage
     .object()
     .onFinalize(async (object) => {
     const filePath = object.name;
-    const contentType = object.contentType;
     if (!filePath || !filePath.startsWith("documents/")) {
         return;
     }
