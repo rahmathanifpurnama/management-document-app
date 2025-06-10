@@ -18,6 +18,8 @@ import '../../widgets/common/ios_back_button.dart';
 import '../../widgets/common/reusable_file_list_widget.dart';
 import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/file_selection_bar.dart';
+import '../../providers/file_selection_provider.dart';
+import '../../services/bulk_operations_service.dart';
 
 enum ViewMode { list, grid }
 
@@ -530,39 +532,49 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
         headerHeight +
         32; // Add margin
 
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
-        16,
-        0,
-        16,
-        16,
-      ), // Adjusted margin: no top margin
-      height: totalHeight,
-      child: Column(
-        children: [
-          // Filter Header for Grid View
-          _buildGridFilterHeader(documents.length),
-          const SizedBox(height: 16),
-          // Grid View
-          Expanded(
-            child: GridView.builder(
-              physics:
-                  const NeverScrollableScrollPhysics(), // Disable scrolling since parent handles it
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 0.90, // Reduced from 0.85 to give more height
+    return Consumer<FileSelectionProvider>(
+      builder: (context, selectionProvider, child) {
+        // Update available files for selection
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          selectionProvider.updateAvailableFiles(documents);
+        });
+
+        return Container(
+          margin: const EdgeInsets.fromLTRB(
+            16,
+            0,
+            16,
+            16,
+          ), // Adjusted margin: no top margin
+          height: totalHeight,
+          child: Column(
+            children: [
+              // Filter Header for Grid View
+              _buildGridFilterHeader(documents.length),
+              const SizedBox(height: 16),
+              // Grid View
+              Expanded(
+                child: GridView.builder(
+                  physics:
+                      const NeverScrollableScrollPhysics(), // Disable scrolling since parent handles it
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio:
+                        0.90, // Reduced from 0.85 to give more height
+                  ),
+                  itemCount: documents.length,
+                  itemBuilder: (context, index) {
+                    final document = documents[index];
+                    return _buildGridItem(document, selectionProvider);
+                  },
+                ),
               ),
-              itemCount: documents.length,
-              itemBuilder: (context, index) {
-                final document = documents[index];
-                return _buildGridItem(document);
-              },
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -618,14 +630,25 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
     );
   }
 
-  Widget _buildGridItem(DocumentModel document) {
+  Widget _buildGridItem(
+    DocumentModel document,
+    FileSelectionProvider selectionProvider,
+  ) {
+    final isSelected = selectionProvider.isFileSelected(document.id);
+    final isSelectionMode = selectionProvider.isSelectionMode;
+
     return GestureDetector(
-      onTap: () => _navigateToFilePreview(document),
-      onLongPress: () => _showDocumentMenu(document),
+      onTap: () => _handleGridItemTap(document, selectionProvider),
+      onLongPress: () => _handleGridItemLongPress(document, selectionProvider),
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: isSelected
+              ? AppColors.primary.withValues(alpha: 0.1)
+              : AppColors.surface,
           borderRadius: BorderRadius.circular(12),
+          border: isSelected
+              ? Border.all(color: AppColors.primary, width: 2)
+              : null,
           boxShadow: [
             BoxShadow(
               color: AppColors.shadow,
@@ -634,181 +657,215 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            // File Preview Area
-            Expanded(
-              flex: 3,
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: _getFileTypeColor(
-                    document.fileType,
-                  ).withValues(alpha: 0.1),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    topRight: Radius.circular(12),
-                  ),
-                ),
-                child: Container(
-                  margin: const EdgeInsets.fromLTRB(
-                    12, // left
-                    8, // top
-                    12, // right
-                    2, // bottom - minimal padding
-                  ), // Minimal bottom margin to reduce white space
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: _getFileTypeColor(
-                            document.fileType,
-                          ).withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          _getFileTypeIcon(document.fileType),
-                          color: _getFileTypeColor(document.fileType),
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(
-                        height: 6,
-                      ), // Slightly increased for better spacing
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal:
-                              6, // Increased back for better readability
-                          vertical: 3, // Increased back for better readability
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getFileTypeColor(
-                            document.fileType,
-                          ).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          _getFileTypeLabel(document.fileType),
-                          style: GoogleFonts.poppins(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w500,
-                            color: _getFileTypeColor(document.fileType),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // File Info Area
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  8,
-                  4, // Further reduced top padding
-                  6,
-                  0, // Eliminated bottom padding completely
-                ), // Eliminated bottom padding to remove white space
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min, // Added to prevent overflow
-                  children: [
-                    // File Name with margin
-                    Container(
-                      margin: const EdgeInsets.only(
-                        bottom: 5,
-                        top: 5,
-                      ), // Added margin
-                      child: Text(
-                        document.fileName,
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // File Preview Area
+                Expanded(
+                  flex: 3,
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: _getFileTypeColor(
+                        document.fileType,
+                      ).withValues(alpha: 0.1),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(12),
+                        topRight: Radius.circular(12),
                       ),
                     ),
-                    // File Details with margin
-                    Container(
+                    child: Container(
                       margin: const EdgeInsets.fromLTRB(
-                        0,
-                        4,
-                        0,
-                        8,
-                      ), // Added bottom margin to fill space
-                      child: Row(
+                        12, // left
+                        8, // top
+                        12, // right
+                        2, // bottom - minimal padding
+                      ), // Minimal bottom margin to reduce white space
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Expanded(
-                            child: Container(
-                              margin: const EdgeInsets.only(
-                                right: 8,
-                              ), // Added margin
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    _formatFileSize(document.fileSize),
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 10,
-                                      color: AppColors.textSecondary,
-                                      height: 1.2,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(
-                                    height: 2,
-                                  ), // Small spacing between size and date
-                                  Text(
-                                    _formatDate(document.uploadedAt),
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 9,
-                                      color: AppColors.textSecondary.withValues(
-                                        alpha: 0.7,
-                                      ),
-                                      height: 1.2,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: _getFileTypeColor(
+                                document.fileType,
+                              ).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              _getFileTypeIcon(document.fileType),
+                              color: _getFileTypeColor(document.fileType),
+                              size: 24,
                             ),
                           ),
-                          SizedBox(
-                            width: 20, // Fixed width for menu button
-                            height: 20,
-                            child: IconButton(
-                              onPressed: () => _showDocumentMenu(document),
-                              icon: const Icon(
-                                Icons.more_vert,
-                                color: AppColors.textSecondary,
-                                size: 16, // Reduced from 18
-                              ),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                minWidth: 10,
-                                minHeight: 10,
+                          const SizedBox(
+                            height: 6,
+                          ), // Slightly increased for better spacing
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal:
+                                  6, // Increased back for better readability
+                              vertical:
+                                  3, // Increased back for better readability
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getFileTypeColor(
+                                document.fileType,
+                              ).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              _getFileTypeLabel(document.fileType),
+                              style: GoogleFonts.poppins(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w500,
+                                color: _getFileTypeColor(document.fileType),
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ],
+                  ),
+                ),
+                // File Info Area
+                Expanded(
+                  flex: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      8,
+                      4, // Further reduced top padding
+                      6,
+                      0, // Eliminated bottom padding completely
+                    ), // Eliminated bottom padding to remove white space
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize:
+                          MainAxisSize.min, // Added to prevent overflow
+                      children: [
+                        // File Name with margin
+                        Container(
+                          margin: const EdgeInsets.only(
+                            bottom: 5,
+                            top: 5,
+                          ), // Added margin
+                          child: Text(
+                            document.fileName,
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        // File Details with margin
+                        Container(
+                          margin: const EdgeInsets.fromLTRB(
+                            0,
+                            4,
+                            0,
+                            8,
+                          ), // Added bottom margin to fill space
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  margin: const EdgeInsets.only(
+                                    right: 8,
+                                  ), // Added margin
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _formatFileSize(document.fileSize),
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 10,
+                                          color: AppColors.textSecondary,
+                                          height: 1.2,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(
+                                        height: 2,
+                                      ), // Small spacing between size and date
+                                      Text(
+                                        _formatDate(document.uploadedAt),
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 9,
+                                          color: AppColors.textSecondary
+                                              .withValues(alpha: 0.7),
+                                          height: 1.2,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: 20, // Fixed width for menu button
+                                height: 20,
+                                child: IconButton(
+                                  onPressed: () => _showDocumentMenu(document),
+                                  icon: const Icon(
+                                    Icons.more_vert,
+                                    color: AppColors.textSecondary,
+                                    size: 16, // Reduced from 18
+                                  ),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(
+                                    minWidth: 10,
+                                    minHeight: 10,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            // Selection checkbox overlay (only show in selection mode)
+            if (isSelectionMode)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Checkbox(
+                    value: isSelected,
+                    onChanged: (value) {
+                      selectionProvider.toggleFileSelection(document.id);
+                    },
+                    activeColor: AppColors.primary,
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),
@@ -1079,6 +1136,62 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
 
   void _navigateToFilePreview(DocumentModel document) {
     Navigator.of(context).pushNamed(AppRoutes.filePreview, arguments: document);
+  }
+
+  /// Handle tap on grid item
+  void _handleGridItemTap(
+    DocumentModel document,
+    FileSelectionProvider selectionProvider,
+  ) {
+    if (selectionProvider.isSelectionMode) {
+      // In selection mode, toggle selection
+      selectionProvider.toggleFileSelection(document.id);
+    } else {
+      // Normal mode, navigate to file preview
+      _navigateToFilePreview(document);
+    }
+  }
+
+  /// Handle long press on grid item
+  void _handleGridItemLongPress(
+    DocumentModel document,
+    FileSelectionProvider selectionProvider,
+  ) {
+    if (!selectionProvider.isSelectionMode) {
+      // Enter selection mode with this document
+      final documents = Provider.of<DocumentProvider>(
+        context,
+        listen: false,
+      ).getDocumentsByCategory(widget.category.id);
+      selectionProvider.enterSelectionMode(document, documents);
+    } else {
+      // Already in selection mode, show bulk operations menu if there are selections
+      if (selectionProvider.hasSelection) {
+        BulkOperationsService.showBulkOperationsMenu(
+          context: context,
+          selectedFiles: selectionProvider.selectedFiles,
+          categoryId: widget.category.id,
+          onOperationComplete: () {
+            try {
+              // Exit selection mode safely
+              selectionProvider.exitSelectionMode();
+              // Call the exit callback
+              _onExitSelectionMode();
+            } catch (e) {
+              debugPrint('Error during bulk operation completion: $e');
+              // Ensure selection mode is exited even if there's an error
+              try {
+                selectionProvider.exitSelectionMode();
+              } catch (retryError) {
+                debugPrint('Retry exit selection mode failed: $retryError');
+              }
+              // Still call the callback to ensure UI consistency
+              _onExitSelectionMode();
+            }
+          },
+        );
+      }
+    }
   }
 
   void _showDocumentDetails(DocumentModel document) {
