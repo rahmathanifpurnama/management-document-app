@@ -24,7 +24,6 @@ import '../../widgets/category/category_empty_state_widget.dart';
 import '../../widgets/category/no_search_results_widget.dart';
 import '../../widgets/category/document_menu_widget.dart';
 import '../../widgets/category/view_mode_toggle_widget.dart';
-import '../../widgets/common/responsive_layout_widget.dart';
 
 class CategoryFilesScreen extends StatefulWidget {
   final CategoryModel category;
@@ -259,14 +258,12 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                                 title: widget.category.name,
                                 onDocumentTap: _navigateToFilePreview,
                                 onDocumentMenu: _showDocumentMenu,
+                                onDocumentDownload: _downloadFile,
+                                onDocumentShare: _shareDocument,
                                 onFilterTap: _showFilterMenu,
                                 showFilter: true,
                                 showPagination: true,
-                                itemsPerPage:
-                                    ResponsiveHelper.getResponsiveGridCount(
-                                      context,
-                                    ) *
-                                    2, // Responsive grid
+                                itemsPerPage: 10, // Match list mode pagination
                                 emptyStateMessage: 'No files in this category',
                                 emptyStateIcon: Icons.folder_open,
                                 categoryId: widget.category.id,
