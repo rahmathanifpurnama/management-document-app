@@ -57,7 +57,7 @@ const approveDocument = functions.https.onCall(async (data: any, context) => {
         documentId: documentId,
         userId: context.auth.uid,
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        details: `Document approved by admin`,
+        details: "Document approved by admin",
       });
 
     return {
@@ -197,34 +197,34 @@ const bulkDocumentOperations = functions.https.onCall(async (data: any, context)
         const docRef = admin.firestore().collection("documents").doc(documentId);
         
         switch (operation) {
-          case "approve":
-            batch.update(docRef, {
-              approvedBy: context.auth.uid,
-              approvedAt: admin.firestore.FieldValue.serverTimestamp(),
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-            break;
-          case "reject":
-            batch.update(docRef, {
-              rejectedBy: context.auth.uid,
-              rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
-              rejectionReason: reason || "Bulk rejection",
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-            break;
-          case "delete":
-            batch.update(docRef, {
-              isActive: false,
-              deletedBy: context.auth.uid,
-              deletedAt: admin.firestore.FieldValue.serverTimestamp(),
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-            break;
+        case "approve":
+          batch.update(docRef, {
+            approvedBy: context.auth.uid,
+            approvedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          break;
+        case "reject":
+          batch.update(docRef, {
+            rejectedBy: context.auth.uid,
+            rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
+            rejectionReason: reason || "Bulk rejection",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          break;
+        case "delete":
+          batch.update(docRef, {
+            isActive: false,
+            deletedBy: context.auth.uid,
+            deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          break;
         }
 
         results.push({ documentId, success: true });
       } catch (error) {
-        results.push({ documentId, success: false, error: error.toString() });
+        results.push({ documentId, success: false, error: String(error) });
       }
     }
 
@@ -311,9 +311,9 @@ const generateDocumentReport = functions.https.onCall(async (data: any, context)
     // Generate statistics
     const stats = {
       totalDocuments: documents.length,
-      documentsByCategory: {},
-      documentsByType: {},
-      documentsByUploader: {},
+      documentsByCategory: {} as Record<string, number>,
+      documentsByType: {} as Record<string, number>,
+      documentsByUploader: {} as Record<string, number>,
       totalSize: 0,
     };
 
@@ -369,26 +369,26 @@ function getFileTypeFromName(fileName: string): string {
   const extension = fileName.split(".").pop()?.toLowerCase();
 
   switch (extension) {
-    case "pdf":
-      return "PDF";
-    case "doc":
-    case "docx":
-      return "DOC";
-    case "xls":
-    case "xlsx":
-      return "Excel";
-    case "ppt":
-    case "pptx":
-      return "PPT";
-    case "jpg":
-    case "jpeg":
-    case "png":
-    case "gif":
-      return "Image";
-    case "txt":
-      return "Text";
-    default:
-      return "Other";
+  case "pdf":
+    return "PDF";
+  case "doc":
+  case "docx":
+    return "DOC";
+  case "xls":
+  case "xlsx":
+    return "Excel";
+  case "ppt":
+  case "pptx":
+    return "PPT";
+  case "jpg":
+  case "jpeg":
+  case "png":
+  case "gif":
+    return "Image";
+  case "txt":
+    return "Text";
+  default:
+    return "Other";
   }
 }
 
