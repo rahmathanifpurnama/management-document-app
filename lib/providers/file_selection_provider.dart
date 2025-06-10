@@ -44,8 +44,15 @@ class FileSelectionProvider extends ChangeNotifier {
     _selectedFileIds.add(initialFile.id);
 
     debugPrint(
-      'FileSelectionProvider: Entered selection mode with file: ${initialFile.fileName}',
+      'FileSelectionProvider: Entered selection mode with file: ${initialFile.fileName} (ID: ${initialFile.id})',
     );
+    debugPrint(
+      'FileSelectionProvider: Available files count: ${availableFiles.length}',
+    );
+    debugPrint(
+      'FileSelectionProvider: File exists in available files: ${availableFiles.any((f) => f.id == initialFile.id)}',
+    );
+
     notifyListeners();
   }
 
@@ -113,6 +120,15 @@ class FileSelectionProvider extends ChangeNotifier {
   /// Update available files (useful when files list changes)
   /// Uses debouncing to prevent multiple rapid updates that can interfere with selection
   void updateAvailableFiles(List<DocumentModel> files) {
+    // Don't update available files while in selection mode to prevent race conditions
+    // The files are already set when entering selection mode
+    if (_isSelectionMode) {
+      debugPrint(
+        'FileSelectionProvider: Skipping updateAvailableFiles while in selection mode to prevent conflicts',
+      );
+      return;
+    }
+
     // Prevent multiple rapid updates by checking if files actually changed
     final currentFilesHash = _generateFilesHash(files);
     if (_lastAvailableFilesHash == currentFilesHash ||
@@ -126,27 +142,12 @@ class FileSelectionProvider extends ChangeNotifier {
     try {
       _availableFiles = files;
 
-      // Only remove selected files that are truly no longer available
-      // Be more conservative to prevent accidental selection loss
-      if (_isSelectionMode && _selectedFileIds.isNotEmpty) {
-        final validFileIds = files.map((file) => file.id).toSet();
-        final invalidSelections = _selectedFileIds
-            .where((id) => !validFileIds.contains(id))
-            .toList();
+      debugPrint(
+        'FileSelectionProvider: Updated available files count: ${files.length}',
+      );
 
-        // Only remove selections if we're sure they're invalid
-        if (invalidSelections.isNotEmpty) {
-          debugPrint(
-            'FileSelectionProvider: Removing invalid selections: $invalidSelections',
-          );
-          _selectedFileIds.removeWhere((id) => !validFileIds.contains(id));
-        }
-      }
-
-      // Only notify listeners if in selection mode, don't auto-exit
-      if (_isSelectionMode) {
-        notifyListeners();
-      }
+      // Never modify selections in updateAvailableFiles to prevent race conditions
+      // Selections should only be modified through explicit user actions
     } finally {
       _isUpdatingAvailableFiles = false;
     }

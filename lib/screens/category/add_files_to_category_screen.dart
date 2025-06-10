@@ -94,9 +94,14 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
         .where((doc) => doc.category.isEmpty || doc.category == 'uncategorized')
         .toList();
 
+    debugPrint(
+      'AddFilesToCategory: Total uncategorized documents: ${availableDocuments.length}',
+    );
+
     // Apply search filter
     final searchQuery = _searchController.text.toLowerCase().trim();
     if (searchQuery.isNotEmpty) {
+      final beforeSearchCount = availableDocuments.length;
       availableDocuments = availableDocuments.where((document) {
         final fileName = document.fileName.toLowerCase();
         final description = document.metadata.description.toLowerCase();
@@ -106,8 +111,15 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
             description.contains(searchQuery) ||
             fileType.contains(searchQuery);
       }).toList();
+
+      debugPrint(
+        'AddFilesToCategory: After search filter "$searchQuery": ${availableDocuments.length} (was $beforeSearchCount)',
+      );
     }
 
+    debugPrint(
+      'AddFilesToCategory: Final available documents: ${availableDocuments.length}',
+    );
     return availableDocuments;
   }
 
@@ -132,15 +144,9 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
                 filteredDocuments,
               );
 
-              // Ensure available files are updated when entering selection mode
-              // This is critical for proper selection functionality
-              if (selectionProvider.isSelectionMode) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    selectionProvider.updateAvailableFiles(availableDocuments);
-                  }
-                });
-              }
+              // Don't call updateAvailableFiles here to prevent race conditions
+              // The available files are properly set when entering selection mode
+              // This prevents the "removing invalid selections" issue
 
               return Column(
                 children: [
