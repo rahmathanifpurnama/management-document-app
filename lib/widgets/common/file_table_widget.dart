@@ -613,18 +613,19 @@ class _FileTableWidgetState extends State<FileTableWidget> {
         );
 
       case TableColumnType.status:
+        // Status column removed - all files are active
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: _getStatusColor(document.status).withValues(alpha: 0.1),
+            color: Colors.green.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
-            document.status.toUpperCase(),
+            'ACTIVE',
             style: GoogleFonts.poppins(
               fontSize: 10,
               fontWeight: FontWeight.w500,
-              color: _getStatusColor(document.status),
+              color: Colors.green,
             ),
           ),
         );
@@ -913,7 +914,7 @@ class _FileTableWidgetState extends State<FileTableWidget> {
             _buildDetailRow('Size', _formatFileSize(document.fileSize)),
             _buildDetailRow('Type', document.fileType),
             _buildDetailRow('Uploaded', _formatDate(document.uploadedAt)),
-            _buildDetailRow('Status', document.status.toUpperCase()),
+            _buildDetailRow('Status', 'ACTIVE'),
             if (document.metadata.description.isNotEmpty)
               _buildDetailRow('Description', document.metadata.description),
           ],
@@ -1359,25 +1360,6 @@ class _FileTableWidgetState extends State<FileTableWidget> {
 
     // Default label
     return 'FILE';
-  }
-
-  Color _getStatusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'active':
-      case 'published':
-        return AppColors.success;
-      case 'pending':
-      case 'processing':
-        return AppColors.warning;
-      case 'inactive':
-      case 'draft':
-        return AppColors.textSecondary;
-      case 'error':
-      case 'failed':
-        return AppColors.error;
-      default:
-        return AppColors.textSecondary;
-    }
   }
 
   String _formatFileSize(int bytes) {

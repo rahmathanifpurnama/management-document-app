@@ -192,14 +192,31 @@ class OptimizedFirebaseStorageSyncService {
 
     final allNewDocuments = <DocumentModel>[];
 
+    // Cache existing documents to avoid repeated database calls
+    List<DocumentModel>? cachedExistingDocuments;
+    try {
+      cachedExistingDocuments = await _documentService.getAllDocuments();
+      debugPrint(
+        '📋 Cached ${cachedExistingDocuments.length} existing documents',
+      );
+    } catch (e) {
+      debugPrint('⚠️ Failed to cache existing documents: $e');
+      // Continue without cache
+    }
+
     // Process files in batches to prevent UI blocking
     for (int i = 0; i < orphanedFiles.length; i += _batchSize) {
       final batch = orphanedFiles.skip(i).take(_batchSize).toList();
 
-      // Process batch with timeout
+      // Process batch with timeout and cached documents
       final batchResults =
           await Future.wait(
-            batch.map((fileRef) => _createSingleMetadata(fileRef)),
+            batch.map(
+              (fileRef) => _createSingleMetadataWithCache(
+                fileRef,
+                cachedExistingDocuments,
+              ),
+            ),
             eagerError: false,
           ).timeout(
             const Duration(minutes: 2),
@@ -229,11 +246,16 @@ class OptimizedFirebaseStorageSyncService {
     return allNewDocuments;
   }
 
-  /// Create metadata for a single file with error handling and duplicate prevention
-  Future<DocumentModel?> _createSingleMetadata(Reference fileRef) async {
+  /// Create metadata for a single file with cached documents to avoid repeated DB calls
+  Future<DocumentModel?> _createSingleMetadataWithCache(
+    Reference fileRef,
+    List<DocumentModel>? cachedDocuments,
+  ) async {
     try {
-      // First check if metadata already exists for this file
-      final existingDocuments = await _documentService.getAllDocuments();
+      // Use cached documents or fetch if not provided
+      final existingDocuments =
+          cachedDocuments ?? await _documentService.getAllDocuments();
+
       final existingDoc = existingDocuments.firstWhere(
         (doc) =>
             doc.filePath == fileRef.fullPath ||
@@ -247,7 +269,6 @@ class OptimizedFirebaseStorageSyncService {
           uploadedBy: '',
           uploadedAt: DateTime.now(),
           category: '',
-          status: '',
           permissions: [],
           metadata: DocumentMetadata(description: '', tags: []),
         ),
@@ -263,7 +284,9 @@ class OptimizedFirebaseStorageSyncService {
       // Get file metadata from Storage with timeout
       final metadata = await fileRef.getMetadata().timeout(
         const Duration(seconds: 10),
-        onTimeout: () => throw TimeoutException('Metadata fetch timeout'),
+        onTimeout: () => throw TimeoutException(
+          'Metadata fetch timeout for ${fileRef.name}',
+        ),
       );
 
       // Extract original filename and other info from custom metadata
@@ -293,7 +316,6 @@ class OptimizedFirebaseStorageSyncService {
         uploadedBy: uploadedBy,
         uploadedAt: metadata.timeCreated ?? DateTime.now(),
         category: categoryId,
-        status: 'active',
         permissions: [uploadedBy],
         metadata: DocumentMetadata(
           description: 'Synced from Firebase Storage',
@@ -306,7 +328,9 @@ class OptimizedFirebaseStorageSyncService {
           .addDocument(document)
           .timeout(
             const Duration(seconds: 10),
-            onTimeout: () => throw TimeoutException('Firestore save timeout'),
+            onTimeout: () => throw TimeoutException(
+              'Firestore save timeout for $originalName',
+            ),
           );
 
       debugPrint('✅ Created new metadata for: $originalName (ID: $documentId)');
@@ -317,79 +341,21 @@ class OptimizedFirebaseStorageSyncService {
     }
   }
 
-  /// Verify file accessibility in batches to prevent ANR
+  /// Skip verification for performance optimization - return all documents
   Future<List<DocumentModel>> _verifyFileAccessibilityBatched(
     List<DocumentModel> documents,
   ) async {
     if (documents.isEmpty) return [];
 
     debugPrint(
-      '🔍 Verifying accessibility for ${documents.length} files in batches...',
+      '⚡ Skipping verification for performance - returning all ${documents.length} documents',
     );
 
-    final accessibleDocuments = <DocumentModel>[];
-
-    // Process documents in batches
-    for (int i = 0; i < documents.length; i += _batchSize) {
-      final batch = documents.skip(i).take(_batchSize).toList();
-
-      // Process batch with timeout
-      final batchResults =
-          await Future.wait(
-            batch.map((doc) => _verifySingleFileAccessibility(doc)),
-            eagerError: false,
-          ).timeout(
-            const Duration(minutes: 1),
-            onTimeout: () {
-              debugPrint('⚠️ Batch verification timeout');
-              return <DocumentModel?>[];
-            },
-          );
-
-      // Add accessible documents
-      for (final doc in batchResults) {
-        if (doc != null) {
-          accessibleDocuments.add(doc);
-        }
-      }
-
-      // Small delay between batches
-      if (i + _batchSize < documents.length) {
-        await Future.delayed(_batchDelay);
-      }
-
-      debugPrint(
-        '✅ Verified batch ${(i / _batchSize).floor() + 1}/${(documents.length / _batchSize).ceil()}',
-      );
-    }
-
-    return accessibleDocuments;
+    // Return all documents without verification for better performance
+    return documents;
   }
 
-  /// Verify accessibility of a single file
-  Future<DocumentModel?> _verifySingleFileAccessibility(
-    DocumentModel document,
-  ) async {
-    try {
-      if (document.filePath.startsWith('http')) {
-        // Already has download URL, assume accessible
-        return document;
-      } else {
-        // Verify file exists in Storage with timeout
-        final storageRef = _firebaseService.storage.ref().child(
-          document.filePath,
-        );
-        await storageRef.getMetadata().timeout(
-          const Duration(seconds: 5),
-          onTimeout: () => throw TimeoutException('File verification timeout'),
-        );
-        return document;
-      }
-    } catch (e) {
-      debugPrint('⚠️ File not accessible: ${document.fileName}');
-      return null;
-    }
-  }
+  // Single file verification removed for performance optimization
 
   /// Generate a unique document ID based on file path hash to prevent duplicates
   String _generateUniqueDocumentId(String filePath, String fileName) {
@@ -400,12 +366,7 @@ class OptimizedFirebaseStorageSyncService {
     return 'sync_${pathHash}_${timestamp}_$cleanName';
   }
 
-  /// Generate a unique document ID based on filename and timestamp (legacy method)
-  String _generateDocumentId(String fileName) {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final cleanName = fileName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
-    return 'doc_${timestamp}_$cleanName';
-  }
+  // Legacy document ID generation method removed
 
   /// Get file type from filename extension
   String _getFileTypeFromName(String fileName) {

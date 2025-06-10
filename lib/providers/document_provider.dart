@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:convert';
 import '../models/document_model.dart';
 import '../core/services/document_service.dart';
@@ -445,7 +444,6 @@ class DocumentProvider extends ChangeNotifier {
     return existing.fileName != updated.fileName ||
         existing.fileSize != updated.fileSize ||
         existing.category != updated.category ||
-        existing.status != updated.status ||
         existing.uploadedAt != updated.uploadedAt ||
         existing.metadata.description != updated.metadata.description;
   }
@@ -775,7 +773,6 @@ class DocumentProvider extends ChangeNotifier {
             uploadedBy: '',
             uploadedAt: DateTime.now(),
             category: '',
-            status: '',
             permissions: [],
             metadata: DocumentMetadata(description: '', tags: []),
           ),
@@ -861,9 +858,8 @@ class DocumentProvider extends ChangeNotifier {
       bool matchesCategory =
           _selectedCategory == 'all' || document.category == _selectedCategory;
 
-      // Status filter
-      bool matchesStatus =
-          _selectedStatus == 'all' || document.status == _selectedStatus;
+      // Status filter removed - all files are active by default
+      bool matchesStatus = true;
 
       // File type filter
       bool matchesFileType =
@@ -894,7 +890,8 @@ class DocumentProvider extends ChangeNotifier {
           comparison = a.category.compareTo(b.category);
           break;
         case 'status':
-          comparison = a.status.compareTo(b.status);
+          // Status sorting removed - all files are active
+          comparison = 0;
           break;
         default:
           comparison = a.uploadedAt.compareTo(b.uploadedAt);
@@ -1177,82 +1174,13 @@ class DocumentProvider extends ChangeNotifier {
     _applyFiltersAndSort();
   }
 
-  // Get documents by status with phantom file cleanup
+  // Get all documents (status filtering removed)
   List<DocumentModel> getDocumentsByStatus(String status) {
-    final documents = _documents
-        .where((document) => document.status == status)
-        .toList();
-
-    // If requesting pending files, trigger cleanup in background
-    if (status == 'pending' && documents.isNotEmpty) {
-      _cleanupPhantomPendingFiles();
-    }
-
-    return documents;
+    // Return all documents since status management is removed
+    return _documents.toList();
   }
 
-  // Clean up phantom pending files that don't exist in Firebase Storage
-  Future<void> _cleanupPhantomPendingFiles() async {
-    try {
-      final pendingFiles = _documents
-          .where((doc) => doc.status == 'pending')
-          .toList();
-      if (pendingFiles.isEmpty) return;
-
-      debugPrint(
-        '🧹 Checking ${pendingFiles.length} pending files for phantom entries...',
-      );
-
-      final List<String> phantomFileIds = [];
-
-      for (final document in pendingFiles) {
-        try {
-          // Check if file exists in Firebase Storage
-          final fileRef = FirebaseStorage.instance.ref(document.filePath);
-          await fileRef.getMetadata();
-
-          // Check if document exists in Firestore
-          final docSnapshot = await FirebaseFirestore.instance
-              .collection('documents')
-              .doc(document.id)
-              .get();
-
-          if (!docSnapshot.exists) {
-            phantomFileIds.add(document.id);
-            debugPrint(
-              '🚫 Found phantom file in local cache: ${document.fileName}',
-            );
-          }
-        } catch (e) {
-          // File doesn't exist in storage or Firestore, mark as phantom
-          phantomFileIds.add(document.id);
-          debugPrint(
-            '🚫 Found phantom file (storage error): ${document.fileName} - $e',
-          );
-        }
-      }
-
-      // Remove phantom files from local cache
-      if (phantomFileIds.isNotEmpty) {
-        _documents.removeWhere((doc) => phantomFileIds.contains(doc.id));
-
-        // Also remove from category documents
-        _categoryDocuments.forEach((category, docs) {
-          docs.removeWhere((doc) => phantomFileIds.contains(doc.id));
-        });
-
-        // Save updated data and refresh UI
-        await _saveToStorage();
-        _applyFiltersAndSort();
-
-        debugPrint(
-          '✅ Cleaned up ${phantomFileIds.length} phantom pending files',
-        );
-      }
-    } catch (e) {
-      debugPrint('❌ Error during phantom file cleanup: $e');
-    }
-  }
+  // Phantom file cleanup removed since status management is removed
 
   // Get documents by user
   List<DocumentModel> getDocumentsByUser(String userId) {
@@ -1268,20 +1196,7 @@ class DocumentProvider extends ChangeNotifier {
     return sortedDocs.take(limit).toList();
   }
 
-  // Get pending documents count
-  int get pendingDocumentsCount {
-    return _documents.where((document) => document.status == 'pending').length;
-  }
-
-  // Get approved documents count
-  int get approvedDocumentsCount {
-    return _documents.where((document) => document.status == 'approved').length;
-  }
-
-  // Get rejected documents count
-  int get rejectedDocumentsCount {
-    return _documents.where((document) => document.status == 'rejected').length;
-  }
+  // Status count methods removed since status management is removed
 
   // Get total documents count
   int get totalDocumentsCount {
@@ -1341,12 +1256,7 @@ class DocumentProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Manual cleanup of phantom pending files (can be called from UI)
-  Future<void> cleanupPhantomFiles() async {
-    debugPrint('🧹 Manual cleanup of phantom files initiated...');
-    await _cleanupPhantomPendingFiles();
-    notifyListeners();
-  }
+  // Manual cleanup removed since status management is removed
 
   // Get sync status information (simplified for optimized service)
   Future<Map<String, dynamic>> getSyncStatus() async {

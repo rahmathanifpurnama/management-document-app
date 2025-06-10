@@ -9,9 +9,6 @@ class DocumentModel {
   final String uploadedBy;
   final DateTime uploadedAt;
   final String category;
-  final String status;
-  final String? approvedBy;
-  final DateTime? approvedAt;
   final List<String> permissions;
   final DocumentMetadata metadata;
 
@@ -24,9 +21,6 @@ class DocumentModel {
     required this.uploadedBy,
     required this.uploadedAt,
     required this.category,
-    required this.status,
-    this.approvedBy,
-    this.approvedAt,
     required this.permissions,
     required this.metadata,
   });
@@ -44,9 +38,6 @@ class DocumentModel {
       uploadedBy: data['uploadedBy'] ?? '',
       uploadedAt: data['uploadedAt']?.toDate() ?? DateTime.now(),
       category: data['category'] ?? '',
-      status: data['status'] ?? 'pending',
-      approvedBy: data['approvedBy'],
-      approvedAt: data['approvedAt']?.toDate(),
       permissions: List<String>.from(data['permissions'] ?? []),
       metadata: DocumentMetadata.fromMap(data['metadata'] ?? {}),
     );
@@ -63,9 +54,6 @@ class DocumentModel {
       uploadedBy: map['uploadedBy'] ?? '',
       uploadedAt: map['uploadedAt']?.toDate() ?? DateTime.now(),
       category: map['category'] ?? '',
-      status: map['status'] ?? 'pending',
-      approvedBy: map['approvedBy'],
-      approvedAt: map['approvedAt']?.toDate(),
       permissions: List<String>.from(map['permissions'] ?? []),
       metadata: DocumentMetadata.fromMap(map['metadata'] ?? {}),
     );
@@ -81,11 +69,9 @@ class DocumentModel {
       'uploadedBy': uploadedBy,
       'uploadedAt': Timestamp.fromDate(uploadedAt),
       'category': category,
-      'status': status,
-      'approvedBy': approvedBy,
-      'approvedAt': approvedAt != null ? Timestamp.fromDate(approvedAt!) : null,
       'permissions': permissions,
       'metadata': metadata.toMap(),
+      'isActive': true, // All files are active by default
     };
   }
 
@@ -100,11 +86,9 @@ class DocumentModel {
       'uploadedBy': uploadedBy,
       'uploadedAt': uploadedAt.toIso8601String(),
       'category': category,
-      'status': status,
-      'approvedBy': approvedBy,
-      'approvedAt': approvedAt?.toIso8601String(),
       'permissions': permissions,
       'metadata': metadata.toMap(),
+      'isActive': true, // All files are active by default
     };
   }
 
@@ -121,11 +105,6 @@ class DocumentModel {
           ? DateTime.parse(map['uploadedAt'])
           : DateTime.now(),
       category: map['category'] ?? '',
-      status: map['status'] ?? 'pending',
-      approvedBy: map['approvedBy'],
-      approvedAt: map['approvedAt'] != null
-          ? DateTime.parse(map['approvedAt'])
-          : null,
       permissions: List<String>.from(map['permissions'] ?? []),
       metadata: DocumentMetadata.fromMap(map['metadata'] ?? {}),
     );
@@ -141,9 +120,6 @@ class DocumentModel {
     String? uploadedBy,
     DateTime? uploadedAt,
     String? category,
-    String? status,
-    String? approvedBy,
-    DateTime? approvedAt,
     List<String>? permissions,
     DocumentMetadata? metadata,
   }) {
@@ -156,9 +132,6 @@ class DocumentModel {
       uploadedBy: uploadedBy ?? this.uploadedBy,
       uploadedAt: uploadedAt ?? this.uploadedAt,
       category: category ?? this.category,
-      status: status ?? this.status,
-      approvedBy: approvedBy ?? this.approvedBy,
-      approvedAt: approvedAt ?? this.approvedAt,
       permissions: permissions ?? this.permissions,
       metadata: metadata ?? this.metadata,
     );
@@ -182,15 +155,6 @@ class DocumentModel {
     return fileName.split('.').last.toLowerCase();
   }
 
-  // Check if document is pending
-  bool get isPending => status == 'pending';
-
-  // Check if document is approved
-  bool get isApproved => status == 'approved';
-
-  // Check if document is rejected
-  bool get isRejected => status == 'rejected';
-
   // Check if user has permission to access this document
   bool hasPermission(String userId) {
     return permissions.contains(userId) || uploadedBy == userId;
@@ -198,7 +162,7 @@ class DocumentModel {
 
   @override
   String toString() {
-    return 'DocumentModel(id: $id, fileName: $fileName, status: $status, category: $category)';
+    return 'DocumentModel(id: $id, fileName: $fileName, category: $category)';
   }
 
   @override

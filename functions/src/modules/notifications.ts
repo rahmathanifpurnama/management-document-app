@@ -385,57 +385,7 @@ async function getTargetUsers(
   return [...new Set(targetUsers)];
 }
 
-// Firestore trigger for automatic activity logging
-export const onDocumentStatusChange = functions.firestore
-  .document("documents/{documentId}")
-  .onUpdate(async (change, context) => {
-    const before = change.before.data();
-    const after = change.after.data();
-    const documentId = context.params.documentId;
-
-    // Check if status changed
-    if (before.status !== after.status) {
-      let activityType = "";
-      let details = "";
-
-      switch (after.status) {
-      case "approved":
-        activityType = "document_approved";
-        details = `Document "${after.fileName}" has been approved`;
-        break;
-      case "rejected":
-        activityType = "document_rejected";
-        details = `Document "${after.fileName}" has been rejected: ${
-          after.rejectionReason || "No reason provided"
-        }`;
-        break;
-      case "archived":
-        activityType = "document_archived";
-        details = `Document "${after.fileName}" has been archived`;
-        break;
-      }
-
-      if (activityType) {
-        // Log activity to Firestore
-        await admin
-          .firestore()
-          .collection("activities")
-          .add({
-            type: activityType,
-            userId: after.uploadedBy,
-            details,
-            metadata: {
-              documentId,
-              fileName: after.fileName,
-              previousStatus: before.status,
-              newStatus: after.status,
-            },
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            createdBy: after.updatedBy || "system",
-          });
-      }
-    }
-  });
+// Document status change notifications removed since status management is removed
 
 export const notificationFunctions = {
   sendNotification,

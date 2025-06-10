@@ -399,29 +399,6 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                   ),
                 ),
 
-                // Status badge (for pending files)
-                if (document.status == 'pending') ...[
-                  const SizedBox(width: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'PENDING',
-                      style: GoogleFonts.poppins(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.orange,
-                      ),
-                    ),
-                  ),
-                ],
-
                 // Individual file operations menu (only show when NOT in selection mode)
                 if (!isSelectionMode) ...[
                   const SizedBox(width: 12),

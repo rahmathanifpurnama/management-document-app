@@ -97,9 +97,7 @@ exports.performComprehensiveSync = syncOperations_1.syncFunctions.performCompreh
 // Notification Functions
 exports.sendNotification = notifications_1.notificationFunctions.sendNotification;
 exports.processActivityLog = notifications_1.notificationFunctions.processActivityLog;
-// Import and export the document status change trigger
-const notifications_2 = require("./modules/notifications");
-Object.defineProperty(exports, "onDocumentStatusChange", { enumerable: true, get: function () { return notifications_2.onDocumentStatusChange; } });
+// Document status change trigger removed since status management is removed
 // Health Check Function
 exports.healthCheck = functions.https.onCall(async (data, context) => {
     return {
@@ -155,14 +153,8 @@ exports.onFileUpload = functions.storage
     if (!filePath || !filePath.startsWith("documents/")) {
         return;
     }
-    // Process file upload in background
-    await admin.firestore().collection("processing_queue").add({
-        type: "file_upload",
-        filePath,
-        contentType,
-        metadata: object.metadata,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    // File upload processing queue removed since status management is removed
+    console.log(`File uploaded: ${filePath}`);
 });
 // Scheduled Functions
 exports.dailyCleanup = functions.pubsub

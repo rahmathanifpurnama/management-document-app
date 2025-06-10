@@ -136,7 +136,6 @@ class FirebaseStorageSyncService {
           uploadedBy: uploadedBy,
           uploadedAt: metadata.timeCreated ?? DateTime.now(),
           category: categoryId,
-          status: 'active',
           permissions: [uploadedBy],
           metadata: DocumentMetadata(
             description: 'Synced from Firebase Storage',

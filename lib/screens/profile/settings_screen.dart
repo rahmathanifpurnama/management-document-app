@@ -15,7 +15,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -134,18 +133,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () => Navigator.pushNamed(
                         context,
                         AppRoutes.cloudFunctionsSettings,
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    _buildMenuTile(
-                      icon: Icons.admin_panel_settings,
-                      title: 'File Status Management',
-                      subtitle: 'Manage file approvals and processing queue',
-                      onTap: () => Navigator.pushNamed(
-                        context,
-                        AppRoutes.fileStatusManagement,
                       ),
                     ),
 
@@ -434,18 +421,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _navigateToHelp(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const HelpCenterScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const HelpCenterScreen()));
   }
 
   void _navigateToPrivacy(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const PrivacyPolicyScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
     );
   }
 

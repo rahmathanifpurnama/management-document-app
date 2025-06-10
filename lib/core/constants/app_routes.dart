@@ -47,7 +47,6 @@ class AppRoutes {
   static const String settings = '/settings';
   static const String syncManagement = '/sync-management';
   static const String cloudFunctionsSettings = '/cloud-functions-settings';
-  static const String fileStatusManagement = '/file-status-management';
 
   // Debug Routes
   static const String folderPersistenceDebug = '/folder-persistence-debug';

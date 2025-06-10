@@ -75,10 +75,6 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
     
-    // Processing queue collection (for cleanup operations)
-    match /processing_queue/{queueId} {
-      // Only admin can access processing queue
-      allow read, write, delete: if isAdmin();
-    }
+    // Processing queue collection removed since status management is removed
   }
 }

@@ -591,7 +591,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 _buildDetailRow('Size', _formatFileSize(document.fileSize)),
                 _buildDetailRow('Type', document.fileType),
                 _buildDetailRow('Uploaded', _formatDate(document.uploadedAt)),
-                _buildDetailRow('Status', document.status.toUpperCase()),
+                _buildDetailRow('Status', 'ACTIVE'),
                 if (document.metadata.description.isNotEmpty)
                   _buildDetailRow('Description', document.metadata.description),
               ],

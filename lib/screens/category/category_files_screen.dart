@@ -450,6 +450,19 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
     }
   }
 
+  // Helper method for file size formatting
+  String _formatFileSize(int bytes) {
+    if (bytes <= 0) return '0 B';
+    const suffixes = ['B', 'KB', 'MB', 'GB'];
+    var i = 0;
+    double size = bytes.toDouble();
+    while (size >= 1024 && i < suffixes.length - 1) {
+      size /= 1024;
+      i++;
+    }
+    return '${size.toStringAsFixed(size < 10 ? 1 : 0)} ${suffixes[i]}';
+  }
+
   void _showDocumentDetails(DocumentModel document) {
     showDialog(
       context: context,
@@ -463,10 +476,10 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildDetailRow('Name', document.fileName),
-            _buildDetailRow('Size', document.fileSizeFormatted),
+            _buildDetailRow('Size', _formatFileSize(document.fileSize)),
             _buildDetailRow('Type', document.fileType),
             _buildDetailRow('Uploaded', _formatDate(document.uploadedAt)),
-            _buildDetailRow('Status', document.status.toUpperCase()),
+            _buildDetailRow('Status', 'ACTIVE'),
             if (document.metadata.description.isNotEmpty)
               _buildDetailRow('Description', document.metadata.description),
           ],

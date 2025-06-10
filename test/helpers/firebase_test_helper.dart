@@ -56,7 +56,9 @@ class FirebaseTestHelper {
   /// Get mock Firebase Auth instance
   static MockFirebaseAuth get mockAuth {
     if (!_initialized) {
-      throw StateError('Firebase mocks not initialized. Call initializeMocks() first.');
+      throw StateError(
+        'Firebase mocks not initialized. Call initializeMocks() first.',
+      );
     }
     return _mockAuth;
   }
@@ -64,7 +66,9 @@ class FirebaseTestHelper {
   /// Get mock Firestore instance
   static FakeFirebaseFirestore get mockFirestore {
     if (!_initialized) {
-      throw StateError('Firebase mocks not initialized. Call initializeMocks() first.');
+      throw StateError(
+        'Firebase mocks not initialized. Call initializeMocks() first.',
+      );
     }
     return _mockFirestore;
   }
@@ -72,7 +76,9 @@ class FirebaseTestHelper {
   /// Get mock Firebase Storage instance
   static MockFirebaseStorage get mockStorage {
     if (!_initialized) {
-      throw StateError('Firebase mocks not initialized. Call initializeMocks() first.');
+      throw StateError(
+        'Firebase mocks not initialized. Call initializeMocks() first.',
+      );
     }
     return _mockStorage;
   }
@@ -84,7 +90,7 @@ class FirebaseTestHelper {
     String displayName = 'Test User',
   }) async {
     await initializeMocks();
-    
+
     // Mock user is automatically created when signing in with MockFirebaseAuth
     await _mockAuth.signInWithEmailAndPassword(
       email: email,
@@ -108,7 +114,7 @@ class FirebaseTestHelper {
     required List<int> data,
   }) async {
     await initializeMocks();
-    await _mockStorage.ref(path).putData(data);
+    await _mockStorage.ref(path).putData(Uint8List.fromList(data));
   }
 
   /// Clear all mock data
@@ -150,7 +156,7 @@ class FirebaseTestHelper {
         'uploadedBy': 'test-uid-123',
         'uploadedAt': DateTime.now().toIso8601String(),
         'category': 'test-category',
-        'status': 'active',
+        'isActive': true,
         'permissions': ['test-uid-123'],
         'metadata': {
           'description': 'Test document for sharing',
@@ -182,7 +188,7 @@ class FirebaseTestHelper {
   /// Cleanup after tests
   static Future<void> cleanup() async {
     if (!_initialized) return;
-    
+
     await clearMockData();
     debugPrint('✅ Firebase test data cleaned up');
   }

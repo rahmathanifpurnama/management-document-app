@@ -261,29 +261,7 @@ class DocumentService {
     }
   }
 
-  // Update document status
-  Future<void> updateDocumentStatus(
-    String documentId,
-    String status,
-    String updatedBy,
-  ) async {
-    try {
-      await _firebaseService.documentsCollection.doc(documentId).update({
-        'status': status,
-        'approvedBy': updatedBy,
-        'approvedAt': FieldValue.serverTimestamp(),
-      });
-
-      // Log activity
-      await _logActivity(
-        updatedBy,
-        ActivityType.update,
-        'Document Status: $status',
-      );
-    } catch (e) {
-      throw Exception('Failed to update document status: ${e.toString()}');
-    }
-  }
+  // Status update method removed since status management is removed
 
   // Search documents with optimized pagination and ANR prevention
   Future<List<DocumentModel>> searchDocuments(

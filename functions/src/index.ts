@@ -75,9 +75,7 @@ export {
   validateUserSession,
 };
 
-// Import and export the document status change trigger
-import { onDocumentStatusChange } from "./modules/notifications";
-export { onDocumentStatusChange };
+// Document status change trigger removed since status management is removed
 
 // Health Check Function
 export const healthCheck = functions.https.onCall(async (data, context) => {

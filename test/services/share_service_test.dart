@@ -20,7 +20,6 @@ void main() {
         uploadedBy: 'test-user',
         uploadedAt: DateTime(2024, 1, 15, 10, 30),
         category: 'test-category',
-        status: 'active',
         permissions: ['test-user'],
         metadata: DocumentMetadata(
           description: 'Test document for sharing',
@@ -121,13 +120,12 @@ void main() {
       );
     });
 
-    test('should handle different document statuses', () {
-      final statuses = ['active', 'pending', 'approved', 'rejected'];
-
-      for (final status in statuses) {
-        final document = testDocument.copyWith(status: status);
-        expect(document.status, equals(status));
-      }
+    test('should handle document properties', () {
+      // Test that document properties are accessible
+      expect(testDocument.fileName, isNotEmpty);
+      expect(testDocument.fileSize, greaterThan(0));
+      expect(testDocument.fileType, isNotEmpty);
+      expect(testDocument.category, isNotEmpty);
     });
 
     test('should format file size correctly', () {

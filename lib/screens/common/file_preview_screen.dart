@@ -160,26 +160,17 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(
-              Icons.info_outline,
-              color: AppColors.textWhite,
-            ),
+            icon: const Icon(Icons.info_outline, color: AppColors.textWhite),
             onPressed: _showFileInfo,
             tooltip: 'File Info',
           ),
           IconButton(
-            icon: const Icon(
-              Icons.download,
-              color: AppColors.textWhite,
-            ),
+            icon: const Icon(Icons.download, color: AppColors.textWhite),
             onPressed: _downloadFile,
             tooltip: 'Download',
           ),
           IconButton(
-            icon: const Icon(
-              Icons.share,
-              color: AppColors.textWhite,
-            ),
+            icon: const Icon(Icons.share, color: AppColors.textWhite),
             onPressed: _showShareOptions,
             tooltip: 'Share',
           ),
@@ -484,7 +475,7 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
             _buildInfoRow('Name', widget.document.fileName),
             _buildInfoRow('Size', widget.document.fileSizeFormatted),
             _buildInfoRow('Type', widget.document.fileType),
-            _buildInfoRow('Status', widget.document.status.toUpperCase()),
+            _buildInfoRow('Status', 'ACTIVE'),
           ],
         ),
         actions: [
@@ -611,9 +602,6 @@ class _FilePreviewScreenState extends State<FilePreviewScreen> {
   }
 
   void _showShareOptions() {
-    ShareOptionsWidget.show(
-      context,
-      widget.document,
-    );
+    ShareOptionsWidget.show(context, widget.document);
   }
 }
