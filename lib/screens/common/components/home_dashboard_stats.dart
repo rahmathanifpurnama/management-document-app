@@ -189,7 +189,7 @@ class _StatCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(responsiveBorderRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: responsiveElevation * 2,
             offset: Offset(0, responsiveElevation / 2),
           ),
@@ -202,7 +202,7 @@ class _StatCard extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(responsiveSpacing),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(responsiveBorderRadius / 1.5),
             ),
             child: Icon(icon, color: color, size: iconSize),

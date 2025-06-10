@@ -47,7 +47,7 @@ class HomeGreetingSection extends StatelessWidget {
         borderRadius: BorderRadius.circular(responsiveBorderRadius),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: responsiveElevation * 2,
             offset: Offset(0, responsiveElevation / 2),
           ),
@@ -86,9 +86,12 @@ class HomeGreetingSection extends StatelessWidget {
       width: avatarSize,
       height: avatarSize,
       decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.1),
+        color: AppColors.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 2),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: 0.3),
+          width: 2,
+        ),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius - 2),
@@ -151,38 +154,5 @@ class HomeGreetingSection extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  double _calculateResponsiveFontSize(
-    BuildContext context,
-    String text, {
-    bool isPersonal = false,
-  }) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 400;
-
-    // Base sizes optimized for mobile
-    final baseMaxFontSize = isSmallScreen
-        ? (isPersonal ? 13.0 : 16.0)
-        : (isPersonal ? 14.0 : 18.0);
-    final baseMinFontSize = isSmallScreen
-        ? (isPersonal ? 11.0 : 13.0)
-        : (isPersonal ? 12.0 : 14.0);
-
-    const int shortTextThreshold = 15;
-    const int longTextThreshold = 30;
-
-    final textLength = text.length;
-
-    if (textLength <= shortTextThreshold) {
-      return baseMaxFontSize;
-    } else if (textLength <= longTextThreshold) {
-      final ratio =
-          (textLength - shortTextThreshold) /
-          (longTextThreshold - shortTextThreshold);
-      return baseMaxFontSize - (ratio * (baseMaxFontSize - baseMinFontSize));
-    } else {
-      return baseMinFontSize;
-    }
   }
 }

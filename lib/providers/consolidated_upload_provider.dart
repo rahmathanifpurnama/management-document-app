@@ -22,11 +22,6 @@ class ConsolidatedUploadProvider with ChangeNotifier {
   final Map<String, StreamController<double>> _progressControllers = {};
 
   bool _isUploading = false;
-  int _currentUploadIndex = 0;
-  String? _currentUploadId;
-  String? _currentCategoryId;
-  BuildContext? _context;
-  VoidCallback? _uploadCompletionCallback;
 
   // Cloud Functions settings
   bool _useCloudFunctions = false; // Default disabled for stability
@@ -185,7 +180,6 @@ class ConsolidatedUploadProvider with ChangeNotifier {
     if (_isUploading || _uploadQueue.isEmpty) return;
 
     _isUploading = true;
-    _currentUploadIndex = 0;
     notifyListeners();
 
     debugPrint('🚀 Starting upload process for ${_uploadQueue.length} files');
@@ -199,8 +193,7 @@ class ConsolidatedUploadProvider with ChangeNotifier {
           continue; // Skip already processed files
         }
 
-        _currentUploadIndex = i;
-        _currentUploadId = file.id;
+        // Processing file at index $i
         notifyListeners();
 
         await _uploadSingleFile(file);
@@ -211,7 +204,6 @@ class ConsolidatedUploadProvider with ChangeNotifier {
       debugPrint('❌ Upload process failed: $e');
     } finally {
       _isUploading = false;
-      _currentUploadId = null;
       notifyListeners();
     }
   }
@@ -371,7 +363,6 @@ class ConsolidatedUploadProvider with ChangeNotifier {
     _uploadQueue.clear();
     _progressControllers.clear();
     _isUploading = false;
-    _currentUploadId = null;
 
     notifyListeners();
     debugPrint('🧹 Cleared all files from upload queue');
@@ -412,26 +403,9 @@ class ConsolidatedUploadProvider with ChangeNotifier {
     return _uploadService.isFileSizeAllowed(fileSize);
   }
 
-  /// Set context for provider
-  void setContext(BuildContext context) {
-    _context = context;
-  }
-
-  /// Set upload completion callback
-  void setUploadCompletionCallback(VoidCallback callback) {
-    _uploadCompletionCallback = callback;
-  }
-
-  /// Set current category
-  void setCurrentCategory(String? categoryId) {
-    _currentCategoryId = categoryId;
-  }
-
   /// Clear all files and reset state
   void clearAllAndReset() {
     clearAll();
-    _currentCategoryId = null;
-    _uploadCompletionCallback = null;
   }
 
   /// Check if there are successful uploads

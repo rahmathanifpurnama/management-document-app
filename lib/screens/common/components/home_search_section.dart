@@ -95,10 +95,13 @@ class _SearchField extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(responsiveBorderRadius),
-        border: Border.all(color: AppColors.border.withOpacity(0.3), width: 1),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.3),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: responsiveElevation * 2,
             offset: Offset(0, responsiveElevation / 2),
           ),

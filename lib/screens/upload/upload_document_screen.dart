@@ -4,20 +4,19 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_selector/file_selector.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_routes.dart';
+
 import '../../providers/consolidated_upload_provider.dart';
 import '../../widgets/upload/duplicate_file_dialog.dart';
 
 import '../../models/upload_file_model.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/upload/upload_zone_widget.dart';
-import '../../widgets/upload/upload_success_dialog.dart';
+
 import '../../widgets/upload/api_storage_quota_widget.dart';
 import '../../widgets/upload/api_upload_security_widget.dart';
 import '../../widgets/upload/api_enhanced_upload_widget.dart';
 import '../../services/ui_refresh_service.dart';
 import '../../widgets/common/file_filter_widget.dart';
-import '../../widgets/common/file_selection_bar.dart';
 
 class UploadDocumentScreen extends StatefulWidget {
   final String? categoryId;
@@ -35,7 +34,6 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
 
   // API Integration state
   List<XFile> _selectedFiles = [];
-  List<Map<String, dynamic>> _validationResults = [];
   bool _showApiWidgets = false;
 
   // Filter state
@@ -57,14 +55,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
       // Clear any previous upload state for clean UI
       uploadProvider.clearAllAndReset();
 
-      // Set up provider
-      uploadProvider.setContext(context);
-      uploadProvider.setUploadCompletionCallback(_showSuccessDialog);
-
-      // Set category if provided
-      if (widget.categoryId != null) {
-        uploadProvider.setCurrentCategory(widget.categoryId);
-      }
+      // Provider is ready to use
     });
   }
 
@@ -149,35 +140,6 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   // Trigger UI refresh when exiting upload screen
   void _triggerUIRefreshOnExit() {
     UIRefreshService.refreshOnNavigationExit(context);
-  }
-
-  // Show success dialog when all uploads are completed
-  void _showSuccessDialog() {
-    if (!mounted) return;
-
-    final uploadProvider = Provider.of<ConsolidatedUploadProvider>(
-      context,
-      listen: false,
-    );
-
-    // Only show dialog if there are completed uploads
-    if (uploadProvider.hasSuccessfulUploads || uploadProvider.failedFiles > 0) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => UploadSuccessDialog(
-          completedFiles: uploadProvider.completedFiles,
-          failedFiles: uploadProvider.failedFiles,
-          onBackToHome: () {
-            // Clear upload state before navigating
-            uploadProvider.clearAllAndReset();
-            Navigator.of(
-              context,
-            ).pushNamedAndRemoveUntil(AppRoutes.home, (route) => false);
-          },
-        ),
-      );
-    }
   }
 
   // Auto-clear completed uploads after a delay to keep UI clean
@@ -318,8 +280,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
       );
 
       try {
-        // Ensure context is set before adding files
-        uploadProvider.setContext(context);
+        // Add files to upload queue
         await uploadProvider.addFiles(files, categoryId: widget.categoryId);
       } catch (e) {
         if (mounted) {
@@ -349,9 +310,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
 
   // Handle validation completion from security widget
   void _onValidationComplete(List<Map<String, dynamic>> results) {
-    setState(() {
-      _validationResults = results;
-    });
+    // Validation results processed
   }
 
   // Handle upload completion from enhanced upload widget
@@ -374,7 +333,6 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
       // Clear selected files after upload
       setState(() {
         _selectedFiles = [];
-        _validationResults = [];
         _showApiWidgets = false;
       });
     }

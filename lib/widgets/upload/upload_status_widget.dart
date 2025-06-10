@@ -24,13 +24,10 @@ class UploadStatusWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: _getBorderColor(),
-          width: 1,
-        ),
+        border: Border.all(color: _getBorderColor(), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 4,
             offset: const Offset(0, 2),
@@ -51,14 +48,10 @@ class UploadStatusWidget extends StatelessWidget {
                   color: _getIconBackgroundColor(),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  _getFileIcon(),
-                  color: Colors.white,
-                  size: 20,
-                ),
+                child: Icon(_getFileIcon(), color: Colors.white, size: 20),
               ),
               const SizedBox(width: 12),
-              
+
               // File details
               Expanded(
                 child: Column(
@@ -85,14 +78,14 @@ class UploadStatusWidget extends StatelessWidget {
                   ],
                 ),
               ),
-              
+
               // Status indicator
               _buildStatusIndicator(),
             ],
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           // Progress bar (only show for uploading files)
           if (file.status == UploadStatus.uploading) ...[
             LinearProgressIndicator(
@@ -124,22 +117,19 @@ class UploadStatusWidget extends StatelessWidget {
               ],
             ),
           ],
-          
+
           // Error message (only show for failed files)
-          if (file.status == UploadStatus.failed && file.errorMessage != null) ...[
+          if (file.status == UploadStatus.failed &&
+              file.errorMessage != null) ...[
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
+                color: AppColors.error.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 16,
-                    color: AppColors.error,
-                  ),
+                  Icon(Icons.error_outline, size: 16, color: AppColors.error),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -155,9 +145,10 @@ class UploadStatusWidget extends StatelessWidget {
             ),
             const SizedBox(height: 8),
           ],
-          
+
           // Action buttons
-          if (file.status == UploadStatus.failed || file.status == UploadStatus.uploading) ...[
+          if (file.status == UploadStatus.failed ||
+              file.status == UploadStatus.uploading) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -171,11 +162,15 @@ class UploadStatusWidget extends StatelessWidget {
                     ),
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                     ),
                   ),
                 ],
-                if (file.status == UploadStatus.uploading && onCancel != null) ...[
+                if (file.status == UploadStatus.uploading &&
+                    onCancel != null) ...[
                   TextButton.icon(
                     onPressed: onCancel,
                     icon: const Icon(Icons.close, size: 16),
@@ -185,7 +180,10 @@ class UploadStatusWidget extends StatelessWidget {
                     ),
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.error,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                     ),
                   ),
                 ],
