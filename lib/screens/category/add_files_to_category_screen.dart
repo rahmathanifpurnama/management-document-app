@@ -211,73 +211,61 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
           margin: _filterSectionMargin,
           child: Column(
             children: [
-              // Filter Header - consistent with other screens
+              // Filter Header - only filter button without title
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 8,
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.end,
                   children: [
-                    Text(
-                      'Available Files',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    Row(
-                      children: [
-                        // Active filter indicator
-                        if (hasActiveFilters) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Text(
-                              'Active',
-                              style: GoogleFonts.poppins(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.surface,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        // Filter button
-                        IconButton(
-                          onPressed: () {
-                            setState(() {
-                              _isFilterExpanded = !_isFilterExpanded;
-                            });
-                          },
-                          icon: Icon(
-                            _isFilterExpanded
-                                ? Icons.expand_less
-                                : Icons.filter_list,
-                            color: hasActiveFilters
-                                ? AppColors.primary
-                                : AppColors.textSecondary,
-                            size: 20,
-                          ),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 24,
-                            minHeight: 24,
-                          ),
-                          tooltip: _isFilterExpanded
-                              ? 'Collapse Filter'
-                              : 'Filter Files',
+                    // Active filter indicator
+                    if (hasActiveFilters) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
                         ),
-                      ],
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          'Active',
+                          style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.surface,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    // Filter button
+                    IconButton(
+                      onPressed: () {
+                        setState(() {
+                          _isFilterExpanded = !_isFilterExpanded;
+                        });
+                      },
+                      icon: Icon(
+                        _isFilterExpanded
+                            ? Icons.expand_less
+                            : Icons.filter_list,
+                        color: hasActiveFilters
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
+                        size: 20,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 24,
+                        minHeight: 24,
+                      ),
+                      tooltip: _isFilterExpanded
+                          ? 'Collapse Filter'
+                          : 'Filter Files',
                     ),
                   ],
                 ),
