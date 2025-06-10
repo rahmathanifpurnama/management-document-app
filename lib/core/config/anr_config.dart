@@ -5,71 +5,96 @@ import 'package:flutter/widgets.dart';
 class ANRConfig {
   // Optimized timeout configurations to prevent ANR
   static const Duration defaultTimeout = Duration(
-    seconds: 3,
-  ); // Reduced from 5s
+    seconds: 2,
+  ); // Further reduced
   static const Duration networkTimeout = Duration(
-    seconds: 10,
-  ); // Reduced from 15s
+    seconds: 8,
+  ); // Further reduced
   static const Duration fileOperationTimeout = Duration(
-    seconds: 8,
-  ); // Reduced from 10s
-  static const Duration databaseTimeout = Duration(
     seconds: 6,
-  ); // Reduced from 8s
+  ); // Further reduced
+  static const Duration databaseTimeout = Duration(
+    seconds: 4,
+  ); // Further reduced
   static const Duration heavyOperationTimeout = Duration(
-    seconds: 8,
-  ); // Reduced from 12s
+    seconds: 6,
+  ); // Further reduced
 
   // Firebase specific timeouts (optimized for better UX)
   static const Duration firebaseInitTimeout = Duration(
-    seconds: 8,
-  ); // Reduced from 10s
+    seconds: 6,
+  ); // Further reduced
   static const Duration firestoreQueryTimeout = Duration(
-    seconds: 8,
-  ); // Reduced from 12s
-  static const Duration storageUploadTimeout = Duration(
-    minutes: 3,
-  ); // Reduced from 5m
-  static const Duration storageListTimeout = Duration(
-    seconds: 15,
-  ); // New: for listing operations
-  static const Duration storageMetadataTimeout = Duration(
     seconds: 5,
-  ); // New: for metadata operations
-  static const Duration authTimeout = Duration(seconds: 6); // Reduced from 8s
+  ); // Further reduced
+  static const Duration storageUploadTimeout = Duration(
+    minutes: 2,
+  ); // Further reduced
+  static const Duration storageListTimeout = Duration(
+    seconds: 10,
+  ); // Further reduced
+  static const Duration storageMetadataTimeout = Duration(
+    seconds: 3,
+  ); // Further reduced
+  static const Duration authTimeout = Duration(seconds: 4); // Further reduced
 
   // File reading timeouts based on size
-  static const Duration smallFileReadTimeout = Duration(seconds: 5); // < 5MB
-  static const Duration largeFileReadTimeout = Duration(seconds: 15); // >= 5MB
+  static const Duration smallFileReadTimeout = Duration(seconds: 3); // < 5MB
+  static const Duration largeFileReadTimeout = Duration(seconds: 8); // >= 5MB
 
-  // Batch processing configurations
-  static const int defaultBatchSize = 8; // Reduced from 10
-  static const int largeBatchSize = 15; // For less critical operations
+  // Batch processing configurations - HIGH PRIORITY FIX
+  static const int defaultBatchSize =
+      5; // Significantly reduced for better performance
+  static const int smallBatchSize = 3; // For critical operations
+  static const int largeBatchSize = 10; // For less critical operations
   static const Duration batchDelay = Duration(
-    milliseconds: 50,
-  ); // Reduced delay
+    milliseconds: 100,
+  ); // Increased delay
+  static const Duration yieldDelay = Duration(milliseconds: 16); // 60fps yield
 
-  // ANR detection thresholds
-  static const Duration anrWarningThreshold = Duration(seconds: 2);
-  static const Duration anrCriticalThreshold = Duration(seconds: 4);
-  static const Duration anrEmergencyThreshold = Duration(seconds: 6);
+  // ANR detection thresholds - More aggressive
+  static const Duration anrWarningThreshold = Duration(milliseconds: 1500);
+  static const Duration anrCriticalThreshold = Duration(seconds: 3);
+  static const Duration anrEmergencyThreshold = Duration(seconds: 4);
 
-  // UI responsiveness settings
-  static const Duration debounceDelay = Duration(milliseconds: 300);
-  static const Duration throttleInterval = Duration(milliseconds: 500);
-  static const Duration uiUpdateDelay = Duration(milliseconds: 100);
+  // UI responsiveness settings - HIGH PRIORITY FIX
+  static const Duration debounceDelay = Duration(milliseconds: 200); // Reduced
+  static const Duration throttleInterval = Duration(
+    milliseconds: 300,
+  ); // Reduced
+  static const Duration uiUpdateDelay = Duration(milliseconds: 50); // Reduced
 
   // Additional settings
-  static const int maxRetries = 3;
+  static const int maxRetries = 2; // Reduced retries
 
   // Performance monitoring thresholds
-  static const Duration slowOperationThreshold = Duration(milliseconds: 500);
-  static const Duration criticalOperationThreshold = Duration(seconds: 2);
+  static const Duration slowOperationThreshold = Duration(milliseconds: 300);
+  static const Duration criticalOperationThreshold = Duration(
+    milliseconds: 1500,
+  );
 
-  // Memory and resource limits
-  static const int maxConcurrentOperations = 5;
-  static const int maxCacheSize = 100;
-  static const Duration cacheExpiry = Duration(hours: 1);
+  // HIGH PRIORITY: Pagination settings
+  static const int defaultPageSize = 10;
+  static const int smallPageSize = 5;
+  static const int largePageSize = 20;
+  static const int maxItemsPerPage = 25;
+
+  // HIGH PRIORITY: Concurrent operation limits
+  static const int maxConcurrentFirebaseOps = 2; // Reduced from 3
+  static const int maxConcurrentNetworkOps = 3;
+  static const int maxConcurrentFileOps =
+      1; // Only one file operation at a time
+
+  // MEDIUM PRIORITY: Memory management
+  static const int maxCacheSize = 50; // Reduced cache size
+  static const Duration cacheExpiry = Duration(
+    minutes: 30,
+  ); // Reduced cache time
+  static const int maxImageCacheSize = 20;
+  static const int maxListViewCacheExtent = 100;
+
+  // Memory and resource limits - Updated
+  static const int maxConcurrentOperations = 3; // Reduced
 
   // File size limits to prevent ANR
   static const int maxFileSize = 15 * 1024 * 1024; // 15MB

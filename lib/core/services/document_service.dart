@@ -1,6 +1,10 @@
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../services/firebase_service.dart';
+import '../config/anr_config.dart';
+import '../utils/anr_prevention.dart';
+import 'optimized_network_service.dart';
 import '../../models/document_model.dart';
 import '../../models/activity_model.dart';
 
@@ -12,18 +16,69 @@ class DocumentService {
 
   final FirebaseService _firebaseService = FirebaseService.instance;
 
-  // Get all documents
-  Future<List<DocumentModel>> getAllDocuments() async {
+  // HIGH PRIORITY: Get all documents with pagination and optimization
+  Future<List<DocumentModel>> getAllDocuments({
+    int? limit,
+    DocumentSnapshot? startAfter,
+  }) async {
     try {
-      QuerySnapshot querySnapshot = await _firebaseService.documentsCollection
-          .orderBy('uploadedAt', descending: true)
-          .get();
+      final networkService = OptimizedNetworkService.instance;
 
-      return querySnapshot.docs
-          .map((doc) => DocumentModel.fromFirestore(doc))
-          .toList();
+      final querySnapshot = await networkService.executeFirestoreOperation(
+        () async {
+          Query query = _firebaseService.documentsCollection
+              .where('isActive', isEqualTo: true)
+              .orderBy('uploadedAt', descending: true);
+
+          if (startAfter != null) {
+            query = query.startAfterDocument(startAfter);
+          }
+
+          if (limit != null) {
+            query = query.limit(limit);
+          } else {
+            query = query.limit(
+              ANRConfig.defaultPageSize,
+            ); // Default pagination
+          }
+
+          return await query.get();
+        },
+        operationId:
+            'get_all_documents_${DateTime.now().millisecondsSinceEpoch}',
+        operationName: 'Get All Documents',
+        priority: 3,
+      );
+
+      if (querySnapshot == null) {
+        debugPrint('⚠️ Failed to fetch documents - query timeout');
+        return [];
+      }
+
+      // Process documents in batches to prevent ANR
+      final documents = <DocumentModel>[];
+      await ANRPrevention.batchProcess(
+        querySnapshot.docs,
+        (doc) async {
+          try {
+            return DocumentModel.fromFirestore(doc);
+          } catch (e) {
+            debugPrint('❌ Error parsing document ${doc.id}: $e');
+            return null;
+          }
+        },
+        batchSize: ANRConfig.smallBatchSize,
+        operationName: 'Document Parsing',
+      ).then((results) {
+        documents.addAll(
+          results.where((doc) => doc != null).cast<DocumentModel>(),
+        );
+      });
+
+      return documents;
     } catch (e) {
-      throw Exception('Failed to get documents: ${e.toString()}');
+      debugPrint('❌ Failed to fetch documents: $e');
+      return [];
     }
   }
 

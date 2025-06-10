@@ -3,8 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../core/services/firebase_service.dart';
 import '../core/services/document_service.dart';
-import '../core/utils/anr_prevention.dart';
+import '../core/services/optimized_network_service.dart';
 import '../core/config/anr_config.dart';
+import '../core/utils/anr_prevention.dart';
 import '../models/document_model.dart';
 
 /// Optimized Firebase Storage Sync Service to prevent ANR issues
@@ -22,26 +23,41 @@ class OptimizedFirebaseStorageSyncService {
   static int get _batchSize => ANRConfig.defaultBatchSize;
   static Duration get _batchDelay => ANRConfig.batchDelay;
 
-  /// Optimized sync with batching and parallel operations to prevent ANR
+  /// HIGH PRIORITY: Optimized sync with batching and parallel operations to prevent ANR
   Future<List<DocumentModel>> syncStorageWithFirestoreOptimized() async {
     try {
       debugPrint('🔄 Starting optimized Firebase Storage sync...');
 
-      // Run initial operations in parallel to reduce total time
+      // Use optimized network service for concurrent operations
+      final networkService = OptimizedNetworkService.instance;
+
+      // Run initial operations with controlled concurrency
       final results = await Future.wait([
-        _listAllStorageFiles(),
-        _documentService.getAllDocuments(),
+        networkService.executeStorageOperation(
+          () => _listAllStorageFiles(),
+          operationId:
+              'list_storage_files_${DateTime.now().millisecondsSinceEpoch}',
+          operationName: 'List Storage Files',
+          priority: 3,
+        ),
+        networkService.executeFirestoreOperation(
+          () => _documentService.getAllDocuments(),
+          operationId:
+              'get_all_documents_${DateTime.now().millisecondsSinceEpoch}',
+          operationName: 'Get All Documents',
+          priority: 3,
+        ),
       ]);
 
-      final storageFiles = results[0] as List<Reference>;
-      final firestoreDocuments = results[1] as List<DocumentModel>;
+      final storageFiles = (results[0] as List<Reference>?) ?? [];
+      final firestoreDocuments = (results[1] as List<DocumentModel>?) ?? [];
 
       debugPrint('📁 Found ${storageFiles.length} files in Firebase Storage');
       debugPrint(
         '📄 Found ${firestoreDocuments.length} documents in Firestore',
       );
 
-      // Find orphaned files efficiently
+      // Find orphaned files efficiently with smaller batches
       final orphanedFiles = await _findOrphanedFilesOptimized(
         storageFiles,
         firestoreDocuments,

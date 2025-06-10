@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/widgets/optimized_ui_widgets.dart';
+import '../../core/config/anr_config.dart';
 import '../../models/document_model.dart';
 import '../../providers/file_selection_provider.dart';
 import '../../services/bulk_operations_service.dart';

@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'core/services/firebase_service.dart';
+import 'core/services/memory_management_service.dart';
+import 'core/services/optimized_network_service.dart';
+import 'core/services/performance_monitoring_service.dart';
+import 'core/config/anr_config.dart';
 import 'core/constants/app_colors.dart';
 import 'core/constants/app_strings.dart';
 import 'core/constants/app_routes.dart';
@@ -43,23 +48,45 @@ import 'models/document_model.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // HIGH PRIORITY: Initialize memory management first
+  MemoryManagementService.instance.initialize();
+
+  // HIGH PRIORITY: Initialize optimized network service
+  OptimizedNetworkService.instance.initialize();
+
+  // MEDIUM PRIORITY: Initialize performance monitoring
+  if (kDebugMode) {
+    PerformanceMonitoringService.instance.startMonitoring();
+  }
+
   // Initialize ANR recovery system
   await ANRRecovery.initialize();
 
-  // Initialize Firebase with timeout and error handling
+  // Initialize Firebase with optimized timeout and error handling
   try {
     await ANRPrevention.executeWithTimeout(
       FirebaseService.initialize(),
-      timeout: const Duration(seconds: 10),
+      timeout: ANRConfig.firebaseInitTimeout, // Use optimized timeout
       operationName: 'Firebase Initialization',
     );
   } catch (e) {
-    // Firebase initialization failed, continue with app launch
+    debugPrint('⚠️ Firebase initialization failed, continuing: $e');
     // Continue app launch even if Firebase fails
   }
 
-  // Start ANR monitoring
+  // Start ANR monitoring with more aggressive settings
   ANRDetector.instance.startMonitoring();
+
+  // HIGH PRIORITY: Set up error handling
+  FlutterError.onError = (FlutterErrorDetails details) {
+    debugPrint('🚨 Flutter Error: ${details.exception}');
+    debugPrint('Stack trace: ${details.stack}');
+
+    // Don't crash the app in production
+    if (kReleaseMode) {
+      // Log to crash reporting service in production
+    }
+  };
 
   runApp(const MyApp());
 }
