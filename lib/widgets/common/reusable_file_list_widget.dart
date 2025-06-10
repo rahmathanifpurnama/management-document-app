@@ -396,28 +396,28 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
                 // Individual file operations menu (only show when NOT in selection mode)
                 if (!isSelectionMode) ...[
                   const SizedBox(width: 12),
-                  SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: IconButton(
-                      onPressed: widget.onDocumentMenu != null
-                          ? () => widget.onDocumentMenu!(document)
-                          : null,
-                      icon: const Icon(
-                        Icons.more_vert,
-                        color: AppColors.textSecondary,
-                        size: 18,
+                  GestureDetector(
+                    // Absorb tap events to prevent interference with file selection
+                    onTap: () {
+                      // Prevent tap from bubbling up to parent InkWell
+                      if (widget.onDocumentMenu != null) {
+                        widget.onDocumentMenu!(document);
+                      }
+                    },
+                    child: Container(
+                      width: 40, // Increased touch target size
+                      height: 40, // Increased touch target size
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 32,
-                        minHeight: 32,
-                      ),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        foregroundColor: AppColors.textSecondary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                      child: Center(
+                        child: Icon(
+                          Icons.more_vert,
+                          color: widget.onDocumentMenu != null
+                              ? AppColors.textSecondary
+                              : AppColors.textSecondary.withValues(alpha: 0.3),
+                          size: 18,
                         ),
                       ),
                     ),

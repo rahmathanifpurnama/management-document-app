@@ -197,7 +197,7 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
                         ),
                       ),
                     ),
-                    // Selection indicator
+                    // Selection indicator (only show in selection mode)
                     if (selectionProvider.isSelectionMode)
                       Positioned(
                         top: 0,
@@ -224,6 +224,47 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
                                   size: 16,
                                 )
                               : null,
+                        ),
+                      ),
+                    // Menu button (only show when NOT in selection mode)
+                    if (!selectionProvider.isSelectionMode)
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: AppColors.surface.withValues(alpha: 0.9),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.shadow.withValues(alpha: 0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: IconButton(
+                            onPressed: widget.onDocumentMenu != null
+                                ? () => widget.onDocumentMenu!(document)
+                                : null,
+                            icon: const Icon(
+                              Icons.more_vert,
+                              color: AppColors.textSecondary,
+                              size: 16,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
+                            style: IconButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              foregroundColor: AppColors.textSecondary,
+                              shape: const CircleBorder(),
+                            ),
+                          ),
                         ),
                       ),
                   ],
