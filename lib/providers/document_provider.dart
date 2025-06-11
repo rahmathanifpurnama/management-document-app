@@ -1009,12 +1009,15 @@ class DocumentProvider extends ChangeNotifier {
   }
 
   // Get recent files (uploaded in the last 7 days, regardless of category)
+  // FIXED: Use unfiltered documents and apply ANR-safe limits
   List<DocumentModel> getRecentFiles({int days = 7}) {
     final cutoffDate = DateTime.now().subtract(Duration(days: days));
-    return _documents
-        .where((doc) => doc.uploadedAt.isAfter(cutoffDate))
-        .toList()
-      ..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
+    final recentFiles =
+        _documents.where((doc) => doc.uploadedAt.isAfter(cutoffDate)).toList()
+          ..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
+
+    // Apply ANR-safe limit to prevent performance issues
+    return recentFiles.take(ANRConfig.maxItemsPerPage).toList();
   }
 
   // Get uncategorized files
@@ -1171,11 +1174,17 @@ class DocumentProvider extends ChangeNotifier {
         .toList();
   }
 
-  // Get recent documents
+  // Get recent documents - FIXED: Use unfiltered documents for true recent files
   List<DocumentModel> getRecentDocuments({int limit = 10}) {
+    // Use _documents (unfiltered) instead of _filteredDocuments to get true recent files
     List<DocumentModel> sortedDocs = List.from(_documents);
     sortedDocs.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
-    return sortedDocs.take(limit).toList();
+
+    // Apply ANR-safe limit to prevent performance issues
+    final safeLimit = limit > ANRConfig.maxItemsPerPage
+        ? ANRConfig.maxItemsPerPage
+        : limit;
+    return sortedDocs.take(safeLimit).toList();
   }
 
   // Status count methods removed since status management is removed

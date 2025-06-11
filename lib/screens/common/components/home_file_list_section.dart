@@ -2,6 +2,9 @@ part of '../home_screen.dart';
 
 /// Stateful widget for file list display with integrated operations
 /// Consolidates file operations and API calls for better maintainability
+///
+/// FIXED: Recent files now display actual recent uploads instead of filtered documents
+/// This ensures consistency with storage section behavior while maintaining ANR optimizations
 class HomeFileListSection extends StatefulWidget {
   final String searchQuery;
   final Function(DocumentModel)? onDocumentTap;
@@ -94,15 +97,34 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   Widget build(BuildContext context) {
     return Consumer2<DocumentProvider, FileSelectionProvider>(
       builder: (context, documentProvider, selectionProvider, child) {
-        // Use filtered documents from DocumentProvider
-        // This includes all filters: search, category, status, file type
-        final filteredDocuments = documentProvider.documents;
+        // FIXED: Use actual recent files instead of filtered documents
+        // Recent files should show the most recently uploaded files regardless of filters
+        final recentDocuments = documentProvider.getRecentDocuments(
+          limit: 50,
+        ); // Get more recent files for pagination
+
+        // Apply search filter to recent files if search is active
+        final displayDocuments = widget.searchQuery.isNotEmpty
+            ? recentDocuments.where((doc) {
+                return doc.fileName.toLowerCase().contains(
+                      widget.searchQuery.toLowerCase(),
+                    ) ||
+                    doc.metadata.description.toLowerCase().contains(
+                      widget.searchQuery.toLowerCase(),
+                    ) ||
+                    doc.metadata.tags.any(
+                      (tag) => tag.toLowerCase().contains(
+                        widget.searchQuery.toLowerCase(),
+                      ),
+                    );
+              }).toList()
+            : recentDocuments;
 
         // Update available files for selection only when necessary
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (selectionProvider.isSelectionMode) {
             // Only update if we're in selection mode to avoid unnecessary calls
-            selectionProvider.updateAvailableFiles(filteredDocuments);
+            selectionProvider.updateAvailableFiles(displayDocuments);
           }
         });
 
@@ -110,7 +132,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Files Section with Pagination
-            _buildRecentFilesSection(filteredDocuments, selectionProvider),
+            _buildRecentFilesSection(displayDocuments, selectionProvider),
           ],
         );
       },
