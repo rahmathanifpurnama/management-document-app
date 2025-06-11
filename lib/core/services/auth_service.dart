@@ -7,6 +7,7 @@ import '../utils/anr_prevention.dart';
 import '../config/anr_config.dart';
 import '../../models/user_model.dart';
 import '../../models/activity_model.dart';
+
 import 'cloud_functions_service.dart';
 
 class AuthService {
@@ -131,8 +132,10 @@ class AuthService {
           debugPrint('Cloud function post-login operations failed: $e');
           // Fallback to local operations if Cloud Functions fail
           _updateLastLoginSafe(userId);
-          _logActivitySafe(userId, ActivityType.login, 'System Login');
         }
+
+        // Log login activity
+        _logActivitySafe(userId, ActivityType.login, 'System Login');
       },
       timeout: ANRConfig.networkTimeout,
       operationName: 'Cloud Function Post-Login',
@@ -142,13 +145,6 @@ class AuthService {
   // Logout
   Future<void> logout() async {
     try {
-      String? userId = currentUser?.uid;
-
-      // Log activity before logout
-      if (userId != null) {
-        await _logActivity(userId, ActivityType.logout, 'System Logout');
-      }
-
       // Clear login session
       await _clearLoginSession();
 
@@ -183,29 +179,6 @@ class AuthService {
 
   // Check if user is logged in
   bool get isLoggedIn => currentUser != null;
-
-  // Log user activity (used by logout)
-  Future<void> _logActivity(
-    String userId,
-    ActivityType action,
-    String resource,
-  ) async {
-    try {
-      ActivityModel activity = ActivityModel(
-        id: '',
-        userId: userId,
-        action: action.value,
-        resource: resource,
-        timestamp: DateTime.now(),
-        details: {'userAgent': 'Flutter App', 'platform': 'Mobile'},
-      );
-
-      await _firebaseService.activitiesCollection.add(activity.toMap());
-    } catch (e) {
-      // Don't throw error for activity logging
-      // Activity logging failed silently
-    }
-  }
 
   // Get remembered email
   Future<String?> getRememberedEmail() async {
@@ -340,13 +313,6 @@ class AuthService {
 
       // Update password
       await currentUser!.updatePassword(newPassword);
-
-      // Log activity
-      await _logActivity(
-        currentUser!.uid,
-        ActivityType.update,
-        'Password Changed',
-      );
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     } catch (e) {

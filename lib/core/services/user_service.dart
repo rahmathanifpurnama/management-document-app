@@ -2,7 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firebase_service.dart';
 import '../../models/user_model.dart';
-import '../../models/activity_model.dart';
 
 class UserService {
   static UserService? _instance;
@@ -50,13 +49,6 @@ class UserService {
         await _firebaseService.usersCollection
             .doc(newUser.id)
             .set(newUser.toMap());
-
-        // Log activity
-        await _logActivity(
-          createdBy,
-          ActivityType.createUser,
-          'User: $fullName',
-        );
 
         return newUser;
       } else {
@@ -115,13 +107,6 @@ class UserService {
   Future<void> updateUser(UserModel user, String updatedBy) async {
     try {
       await _firebaseService.usersCollection.doc(user.id).update(user.toMap());
-
-      // Log activity
-      await _logActivity(
-        updatedBy,
-        ActivityType.updateUser,
-        'User: ${user.fullName}',
-      );
     } catch (e) {
       throw Exception('Gagal mengupdate pengguna: ${e.toString()}');
     }
@@ -137,13 +122,6 @@ class UserService {
       await _firebaseService.usersCollection.doc(userId).update({
         'status': status,
       });
-
-      // Log activity
-      await _logActivity(
-        updatedBy,
-        ActivityType.updateUser,
-        'User Status: $status',
-      );
     } catch (e) {
       throw Exception('Gagal mengupdate status pengguna: ${e.toString()}');
     }
@@ -159,13 +137,6 @@ class UserService {
       await _firebaseService.usersCollection.doc(userId).update({
         'permissions': permissions.toMap(),
       });
-
-      // Log activity
-      await _logActivity(
-        updatedBy,
-        ActivityType.updateUser,
-        'User Permissions Updated',
-      );
     } catch (e) {
       throw Exception('Gagal mengupdate izin pengguna: ${e.toString()}');
     }
@@ -183,13 +154,6 @@ class UserService {
 
         // Note: We cannot delete from Firebase Auth from client side
         // This should be done from admin SDK on server side
-
-        // Log activity
-        await _logActivity(
-          deletedBy,
-          ActivityType.deleteUser,
-          'User: ${user.fullName}',
-        );
       }
     } catch (e) {
       throw Exception('Gagal menghapus pengguna: ${e.toString()}');
@@ -281,38 +245,8 @@ class UserService {
       await _firebaseService.usersCollection.doc(userId).update({
         'profileImage': imageUrl,
       });
-
-      // Log activity
-      await _logActivity(
-        updatedBy,
-        ActivityType.updateUser,
-        'Profile Image Updated',
-      );
     } catch (e) {
       throw Exception('Gagal mengupdate foto profil: ${e.toString()}');
-    }
-  }
-
-  // Log user activity
-  Future<void> _logActivity(
-    String userId,
-    ActivityType action,
-    String resource,
-  ) async {
-    try {
-      ActivityModel activity = ActivityModel(
-        id: '',
-        userId: userId,
-        action: action.value,
-        resource: resource,
-        timestamp: DateTime.now(),
-        details: {'userAgent': 'Flutter App', 'platform': 'Mobile'},
-      );
-
-      await _firebaseService.activitiesCollection.add(activity.toMap());
-    } catch (e) {
-      // Don't throw error for activity logging
-      // Activity logging failed silently
     }
   }
 

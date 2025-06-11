@@ -49,7 +49,6 @@ node seed-all.js
 npm run seed:users      # Seed users collection dan authentication
 npm run seed:categories # Seed categories collection
 npm run seed:documents  # Seed documents collection
-npm run seed:activities # Seed activities collection
 ```
 
 **Opsi 3: Menggunakan file batch (Windows)**

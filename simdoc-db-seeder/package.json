@@ -10,6 +10,7 @@
     "seed:categories": "node categories.js",
     "seed:documents": "node documents.js",
     "seed:activities": "node activities.js",
+
     "verify": "node verify-data.js",
     "cleanup": "node cleanup.js"
   },

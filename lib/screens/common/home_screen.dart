@@ -17,7 +17,7 @@ import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/file_selection_bar.dart';
 import '../../models/document_model.dart';
-import '../../services/realtime_sync_service.dart';
+
 import '../../services/ui_refresh_service.dart';
 import '../../services/file_download_service.dart';
 import '../../services/share_service.dart';

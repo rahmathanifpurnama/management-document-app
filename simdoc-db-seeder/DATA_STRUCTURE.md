@@ -90,33 +90,7 @@ Menyimpan metadata dokumen yang diupload ke sistem.
 }
 ```
 
-### 4. Activities Collection (`activities`)
-Menyimpan log aktivitas pengguna untuk audit trail.
 
-**Sample Activities:**
-- User login/logout
-- Document upload/download/approve/reject
-- User management (create/update/delete)
-- Category management
-
-**Fields:**
-```javascript
-{
-  userId: "string",
-  action: "string", // login, upload, approve, etc.
-  resource: "string", // system, document, user, category
-  timestamp: "timestamp",
-  details: {
-    // Dynamic object based on action type
-    // Examples:
-    ip: "string",
-    userAgent: "string", 
-    documentId: "string",
-    fileName: "string",
-    previousStatus: "string",
-    newStatus: "string"
-  }
-}
 ```
 
 ## Authentication Data

@@ -355,21 +355,13 @@ class OptimizedUserService {
           .where('isActive', isEqualTo: true)
           .get();
 
-      // Get recent activities
-      final activitiesSnapshot = await _firebaseService.activitiesCollection
-          .where('userId', isEqualTo: userId)
-          .orderBy('timestamp', descending: true)
-          .limit(10)
-          .get();
+      // Activities collection has been removed - return empty list
+      final activitiesSnapshot = <Map<String, dynamic>>[];
 
       final summary = {
         'documentsUploaded': documentsSnapshot.size,
-        'recentActivities': activitiesSnapshot.docs
-            .map((doc) => doc.data())
-            .toList(),
-        'lastActivity': activitiesSnapshot.docs.isNotEmpty
-            ? activitiesSnapshot.docs.first.data()
-            : null,
+        'recentActivities': activitiesSnapshot, // Empty list
+        'lastActivity': null, // No activities available
       };
 
       debugPrint('✅ User activity summary retrieved');

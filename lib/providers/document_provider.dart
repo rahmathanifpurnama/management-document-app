@@ -637,11 +637,7 @@ class DocumentProvider extends ChangeNotifier {
       // Use the file category management service for proper file organization
       final fileCategoryService = FileCategoryManagementService();
 
-      if (categoryId == 'uncategorized') {
-        await fileCategoryService.moveFileToUncategorized(documentId);
-      } else {
-        await fileCategoryService.moveFileToCategory(documentId, categoryId);
-      }
+      await fileCategoryService.moveFileToCategory(documentId, categoryId);
 
       final documentIndex = _documents.indexWhere(
         (doc) => doc.id == documentId,

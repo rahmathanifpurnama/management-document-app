@@ -120,12 +120,10 @@ npm run seed
 - **users**: User profiles and authentication data
 - **categories**: Document categories and permissions
 - **documents**: Document metadata and references
-- **activities**: User activity logs and system events
 
 ### Storage Structure
 ```
 /documents/
-├── user-uploads/          # User uploaded files
 ├── categories/            # Category-specific files
 └── temp/                  # Temporary upload storage
 ```

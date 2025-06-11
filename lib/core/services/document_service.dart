@@ -4,9 +4,9 @@ import 'package:flutter/foundation.dart';
 import '../services/firebase_service.dart';
 import '../config/anr_config.dart';
 import '../utils/anr_prevention.dart';
+import '../../models/activity_model.dart';
 import 'optimized_network_service.dart';
 import '../../models/document_model.dart';
-import '../../models/activity_model.dart';
 
 class DocumentService {
   static DocumentService? _instance;
@@ -138,13 +138,6 @@ class DocumentService {
       await _firebaseService.documentsCollection
           .doc(document.id)
           .update(document.toMap());
-
-      // Log activity
-      await _logActivity(
-        document.uploadedBy,
-        ActivityType.update,
-        'Document: ${document.fileName}',
-      );
     } catch (e) {
       throw Exception('Failed to update document: ${e.toString()}');
     }
@@ -396,6 +389,7 @@ class DocumentService {
     } catch (e) {
       // Don't throw error for activity logging
       // Failed to log activity, but continue execution
+      debugPrint('Failed to log activity: $e');
     }
   }
 }

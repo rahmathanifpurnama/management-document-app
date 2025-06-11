@@ -11,7 +11,6 @@ import '../services/image_compression_service.dart';
 import '../services/file_hash_service.dart';
 import '../services/google_drive_service.dart';
 import '../core/config/file_config.dart';
-import '../services/error_message_service.dart';
 
 /// Consolidated Upload Service
 ///
@@ -305,10 +304,10 @@ class ConsolidatedUploadService {
     final sanitizedFileName = _sanitizeFileName(fileName);
     final timestamp = DateTime.now().millisecondsSinceEpoch;
 
-    if (categoryId != null && categoryId != 'uncategorized') {
+    if (categoryId != null && categoryId.isNotEmpty) {
       return 'documents/categories/$categoryId/${timestamp}_$sanitizedFileName';
     } else {
-      return 'documents/uncategorized/${timestamp}_$sanitizedFileName';
+      return 'documents/${timestamp}_$sanitizedFileName';
     }
   }
 
@@ -379,7 +378,7 @@ class ConsolidatedUploadService {
         'uploadedAt': FieldValue.serverTimestamp(),
         'contentType': _getContentType(file.fileName),
         'fileHash': fileHash,
-        'categoryId': categoryId ?? 'uncategorized',
+        'categoryId': categoryId ?? '',
         'isActive': true,
         'metadata': {
           'deviceId': 'flutter_app',

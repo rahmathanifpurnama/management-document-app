@@ -390,13 +390,7 @@ class OptimizedFirebaseStorageSyncService {
       return categoryFromPath;
     }
 
-    // Check for uncategorized folder
-    if (pathParts.contains('uncategorized')) {
-      debugPrint('📁 File in uncategorized folder: $filePath');
-      return 'uncategorized';
-    }
-
-    // Files directly in documents/ folder should be categorized as 'general' not 'uncategorized'
+    // Files directly in documents/ folder should be categorized as 'general'
     if (pathParts.length >= 2 && pathParts[0] == 'documents') {
       debugPrint(
         '📁 File in main documents folder, assigning to general category: $filePath',

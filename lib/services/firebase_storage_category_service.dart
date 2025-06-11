@@ -149,13 +149,6 @@ class FirebaseStorageCategoryService {
     return 'documents/${timestamp}_$sanitizedFileName';
   }
 
-  /// Get upload path for uncategorized files (same as categorized - uses metadata)
-  String getUncategorizedUploadPath(String fileName) {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final sanitizedFileName = _sanitizeFileName(fileName);
-    return 'documents/${timestamp}_$sanitizedFileName';
-  }
-
   /// Sanitize file name
   String _sanitizeFileName(String fileName) {
     // Keep original extension but sanitize the name part

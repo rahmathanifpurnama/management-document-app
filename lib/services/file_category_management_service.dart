@@ -53,38 +53,6 @@ class FileCategoryManagementService {
     }
   }
 
-  /// Move file from category back to uncategorized (recent files)
-  Future<void> moveFileToUncategorized(String documentId) async {
-    try {
-      // Get document details
-      final document = await _documentService.getDocumentById(documentId);
-      if (document == null) {
-        throw Exception('Document not found');
-      }
-
-      // Move file to uncategorized folder in Firebase Storage
-      final newFilePath = await _storageService.moveFileToCategory(
-        document.filePath,
-        'uncategorized',
-        'uncategorized',
-        document.fileName,
-      );
-
-      // Update document metadata in Firestore
-      final updatedDocument = document.copyWith(
-        category: 'uncategorized',
-        filePath: newFilePath,
-      );
-
-      await _documentService.updateDocument(updatedDocument);
-
-      debugPrint('✅ Moved file ${document.fileName} to uncategorized');
-    } catch (e) {
-      debugPrint('❌ Failed to move file to uncategorized: $e');
-      rethrow;
-    }
-  }
-
   /// Move multiple files to a category
   Future<void> moveMultipleFilesToCategory(
     List<String> documentIds,
@@ -144,16 +112,6 @@ class FileCategoryManagementService {
     }
   }
 
-  /// Get uncategorized files
-  Future<List<DocumentModel>> getUncategorizedFiles() async {
-    try {
-      return await _documentService.getDocumentsByCategory('uncategorized');
-    } catch (e) {
-      debugPrint('❌ Failed to get uncategorized files: $e');
-      return [];
-    }
-  }
-
   /// Organize existing files into category structure
   Future<void> organizeExistingFiles() async {
     try {
@@ -178,13 +136,13 @@ class FileCategoryManagementService {
           }
 
           String targetCategoryId = document.category;
-          String targetCategoryName = 'uncategorized';
+          String targetCategoryName = 'general';
 
           // Check if document has a valid category
           if (categoryMap.containsKey(document.category)) {
             targetCategoryName = categoryMap[document.category]!.name;
           } else {
-            targetCategoryId = 'uncategorized';
+            targetCategoryId = 'general';
           }
 
           // Move file to proper folder structure

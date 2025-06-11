@@ -105,12 +105,13 @@ class FirebaseService {
 
   // Collections references
   CollectionReference get usersCollection => firestore.collection('users');
+
   CollectionReference get documentsCollection =>
       firestore.collection('documents');
-  CollectionReference get categoriesCollection =>
-      firestore.collection('categories');
   CollectionReference get activitiesCollection =>
       firestore.collection('activities');
+  CollectionReference get categoriesCollection =>
+      firestore.collection('categories');
 
   // Storage references
   Reference get documentsStorage => storage.ref().child('documents');

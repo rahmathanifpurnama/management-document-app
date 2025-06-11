@@ -66,7 +66,7 @@ service cloud.firestore {
       // Only admin can write categories
       allow write: if isAdmin();
     }
-    
+
     // Activities collection with time-based cleanup support
     match /activities/{activityId} {
       // Allow single document read for authenticated users
@@ -83,7 +83,7 @@ service cloud.firestore {
       // Allow admin to delete old activities (for cleanup)
       allow delete: if isAdmin();
     }
-    
+
     // Processing queue collection removed since status management is removed
   }
 }

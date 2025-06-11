@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_routes.dart';
+
 import '../../models/category_model.dart';
 
 /// Reusable category info header widget with responsive design
@@ -128,9 +128,7 @@ class CategoryInfoHeaderWidget extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.success,
               foregroundColor: AppColors.textWhite,
-              padding: EdgeInsets.symmetric(
-                vertical: isSmallScreen ? 6 : 8,
-              ),
+              padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 6 : 8),
             ),
             icon: Icon(Icons.add, size: isSmallScreen ? 14 : 16),
             label: Text(
@@ -148,9 +146,7 @@ class CategoryInfoHeaderWidget extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.textWhite,
-              padding: EdgeInsets.symmetric(
-                vertical: isSmallScreen ? 6 : 8,
-              ),
+              padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 6 : 8),
             ),
             icon: Icon(Icons.upload, size: isSmallScreen ? 14 : 16),
             label: Text(

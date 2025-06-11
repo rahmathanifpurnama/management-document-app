@@ -2,15 +2,16 @@ import 'dart:async';
 import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
+
 import '../config/anr_config.dart';
 import '../utils/anr_prevention.dart';
 
 /// HIGH PRIORITY: Network service to prevent ANR from concurrent operations
 class OptimizedNetworkService {
   static OptimizedNetworkService? _instance;
-  static OptimizedNetworkService get instance => _instance ??= OptimizedNetworkService._();
-  
+  static OptimizedNetworkService get instance =>
+      _instance ??= OptimizedNetworkService._();
+
   OptimizedNetworkService._();
 
   final Queue<_NetworkOperation> _operationQueue = Queue();
@@ -100,12 +101,12 @@ class OptimizedNetworkService {
     // Sort by priority (higher priority first)
     final sortedOps = _operationQueue.toList()
       ..sort((a, b) => b.priority.compareTo(a.priority));
-    
+
     _operationQueue.clear();
     _operationQueue.addAll(sortedOps);
 
-    while (_operationQueue.isNotEmpty && 
-           _concurrentOperations < _getMaxConcurrentOperations()) {
+    while (_operationQueue.isNotEmpty &&
+        _concurrentOperations < _getMaxConcurrentOperations()) {
       final op = _operationQueue.removeFirst();
       _executeQueuedOperation(op);
     }
@@ -117,8 +118,10 @@ class OptimizedNetworkService {
     _activeOperations.add(op.id);
 
     try {
-      debugPrint('🔄 Executing ${op.name} (${op.id}) - Priority: ${op.priority}');
-      
+      debugPrint(
+        '🔄 Executing ${op.name} (${op.id}) - Priority: ${op.priority}',
+      );
+
       final result = await ANRPrevention.executeWithTimeout(
         op.operation(),
         timeout: op.timeout,
@@ -133,7 +136,7 @@ class OptimizedNetworkService {
     } finally {
       _concurrentOperations--;
       _activeOperations.remove(op.id);
-      
+
       // Process next operations in queue
       if (_operationQueue.isNotEmpty) {
         Future.delayed(const Duration(milliseconds: 50), _processQueue);
@@ -162,10 +165,12 @@ class OptimizedNetworkService {
     String? operationName,
     int batchSize = 3,
   }) async {
-    debugPrint('📦 Starting batch operations: $batchId (${operations.length} ops)');
-    
+    debugPrint(
+      '📦 Starting batch operations: $batchId (${operations.length} ops)',
+    );
+
     final results = <T?>[];
-    
+
     for (int i = 0; i < operations.length; i += batchSize) {
       final batch = operations.skip(i).take(batchSize).toList();
       final batchResults = await Future.wait(
@@ -179,15 +184,15 @@ class OptimizedNetworkService {
           );
         }),
       );
-      
+
       results.addAll(batchResults);
-      
+
       // Yield to UI between batches
       if (i + batchSize < operations.length) {
         await Future.delayed(ANRConfig.batchDelay);
       }
     }
-    
+
     debugPrint('✅ Completed batch operations: $batchId');
     return results;
   }
@@ -246,21 +251,18 @@ class _NetworkOperation<T> {
 }
 
 /// Operation types
-enum _OperationType {
-  firestore,
-  storage,
-  auth,
-  cloudFunction,
-}
+enum _OperationType { firestore, storage }
 
 /// HIGH PRIORITY: Optimized Firestore service wrapper
 class OptimizedFirestoreService {
   static OptimizedFirestoreService? _instance;
-  static OptimizedFirestoreService get instance => _instance ??= OptimizedFirestoreService._();
-  
+  static OptimizedFirestoreService get instance =>
+      _instance ??= OptimizedFirestoreService._();
+
   OptimizedFirestoreService._();
 
-  final OptimizedNetworkService _networkService = OptimizedNetworkService.instance;
+  final OptimizedNetworkService _networkService =
+      OptimizedNetworkService.instance;
 
   /// Get collection with optimization
   Future<QuerySnapshot?> getCollection(
@@ -271,34 +273,35 @@ class OptimizedFirestoreService {
     int? limit,
     DocumentSnapshot? startAfter,
   }) async {
-    final operationId = 'get_collection_${collectionPath}_${DateTime.now().millisecondsSinceEpoch}';
-    
+    final operationId =
+        'get_collection_${collectionPath}_${DateTime.now().millisecondsSinceEpoch}';
+
     return await _networkService.executeFirestoreOperation(
       () async {
         Query query = FirebaseFirestore.instance.collection(collectionPath);
-        
+
         // Apply where conditions
         if (whereConditions != null) {
           for (final entry in whereConditions.entries) {
             query = query.where(entry.key, isEqualTo: entry.value);
           }
         }
-        
+
         // Apply ordering
         if (orderBy != null) {
           query = query.orderBy(orderBy, descending: descending);
         }
-        
+
         // Apply pagination
         if (startAfter != null) {
           query = query.startAfterDocument(startAfter);
         }
-        
+
         // Apply limit
         if (limit != null) {
           query = query.limit(limit);
         }
-        
+
         return await query.get();
       },
       operationId: operationId,
@@ -309,8 +312,9 @@ class OptimizedFirestoreService {
 
   /// Get document with optimization
   Future<DocumentSnapshot?> getDocument(String documentPath) async {
-    final operationId = 'get_document_${documentPath}_${DateTime.now().millisecondsSinceEpoch}';
-    
+    final operationId =
+        'get_document_${documentPath}_${DateTime.now().millisecondsSinceEpoch}';
+
     return await _networkService.executeFirestoreOperation(
       () async {
         return await FirebaseFirestore.instance.doc(documentPath).get();
@@ -326,11 +330,14 @@ class OptimizedFirestoreService {
     String collectionPath,
     Map<String, dynamic> data,
   ) async {
-    final operationId = 'add_document_${collectionPath}_${DateTime.now().millisecondsSinceEpoch}';
-    
+    final operationId =
+        'add_document_${collectionPath}_${DateTime.now().millisecondsSinceEpoch}';
+
     return await _networkService.executeFirestoreOperation(
       () async {
-        return await FirebaseFirestore.instance.collection(collectionPath).add(data);
+        return await FirebaseFirestore.instance
+            .collection(collectionPath)
+            .add(data);
       },
       operationId: operationId,
       operationName: 'Add Document: $collectionPath',
@@ -343,8 +350,9 @@ class OptimizedFirestoreService {
     String documentPath,
     Map<String, dynamic> data,
   ) async {
-    final operationId = 'update_document_${documentPath}_${DateTime.now().millisecondsSinceEpoch}';
-    
+    final operationId =
+        'update_document_${documentPath}_${DateTime.now().millisecondsSinceEpoch}';
+
     await _networkService.executeFirestoreOperation(
       () async {
         await FirebaseFirestore.instance.doc(documentPath).update(data);
@@ -358,8 +366,9 @@ class OptimizedFirestoreService {
 
   /// Delete document with optimization
   Future<void> deleteDocument(String documentPath) async {
-    final operationId = 'delete_document_${documentPath}_${DateTime.now().millisecondsSinceEpoch}';
-    
+    final operationId =
+        'delete_document_${documentPath}_${DateTime.now().millisecondsSinceEpoch}';
+
     await _networkService.executeFirestoreOperation(
       () async {
         await FirebaseFirestore.instance.doc(documentPath).delete();

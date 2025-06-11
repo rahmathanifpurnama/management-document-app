@@ -13,7 +13,7 @@ const auth = admin.auth();
 // Collection names
 const COLLECTIONS = {
   USERS: 'users',
-  CATEGORIES: 'categories', 
+  CATEGORIES: 'categories',
   DOCUMENTS: 'documents',
   ACTIVITIES: 'activities'
 };
