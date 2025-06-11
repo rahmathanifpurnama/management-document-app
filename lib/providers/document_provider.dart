@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:convert';
 import '../models/document_model.dart';
 import '../core/services/document_service.dart';
@@ -1230,6 +1231,9 @@ class DocumentProvider extends ChangeNotifier {
     try {
       debugPrint('🔄 Force refreshing recent files data...');
 
+      // ENHANCED: Check for missing files in Firestore and sync from Storage
+      await _syncMissingFilesFromStorage();
+
       // Get fresh data from Firebase with focus on recent documents
       final recentFromFirebase = await _documentService.getRecentDocuments(
         limit: ANRConfig.maxItemsPerPage * 2,
@@ -1284,6 +1288,107 @@ class DocumentProvider extends ChangeNotifier {
   // Get total file size
   int get totalFileSize {
     return _documents.fold(0, (total, document) => total + document.fileSize);
+  }
+
+  /// Sync missing files from Firebase Storage to Firestore
+  Future<void> _syncMissingFilesFromStorage() async {
+    try {
+      debugPrint('🔄 Checking for missing files in Firestore...');
+
+      // Get Firebase Storage reference
+      final storageRef = _firebaseService.storage.ref().child('documents');
+
+      // List files in storage
+      final listResult = await storageRef.listAll();
+      debugPrint(
+        '  - Found ${listResult.items.length} files in Firebase Storage',
+      );
+
+      // Get current Firestore documents
+      final firestoreFilePaths = _documents
+          .map((doc) => doc.filePath.split('/').last)
+          .toSet();
+
+      // Find files that exist in Storage but not in Firestore
+      final missingFiles = <Reference>[];
+      for (final item in listResult.items) {
+        if (!firestoreFilePaths.contains(item.name)) {
+          missingFiles.add(item);
+        }
+      }
+
+      if (missingFiles.isEmpty) {
+        debugPrint('  - No missing files found');
+        return;
+      }
+
+      debugPrint('  - Found ${missingFiles.length} missing files in Firestore');
+
+      // Create Firestore documents for missing files
+      for (final fileRef in missingFiles.take(10)) {
+        // Limit to 10 files at a time
+        try {
+          final metadata = await fileRef.getMetadata();
+          final downloadUrl = await fileRef.getDownloadURL();
+
+          // Create document data
+          final documentData = {
+            'fileName': fileRef.name,
+            'fileSize': metadata.size ?? 0,
+            'fileType': _getFileTypeFromName(fileRef.name),
+            'filePath': fileRef.fullPath,
+            'downloadUrl': downloadUrl,
+            'uploadedBy': 'system', // Mark as system sync
+            'uploadedAt': metadata.timeCreated ?? DateTime.now(),
+            'category': 'general', // Default category
+            'isActive': true,
+            'permissions': ['read'],
+            'metadata': {
+              'description': 'Auto-synced from Firebase Storage',
+              'tags': ['synced'],
+              'version': '1.0',
+            },
+          };
+
+          // Add to Firestore
+          await _firebaseService.documentsCollection.add(documentData);
+          debugPrint('  - Synced: ${fileRef.name}');
+        } catch (e) {
+          debugPrint('  - Failed to sync ${fileRef.name}: $e');
+        }
+      }
+
+      debugPrint('✅ Storage sync completed');
+    } catch (e) {
+      debugPrint('❌ Storage sync failed: $e');
+    }
+  }
+
+  /// Get file type from filename
+  String _getFileTypeFromName(String fileName) {
+    final extension = fileName.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'pdf':
+        return 'PDF';
+      case 'doc':
+      case 'docx':
+        return 'Word Document';
+      case 'xls':
+      case 'xlsx':
+        return 'Excel Spreadsheet';
+      case 'ppt':
+      case 'pptx':
+        return 'PowerPoint Presentation';
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+        return 'Image';
+      case 'txt':
+        return 'Text Document';
+      default:
+        return 'Document';
+    }
   }
 
   // Get formatted total file size

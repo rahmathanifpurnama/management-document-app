@@ -90,9 +90,78 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
       // Use the new refreshRecentFiles method for immediate updates
       await documentProvider.refreshRecentFiles();
 
+      // ENHANCED DEBUG: Check Firebase Storage vs Firestore consistency
+      await _debugStorageConsistency();
+
       debugPrint('✅ Home screen: Recent files data refreshed');
     } catch (e) {
       debugPrint('⚠️ Home screen: Failed to refresh recent files: $e');
+    }
+  }
+
+  /// Debug method to check Firebase Storage vs Firestore consistency
+  Future<void> _debugStorageConsistency() async {
+    try {
+      debugPrint('🔍 STORAGE CONSISTENCY CHECK:');
+
+      // Get Firebase Storage reference
+      final storageRef = FirebaseStorage.instance.ref().child('documents');
+
+      // List files in storage
+      final listResult = await storageRef.listAll();
+      debugPrint('  - Firebase Storage files: ${listResult.items.length}');
+
+      // Log first 5 storage files
+      for (int i = 0; i < listResult.items.take(5).length; i++) {
+        final item = listResult.items[i];
+        final metadata = await item.getMetadata();
+        debugPrint(
+          '  - Storage file $i: ${item.name} (${metadata.timeCreated})',
+        );
+      }
+
+      // Compare with Firestore documents - use mounted check to avoid context issues
+      if (!mounted) return;
+
+      final documentProvider = Provider.of<DocumentProvider>(
+        context,
+        listen: false,
+      );
+      final firestoreFiles = documentProvider.allDocuments;
+      debugPrint('  - Firestore documents: ${firestoreFiles.length}');
+
+      // Check for missing documents
+      final storageFileNames = listResult.items
+          .map((item) => item.name)
+          .toSet();
+      final firestoreFilePaths = firestoreFiles
+          .map((doc) => doc.filePath.split('/').last)
+          .toSet();
+
+      final missingInFirestore = storageFileNames.difference(
+        firestoreFilePaths,
+      );
+      final missingInStorage = firestoreFilePaths.difference(storageFileNames);
+
+      if (missingInFirestore.isNotEmpty) {
+        debugPrint(
+          '  - Files in Storage but not in Firestore: ${missingInFirestore.length}',
+        );
+        for (final fileName in missingInFirestore.take(3)) {
+          debugPrint('    - Missing: $fileName');
+        }
+      }
+
+      if (missingInStorage.isNotEmpty) {
+        debugPrint(
+          '  - Files in Firestore but not in Storage: ${missingInStorage.length}',
+        );
+        for (final fileName in missingInStorage.take(3)) {
+          debugPrint('    - Missing: $fileName');
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Storage consistency check failed: $e');
     }
   }
 
@@ -121,7 +190,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   Widget build(BuildContext context) {
     return Consumer2<DocumentProvider, FileSelectionProvider>(
       builder: (context, documentProvider, selectionProvider, child) {
-        // COMPREHENSIVE FIX: Get recent files with multiple data sources for true consistency
+        // ENHANCED DEBUG: Get recent files with comprehensive logging and validation
 
         // 1. Get recent documents from Firestore (existing approach)
         final firestoreRecent = documentProvider.getRecentDocuments(limit: 100);
@@ -148,10 +217,25 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         final recentDocuments = recentMap.values.toList()
           ..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
 
-        // Debug logging to track data consistency
-        if (recentDocuments.length != firestoreRecent.length) {
+        // ENHANCED DEBUG LOGGING: Track data consistency and file paths
+        debugPrint('🔍 RECENT FILES DEBUG:');
+        debugPrint('  - Firestore recent: ${firestoreRecent.length} files');
+        debugPrint('  - All documents: ${allDocumentsSorted.length} files');
+        debugPrint('  - Combined recent: ${recentDocuments.length} files');
+
+        if (recentDocuments.isNotEmpty) {
+          debugPrint('  - Latest file: ${recentDocuments.first.fileName}');
+          debugPrint('  - Latest file path: ${recentDocuments.first.filePath}');
           debugPrint(
-            '📊 Recent files: Combined ${recentDocuments.length} vs Firestore ${firestoreRecent.length}',
+            '  - Latest upload time: ${recentDocuments.first.uploadedAt}',
+          );
+        }
+
+        // Log first 5 files for debugging
+        for (int i = 0; i < recentDocuments.take(5).length; i++) {
+          final doc = recentDocuments[i];
+          debugPrint(
+            '  - File $i: ${doc.fileName} (${doc.filePath}) - ${doc.uploadedAt}',
           );
         }
 
@@ -218,21 +302,44 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                   color: AppColors.textPrimary,
                 ),
               ),
-              if (widget.onFilterTap != null)
-                IconButton(
-                  onPressed: widget.onFilterTap,
-                  icon: const Icon(
-                    Icons.filter_list,
-                    color: AppColors.textSecondary,
-                    size: 20,
+              Row(
+                children: [
+                  // DEBUG: Storage sync button (temporary)
+                  IconButton(
+                    onPressed: () async {
+                      debugPrint('🔧 Manual storage sync triggered');
+                      await _debugStorageConsistency();
+                      await _refreshRecentFilesData();
+                    },
+                    icon: const Icon(
+                      Icons.sync,
+                      color: AppColors.primary,
+                      size: 20,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 24,
+                      minHeight: 24,
+                    ),
+                    tooltip: 'Debug: Sync Storage',
                   ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 24,
-                    minHeight: 24,
-                  ),
-                  tooltip: 'Filter Files',
-                ),
+                  if (widget.onFilterTap != null)
+                    IconButton(
+                      onPressed: widget.onFilterTap,
+                      icon: const Icon(
+                        Icons.filter_list,
+                        color: AppColors.textSecondary,
+                        size: 20,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 24,
+                        minHeight: 24,
+                      ),
+                      tooltip: 'Filter Files',
+                    ),
+                ],
+              ),
             ],
           ),
 
