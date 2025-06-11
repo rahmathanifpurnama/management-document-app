@@ -97,17 +97,8 @@ export const onDocumentCreate = functions.firestore
     const document = snap.data();
     const documentId = context.params.documentId;
 
-    // Log activity
-    await admin
-      .firestore()
-      .collection("activities")
-      .add({
-        type: "document_created",
-        documentId: documentId,
-        userId: document.uploadedBy,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        details: `Document ${document.fileName} uploaded`,
-      });
+    // Document created - no activity logging needed
+    console.log(`Document created: ${documentId} - ${document.fileName}`);
   });
 
 export const onUserCreate = functions.firestore
@@ -116,17 +107,8 @@ export const onUserCreate = functions.firestore
     const user = snap.data();
     const userId = context.params.userId;
 
-    // Log activity
-    await admin
-      .firestore()
-      .collection("activities")
-      .add({
-        type: "user_created",
-        userId: userId,
-        createdBy: user.createdBy,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        details: `User ${user.fullName} created`,
-      });
+    // User created - no activity logging needed
+    console.log(`User created: ${userId} - ${user.fullName}`);
   });
 
 // Storage Triggers

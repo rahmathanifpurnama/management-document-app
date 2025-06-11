@@ -355,7 +355,7 @@ const processFileUpload = functions.https.onCall(
         thumbnailUrl,
         uploadedBy,
         uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
-        category: categoryId || "uncategorized",
+        category: categoryId || "",
         status: "active", // Changed from "pending" to "active"
         metadata: {
           ...extractedMetadata,
@@ -725,7 +725,7 @@ async function searchFileInStorage(fileName: string): Promise<string | null> {
     const searchPaths = [
       "documents/",
       "documents/categories/",
-      "documents/uncategorized/",
+
       "uploads/",
       "files/",
     ];

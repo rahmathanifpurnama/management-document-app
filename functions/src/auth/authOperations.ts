@@ -85,34 +85,15 @@ async function updateLastLogin(userId: string): Promise<void> {
 }
 
 /**
- * Log user login activity
+ * Log user login activity - REMOVED
+ * Activity logging has been disabled
  */
 async function logLoginActivity(
   userId: string,
-  deviceInfo?: any
+  _deviceInfo?: any
 ): Promise<void> {
-  try {
-    const activity = {
-      userId,
-      action: "login",
-      resource: "System Login",
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      details: {
-        userAgent: deviceInfo?.userAgent || "Flutter App",
-        platform: deviceInfo?.platform || "Mobile",
-        deviceId: deviceInfo?.deviceId || "unknown",
-        appVersion: deviceInfo?.appVersion || "unknown",
-        loginMethod: "email_password",
-      },
-    };
-
-    await db.collection("activities").add(activity);
-
-    logger.info(`Logged login activity for user: ${userId}`);
-  } catch (error) {
-    logger.error(`Failed to log activity for user ${userId}:`, error);
-    // Don't throw - this is non-critical
-  }
+  // Activity logging removed - no longer needed
+  logger.info(`Login activity for user: ${userId} (logging disabled)`);
 }
 
 /**
@@ -193,34 +174,15 @@ export const handleLogoutOperations = functions.https.onCall(
 );
 
 /**
- * Log user logout activity
+ * Log user logout activity - REMOVED
+ * Activity logging has been disabled
  */
 async function logLogoutActivity(
   userId: string,
-  deviceInfo?: any
+  _deviceInfo?: any
 ): Promise<void> {
-  try {
-    const activity = {
-      userId,
-      action: "logout",
-      resource: "System Logout",
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      details: {
-        userAgent: deviceInfo?.userAgent || "Flutter App",
-        platform: deviceInfo?.platform || "Mobile",
-        deviceId: deviceInfo?.deviceId || "unknown",
-        appVersion: deviceInfo?.appVersion || "unknown",
-        logoutMethod: "manual",
-      },
-    };
-
-    await db.collection("activities").add(activity);
-
-    logger.info(`Logged logout activity for user: ${userId}`);
-  } catch (error) {
-    logger.error(`Failed to log logout activity for user ${userId}:`, error);
-    // Don't throw - this is non-critical
-  }
+  // Activity logging removed - no longer needed
+  logger.info(`Logout activity for user: ${userId} (logging disabled)`);
 }
 
 /**

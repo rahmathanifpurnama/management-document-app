@@ -299,7 +299,7 @@ const processFileUpload = functions.https.onCall(async (data, context) => {
             thumbnailUrl,
             uploadedBy,
             uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
-            category: categoryId || "uncategorized",
+            category: categoryId || "",
             status: "active", // Changed from "pending" to "active"
             metadata: Object.assign(Object.assign({}, extractedMetadata), { originalMetadata: metadata, fileHash: fileHash, securityChecks: {
                     fileNameSanitized: originalFileName !== sanitizedFileName,
@@ -586,7 +586,6 @@ async function searchFileInStorage(fileName) {
         const searchPaths = [
             "documents/",
             "documents/categories/",
-            "documents/uncategorized/",
             "uploads/",
             "files/",
         ];

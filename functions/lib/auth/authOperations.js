@@ -101,30 +101,12 @@ async function updateLastLogin(userId) {
     }
 }
 /**
- * Log user login activity
+ * Log user login activity - REMOVED
+ * Activity logging has been disabled
  */
-async function logLoginActivity(userId, deviceInfo) {
-    try {
-        const activity = {
-            userId,
-            action: "login",
-            resource: "System Login",
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: {
-                userAgent: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.userAgent) || "Flutter App",
-                platform: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.platform) || "Mobile",
-                deviceId: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.deviceId) || "unknown",
-                appVersion: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.appVersion) || "unknown",
-                loginMethod: "email_password",
-            },
-        };
-        await db.collection("activities").add(activity);
-        firebase_functions_1.logger.info(`Logged login activity for user: ${userId}`);
-    }
-    catch (error) {
-        firebase_functions_1.logger.error(`Failed to log activity for user ${userId}:`, error);
-        // Don't throw - this is non-critical
-    }
+async function logLoginActivity(userId, _deviceInfo) {
+    // Activity logging removed - no longer needed
+    firebase_functions_1.logger.info(`Login activity for user: ${userId} (logging disabled)`);
 }
 /**
  * Update user statistics
@@ -184,30 +166,12 @@ exports.handleLogoutOperations = functions.https.onCall(async (data, context) =>
     }
 });
 /**
- * Log user logout activity
+ * Log user logout activity - REMOVED
+ * Activity logging has been disabled
  */
-async function logLogoutActivity(userId, deviceInfo) {
-    try {
-        const activity = {
-            userId,
-            action: "logout",
-            resource: "System Logout",
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: {
-                userAgent: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.userAgent) || "Flutter App",
-                platform: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.platform) || "Mobile",
-                deviceId: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.deviceId) || "unknown",
-                appVersion: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.appVersion) || "unknown",
-                logoutMethod: "manual",
-            },
-        };
-        await db.collection("activities").add(activity);
-        firebase_functions_1.logger.info(`Logged logout activity for user: ${userId}`);
-    }
-    catch (error) {
-        firebase_functions_1.logger.error(`Failed to log logout activity for user ${userId}:`, error);
-        // Don't throw - this is non-critical
-    }
+async function logLogoutActivity(userId, _deviceInfo) {
+    // Activity logging removed - no longer needed
+    firebase_functions_1.logger.info(`Logout activity for user: ${userId} (logging disabled)`);
 }
 /**
  * Cloud Function to validate user session

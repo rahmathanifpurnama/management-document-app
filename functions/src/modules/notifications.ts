@@ -135,23 +135,7 @@ const processActivityLog = functions.https.onCall(
     try {
       const { type, userId, details, metadata } = data;
 
-      // Create activity log entry
-      const activityId = admin.firestore().collection("activities").doc().id;
-      const activity = {
-        id: activityId,
-        type,
-        userId,
-        details,
-        metadata: metadata || {},
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        createdBy: context.auth.uid,
-      };
-
-      await admin
-        .firestore()
-        .collection("activities")
-        .doc(activityId)
-        .set(activity);
+      // Activity logging removed - no longer needed
 
       // Determine if notifications should be sent based on activity type
       const notificationConfig = getNotificationConfig(type);
@@ -169,7 +153,6 @@ const processActivityLog = functions.https.onCall(
               message: notificationConfig.getMessage(details, metadata),
               type: notificationConfig.type,
               data: {
-                activityId,
                 activityType: type,
                 ...metadata,
               },
@@ -182,7 +165,6 @@ const processActivityLog = functions.https.onCall(
 
       return {
         success: true,
-        activityId,
         notificationsSent: notificationConfig.shouldNotify,
       };
     } catch (error) {
