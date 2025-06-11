@@ -63,57 +63,80 @@ async function seedActivities() {
       }
     });
 
-    // Create document-related activities
-    documents.forEach(document => {
-      // Upload activity
-      sampleActivities.push({
-        userId: document.uploadedBy,
-        action: "upload",
-        resource: `Document: ${document.fileName}`,
-        timestamp: document.uploadedAt,
-        details: {
-          userAgent: "Flutter App",
-          platform: "Mobile",
-          fileSize: document.fileSize,
-          fileType: document.fileType,
-          category: document.category
+    // Create document-related activities (only if documents exist)
+    if (documents.length > 0) {
+      documents.forEach(document => {
+        // Upload activity
+        sampleActivities.push({
+          userId: document.uploadedBy,
+          action: "upload",
+          resource: `Document: ${document.fileName}`,
+          timestamp: document.uploadedAt,
+          details: {
+            userAgent: "Flutter App",
+            platform: "Mobile",
+            fileSize: document.fileSize,
+            fileType: document.fileType,
+            category: document.category || "uncategorized"
+          }
+        });
+
+        // Some download activities from different users
+        const randomUsers = users.filter(u => u.id !== document.uploadedBy);
+        const downloadCount = Math.floor(Math.random() * 3);
+
+        for (let i = 0; i < downloadCount; i++) {
+          const randomUser = randomUsers[Math.floor(Math.random() * randomUsers.length)];
+          if (randomUser) {
+            sampleActivities.push({
+              userId: randomUser.id,
+              action: "download",
+              resource: `Document: ${document.fileName}`,
+              timestamp: admin.firestore.Timestamp.fromDate(
+                new Date(document.uploadedAt.toDate().getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000)
+              ),
+              details: {
+                userAgent: "Flutter App",
+                platform: "Mobile",
+                documentId: document.id,
+                fileSize: document.fileSize
+              }
+            });
+          }
         }
       });
+    } else {
+      console.log("⚠️ No documents found. Skipping document-related activities.");
 
-      // Some download activities from different users
-      const randomUsers = users.filter(u => u.id !== document.uploadedBy);
-      const downloadCount = Math.floor(Math.random() * 3);
-      
-      for (let i = 0; i < downloadCount; i++) {
-        const randomUser = randomUsers[Math.floor(Math.random() * randomUsers.length)];
-        if (randomUser) {
-          sampleActivities.push({
-            userId: randomUser.id,
-            action: "download",
-            resource: `Document: ${document.fileName}`,
-            timestamp: admin.firestore.Timestamp.fromDate(
-              new Date(document.uploadedAt.toDate().getTime() + Math.random() * 7 * 24 * 60 * 60 * 1000)
-            ),
-            details: {
-              userAgent: "Flutter App",
-              platform: "Mobile",
-              documentId: document.id,
-              fileSize: document.fileSize
-            }
-          });
+      // Add some basic system activities when no documents exist
+      const systemActivities = [
+        {
+          userId: users[0]?.id || "system",
+          action: "system_init",
+          resource: "System Initialization",
+          timestamp: admin.firestore.Timestamp.fromDate(
+            new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000)
+          ),
+          details: {
+            userAgent: "System",
+            platform: "Server",
+            message: "System initialized successfully"
+          }
         }
-      }
-    });
+      ];
+
+      sampleActivities.push(...systemActivities);
+    }
 
     // Create user management activities (admin actions)
     const adminUsers = users.filter(u => u.role === 'admin');
     if (adminUsers.length > 0) {
-      const admin = adminUsers[0];
-      
+      const adminUser = adminUsers[0];
+
       // Some user creation activities
       users.slice(1, 3).forEach(user => {
         sampleActivities.push({
-          userId: admin.id,
+          userId: adminUser.id,
           action: "create_user",
           resource: `User: ${user.fullName}`,
           timestamp: admin.firestore.Timestamp.fromDate(
@@ -132,7 +155,7 @@ async function seedActivities() {
       // Some user update activities
       users.slice(0, 2).forEach(user => {
         sampleActivities.push({
-          userId: admin.id,
+          userId: adminUser.id,
           action: "update_user",
           resource: `User: ${user.fullName}`,
           timestamp: admin.firestore.Timestamp.fromDate(
@@ -150,6 +173,12 @@ async function seedActivities() {
 
     // Sort activities by timestamp (newest first)
     sampleActivities.sort((a, b) => b.timestamp.toDate() - a.timestamp.toDate());
+
+    // Check if we have activities to seed
+    if (sampleActivities.length === 0) {
+      console.log("⚠️ No activities to seed. This is normal if no users or documents exist.");
+      return;
+    }
 
     // Batch write activities
     const batchSize = 500;

@@ -1,11 +1,34 @@
 const admin = require('firebase-admin');
-const serviceAccount = require('./credentials.json');
+const path = require('path');
+const fs = require('fs');
+
+// Try to load service account key file
+let serviceAccount = null;
+const serviceAccountPath = path.join(__dirname, 'service-account-key.json');
+
+if (fs.existsSync(serviceAccountPath)) {
+  console.log('🔑 Using service account key file for authentication');
+  serviceAccount = require(serviceAccountPath);
+} else {
+  console.log('⚠️  Service account key file not found. Using default credentials.');
+  console.log('📝 To fix authentication issues:');
+  console.log('   1. Download service account key from Firebase Console');
+  console.log('   2. Save it as "service-account-key.json" in this folder');
+  console.log('   3. Re-run the seeder');
+}
 
 // Initialize Firebase Admin SDK
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: `https://${serviceAccount.project_id}-default-rtdb.firebaseio.com`
-});
+const initConfig = {
+  projectId: 'document-management-c5a96',
+  databaseURL: 'https://document-management-c5a96-default-rtdb.firebaseio.com',
+  storageBucket: 'document-management-c5a96.appspot.com'
+};
+
+if (serviceAccount) {
+  initConfig.credential = admin.credential.cert(serviceAccount);
+}
+
+admin.initializeApp(initConfig);
 
 const db = admin.firestore();
 const auth = admin.auth();

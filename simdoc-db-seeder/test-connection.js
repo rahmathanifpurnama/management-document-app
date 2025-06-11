@@ -49,11 +49,17 @@ async function testConnection() {
     console.error('❌ Connection test failed!');
     console.error('Error details:', error.message);
     
-    if (error.code === 'ENOENT' && error.path && error.path.includes('credentials.json')) {
+    if (error.code === 'ENOENT' && error.path && (error.path.includes('credentials.json') || error.path.includes('service-account-key.json'))) {
       console.log('\n💡 Solution:');
       console.log('1. Download Firebase service account key from Firebase Console');
-      console.log('2. Rename it to "credentials.json"');
+      console.log('2. Rename it to "service-account-key.json"');
       console.log('3. Place it in this folder');
+      console.log('4. Run: node setup-auth.bat (Windows) for guided setup');
+    } else if (error.message.includes('metadata.google.internal') || error.message.includes('Could not load the default credentials')) {
+      console.log('\n💡 Solution:');
+      console.log('1. Download Firebase service account key from Firebase Console');
+      console.log('2. Save it as "service-account-key.json" in this folder');
+      console.log('3. Run: node setup-auth.bat (Windows) for guided setup');
     } else if (error.message.includes('project')) {
       console.log('\n💡 Solution:');
       console.log('1. Check if the project ID in credentials.json is correct');
