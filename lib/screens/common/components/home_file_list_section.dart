@@ -3,8 +3,12 @@ part of '../home_screen.dart';
 /// Stateful widget for file list display with integrated operations
 /// Consolidates file operations and API calls for better maintainability
 ///
-/// FIXED: Recent files now display actual recent uploads instead of filtered documents
-/// This ensures consistency with storage section behavior while maintaining ANR optimizations
+/// COMPREHENSIVE FIX: Recent files now display actual recent uploads with multiple data sources
+/// - Uses both Firestore recent documents and all documents sorted by time
+/// - Combines and deduplicates data sources for maximum consistency
+/// - Prioritizes time-based sorting as primary filter
+/// - Forces refresh on initialization for immediate storage consistency
+/// - Maintains ANR optimizations while ensuring complete data coverage
 class HomeFileListSection extends StatefulWidget {
   final String searchQuery;
   final Function(DocumentModel)? onDocumentTap;
@@ -62,14 +66,34 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     // Start with full opacity
     _fadeController.forward();
 
-    // Reset page when search query changes
+    // Reset page when search query changes and refresh recent files
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         setState(() {
           _currentPage = 0;
         });
+
+        // Force refresh recent files data for immediate consistency
+        _refreshRecentFilesData();
       }
     });
+  }
+
+  /// Force refresh recent files data for consistency with storage sections
+  Future<void> _refreshRecentFilesData() async {
+    try {
+      final documentProvider = Provider.of<DocumentProvider>(
+        context,
+        listen: false,
+      );
+
+      // Use the new refreshRecentFiles method for immediate updates
+      await documentProvider.refreshRecentFiles();
+
+      debugPrint('✅ Home screen: Recent files data refreshed');
+    } catch (e) {
+      debugPrint('⚠️ Home screen: Failed to refresh recent files: $e');
+    }
   }
 
   @override
@@ -97,11 +121,39 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   Widget build(BuildContext context) {
     return Consumer2<DocumentProvider, FileSelectionProvider>(
       builder: (context, documentProvider, selectionProvider, child) {
-        // FIXED: Use actual recent files instead of filtered documents
-        // Recent files should show the most recently uploaded files regardless of filters
-        final recentDocuments = documentProvider.getRecentDocuments(
-          limit: 50,
-        ); // Get more recent files for pagination
+        // COMPREHENSIVE FIX: Get recent files with multiple data sources for true consistency
+
+        // 1. Get recent documents from Firestore (existing approach)
+        final firestoreRecent = documentProvider.getRecentDocuments(limit: 100);
+
+        // 2. Get all documents and sort by upload time (backup approach)
+        final allDocumentsSorted = List<DocumentModel>.from(
+          documentProvider.allDocuments,
+        )..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
+
+        // 3. Combine and deduplicate, prioritizing by upload time
+        final Map<String, DocumentModel> recentMap = {};
+
+        // Add all documents sorted by time first (most comprehensive)
+        for (final doc in allDocumentsSorted.take(50)) {
+          recentMap[doc.id] = doc;
+        }
+
+        // Overlay with Firestore recent (ensures latest sync data)
+        for (final doc in firestoreRecent) {
+          recentMap[doc.id] = doc;
+        }
+
+        // Convert back to list and ensure proper time-based sorting
+        final recentDocuments = recentMap.values.toList()
+          ..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
+
+        // Debug logging to track data consistency
+        if (recentDocuments.length != firestoreRecent.length) {
+          debugPrint(
+            '📊 Recent files: Combined ${recentDocuments.length} vs Firestore ${firestoreRecent.length}',
+          );
+        }
 
         // Apply search filter to recent files if search is active
         final displayDocuments = widget.searchQuery.isNotEmpty

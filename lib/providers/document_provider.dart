@@ -186,11 +186,17 @@ class DocumentProvider extends ChangeNotifier {
         return;
       }
 
-      // PERFORMANCE FIX: Use pagination for real-time listener to prevent ANR
+      // ENHANCED FIX: Use larger limit for recent files consistency
+      // Recent files need more comprehensive data than the default page size
+      final listenerLimit =
+          ANRConfig.maxItemsPerPage * 2; // Double the limit for recent files
+
       _documentsSubscription = _firebaseService.documentsCollection
           .where('isActive', isEqualTo: true) // Only get active documents
           .orderBy('uploadedAt', descending: true)
-          .limit(ANRConfig.defaultPageSize) // Limit real-time updates
+          .limit(
+            listenerLimit,
+          ) // Increased limit for better recent files coverage
           .snapshots()
           .listen(
             (snapshot) {
@@ -203,7 +209,9 @@ class DocumentProvider extends ChangeNotifier {
             },
           );
 
-      debugPrint('✅ Firebase real-time listener started for documents');
+      debugPrint(
+        '✅ Firebase real-time listener started for documents (limit: $listenerLimit)',
+      );
     } catch (e) {
       debugPrint('Failed to start Firebase listener: $e');
       // Continue with local data if Firebase setup fails
@@ -1174,17 +1182,76 @@ class DocumentProvider extends ChangeNotifier {
         .toList();
   }
 
-  // Get recent documents - FIXED: Use unfiltered documents for true recent files
+  // Get recent documents - ENHANCED: Use unfiltered documents with comprehensive data
   List<DocumentModel> getRecentDocuments({int limit = 10}) {
     // Use _documents (unfiltered) instead of _filteredDocuments to get true recent files
     List<DocumentModel> sortedDocs = List.from(_documents);
     sortedDocs.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
 
-    // Apply ANR-safe limit to prevent performance issues
-    final safeLimit = limit > ANRConfig.maxItemsPerPage
-        ? ANRConfig.maxItemsPerPage
+    // Apply ANR-safe limit but allow larger limits for recent files display
+    final safeLimit = limit > (ANRConfig.maxItemsPerPage * 2)
+        ? (ANRConfig.maxItemsPerPage * 2)
         : limit;
-    return sortedDocs.take(safeLimit).toList();
+
+    final recentDocs = sortedDocs.take(safeLimit).toList();
+
+    // Debug logging for recent files tracking
+    if (recentDocs.isNotEmpty) {
+      debugPrint(
+        '📊 Recent documents: ${recentDocs.length} files, newest: ${recentDocs.first.fileName} (${recentDocs.first.uploadedAt})',
+      );
+    }
+
+    return recentDocs;
+  }
+
+  // Force refresh recent files data - NEW METHOD for immediate updates
+  Future<void> refreshRecentFiles() async {
+    try {
+      debugPrint('🔄 Force refreshing recent files data...');
+
+      // Get fresh data from Firebase with focus on recent documents
+      final recentFromFirebase = await _documentService.getRecentDocuments(
+        limit: ANRConfig.maxItemsPerPage * 2,
+      );
+
+      if (recentFromFirebase.isNotEmpty) {
+        // Merge recent documents with existing data
+        final Map<String, DocumentModel> mergedDocs = {};
+
+        // Add existing documents
+        for (final doc in _documents) {
+          mergedDocs[doc.id] = doc;
+        }
+
+        // Overlay with fresh recent documents (prioritize latest data)
+        for (final doc in recentFromFirebase) {
+          mergedDocs[doc.id] = doc;
+        }
+
+        // Update main documents list
+        _documents = mergedDocs.values.toList();
+
+        // Rebuild category storage from updated documents
+        _categoryDocuments.clear();
+        for (final doc in _documents) {
+          final category = doc.category;
+          if (!_categoryDocuments.containsKey(category)) {
+            _categoryDocuments[category] = [];
+          }
+          _categoryDocuments[category]!.add(doc);
+        }
+
+        // Apply filters and notify
+        _applyFiltersAndSort();
+
+        debugPrint(
+          '✅ Recent files refreshed: ${recentFromFirebase.length} fresh documents',
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to refresh recent files: $e');
+    }
   }
 
   // Status count methods removed since status management is removed
