@@ -116,6 +116,22 @@ class DocumentService {
     }
   }
 
+  // CRITICAL FIX: Add document without activity logging (for sync operations)
+  Future<String> addDocumentSilent(DocumentModel document) async {
+    try {
+      DocumentReference docRef = await _firebaseService.documentsCollection.add(
+        document.toMap(),
+      );
+
+      debugPrint(
+        '✅ Document added silently (no activity log): ${document.fileName}',
+      );
+      return docRef.id;
+    } catch (e) {
+      throw Exception('Failed to add document silently: ${e.toString()}');
+    }
+  }
+
   // Update document
   Future<void> updateDocument(DocumentModel document) async {
     try {

@@ -323,9 +323,9 @@ class OptimizedFirebaseStorageSyncService {
         ),
       );
 
-      // Save to Firestore with timeout
+      // CRITICAL FIX: Save to Firestore silently (no activity logging) with timeout
       await _documentService
-          .addDocument(document)
+          .addDocumentSilent(document)
           .timeout(
             const Duration(seconds: 10),
             onTimeout: () => throw TimeoutException(

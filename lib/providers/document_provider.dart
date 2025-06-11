@@ -14,6 +14,7 @@ import '../services/file_category_management_service.dart';
 import '../services/cloud_functions_service.dart';
 import '../core/utils/anr_prevention.dart';
 import '../core/config/anr_config.dart';
+import '../config/firebase_config.dart';
 import 'category_provider.dart';
 
 class DocumentProvider extends ChangeNotifier {
@@ -60,7 +61,7 @@ class DocumentProvider extends ChangeNotifier {
   bool get sortAscending => _sortAscending;
   bool get isFirebaseSyncActive => _documentsSubscription != null;
 
-  // Load documents with Firebase real-time sync
+  // Load documents with Firebase real-time sync - FIXED: Prevent excessive operations
   Future<void> loadDocuments() async {
     // Prevent concurrent loading operations
     if (_isLoadingDocuments) {
@@ -75,50 +76,31 @@ class DocumentProvider extends ChangeNotifier {
     try {
       debugPrint('🔄 Starting document loading process...');
 
-      // First try to sync Firebase Storage with Firestore and load documents
+      // CRITICAL FIX: Skip automatic sync during regular loading to prevent document creation
       bool firebaseDataLoaded = false;
-      if (_useFirebaseSync) {
+      if (_useFirebaseSync && FirebaseConfig.shouldEnableStorageSync) {
         try {
           debugPrint('🔄 Starting Firebase Storage sync...');
 
-          // Perform comprehensive sync with timeout to prevent ANR
-          final syncedDocuments = await ANRPrevention.executeNetworkOperation(
-            _optimizedSyncService.syncStorageWithFirestoreOptimized(),
-            operationName: 'Optimized Firebase Storage Sync',
+          // FIXED: Use direct document service instead of sync service to prevent new document creation
+          final firebaseDocuments = await ANRPrevention.executeNetworkOperation(
+            _documentService.getAllDocuments(),
+            operationName: 'Direct Firestore Document Load',
           );
 
-          if (syncedDocuments != null && syncedDocuments.isNotEmpty) {
+          if (firebaseDocuments != null && firebaseDocuments.isNotEmpty) {
             debugPrint(
-              '📥 Loading ${syncedDocuments.length} synced documents from Firebase',
+              '📥 Loading ${firebaseDocuments.length} documents from Firebase service',
             );
-            _handleFirebaseDocumentModels(syncedDocuments);
+            _handleFirebaseDocumentModels(firebaseDocuments);
             firebaseDataLoaded = true;
             _isInitialized = true;
-            // Save synced data to local storage for offline access
             await _saveToStorage();
             // Notify listeners immediately after loading
             notifyListeners();
-          } else {
-            // Fallback to regular Firestore query if sync returns empty
-            final firebaseDocuments =
-                await ANRPrevention.executeNetworkOperation(
-                  _documentService.getAllDocuments(),
-                  operationName: 'Firestore Document Load',
-                );
-            if (firebaseDocuments != null && firebaseDocuments.isNotEmpty) {
-              debugPrint(
-                '📥 Loading ${firebaseDocuments.length} documents from Firebase service',
-              );
-              _handleFirebaseDocumentModels(firebaseDocuments);
-              firebaseDataLoaded = true;
-              _isInitialized = true;
-              await _saveToStorage();
-              // Notify listeners immediately after loading
-              notifyListeners();
-            }
           }
         } catch (firebaseError) {
-          debugPrint('Firebase sync/load error: $firebaseError');
+          debugPrint('Firebase load error: $firebaseError');
           // Continue to try local storage if Firebase fails
         }
       }
@@ -1222,9 +1204,22 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  // Refresh documents
+  // CRITICAL FIX: Optimized refresh that prevents excessive operations
   Future<void> refreshDocuments() async {
+    // Prevent concurrent refresh operations
+    if (_isLoadingDocuments) {
+      debugPrint('⚠️ Document refresh already in progress, skipping...');
+      return;
+    }
+
+    debugPrint(
+      '🔄 Starting optimized document refresh (no sync operations)...',
+    );
+
+    // FIXED: Use direct document loading without sync operations
     await loadDocuments();
+
+    debugPrint('✅ Optimized document refresh completed');
   }
 
   // Force refresh with Firebase Storage sync

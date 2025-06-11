@@ -62,14 +62,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _searchController.text = documentProvider.searchQuery;
     });
 
-    // Initialize real-time sync service only if enabled
+    // CRITICAL FIX: Disable real-time sync service to prevent duplicate listeners
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (FirebaseConfig.shouldEnableRealtimeSync) {
-        RealtimeSyncService.instance.initialize(context);
-        RealtimeSyncService.instance.startDocumentSync();
-      } else {
-        debugPrint('Real-time sync disabled in FirebaseConfig');
-      }
+      debugPrint(
+        '⚠️ Real-time sync service disabled to prevent duplicate listeners and excessive operations',
+      );
+      // DISABLED: Real-time sync was causing duplicate listeners and excessive Firestore operations
+      // if (FirebaseConfig.shouldEnableRealtimeSync) {
+      //   RealtimeSyncService.instance.initialize(context);
+      //   RealtimeSyncService.instance.startDocumentSync();
+      // } else {
+      //   debugPrint('Real-time sync disabled in FirebaseConfig');
+      // }
     });
   }
 
@@ -94,6 +98,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _startAutoRefresh() {
+    // CRITICAL FIX: Disable auto-refresh to prevent excessive background operations
+    debugPrint(
+      '⚠️ Auto-refresh disabled to prevent excessive Firestore operations',
+    );
+    return;
+
+    // DISABLED: Auto-refresh was causing excessive document creation
     // Only start auto-refresh if enabled in config
     if (!FirebaseConfig.shouldAutoRefresh) {
       debugPrint('Auto-refresh disabled in FirebaseConfig');

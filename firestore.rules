@@ -28,49 +28,58 @@ service cloud.firestore {
     
     // Documents collection with optimized queries and pagination
     match /documents/{documentId} {
-      // Allow read for authenticated users with pagination limits
-      allow read: if isAuthenticated()
+      // Allow single document read for authenticated users
+      allow get: if isAuthenticated();
+
+      // Allow collection queries for authenticated users with pagination limits
+      allow list: if isAuthenticated()
         && request.query.limit <= 25;
-      
+
       // Allow write for document owner
       allow write: if isAuthenticated()
         && request.auth.uid == resource.data.uploadedBy;
-      
+
       // Allow create for authenticated users
       allow create: if isAuthenticated()
         && request.auth.uid == request.resource.data.uploadedBy
         && request.resource.data.keys().hasAll(['fileName', 'uploadedAt', 'isActive']);
-      
+
       // Optimized batch operations with strict limits
-      allow read: if isAuthenticated()
+      allow list: if isAuthenticated()
         && request.query.limit <= 10
         && 'isActive' in request.query.where
         && request.query.where.isActive == true;
-      
+
       // Allow admin to delete documents
       allow delete: if isAdmin();
     }
     
     // Categories collection
     match /categories/{categoryId} {
-      // Allow read for authenticated users with pagination
-      allow read: if isAuthenticated()
+      // Allow single document read for authenticated users
+      allow get: if isAuthenticated();
+
+      // Allow collection queries for authenticated users with pagination
+      allow list: if isAuthenticated()
         && request.query.limit <= 50;
-      
+
       // Only admin can write categories
       allow write: if isAdmin();
     }
     
     // Activities collection with time-based cleanup support
     match /activities/{activityId} {
-      // Allow read recent activities only with pagination
-      allow read: if isAuthenticated()
+      // Allow single document read for authenticated users
+      allow get: if isAuthenticated();
+
+      // Allow collection queries for recent activities only with pagination
+      allow list: if isAuthenticated()
         && request.query.limit <= 20
         && request.query.orderBy == 'timestamp';
-      
+
       // Allow create for authenticated users
       allow create: if isAuthenticated();
-      
+
       // Allow admin to delete old activities (for cleanup)
       allow delete: if isAdmin();
     }

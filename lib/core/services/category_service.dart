@@ -20,6 +20,7 @@ class CategoryService {
       final querySnapshot = await _firestore
           .collection(_collection)
           .orderBy('createdAt', descending: true)
+          .limit(50) // Add limit to comply with Firestore security rules
           .get();
 
       return querySnapshot.docs
@@ -35,6 +36,7 @@ class CategoryService {
     return _firestore
         .collection(_collection)
         .orderBy('createdAt', descending: true)
+        .limit(50) // Add limit to comply with Firestore security rules
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
@@ -50,6 +52,7 @@ class CategoryService {
           .collection(_collection)
           .where('isActive', isEqualTo: true)
           .orderBy('createdAt', descending: true)
+          .limit(50) // Add limit to comply with Firestore security rules
           .get();
 
       return querySnapshot.docs
@@ -148,6 +151,7 @@ class CategoryService {
           .orderBy('name')
           .startAt([query])
           .endAt(['$query\uf8ff'])
+          .limit(50) // Add limit to comply with Firestore security rules
           .get();
 
       return querySnapshot.docs
@@ -166,6 +170,7 @@ class CategoryService {
           .where('isActive', isEqualTo: true)
           .where('permissions', arrayContains: userId)
           .orderBy('createdAt', descending: true)
+          .limit(50) // Add limit to comply with Firestore security rules
           .get();
 
       return querySnapshot.docs
@@ -195,7 +200,10 @@ class CategoryService {
   // Get categories count
   Future<int> getCategoriesCount() async {
     try {
-      final querySnapshot = await _firestore.collection(_collection).get();
+      final querySnapshot = await _firestore
+          .collection(_collection)
+          .limit(50) // Add limit to comply with Firestore security rules
+          .get();
       return querySnapshot.docs.length;
     } catch (e) {
       throw Exception('Failed to get categories count: $e');
@@ -208,6 +216,7 @@ class CategoryService {
       final querySnapshot = await _firestore
           .collection(_collection)
           .where('isActive', isEqualTo: true)
+          .limit(50) // Add limit to comply with Firestore security rules
           .get();
       return querySnapshot.docs.length;
     } catch (e) {

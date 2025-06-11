@@ -12,11 +12,11 @@ class FirebaseConfig {
     seconds: 2,
   ); // Increased from 500ms
 
-  // Sync settings
+  // Sync settings - CRITICAL FIX: Disable automatic sync during refresh
   static const bool enableRealtimeSync =
-      true; // Set to false to disable real-time sync
+      false; // DISABLED: Prevents duplicate listeners and excessive operations
   static const bool enableStorageSync =
-      true; // Set to false to disable storage sync
+      false; // DISABLED: Prevents automatic document creation during refresh
 
   // Logging settings
   static const bool enableVerboseLogging =
