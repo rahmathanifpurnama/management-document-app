@@ -166,6 +166,11 @@ class DocumentProvider extends ChangeNotifier {
         _startFirebaseListener();
       }
 
+      // Run duplicate cleanup after initial load
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await cleanupDuplicateDocuments();
+      });
+
       _applyFiltersAndSort();
     } catch (e) {
       _setError(e.toString());
@@ -346,16 +351,31 @@ class DocumentProvider extends ChangeNotifier {
 
   // Helper method to add document to local storage
   void _addDocumentToLocal(DocumentModel document) {
-    // Check if document already exists to prevent duplicates
-    if (_documents.any((doc) => doc.id == document.id)) {
+    // ENHANCED DUPLICATE PREVENTION: Check by ID, file path, and file name
+    final isDuplicateById = _documents.any((doc) => doc.id == document.id);
+    final isDuplicateByPath = _documents.any(
+      (doc) => doc.filePath == document.filePath,
+    );
+    final isDuplicateByNameAndSize = _documents.any(
+      (doc) =>
+          doc.fileName == document.fileName &&
+          doc.fileSize == document.fileSize &&
+          doc.uploadedAt.difference(document.uploadedAt).abs().inMinutes < 5,
+    );
+
+    if (isDuplicateById || isDuplicateByPath || isDuplicateByNameAndSize) {
       debugPrint(
-        '⚠️ Skipping duplicate document: ${document.fileName} (ID: ${document.id})',
+        '⚠️ DUPLICATE DETECTED - Skipping: ${document.fileName} (ID: ${document.id}, Path: ${document.filePath})',
+      );
+      debugPrint(
+        '   Duplicate reasons: ID=$isDuplicateById, Path=$isDuplicateByPath, Name+Size=$isDuplicateByNameAndSize',
       );
       return;
     }
 
     // Add to main documents list
     _documents.add(document);
+    debugPrint('✅ Added document: ${document.fileName} (ID: ${document.id})');
 
     // Add to category storage
     if (!_categoryDocuments.containsKey(document.category)) {
@@ -1325,6 +1345,70 @@ class DocumentProvider extends ChangeNotifier {
   void forceRefresh() {
     _applyFiltersAndSort();
     notifyListeners();
+  }
+
+  // Clean up existing duplicate documents
+  Future<void> cleanupDuplicateDocuments() async {
+    try {
+      debugPrint('🧹 Starting duplicate document cleanup...');
+
+      final Map<String, DocumentModel> uniqueDocuments = {};
+      final List<DocumentModel> duplicatesToRemove = [];
+
+      // Group documents by file path (most reliable identifier)
+      for (final doc in _documents) {
+        final key = '${doc.filePath}_${doc.fileName}_${doc.fileSize}';
+
+        if (uniqueDocuments.containsKey(key)) {
+          // Keep the one with the most recent upload time
+          final existing = uniqueDocuments[key]!;
+          if (doc.uploadedAt.isAfter(existing.uploadedAt)) {
+            duplicatesToRemove.add(existing);
+            uniqueDocuments[key] = doc;
+          } else {
+            duplicatesToRemove.add(doc);
+          }
+        } else {
+          uniqueDocuments[key] = doc;
+        }
+      }
+
+      if (duplicatesToRemove.isNotEmpty) {
+        debugPrint(
+          '🧹 Found ${duplicatesToRemove.length} duplicate documents to remove',
+        );
+
+        // Remove duplicates from main list
+        for (final duplicate in duplicatesToRemove) {
+          _documents.removeWhere((doc) => doc.id == duplicate.id);
+          debugPrint(
+            '🗑️ Removed duplicate: ${duplicate.fileName} (ID: ${duplicate.id})',
+          );
+        }
+
+        // Rebuild category storage
+        _categoryDocuments.clear();
+        for (final doc in _documents) {
+          final category = doc.category;
+          if (!_categoryDocuments.containsKey(category)) {
+            _categoryDocuments[category] = [];
+          }
+          _categoryDocuments[category]!.add(doc);
+        }
+
+        // Save cleaned data
+        await _saveToStorage();
+        _applyFiltersAndSort();
+
+        debugPrint(
+          '✅ Cleanup complete: Removed ${duplicatesToRemove.length} duplicates, ${_documents.length} unique documents remain',
+        );
+      } else {
+        debugPrint('✅ No duplicates found - data is clean');
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to cleanup duplicates: $e');
+    }
   }
 
   // Manual cleanup removed since status management is removed

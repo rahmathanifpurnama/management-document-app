@@ -293,8 +293,13 @@ class OptimizedFirebaseStorageSyncService {
       final originalName =
           metadata.customMetadata?['originalName'] ?? fileRef.name;
       final uploadedBy = metadata.customMetadata?['uploadedBy'] ?? 'unknown';
-      final categoryId =
-          metadata.customMetadata?['categoryId'] ?? 'uncategorized';
+
+      // FIXED CATEGORY ASSIGNMENT: Determine category based on storage path and metadata
+      final categoryId = _determineCategoryFromPath(
+        fileRef.fullPath,
+        metadata.customMetadata?['categoryId'],
+      );
+
       final fileSize =
           int.tryParse(metadata.customMetadata?['fileSize'] ?? '0') ??
           metadata.size ??
@@ -357,13 +362,60 @@ class OptimizedFirebaseStorageSyncService {
 
   // Single file verification removed for performance optimization
 
+  /// Determine category from file path and metadata
+  String _determineCategoryFromPath(
+    String filePath,
+    String? metadataCategoryId,
+  ) {
+    // If metadata has a valid category ID, use it
+    if (metadataCategoryId != null &&
+        metadataCategoryId.isNotEmpty &&
+        metadataCategoryId != 'uncategorized') {
+      debugPrint(
+        '📁 Using metadata category: $metadataCategoryId for $filePath',
+      );
+      return metadataCategoryId;
+    }
+
+    // Analyze file path to determine category
+    final pathParts = filePath.split('/');
+
+    // Check for category-specific paths
+    if (pathParts.length >= 3 && pathParts[1] == 'categories') {
+      // Path like: documents/categories/categoryId/file.pdf
+      final categoryFromPath = pathParts[2];
+      debugPrint(
+        '📁 Detected category from path: $categoryFromPath for $filePath',
+      );
+      return categoryFromPath;
+    }
+
+    // Check for uncategorized folder
+    if (pathParts.contains('uncategorized')) {
+      debugPrint('📁 File in uncategorized folder: $filePath');
+      return 'uncategorized';
+    }
+
+    // Files directly in documents/ folder should be categorized as 'general' not 'uncategorized'
+    if (pathParts.length >= 2 && pathParts[0] == 'documents') {
+      debugPrint(
+        '📁 File in main documents folder, assigning to general category: $filePath',
+      );
+      return 'general'; // Use 'general' instead of 'uncategorized' for main folder files
+    }
+
+    // Default fallback
+    debugPrint('📁 No specific category detected, using general: $filePath');
+    return 'general';
+  }
+
   /// Generate a unique document ID based on file path hash to prevent duplicates
   String _generateUniqueDocumentId(String filePath, String fileName) {
-    // Use file path hash for uniqueness instead of timestamp
+    // Use file path hash for uniqueness instead of timestamp to prevent duplicates
     final pathHash = filePath.hashCode.abs().toString();
     final cleanName = fileName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return 'sync_${pathHash}_${timestamp}_$cleanName';
+    // Remove timestamp to ensure same file always gets same ID
+    return 'sync_${pathHash}_$cleanName';
   }
 
   // Legacy document ID generation method removed
