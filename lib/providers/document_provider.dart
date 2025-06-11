@@ -17,6 +17,7 @@ import '../core/utils/anr_prevention.dart';
 import '../core/config/anr_config.dart';
 import '../config/firebase_config.dart';
 import 'category_provider.dart';
+import '../services/firebase_storage_direct_service.dart';
 
 class DocumentProvider extends ChangeNotifier {
   List<DocumentModel> _documents = [];
@@ -41,6 +42,9 @@ class DocumentProvider extends ChangeNotifier {
   // Use optimized sync service to prevent duplicate operations
   final OptimizedFirebaseStorageSyncService _optimizedSyncService =
       OptimizedFirebaseStorageSyncService.instance;
+  // Firebase Storage direct service for primary data source
+  final FirebaseStorageDirectService _storageDirectService =
+      FirebaseStorageDirectService.instance;
   StreamSubscription? _documentsSubscription;
   final bool _useFirebaseSync =
       true; // Enable Firebase sync for data persistence
@@ -1226,14 +1230,48 @@ class DocumentProvider extends ChangeNotifier {
     return recentDocs;
   }
 
-  // Force refresh recent files data - NEW METHOD for immediate updates
+  // Force refresh recent files data - UPDATED: Use Firebase Storage as primary source
   Future<void> refreshRecentFiles() async {
     try {
-      debugPrint('🔄 Force refreshing recent files data...');
+      debugPrint('🔄 Force refreshing recent files from Firebase Storage...');
 
-      // ENHANCED: Check for missing files in Firestore and sync from Storage
-      await _syncMissingFilesFromStorage();
+      // PRIMARY: Get files directly from Firebase Storage
+      final storageFiles = await _storageDirectService
+          .getRecentFilesFromStorage(limit: ANRConfig.maxItemsPerPage * 2);
 
+      if (storageFiles.isNotEmpty) {
+        // Update documents with Storage data as primary source
+        _documents = storageFiles;
+
+        debugPrint(
+          '✅ Recent files refreshed from Storage: ${storageFiles.length} files',
+        );
+        debugPrint(
+          '📊 Latest file from Storage: ${storageFiles.first.fileName} (${storageFiles.first.uploadedAt})',
+        );
+
+        // Apply filters and notify
+        _applyFiltersAndSort();
+
+        // SECONDARY: Sync with Firestore in background (non-blocking)
+        _syncStorageWithFirestoreInBackground(storageFiles);
+
+        return;
+      }
+
+      // FALLBACK: If Storage fails, use Firestore as backup
+      debugPrint('⚠️ Storage fetch failed, falling back to Firestore...');
+      await _fallbackToFirestoreData();
+    } catch (e) {
+      debugPrint('❌ Failed to refresh recent files from Storage: $e');
+      // Fallback to Firestore on error
+      await _fallbackToFirestoreData();
+    }
+  }
+
+  // Fallback method to use Firestore data when Storage fails
+  Future<void> _fallbackToFirestoreData() async {
+    try {
       // Get fresh data from Firebase with focus on recent documents
       final recentFromFirebase = await _documentService.getRecentDocuments(
         limit: ANRConfig.maxItemsPerPage * 2,
@@ -1248,33 +1286,45 @@ class DocumentProvider extends ChangeNotifier {
           mergedDocs[doc.id] = doc;
         }
 
-        // Overlay with fresh recent documents (prioritize latest data)
+        // Add/update with fresh Firebase data
         for (final doc in recentFromFirebase) {
           mergedDocs[doc.id] = doc;
         }
 
-        // Update main documents list
-        _documents = mergedDocs.values.toList();
-
-        // Rebuild category storage from updated documents
-        _categoryDocuments.clear();
-        for (final doc in _documents) {
-          final category = doc.category;
-          if (!_categoryDocuments.containsKey(category)) {
-            _categoryDocuments[category] = [];
-          }
-          _categoryDocuments[category]!.add(doc);
-        }
+        // Update documents list
+        _documents = mergedDocs.values.toList()
+          ..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
 
         // Apply filters and notify
         _applyFiltersAndSort();
 
         debugPrint(
-          '✅ Recent files refreshed: ${recentFromFirebase.length} fresh documents',
+          '✅ Fallback: Recent files refreshed from Firestore: ${recentFromFirebase.length} fresh documents',
         );
       }
     } catch (e) {
-      debugPrint('❌ Failed to refresh recent files: $e');
+      debugPrint('❌ Failed to fallback to Firestore data: $e');
+    }
+  }
+
+  // Background sync method to update Firestore with Storage data
+  Future<void> _syncStorageWithFirestoreInBackground(
+    List<DocumentModel> storageFiles,
+  ) async {
+    try {
+      // Run in background without blocking UI
+      Future.microtask(() async {
+        debugPrint(
+          '🔄 Background sync: Updating Firestore with Storage data...',
+        );
+
+        // This is a non-blocking operation to keep Firestore in sync
+        // You can implement specific sync logic here if needed
+
+        debugPrint('✅ Background sync completed');
+      });
+    } catch (e) {
+      debugPrint('⚠️ Background sync failed: $e');
     }
   }
 

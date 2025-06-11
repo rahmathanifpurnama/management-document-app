@@ -79,7 +79,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     });
   }
 
-  /// Force refresh recent files data for consistency with storage sections
+  /// Force refresh recent files data from Firebase Storage (primary source)
   Future<void> _refreshRecentFilesData() async {
     try {
       final documentProvider = Provider.of<DocumentProvider>(
@@ -87,13 +87,14 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         listen: false,
       );
 
-      // Use the new refreshRecentFiles method for immediate updates
+      // PRIMARY: Use Firebase Storage as main data source
+      debugPrint('🔄 Home screen: Refreshing from Firebase Storage...');
       await documentProvider.refreshRecentFiles();
 
       // ENHANCED DEBUG: Check Firebase Storage vs Firestore consistency
       await _debugStorageConsistency();
 
-      debugPrint('✅ Home screen: Recent files data refreshed');
+      debugPrint('✅ Home screen: Recent files data refreshed from Storage');
     } catch (e) {
       debugPrint('⚠️ Home screen: Failed to refresh recent files: $e');
     }
@@ -190,52 +191,28 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   Widget build(BuildContext context) {
     return Consumer2<DocumentProvider, FileSelectionProvider>(
       builder: (context, documentProvider, selectionProvider, child) {
-        // ENHANCED DEBUG: Get recent files with comprehensive logging and validation
+        // UPDATED: Now using Firebase Storage as primary data source
+        // DocumentProvider.refreshRecentFiles() now fetches directly from Storage
 
-        // 1. Get recent documents from Firestore (existing approach)
-        final firestoreRecent = documentProvider.getRecentDocuments(limit: 100);
+        // Get recent documents (now sourced from Firebase Storage via DocumentProvider)
+        final recentDocuments = documentProvider.getRecentDocuments(limit: 100);
 
-        // 2. Get all documents and sort by upload time (backup approach)
-        final allDocumentsSorted = List<DocumentModel>.from(
-          documentProvider.allDocuments,
-        )..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
-
-        // 3. Combine and deduplicate, prioritizing by upload time
-        final Map<String, DocumentModel> recentMap = {};
-
-        // Add all documents sorted by time first (most comprehensive)
-        for (final doc in allDocumentsSorted.take(50)) {
-          recentMap[doc.id] = doc;
-        }
-
-        // Overlay with Firestore recent (ensures latest sync data)
-        for (final doc in firestoreRecent) {
-          recentMap[doc.id] = doc;
-        }
-
-        // Convert back to list and ensure proper time-based sorting
-        final recentDocuments = recentMap.values.toList()
-          ..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
-
-        // ENHANCED DEBUG LOGGING: Track data consistency and file paths
-        debugPrint('🔍 RECENT FILES DEBUG:');
-        debugPrint('  - Firestore recent: ${firestoreRecent.length} files');
-        debugPrint('  - All documents: ${allDocumentsSorted.length} files');
-        debugPrint('  - Combined recent: ${recentDocuments.length} files');
+        debugPrint('🔍 HOME SCREEN FILES DEBUG (Storage-first approach):');
+        debugPrint(
+          '  - Recent documents from Storage: ${recentDocuments.length} files',
+        );
 
         if (recentDocuments.isNotEmpty) {
-          debugPrint('  - Latest file: ${recentDocuments.first.fileName}');
-          debugPrint('  - Latest file path: ${recentDocuments.first.filePath}');
           debugPrint(
-            '  - Latest upload time: ${recentDocuments.first.uploadedAt}',
+            '  - Latest file: ${recentDocuments.first.fileName} (${recentDocuments.first.uploadedAt})',
           );
         }
 
-        // Log first 5 files for debugging
+        // Log first 5 files for debugging (Storage-sourced data)
         for (int i = 0; i < recentDocuments.take(5).length; i++) {
           final doc = recentDocuments[i];
           debugPrint(
-            '  - File $i: ${doc.fileName} (${doc.filePath}) - ${doc.uploadedAt}',
+            '  - Storage File $i: ${doc.fileName} (${doc.filePath}) - ${doc.uploadedAt}',
           );
         }
 

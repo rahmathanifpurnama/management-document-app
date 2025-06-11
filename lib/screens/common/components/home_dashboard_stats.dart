@@ -14,13 +14,18 @@ class HomeDashboardStats extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer3<DocumentProvider, UserProvider, CategoryProvider>(
-      builder:
-          (context, documentProvider, userProvider, categoryProvider, child) {
-            // Calculate statistics
-            final totalDocuments = documentProvider.documents.length;
-            final recentDocuments = documentProvider
-                .getRecentFiles(days: 7)
-                .length;
+      builder: (context, documentProvider, userProvider, categoryProvider, child) {
+        return FutureBuilder<Map<String, dynamic>>(
+          future: _getStorageStatistics(),
+          builder: (context, snapshot) {
+            // Use Firebase Storage statistics if available, fallback to Firestore
+            final storageStats = snapshot.data;
+            final totalDocuments =
+                storageStats?['totalFiles'] ??
+                documentProvider.documents.length;
+            final recentDocuments =
+                storageStats?['recentFiles'] ??
+                documentProvider.getRecentFiles(days: 7).length;
             final totalUsers = userProvider.users.length;
             final totalCategories = categoryProvider.categories.length;
 
@@ -71,7 +76,20 @@ class HomeDashboardStats extends StatelessWidget {
               child: _buildRowLayout(context, statCards, responsiveSpacing),
             );
           },
+        );
+      },
     );
+  }
+
+  /// Get Firebase Storage statistics
+  Future<Map<String, dynamic>> _getStorageStatistics() async {
+    try {
+      final storageService = FirebaseStorageDirectService.instance;
+      return await storageService.getStorageStatistics();
+    } catch (e) {
+      debugPrint('❌ Failed to get storage statistics: $e');
+      return {};
+    }
   }
 
   /// Build grid layout for small screens (2x2)
