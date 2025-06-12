@@ -12,11 +12,11 @@ class FirebaseConfig {
     seconds: 2,
   ); // Increased from 500ms
 
-  // Sync settings - CRITICAL FIX: Disable automatic sync during refresh
+  // Sync settings - ENHANCED: Enable optimized sync for better file management
   static const bool enableRealtimeSync =
-      false; // DISABLED: Prevents duplicate listeners and excessive operations
+      true; // ENABLED: Optimized real-time sync with proper debouncing
   static const bool enableStorageSync =
-      false; // DISABLED: Prevents automatic document creation during refresh
+      true; // ENABLED: Optimized storage sync for file display functionality
 
   // Logging settings
   static const bool enableVerboseLogging =
@@ -45,11 +45,15 @@ class FirebaseConfig {
   static const bool enableSmartCaching = true; // Use intelligent caching
   static const bool enablePriorityLoading = true; // Load critical data first
 
-  // UI optimization settings
+  // UI optimization settings - ENHANCED for unlimited queries
   static const bool enableLazyLoading = true; // Load content as needed
   static const bool enablePreloading = true; // Preload next batch
-  static const int initialLoadSize = 20; // Initial items to load
-  static const int batchSize = 10; // Items per batch
+  static const int initialLoadSize = 50; // Increased initial load size
+  static const int batchSize =
+      25; // Increased batch size for better performance
+  static const int unlimitedQueryBatchSize = 100; // For unlimited queries
+  static const bool enableUnlimitedQueries =
+      true; // Enable unlimited database queries
 
   /// Check if auto-refresh should be enabled
   static bool get shouldAutoRefresh => enableAutoRefresh;
@@ -65,4 +69,16 @@ class FirebaseConfig {
 
   /// Check if only significant changes should be logged
   static bool get shouldLogOnlySignificantChanges => logOnlySignificantChanges;
+
+  /// Check if unlimited queries should be enabled
+  static bool get shouldEnableUnlimitedQueries => enableUnlimitedQueries;
+
+  /// Get unlimited query batch size
+  static int get getUnlimitedQueryBatchSize => unlimitedQueryBatchSize;
+
+  /// Check if progressive loading should be enabled
+  static bool get shouldEnableProgressiveLoading => enableProgressiveLoading;
+
+  /// Check if smart caching should be enabled
+  static bool get shouldEnableSmartCaching => enableSmartCaching;
 }

@@ -178,24 +178,51 @@ class DocumentModel {
 class DocumentMetadata {
   final String description;
   final List<String> tags;
+  final String version;
+  final String? contentType;
+  final String? downloadUrl;
 
-  DocumentMetadata({required this.description, required this.tags});
+  DocumentMetadata({
+    required this.description,
+    required this.tags,
+    this.version = '1.0',
+    this.contentType,
+    this.downloadUrl,
+  });
 
   factory DocumentMetadata.fromMap(Map<String, dynamic> map) {
     return DocumentMetadata(
       description: map['description'] ?? '',
       tags: List<String>.from(map['tags'] ?? []),
+      version: map['version'] ?? '1.0',
+      contentType: map['contentType'],
+      downloadUrl: map['downloadUrl'],
     );
   }
 
   Map<String, dynamic> toMap() {
-    return {'description': description, 'tags': tags};
+    return {
+      'description': description,
+      'tags': tags,
+      'version': version,
+      'contentType': contentType,
+      'downloadUrl': downloadUrl,
+    };
   }
 
-  DocumentMetadata copyWith({String? description, List<String>? tags}) {
+  DocumentMetadata copyWith({
+    String? description,
+    List<String>? tags,
+    String? version,
+    String? contentType,
+    String? downloadUrl,
+  }) {
     return DocumentMetadata(
       description: description ?? this.description,
       tags: tags ?? this.tags,
+      version: version ?? this.version,
+      contentType: contentType ?? this.contentType,
+      downloadUrl: downloadUrl ?? this.downloadUrl,
     );
   }
 }

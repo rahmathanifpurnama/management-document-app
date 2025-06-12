@@ -3,7 +3,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Helper function to check if user is admin
     function isAdmin() {
-      return request.auth != null && 
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
@@ -15,53 +16,68 @@ service cloud.firestore {
     // Users collection with optimized pagination
     match /users/{userId} {
       // Allow read/write for own user document
-      allow read, write: if isAuthenticated() 
+      allow read, write: if isAuthenticated()
         && request.auth.uid == userId;
-      
-      // Allow admin to read all users with pagination limits
-      allow read: if isAdmin()
-        && request.query.limit <= 50;
-      
+
+      // Allow admin to read all users (remove pagination limit restriction)
+      allow read: if isAdmin();
+
       // Allow admin to write user data
       allow write: if isAdmin();
+
+      // Allow reading users collection for authenticated users
+      allow list: if isAuthenticated();
     }
     
-    // Documents collection with optimized queries and pagination
+    // Documents collection with enhanced role-based access and unlimited queries
     match /documents/{documentId} {
       // Allow single document read for authenticated users
       allow get: if isAuthenticated();
 
-      // Allow collection queries for authenticated users with pagination limits
-      allow list: if isAuthenticated()
-        && request.query.limit <= 25;
+      // ENHANCED: Allow unlimited queries for admin users
+      allow list: if isAdmin();
 
-      // Allow write for document owner
+      // Allow collection queries for regular users with reasonable limits
+      allow list: if isAuthenticated()
+        && !isAdmin()
+        && request.query.limit <= 100;
+
+      // Allow write for document owner or admin
       allow write: if isAuthenticated()
-        && request.auth.uid == resource.data.uploadedBy;
+        && (request.auth.uid == resource.data.uploadedBy || isAdmin());
 
       // Allow create for authenticated users
       allow create: if isAuthenticated()
         && request.auth.uid == request.resource.data.uploadedBy
         && request.resource.data.keys().hasAll(['fileName', 'uploadedAt', 'isActive']);
 
-      // Optimized batch operations with strict limits
+      // ENHANCED: Unlimited batch operations for admin users
+      allow list: if isAdmin()
+        && 'isActive' in request.query.where
+        && request.query.where.isActive == true;
+
+      // Regular users batch operations with limits
       allow list: if isAuthenticated()
-        && request.query.limit <= 10
+        && !isAdmin()
+        && request.query.limit <= 50
         && 'isActive' in request.query.where
         && request.query.where.isActive == true;
 
       // Allow admin to delete documents
       allow delete: if isAdmin();
+
+      // Allow document owner to delete their own documents
+      allow delete: if isAuthenticated()
+        && request.auth.uid == resource.data.uploadedBy;
     }
     
-    // Categories collection
+    // Categories collection with unlimited access
     match /categories/{categoryId} {
       // Allow single document read for authenticated users
       allow get: if isAuthenticated();
 
-      // Allow collection queries for authenticated users with pagination
-      allow list: if isAuthenticated()
-        && request.query.limit <= 50;
+      // ENHANCED: Allow unlimited queries for categories (small dataset)
+      allow list: if isAuthenticated();
 
       // Only admin can write categories
       allow write: if isAdmin();

@@ -5,10 +5,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../core/services/auth_service.dart';
 import '../core/utils/anr_prevention.dart';
 import '../core/config/anr_config.dart';
+import '../services/enhanced_auth_service.dart';
 import '../models/user_model.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService.instance;
+  final EnhancedAuthService _enhancedAuthService = EnhancedAuthService.instance;
 
   UserModel? _currentUser;
   bool _isLoading = false;
@@ -234,5 +236,78 @@ class AuthProvider extends ChangeNotifier {
   // Clear error manually
   void clearError() {
     _clearError();
+  }
+
+  // Enhanced role-based permission methods
+
+  /// Check if current user has admin privileges
+  Future<bool> get isCurrentUserAdmin async {
+    return await _enhancedAuthService.isCurrentUserAdmin;
+  }
+
+  /// Check if current user has specific document permission
+  Future<bool> hasDocumentPermission(String permission) async {
+    return await _enhancedAuthService.hasDocumentPermission(permission);
+  }
+
+  /// Check if current user can access specific category
+  Future<bool> hasCategoryAccess(String categoryId) async {
+    return await _enhancedAuthService.hasCategoryAccess(categoryId);
+  }
+
+  /// Check if current user has specific system permission
+  Future<bool> hasSystemPermission(String permission) async {
+    return await _enhancedAuthService.hasSystemPermission(permission);
+  }
+
+  /// Check if user can perform unlimited queries
+  Future<bool> canPerformUnlimitedQueries() async {
+    return await _enhancedAuthService.canPerformUnlimitedQueries();
+  }
+
+  /// Check if user can access storage management
+  Future<bool> canAccessStorageManagement() async {
+    return await _enhancedAuthService.canAccessStorageManagement();
+  }
+
+  /// Check if user can manage other users
+  Future<bool> canManageUsers() async {
+    return await _enhancedAuthService.canManageUsers();
+  }
+
+  /// Check if user can view analytics
+  Future<bool> canViewAnalytics() async {
+    return await _enhancedAuthService.canViewAnalytics();
+  }
+
+  /// Check if user can upload files
+  Future<bool> canUploadFiles() async {
+    return await _enhancedAuthService.canUploadFiles();
+  }
+
+  /// Check if user can delete files
+  Future<bool> canDeleteFiles() async {
+    return await _enhancedAuthService.canDeleteFiles();
+  }
+
+  /// Check if user can approve files
+  Future<bool> canApproveFiles() async {
+    return await _enhancedAuthService.canApproveFiles();
+  }
+
+  /// Get current user's permission summary
+  Future<Map<String, dynamic>> getCurrentUserPermissionSummary() async {
+    return await _enhancedAuthService.getCurrentUserPermissionSummary();
+  }
+
+  /// Refresh current user permissions
+  Future<void> refreshCurrentUserPermissions() async {
+    await _enhancedAuthService.refreshCurrentUserPermissions();
+    notifyListeners(); // Notify UI to update
+  }
+
+  /// Check if user has access to specific document
+  Future<bool> hasDocumentAccess(String documentId, String action) async {
+    return await _enhancedAuthService.hasDocumentAccess(documentId, action);
   }
 }

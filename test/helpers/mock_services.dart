@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../lib/models/user_model.dart';
 
 /// Mock Cloud Functions Service for testing
 class MockCloudFunctionsService {
@@ -102,11 +103,15 @@ class MockCloudFunctionsService {
     Map<String, dynamic>? options,
   }) async {
     // Return mock batch processing results
-    return filePaths.map((path) => {
-      'filePath': path,
-      'success': true,
-      'result': 'Processed successfully (mock)',
-    }).toList();
+    return filePaths
+        .map(
+          (path) => {
+            'filePath': path,
+            'success': true,
+            'result': 'Processed successfully (mock)',
+          },
+        )
+        .toList();
   }
 
   void configureForDevelopment() {

@@ -18,6 +18,9 @@ import '../core/config/anr_config.dart';
 import '../config/firebase_config.dart';
 import 'category_provider.dart';
 import '../services/firebase_storage_direct_service.dart';
+import '../services/enhanced_document_service.dart';
+import '../services/enhanced_firebase_storage_service.dart';
+import '../services/enhanced_auth_service.dart';
 
 class DocumentProvider extends ChangeNotifier {
   List<DocumentModel> _documents = [];
@@ -31,6 +34,13 @@ class DocumentProvider extends ChangeNotifier {
   String _selectedFileType = 'all';
   String _sortBy = 'uploadedAt';
   bool _sortAscending = false;
+
+  // Enhanced services
+  final EnhancedDocumentService _enhancedDocumentService =
+      EnhancedDocumentService.instance;
+  final EnhancedFirebaseStorageService _enhancedStorageService =
+      EnhancedFirebaseStorageService.instance;
+  final EnhancedAuthService _enhancedAuthService = EnhancedAuthService.instance;
 
   // Dynamic document storage - persists during app session
   static final Map<String, List<DocumentModel>> _categoryDocuments = {};
@@ -1329,6 +1339,141 @@ class DocumentProvider extends ChangeNotifier {
   // Get total documents count
   int get totalDocumentsCount {
     return _documents.length;
+  }
+
+  // Enhanced methods using new services
+
+  /// Load all documents with unlimited query support (admin only)
+  Future<void> loadAllDocumentsUnlimited({
+    String? categoryFilter,
+    String? searchQuery,
+  }) async {
+    if (!(await _enhancedAuthService.canPerformUnlimitedQueries())) {
+      debugPrint('⚠️ Unlimited queries not available for current user');
+      await loadDocuments(); // Fallback to regular loading
+      return;
+    }
+
+    _setLoading(true);
+    _clearError();
+
+    try {
+      debugPrint('🔓 Loading all documents with unlimited query...');
+
+      final documents = await _enhancedDocumentService.getAllDocumentsUnlimited(
+        categoryFilter: categoryFilter,
+        searchQuery: searchQuery,
+      );
+
+      _documents = documents;
+      _applyFiltersAndSort();
+
+      debugPrint('✅ Loaded ${documents.length} documents with unlimited query');
+    } catch (e) {
+      _setError('Failed to load documents: ${e.toString()}');
+      debugPrint('❌ Unlimited query failed: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Load documents from Firebase Storage with unlimited access
+  Future<void> loadDocumentsFromStorageUnlimited() async {
+    if (!(await _enhancedAuthService.canAccessStorageManagement())) {
+      debugPrint('⚠️ Storage management access denied');
+      return;
+    }
+
+    _setLoading(true);
+    _clearError();
+
+    try {
+      debugPrint('📁 Loading documents from Firebase Storage...');
+
+      final storageDocuments = await _enhancedStorageService
+          .getAllStorageFilesUnlimited();
+
+      // Merge with existing documents, avoiding duplicates
+      final existingPaths = _documents.map((doc) => doc.filePath).toSet();
+      final newDocuments = storageDocuments
+          .where((doc) => !existingPaths.contains(doc.filePath))
+          .toList();
+
+      _documents.addAll(newDocuments);
+      _applyFiltersAndSort();
+
+      debugPrint('✅ Added ${newDocuments.length} documents from Storage');
+    } catch (e) {
+      _setError('Failed to load storage documents: ${e.toString()}');
+      debugPrint('❌ Storage loading failed: $e');
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Refresh download URLs for all documents
+  Future<void> refreshAllDownloadUrls() async {
+    if (!(await _enhancedAuthService.canAccessStorageManagement())) {
+      debugPrint('⚠️ Storage management access denied');
+      return;
+    }
+
+    try {
+      debugPrint('🔄 Refreshing download URLs...');
+
+      int refreshedCount = 0;
+      for (final document in _documents) {
+        if (document.filePath.isNotEmpty) {
+          final newUrl = await _enhancedStorageService.refreshDownloadUrl(
+            document.filePath,
+          );
+          if (newUrl != null) {
+            refreshedCount++;
+          }
+        }
+      }
+
+      debugPrint('✅ Refreshed $refreshedCount download URLs');
+      notifyListeners(); // Notify UI to update
+    } catch (e) {
+      debugPrint('❌ Failed to refresh download URLs: $e');
+    }
+  }
+
+  /// Get document statistics (admin only)
+  Future<Map<String, dynamic>> getDocumentStatistics() async {
+    if (!(await _enhancedAuthService.canPerformUnlimitedQueries())) {
+      return {'error': 'Admin privileges required'};
+    }
+
+    try {
+      final firestoreStats = await _enhancedDocumentService
+          .getDocumentStatistics();
+      final storageStats = await _enhancedStorageService.getStorageStatistics();
+
+      return {
+        'firestore': firestoreStats,
+        'storage': storageStats,
+        'local': {
+          'totalDocuments': _documents.length,
+          'filteredDocuments': _filteredDocuments.length,
+          'categories': _categoryDocuments.keys.length,
+        },
+      };
+    } catch (e) {
+      debugPrint('❌ Failed to get statistics: $e');
+      return {'error': e.toString()};
+    }
+  }
+
+  /// Check if unlimited queries are available for current user
+  Future<bool> get canUseUnlimitedQueries async {
+    return await _enhancedAuthService.canPerformUnlimitedQueries();
+  }
+
+  /// Check if storage management is available for current user
+  Future<bool> get canManageStorage async {
+    return await _enhancedAuthService.canAccessStorageManagement();
   }
 
   // Get total file size

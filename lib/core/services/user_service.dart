@@ -1,7 +1,7 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firebase_service.dart';
 import '../../models/user_model.dart';
+import '../../services/cloud_functions_service.dart';
 
 class UserService {
   static UserService? _instance;
@@ -10,8 +10,9 @@ class UserService {
   UserService._();
 
   final FirebaseService _firebaseService = FirebaseService.instance;
+  final CloudFunctionsService _cloudFunctions = CloudFunctionsService.instance;
 
-  // Create new user (Admin only)
+  // Create new user (Admin only) - Using Cloud Functions
   Future<UserModel> createUser({
     required String fullName,
     required String email,
@@ -21,43 +22,41 @@ class UserService {
     UserPermissions? permissions,
   }) async {
     try {
-      // Create user in Firebase Auth
-      UserCredential userCredential = await _firebaseService.auth
-          .createUserWithEmailAndPassword(email: email, password: password);
+      // Set default permissions based on role
+      UserPermissions userPermissions =
+          permissions ??
+          (role == 'admin' ? UserPermissions.admin() : UserPermissions.user());
 
-      if (userCredential.user != null) {
-        // Set default permissions based on role
-        UserPermissions userPermissions =
-            permissions ??
-            (role == 'admin'
-                ? UserPermissions.admin()
-                : UserPermissions.user());
+      // Use Cloud Functions to create user (handles admin permission check)
+      String userId = await _cloudFunctions.createUser(
+        fullName: fullName,
+        email: email,
+        password: password,
+        role: role,
+        permissions: userPermissions.toMap(),
+      );
 
-        // Create user model
-        UserModel newUser = UserModel(
-          id: userCredential.user!.uid,
-          fullName: fullName,
-          email: email,
-          role: role,
-          status: 'active',
-          createdBy: createdBy,
-          createdAt: DateTime.now(),
-          permissions: userPermissions,
-        );
+      // Fetch the created user data from Firestore
+      DocumentSnapshot userDoc = await _firebaseService.usersCollection
+          .doc(userId)
+          .get();
 
-        // Save user data to Firestore
-        await _firebaseService.usersCollection
-            .doc(newUser.id)
-            .set(newUser.toMap());
-
-        return newUser;
+      if (userDoc.exists) {
+        return UserModel.fromFirestore(userDoc);
       } else {
-        throw Exception('Gagal membuat akun pengguna.');
+        throw Exception('User created but data not found in database.');
       }
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
     } catch (e) {
-      throw Exception('Gagal membuat pengguna: ${e.toString()}');
+      // Handle Cloud Functions errors
+      if (e.toString().contains('permission-denied')) {
+        throw Exception('Hanya admin yang dapat membuat pengguna baru.');
+      } else if (e.toString().contains('already-exists')) {
+        throw Exception('Email sudah digunakan oleh pengguna lain.');
+      } else if (e.toString().contains('invalid-argument')) {
+        throw Exception('Data yang dimasukkan tidak valid.');
+      } else {
+        throw Exception('Gagal membuat pengguna: ${e.toString()}');
+      }
     }
   }
 
@@ -247,22 +246,6 @@ class UserService {
       });
     } catch (e) {
       throw Exception('Gagal mengupdate foto profil: ${e.toString()}');
-    }
-  }
-
-  // Handle Firebase Auth exceptions
-  String _handleAuthException(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'email-already-in-use':
-        return 'Email sudah digunakan.';
-      case 'invalid-email':
-        return 'Format email tidak valid.';
-      case 'weak-password':
-        return 'Password terlalu lemah.';
-      case 'network-request-failed':
-        return 'Tidak ada koneksi internet.';
-      default:
-        return 'Terjadi kesalahan: ${e.message}';
     }
   }
 }
