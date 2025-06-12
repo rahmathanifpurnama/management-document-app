@@ -48,10 +48,6 @@ class AppRoutes {
   static const String syncManagement = '/sync-management';
   static const String cloudFunctionsSettings = '/cloud-functions-settings';
 
-  // Debug Routes
-  static const String folderPersistenceDebug = '/folder-persistence-debug';
-  static const String firebaseDebug = '/firebase-debug';
-
   // Error Routes
   static const String notFound = '/not-found';
   static const String unauthorized = '/unauthorized';

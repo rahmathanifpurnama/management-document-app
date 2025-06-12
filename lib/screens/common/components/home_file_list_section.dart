@@ -50,9 +50,6 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
-  // ARCHITECTURAL FIX: State management for refresh operations
-  bool _isRefreshing = false;
-
   @override
   void initState() {
     super.initState();
@@ -76,44 +73,9 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           _currentPage = 0;
         });
 
-        // Force refresh recent files data for immediate consistency
-        _refreshRecentFilesData();
+        // Files will be refreshed via pull-to-refresh mechanism
       }
     });
-  }
-
-  /// ARCHITECTURAL FIX: Single-threaded refresh with loading state
-  Future<void> _refreshRecentFilesData() async {
-    if (_isRefreshing) {
-      debugPrint('⚠️ Home screen: Refresh already in progress, skipping...');
-      return;
-    }
-
-    setState(() {
-      _isRefreshing = true;
-    });
-
-    try {
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
-      );
-
-      debugPrint('🔄 Home screen: Starting atomic refresh...');
-
-      // Use the new atomic refresh method
-      await documentProvider.refreshRecentFiles();
-
-      debugPrint('✅ Home screen: Atomic refresh completed');
-    } catch (e) {
-      debugPrint('⚠️ Home screen: Refresh failed: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isRefreshing = false;
-        });
-      }
-    }
   }
 
   @override
@@ -214,56 +176,22 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                   color: AppColors.textPrimary,
                 ),
               ),
-              Row(
-                children: [
-                  // ARCHITECTURAL FIX: Refresh button with loading state
-                  IconButton(
-                    onPressed: _isRefreshing
-                        ? null
-                        : () async {
-                            debugPrint('🔧 Manual refresh triggered');
-                            await _refreshRecentFilesData();
-                          },
-                    icon: _isRefreshing
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                AppColors.primary,
-                              ),
-                            ),
-                          )
-                        : const Icon(
-                            Icons.refresh,
-                            color: AppColors.primary,
-                            size: 20,
-                          ),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 24,
-                      minHeight: 24,
-                    ),
-                    tooltip: 'Refresh Files',
+              // Filter button only (manual refresh button removed - using pull-to-refresh instead)
+              if (widget.onFilterTap != null)
+                IconButton(
+                  onPressed: widget.onFilterTap,
+                  icon: const Icon(
+                    Icons.filter_list,
+                    color: AppColors.textSecondary,
+                    size: 20,
                   ),
-                  if (widget.onFilterTap != null)
-                    IconButton(
-                      onPressed: widget.onFilterTap,
-                      icon: const Icon(
-                        Icons.filter_list,
-                        color: AppColors.textSecondary,
-                        size: 20,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 24,
-                        minHeight: 24,
-                      ),
-                      tooltip: 'Filter Files',
-                    ),
-                ],
-              ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 24,
+                    minHeight: 24,
+                  ),
+                  tooltip: 'Filter Files',
+                ),
             ],
           ),
 
@@ -285,8 +213,8 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     List<DocumentModel> documents,
     FileSelectionProvider selectionProvider,
   ) {
-    // Show loading state during transitions or refresh
-    if (_isTransitioning || _isRefreshing) {
+    // Show loading state during transitions
+    if (_isTransitioning) {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
         decoration: BoxDecoration(
@@ -311,7 +239,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
               ),
               const SizedBox(height: 12),
               Text(
-                _isRefreshing ? 'Refreshing files...' : 'Loading...',
+                'Loading...',
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   fontWeight: FontWeight.w400,

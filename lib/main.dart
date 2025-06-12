@@ -40,7 +40,7 @@ import 'screens/admin/sync_management_screen.dart';
 import 'screens/admin/cloud_functions_settings_screen.dart';
 import 'screens/upload/upload_document_screen.dart';
 import 'screens/common/file_preview_screen.dart';
-import 'screens/debug_screen.dart';
+
 import 'models/category_model.dart';
 import 'models/user_model.dart';
 import 'models/document_model.dart';
@@ -318,10 +318,7 @@ class _MyAppState extends State<MyApp> {
                       builder: (context) =>
                           FilePreviewScreen(document: document),
                     );
-                  case AppRoutes.firebaseDebug:
-                    return MaterialPageRoute(
-                      builder: (context) => const DebugScreen(),
-                    );
+
                   default:
                     return MaterialPageRoute(
                       builder: (context) => Scaffold(
