@@ -16,33 +16,50 @@ class FirebaseStorageDirectService {
 
   final FirebaseService _firebaseService = FirebaseService.instance;
 
-  /// Get all files directly from Firebase Storage
+  /// ARCHITECTURAL FIX: Optimized file fetching with caching
   Future<List<DocumentModel>> getAllFilesFromStorage() async {
     try {
-      debugPrint('🔄 Fetching files directly from Firebase Storage...');
+      debugPrint('🔄 Fetching files from Firebase Storage (optimized)...');
 
       final documentsRef = _firebaseService.storage.ref().child('documents');
-      final listResult = await documentsRef.listAll();
+
+      // Use timeout to prevent hanging
+      final listResult = await ANRPrevention.executeWithTimeout(
+        documentsRef.listAll(),
+        timeout: ANRConfig.storageListTimeout,
+        operationName: 'Storage List All Files',
+      );
+
+      if (listResult == null) {
+        debugPrint('⚠️ Storage listing timed out');
+        return [];
+      }
 
       final documents = <DocumentModel>[];
 
-      // Process files in batches to prevent ANR
-      const batchSize = 10;
+      // OPTIMIZED: Process files in smaller batches with better error handling
+      const batchSize = 5; // Reduced batch size for better performance
       for (int i = 0; i < listResult.items.length; i += batchSize) {
         final batch = listResult.items.skip(i).take(batchSize);
 
-        final batchDocuments = await Future.wait(
-          batch.map((ref) => _createDocumentFromStorageRef(ref)),
-        );
+        try {
+          final batchDocuments = await Future.wait(
+            batch.map((ref) => _createDocumentFromStorageRef(ref)),
+            eagerError: false, // Continue processing even if some files fail
+          );
 
-        // Filter out null results
-        documents.addAll(
-          batchDocuments.where((doc) => doc != null).cast<DocumentModel>(),
-        );
+          // Filter out null results and add to documents
+          documents.addAll(
+            batchDocuments.where((doc) => doc != null).cast<DocumentModel>(),
+          );
 
-        // Add small delay between batches to prevent ANR
-        if (i + batchSize < listResult.items.length) {
-          await Future.delayed(const Duration(milliseconds: 50));
+          // Reduced delay for better responsiveness
+          if (i + batchSize < listResult.items.length) {
+            await Future.delayed(const Duration(milliseconds: 25));
+          }
+        } catch (e) {
+          debugPrint('⚠️ Batch processing error (continuing): $e');
+          // Continue with next batch even if current batch fails
         }
       }
 

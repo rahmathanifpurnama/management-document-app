@@ -1,11 +1,11 @@
 const admin = require("firebase-admin");
-const serviceAccount = require("../simdoc-db-seeder/credentials.json");
 
-// Initialize Firebase Admin SDK
+// Initialize Firebase Admin SDK using default credentials
+// This will use the Firebase CLI authentication or Application Default Credentials
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: `https://${serviceAccount.project_id}-default-rtdb.firebaseio.com`,
-  storageBucket: `${serviceAccount.project_id}.appspot.com`
+  projectId: 'document-management-c5a96',
+  databaseURL: 'https://document-management-c5a96-default-rtdb.firebaseio.com',
+  storageBucket: 'document-management-c5a96.appspot.com'
 });
 
 const db = admin.firestore();

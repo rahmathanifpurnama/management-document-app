@@ -50,6 +50,9 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
+  // ARCHITECTURAL FIX: State management for refresh operations
+  bool _isRefreshing = false;
+
   @override
   void initState() {
     super.initState();
@@ -79,90 +82,37 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     });
   }
 
-  /// Force refresh recent files data from Firebase Storage (primary source)
+  /// ARCHITECTURAL FIX: Single-threaded refresh with loading state
   Future<void> _refreshRecentFilesData() async {
+    if (_isRefreshing) {
+      debugPrint('⚠️ Home screen: Refresh already in progress, skipping...');
+      return;
+    }
+
+    setState(() {
+      _isRefreshing = true;
+    });
+
     try {
       final documentProvider = Provider.of<DocumentProvider>(
         context,
         listen: false,
       );
 
-      // PRIMARY: Use Firebase Storage as main data source
-      debugPrint('🔄 Home screen: Refreshing from Firebase Storage...');
+      debugPrint('🔄 Home screen: Starting atomic refresh...');
+
+      // Use the new atomic refresh method
       await documentProvider.refreshRecentFiles();
 
-      // ENHANCED DEBUG: Check Firebase Storage vs Firestore consistency
-      await _debugStorageConsistency();
-
-      debugPrint('✅ Home screen: Recent files data refreshed from Storage');
+      debugPrint('✅ Home screen: Atomic refresh completed');
     } catch (e) {
-      debugPrint('⚠️ Home screen: Failed to refresh recent files: $e');
-    }
-  }
-
-  /// Debug method to check Firebase Storage vs Firestore consistency
-  Future<void> _debugStorageConsistency() async {
-    try {
-      debugPrint('🔍 STORAGE CONSISTENCY CHECK:');
-
-      // Get Firebase Storage reference
-      final storageRef = FirebaseStorage.instance.ref().child('documents');
-
-      // List files in storage
-      final listResult = await storageRef.listAll();
-      debugPrint('  - Firebase Storage files: ${listResult.items.length}');
-
-      // Log first 5 storage files
-      for (int i = 0; i < listResult.items.take(5).length; i++) {
-        final item = listResult.items[i];
-        final metadata = await item.getMetadata();
-        debugPrint(
-          '  - Storage file $i: ${item.name} (${metadata.timeCreated})',
-        );
+      debugPrint('⚠️ Home screen: Refresh failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshing = false;
+        });
       }
-
-      // Compare with Firestore documents - use mounted check to avoid context issues
-      if (!mounted) return;
-
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
-      );
-      final firestoreFiles = documentProvider.allDocuments;
-      debugPrint('  - Firestore documents: ${firestoreFiles.length}');
-
-      // Check for missing documents
-      final storageFileNames = listResult.items
-          .map((item) => item.name)
-          .toSet();
-      final firestoreFilePaths = firestoreFiles
-          .map((doc) => doc.filePath.split('/').last)
-          .toSet();
-
-      final missingInFirestore = storageFileNames.difference(
-        firestoreFilePaths,
-      );
-      final missingInStorage = firestoreFilePaths.difference(storageFileNames);
-
-      if (missingInFirestore.isNotEmpty) {
-        debugPrint(
-          '  - Files in Storage but not in Firestore: ${missingInFirestore.length}',
-        );
-        for (final fileName in missingInFirestore.take(3)) {
-          debugPrint('    - Missing: $fileName');
-        }
-      }
-
-      if (missingInStorage.isNotEmpty) {
-        debugPrint(
-          '  - Files in Firestore but not in Storage: ${missingInStorage.length}',
-        );
-        for (final fileName in missingInStorage.take(3)) {
-          debugPrint('    - Missing: $fileName');
-        }
-      }
-    } catch (e) {
-      debugPrint('⚠️ Storage consistency check failed: $e');
     }
   }
 
@@ -191,28 +141,13 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   Widget build(BuildContext context) {
     return Consumer2<DocumentProvider, FileSelectionProvider>(
       builder: (context, documentProvider, selectionProvider, child) {
-        // UPDATED: Now using Firebase Storage as primary data source
-        // DocumentProvider.refreshRecentFiles() now fetches directly from Storage
-
-        // Get recent documents (now sourced from Firebase Storage via DocumentProvider)
+        // ARCHITECTURAL FIX: Clean data retrieval with minimal logging
         final recentDocuments = documentProvider.getRecentDocuments(limit: 100);
 
-        debugPrint('🔍 HOME SCREEN FILES DEBUG (Storage-first approach):');
-        debugPrint(
-          '  - Recent documents from Storage: ${recentDocuments.length} files',
-        );
-
+        // Minimal logging for monitoring
         if (recentDocuments.isNotEmpty) {
           debugPrint(
-            '  - Latest file: ${recentDocuments.first.fileName} (${recentDocuments.first.uploadedAt})',
-          );
-        }
-
-        // Log first 5 files for debugging (Storage-sourced data)
-        for (int i = 0; i < recentDocuments.take(5).length; i++) {
-          final doc = recentDocuments[i];
-          debugPrint(
-            '  - Storage File $i: ${doc.fileName} (${doc.filePath}) - ${doc.uploadedAt}',
+            '📊 Home screen: ${recentDocuments.length} files loaded, latest: ${recentDocuments.first.fileName}',
           );
         }
 
@@ -281,24 +216,36 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
               ),
               Row(
                 children: [
-                  // DEBUG: Storage sync button (temporary)
+                  // ARCHITECTURAL FIX: Refresh button with loading state
                   IconButton(
-                    onPressed: () async {
-                      debugPrint('🔧 Manual storage sync triggered');
-                      await _debugStorageConsistency();
-                      await _refreshRecentFilesData();
-                    },
-                    icon: const Icon(
-                      Icons.sync,
-                      color: AppColors.primary,
-                      size: 20,
-                    ),
+                    onPressed: _isRefreshing
+                        ? null
+                        : () async {
+                            debugPrint('🔧 Manual refresh triggered');
+                            await _refreshRecentFilesData();
+                          },
+                    icon: _isRefreshing
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.primary,
+                              ),
+                            ),
+                          )
+                        : const Icon(
+                            Icons.refresh,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(
                       minWidth: 24,
                       minHeight: 24,
                     ),
-                    tooltip: 'Debug: Sync Storage',
+                    tooltip: 'Refresh Files',
                   ),
                   if (widget.onFilterTap != null)
                     IconButton(
@@ -338,8 +285,8 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     List<DocumentModel> documents,
     FileSelectionProvider selectionProvider,
   ) {
-    // Show loading state during transitions
-    if (_isTransitioning) {
+    // Show loading state during transitions or refresh
+    if (_isTransitioning || _isRefreshing) {
       return Container(
         padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
         decoration: BoxDecoration(
@@ -350,14 +297,28 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
             width: 1,
           ),
         ),
-        child: const Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-            ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _isRefreshing ? 'Refreshing files...' : 'Loading...',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
           ),
         ),
       );

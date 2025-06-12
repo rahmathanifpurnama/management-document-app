@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:convert';
 import '../models/document_model.dart';
 import '../core/services/document_service.dart';
@@ -21,6 +20,7 @@ import '../services/firebase_storage_direct_service.dart';
 import '../services/enhanced_document_service.dart';
 import '../services/enhanced_firebase_storage_service.dart';
 import '../services/enhanced_auth_service.dart';
+import '../services/document_state_manager.dart';
 
 class DocumentProvider extends ChangeNotifier {
   List<DocumentModel> _documents = [];
@@ -35,12 +35,19 @@ class DocumentProvider extends ChangeNotifier {
   String _sortBy = 'uploadedAt';
   bool _sortAscending = false;
 
+  // ARCHITECTURAL FIX: State management for atomic operations
+  bool _isRefreshingRecentFiles = false;
+  bool _isAtomicUpdateInProgress = false;
+
   // Enhanced services
   final EnhancedDocumentService _enhancedDocumentService =
       EnhancedDocumentService.instance;
   final EnhancedFirebaseStorageService _enhancedStorageService =
       EnhancedFirebaseStorageService.instance;
   final EnhancedAuthService _enhancedAuthService = EnhancedAuthService.instance;
+
+  // ARCHITECTURAL FIX: Centralized state management
+  final DocumentStateManager _stateManager = DocumentStateManager.instance;
 
   // Dynamic document storage - persists during app session
   static final Map<String, List<DocumentModel>> _categoryDocuments = {};
@@ -1213,124 +1220,145 @@ class DocumentProvider extends ChangeNotifier {
         .toList();
   }
 
-  // Get recent documents - ENHANCED: Use unfiltered documents with comprehensive data
+  // ARCHITECTURAL FIX: Use state manager for consistent recent documents
   List<DocumentModel> getRecentDocuments({int limit = 10}) {
-    // Use _documents (unfiltered) instead of _filteredDocuments to get true recent files
+    // Try to get from state manager first for consistency
+    final stateManagerDocs = _stateManager.getRecentDocuments(limit: limit);
+
+    if (stateManagerDocs.isNotEmpty) {
+      // Sync local state with state manager if needed
+      if (_documents.length != _stateManager.documents.length) {
+        debugPrint('🔄 Syncing local state with state manager...');
+        _documents = List.from(_stateManager.documents);
+        _applyFiltersAndSort();
+      }
+
+      return stateManagerDocs;
+    }
+
+    // Fallback to local documents if state manager is empty
     List<DocumentModel> sortedDocs = List.from(_documents);
     sortedDocs.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
 
-    // Apply ANR-safe limit but allow larger limits for recent files display
+    // Apply ANR-safe limit
     final safeLimit = limit > (ANRConfig.maxItemsPerPage * 2)
         ? (ANRConfig.maxItemsPerPage * 2)
         : limit;
 
     final recentDocs = sortedDocs.take(safeLimit).toList();
 
-    // Debug logging for recent files tracking
+    // Minimal logging for monitoring
     if (recentDocs.isNotEmpty) {
       debugPrint(
-        '📊 Recent documents: ${recentDocs.length} files, newest: ${recentDocs.first.fileName} (${recentDocs.first.uploadedAt})',
+        '📊 Recent documents (fallback): ${recentDocs.length} files, newest: ${recentDocs.first.fileName}',
       );
     }
 
     return recentDocs;
   }
 
-  // Force refresh recent files data - UPDATED: Use Firebase Storage as primary source
+  // ARCHITECTURAL FIX: Use centralized state manager for atomic updates
   Future<void> refreshRecentFiles() async {
+    // Prevent concurrent refresh operations
+    if (_isRefreshingRecentFiles) {
+      debugPrint('⚠️ Recent files refresh already in progress, skipping...');
+      return;
+    }
+
+    _isRefreshingRecentFiles = true;
+
     try {
-      debugPrint('🔄 Force refreshing recent files from Firebase Storage...');
+      debugPrint('🔄 Starting centralized document refresh...');
 
-      // PRIMARY: Get files directly from Firebase Storage
-      final storageFiles = await _storageDirectService
-          .getRecentFilesFromStorage(limit: ANRConfig.maxItemsPerPage * 2);
+      // Use DocumentStateManager for atomic refresh
+      await _stateManager.refreshDocuments();
 
-      if (storageFiles.isNotEmpty) {
-        // Update documents with Storage data as primary source
-        _documents = storageFiles;
+      // Sync local state with state manager
+      final freshDocuments = _stateManager.documents;
+      if (freshDocuments.isNotEmpty) {
+        await _atomicDocumentUpdate(freshDocuments);
 
         debugPrint(
-          '✅ Recent files refreshed from Storage: ${storageFiles.length} files',
-        );
-        debugPrint(
-          '📊 Latest file from Storage: ${storageFiles.first.fileName} (${storageFiles.first.uploadedAt})',
+          '✅ Documents refreshed via state manager: ${freshDocuments.length} files',
         );
 
-        // Apply filters and notify
-        _applyFiltersAndSort();
-
-        // SECONDARY: Sync with Firestore in background (non-blocking)
-        _syncStorageWithFirestoreInBackground(storageFiles);
+        if (freshDocuments.isNotEmpty) {
+          debugPrint(
+            '📊 Latest file: ${freshDocuments.first.fileName} (${freshDocuments.first.uploadedAt})',
+          );
+        }
 
         return;
       }
 
-      // FALLBACK: If Storage fails, use Firestore as backup
-      debugPrint('⚠️ Storage fetch failed, falling back to Firestore...');
-      await _fallbackToFirestoreData();
+      // FALLBACK: Use existing data if state manager is empty
+      debugPrint('⚠️ State manager returned empty, keeping existing data');
     } catch (e) {
-      debugPrint('❌ Failed to refresh recent files from Storage: $e');
-      // Fallback to Firestore on error
-      await _fallbackToFirestoreData();
+      debugPrint('❌ Failed to refresh via state manager: $e');
+      // Keep existing data on error - don't clear it
+    } finally {
+      _isRefreshingRecentFiles = false;
     }
   }
 
-  // Fallback method to use Firestore data when Storage fails
-  Future<void> _fallbackToFirestoreData() async {
+  // ARCHITECTURAL FIX: Atomic document update to prevent race conditions
+  Future<void> _atomicDocumentUpdate(List<DocumentModel> newDocuments) async {
+    if (_isAtomicUpdateInProgress) {
+      debugPrint('⚠️ Atomic update already in progress, skipping...');
+      return;
+    }
+
+    _isAtomicUpdateInProgress = true;
+
     try {
-      // Get fresh data from Firebase with focus on recent documents
-      final recentFromFirebase = await _documentService.getRecentDocuments(
-        limit: ANRConfig.maxItemsPerPage * 2,
-      );
+      debugPrint('🔄 Starting atomic document update...');
 
-      if (recentFromFirebase.isNotEmpty) {
-        // Merge recent documents with existing data
-        final Map<String, DocumentModel> mergedDocs = {};
-
-        // Add existing documents
-        for (final doc in _documents) {
-          mergedDocs[doc.id] = doc;
-        }
-
-        // Add/update with fresh Firebase data
-        for (final doc in recentFromFirebase) {
-          mergedDocs[doc.id] = doc;
-        }
-
-        // Update documents list
-        _documents = mergedDocs.values.toList()
-          ..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
-
-        // Apply filters and notify
-        _applyFiltersAndSort();
-
-        debugPrint(
-          '✅ Fallback: Recent files refreshed from Firestore: ${recentFromFirebase.length} fresh documents',
+      // Create a snapshot of current state for rollback if needed
+      final previousDocuments = List<DocumentModel>.from(_documents);
+      final previousCategoryDocuments = <String, List<DocumentModel>>{};
+      for (final entry in _categoryDocuments.entries) {
+        previousCategoryDocuments[entry.key] = List<DocumentModel>.from(
+          entry.value,
         );
       }
-    } catch (e) {
-      debugPrint('❌ Failed to fallback to Firestore data: $e');
-    }
-  }
 
-  // Background sync method to update Firestore with Storage data
-  Future<void> _syncStorageWithFirestoreInBackground(
-    List<DocumentModel> storageFiles,
-  ) async {
-    try {
-      // Run in background without blocking UI
-      Future.microtask(() async {
-        debugPrint(
-          '🔄 Background sync: Updating Firestore with Storage data...',
-        );
+      try {
+        // ATOMIC OPERATION: Update all data structures together
+        _documents = List<DocumentModel>.from(newDocuments);
 
-        // This is a non-blocking operation to keep Firestore in sync
-        // You can implement specific sync logic here if needed
+        // Rebuild category documents from new data
+        _categoryDocuments.clear();
+        for (final doc in newDocuments) {
+          final category = doc.category.isEmpty
+              ? 'uncategorized'
+              : doc.category;
+          _categoryDocuments.putIfAbsent(category, () => []).add(doc);
+        }
 
-        debugPrint('✅ Background sync completed');
-      });
-    } catch (e) {
-      debugPrint('⚠️ Background sync failed: $e');
+        // Apply filters and sort
+        _applyFiltersAndSort();
+
+        // Save to local storage
+        await _saveToStorage();
+
+        // Notify listeners of the change
+        notifyListeners();
+
+        debugPrint('✅ Atomic document update completed successfully');
+      } catch (e) {
+        // ROLLBACK: Restore previous state on error
+        debugPrint('❌ Atomic update failed, rolling back: $e');
+        _documents = previousDocuments;
+
+        // Restore category documents
+        _categoryDocuments.clear();
+        _categoryDocuments.addAll(previousCategoryDocuments);
+
+        _applyFiltersAndSort();
+        rethrow;
+      }
+    } finally {
+      _isAtomicUpdateInProgress = false;
     }
   }
 
@@ -1481,107 +1509,6 @@ class DocumentProvider extends ChangeNotifier {
     return _documents.fold(0, (total, document) => total + document.fileSize);
   }
 
-  /// Sync missing files from Firebase Storage to Firestore
-  Future<void> _syncMissingFilesFromStorage() async {
-    try {
-      debugPrint('🔄 Checking for missing files in Firestore...');
-
-      // Get Firebase Storage reference
-      final storageRef = _firebaseService.storage.ref().child('documents');
-
-      // List files in storage
-      final listResult = await storageRef.listAll();
-      debugPrint(
-        '  - Found ${listResult.items.length} files in Firebase Storage',
-      );
-
-      // Get current Firestore documents
-      final firestoreFilePaths = _documents
-          .map((doc) => doc.filePath.split('/').last)
-          .toSet();
-
-      // Find files that exist in Storage but not in Firestore
-      final missingFiles = <Reference>[];
-      for (final item in listResult.items) {
-        if (!firestoreFilePaths.contains(item.name)) {
-          missingFiles.add(item);
-        }
-      }
-
-      if (missingFiles.isEmpty) {
-        debugPrint('  - No missing files found');
-        return;
-      }
-
-      debugPrint('  - Found ${missingFiles.length} missing files in Firestore');
-
-      // Create Firestore documents for missing files
-      for (final fileRef in missingFiles.take(10)) {
-        // Limit to 10 files at a time
-        try {
-          final metadata = await fileRef.getMetadata();
-          final downloadUrl = await fileRef.getDownloadURL();
-
-          // Create document data
-          final documentData = {
-            'fileName': fileRef.name,
-            'fileSize': metadata.size ?? 0,
-            'fileType': _getFileTypeFromName(fileRef.name),
-            'filePath': fileRef.fullPath,
-            'downloadUrl': downloadUrl,
-            'uploadedBy': 'system', // Mark as system sync
-            'uploadedAt': metadata.timeCreated ?? DateTime.now(),
-            'category': 'general', // Default category
-            'isActive': true,
-            'permissions': ['read'],
-            'metadata': {
-              'description': 'Auto-synced from Firebase Storage',
-              'tags': ['synced'],
-              'version': '1.0',
-            },
-          };
-
-          // Add to Firestore
-          await _firebaseService.documentsCollection.add(documentData);
-          debugPrint('  - Synced: ${fileRef.name}');
-        } catch (e) {
-          debugPrint('  - Failed to sync ${fileRef.name}: $e');
-        }
-      }
-
-      debugPrint('✅ Storage sync completed');
-    } catch (e) {
-      debugPrint('❌ Storage sync failed: $e');
-    }
-  }
-
-  /// Get file type from filename
-  String _getFileTypeFromName(String fileName) {
-    final extension = fileName.split('.').last.toLowerCase();
-    switch (extension) {
-      case 'pdf':
-        return 'PDF';
-      case 'doc':
-      case 'docx':
-        return 'Word Document';
-      case 'xls':
-      case 'xlsx':
-        return 'Excel Spreadsheet';
-      case 'ppt':
-      case 'pptx':
-        return 'PowerPoint Presentation';
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-        return 'Image';
-      case 'txt':
-        return 'Text Document';
-      default:
-        return 'Document';
-    }
-  }
-
   // Get formatted total file size
   String get totalFileSizeFormatted {
     int totalSize = totalFileSize;
@@ -1596,22 +1523,24 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  // CRITICAL FIX: Optimized refresh that prevents excessive operations
+  // ARCHITECTURAL FIX: Single-threaded refresh with atomic updates
   Future<void> refreshDocuments() async {
-    // Prevent concurrent refresh operations
-    if (_isLoadingDocuments) {
-      debugPrint('⚠️ Document refresh already in progress, skipping...');
+    // Prevent concurrent refresh operations (including recent files refresh)
+    if (_isLoadingDocuments ||
+        _isRefreshingRecentFiles ||
+        _isAtomicUpdateInProgress) {
+      debugPrint(
+        '⚠️ Document operation already in progress, skipping refresh...',
+      );
       return;
     }
 
-    debugPrint(
-      '🔄 Starting optimized document refresh (no sync operations)...',
-    );
+    debugPrint('🔄 Starting single-threaded document refresh...');
 
-    // FIXED: Use direct document loading without sync operations
-    await loadDocuments();
+    // Use atomic refresh approach for consistency
+    await refreshRecentFiles();
 
-    debugPrint('✅ Optimized document refresh completed');
+    debugPrint('✅ Single-threaded document refresh completed');
   }
 
   // Force refresh with Firebase Storage sync
