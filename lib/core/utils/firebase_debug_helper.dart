@@ -14,6 +14,10 @@ class FirebaseDebugHelper {
 
   FirebaseDebugHelper._();
 
+  // Rate limiting for App Check requests
+  static DateTime? _lastAppCheckRequest;
+  static const Duration _appCheckCooldown = Duration(minutes: 2);
+
   /// Run comprehensive Firebase diagnostics
   Future<FirebaseConnectionReport> runDiagnostics() async {
     debugPrint('🔍 Running Firebase diagnostics...');
@@ -85,9 +89,21 @@ class FirebaseDebugHelper {
     }
   }
 
-  /// Check App Check status
+  /// Check App Check status with rate limiting
   Future<ServiceStatus> _checkAppCheckStatus() async {
     try {
+      // Check rate limiting to prevent "too many attempts"
+      final now = DateTime.now();
+      if (_lastAppCheckRequest != null &&
+          now.difference(_lastAppCheckRequest!) < _appCheckCooldown) {
+        debugPrint('⏸️ Firebase App Check: Rate limited, skipping check');
+        debugPrint('   Last request: $_lastAppCheckRequest');
+        debugPrint('   Cooldown: ${_appCheckCooldown.inMinutes} minutes');
+        return ServiceStatus.warning;
+      }
+
+      _lastAppCheckRequest = now;
+
       final token = await Future.any([
         FirebaseAppCheck.instance.getToken(),
         Future.delayed(const Duration(seconds: 10)).then(
@@ -110,6 +126,12 @@ class FirebaseDebugHelper {
       return ServiceStatus.timeout;
     } catch (e) {
       debugPrint('❌ Firebase App Check error: $e');
+      if (e.toString().contains('Too many attempts')) {
+        debugPrint('🚨 Rate limit exceeded. Please:');
+        debugPrint('   1. Add debug token to Firebase Console');
+        debugPrint('   2. Wait 5-10 minutes');
+        debugPrint('   3. Restart the app');
+      }
       return ServiceStatus.error;
     }
   }
@@ -161,7 +183,15 @@ class FirebaseDebugHelper {
     }
 
     if (report.appCheckStatus == ServiceStatus.error) {
-      recommendations.add('Configure App Check properly for your environment');
+      recommendations.add(
+        'URGENT: Add debug token 0D5038C4-B4F2-4628-8AD4-D500B904BA04 to Firebase Console',
+      );
+      recommendations.add(
+        'Go to Firebase Console → App Check → Debug tokens → Add debug token',
+      );
+      recommendations.add(
+        'Wait 5-10 minutes after adding token, then restart app',
+      );
     }
 
     if (report.authStatus == ServiceStatus.noUser) {

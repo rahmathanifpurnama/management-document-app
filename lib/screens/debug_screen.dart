@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/connection_status_widget.dart';
 import '../widgets/debug/debug_token_widget.dart';
+import '../widgets/debug/app_check_error_widget.dart';
 import '../core/utils/firebase_debug_helper.dart';
 
 /// Debug screen to test Firebase connectivity
@@ -13,6 +14,7 @@ class DebugScreen extends StatefulWidget {
 
 class _DebugScreenState extends State<DebugScreen> {
   final GlobalKey _connectionKey = GlobalKey();
+  FirebaseConnectionReport? _lastReport;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +59,19 @@ class _DebugScreenState extends State<DebugScreen> {
             ),
             const SizedBox(height: 16),
             const DebugTokenWidget(),
+            const SizedBox(height: 16),
+
+            // Show App Check error widget if there's an error
+            if (_lastReport?.appCheckStatus == ServiceStatus.error)
+              AppCheckErrorWidget(
+                errorMessage: 'Too many attempts',
+                onRetry: () {
+                  setState(() {
+                    _lastReport = null;
+                  });
+                  _runFullDiagnostics();
+                },
+              ),
             const SizedBox(height: 16),
             const Card(
               child: Padding(
@@ -108,6 +123,10 @@ class _DebugScreenState extends State<DebugScreen> {
       final report = await FirebaseDebugHelper.instance.runDiagnostics();
 
       if (mounted) {
+        setState(() {
+          _lastReport = report;
+        });
+
         Navigator.of(context).pop(); // Close loading dialog
 
         showDialog(
