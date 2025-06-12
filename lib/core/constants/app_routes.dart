@@ -50,6 +50,7 @@ class AppRoutes {
 
   // Debug Routes
   static const String folderPersistenceDebug = '/folder-persistence-debug';
+  static const String firebaseDebug = '/firebase-debug';
 
   // Error Routes
   static const String notFound = '/not-found';

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -265,6 +266,20 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           title: 'Beranda',
           currentNavIndex: 0, // Home is index 0
           showAppBar: true, // Use standard app bar like other pages
+          floatingActionButton: kDebugMode
+              ? FloatingActionButton(
+                  mini: true,
+                  backgroundColor: Colors.red.withValues(alpha: 0.8),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, AppRoutes.firebaseDebug),
+                  tooltip: 'Firebase Debug',
+                  child: const Icon(
+                    Icons.bug_report,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                )
+              : null,
           body: Column(
             children: [
               // File selection bar (appears when files are selected)

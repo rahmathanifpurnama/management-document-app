@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import '../../config/firebase_config.dart';
 import '../../services/cloud_functions_service.dart';
+import 'network_service.dart';
 
 class FirebaseService {
   static FirebaseService? _instance;
@@ -21,6 +22,21 @@ class FirebaseService {
   // Initialize Firebase
   static Future<void> initialize() async {
     try {
+      // Check network connectivity first
+      final networkService = NetworkService.instance;
+      final diagnostics = await networkService.runDiagnostics();
+
+      if (!diagnostics.hasInternet) {
+        debugPrint('⚠️ No internet connection detected');
+        final suggestions = networkService.getTroubleshootingSuggestions(
+          diagnostics,
+        );
+        for (final suggestion in suggestions) {
+          debugPrint('💡 $suggestion');
+        }
+        // Continue initialization but with warnings
+      }
+
       await Firebase.initializeApp();
 
       // Initialize App Check to prevent warnings and improve security
@@ -35,6 +51,7 @@ class FirebaseService {
       // Initialize Cloud Functions service
       CloudFunctionsService.instance.configureForDevelopment();
     } catch (e) {
+      debugPrint('❌ Firebase initialization error: $e');
       rethrow;
     }
   }
@@ -59,18 +76,40 @@ class FirebaseService {
 
       // Initialize App Check based on build mode
       if (kDebugMode) {
-        // For debug mode, use debug providers
-        await FirebaseAppCheck.instance.activate(
-          androidProvider: AndroidProvider.debug,
-          appleProvider: AppleProvider.debug,
-        );
+        // For debug mode, use debug providers with timeout
+        await Future.any([
+          FirebaseAppCheck.instance.activate(
+            androidProvider: AndroidProvider.debug,
+            appleProvider: AppleProvider.debug,
+          ),
+          Future.delayed(
+            const Duration(seconds: 10),
+          ), // Timeout after 10 seconds
+        ]);
         debugPrint('✅ App Check initialized for debug mode');
+
+        // Try to get a token to verify it's working
+        try {
+          final token = await FirebaseAppCheck.instance.getToken();
+          if (token != null) {
+            debugPrint('✅ App Check token obtained successfully');
+          } else {
+            debugPrint('⚠️ App Check token is null, using placeholder');
+          }
+        } catch (tokenError) {
+          debugPrint('⚠️ Failed to get App Check token: $tokenError');
+        }
       } else {
         // For production, use proper providers
-        await FirebaseAppCheck.instance.activate(
-          androidProvider: AndroidProvider.playIntegrity,
-          appleProvider: AppleProvider.deviceCheck,
-        );
+        await Future.any([
+          FirebaseAppCheck.instance.activate(
+            androidProvider: AndroidProvider.playIntegrity,
+            appleProvider: AppleProvider.deviceCheck,
+          ),
+          Future.delayed(
+            const Duration(seconds: 10),
+          ), // Timeout after 10 seconds
+        ]);
         debugPrint('✅ App Check initialized for production mode');
       }
 
@@ -80,6 +119,12 @@ class FirebaseService {
       debugPrint('⚠️ App Check initialization failed: $e');
       // Continue without App Check but log the issue
       debugPrint('📝 App Check failure may cause placeholder token warnings');
+      debugPrint('📝 This may be due to network connectivity issues');
+
+      // Try alternative initialization without App Check for development
+      if (kDebugMode) {
+        debugPrint('🔧 Continuing without App Check for debug mode');
+      }
     }
   }
 

@@ -136,6 +136,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ),
 
+                    const SizedBox(height: 12),
+
+                    _buildMenuTile(
+                      icon: Icons.bug_report,
+                      title: 'Firebase Debug',
+                      subtitle: 'Diagnose Firebase connectivity issues',
+                      onTap: () =>
+                          Navigator.pushNamed(context, AppRoutes.firebaseDebug),
+                    ),
+
                     const SizedBox(height: 32),
                   ],
                 );
