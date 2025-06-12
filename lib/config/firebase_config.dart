@@ -29,12 +29,12 @@ class FirebaseConfig {
       false; // Disabled to reduce Firebase calls
   static const Duration uiRefreshDelay = Duration(milliseconds: 500);
 
-  // App Check settings - TEMPORARY FIX: Disable in debug to prevent "too many attempts" error
+  // App Check settings - FIXED: Disable in debug to prevent "too many attempts" error
   static const bool enableAppCheckInDebug =
-      true; // TEMPORARY: Disable App Check in debug mode until debug token is configured in Firebase Console
+      false; // FIXED: Disable App Check in debug mode to prevent token errors
   static const bool enableAppCheckInProduction =
       true; // Enable App Check in production mode
-  static const Duration appCheckTokenRefreshCooldown = Duration(minutes: 1);
+  static const Duration appCheckTokenRefreshCooldown = Duration(minutes: 2);
 
   // Performance settings
   static const int maxRetryAttempts = 3;

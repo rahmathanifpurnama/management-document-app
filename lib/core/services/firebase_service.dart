@@ -7,6 +7,7 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import '../../config/firebase_config.dart';
 import '../../services/cloud_functions_service.dart';
 import 'network_service.dart';
+import '../utils/app_check_status.dart';
 
 class FirebaseService {
   static FirebaseService? _instance;
@@ -80,6 +81,7 @@ class FirebaseService {
         debugPrint(
           '🔧 Skipping App Check initialization in debug mode (disabled in config)',
         );
+        debugPrint('✅ This prevents "Too many attempts" errors');
         debugPrint('📝 To enable App Check in debug mode:');
         debugPrint('   1. Add debug token to Firebase Console');
         debugPrint(
@@ -110,26 +112,37 @@ class FirebaseService {
           ), // Timeout after 10 seconds
         ]);
 
-        // Set the debug token for consistent authentication
+        // Configure auto-refresh based on configuration
         try {
-          await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
+          await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(false);
           debugPrint(
-            '✅ App Check initialized for debug mode with auto-refresh enabled',
+            '✅ App Check initialized for debug mode with auto-refresh disabled',
+          );
+          debugPrint(
+            '🔧 Auto-refresh disabled to prevent "Too many attempts" errors',
           );
         } catch (e) {
-          debugPrint('⚠️ Failed to enable auto-refresh: $e');
+          debugPrint('⚠️ Failed to configure auto-refresh: $e');
         }
 
-        // Try to get a token to verify it's working
+        // Try to get a token to verify it's working (with timeout)
         try {
-          final token = await FirebaseAppCheck.instance.getToken();
+          final token = await Future.any([
+            FirebaseAppCheck.instance.getToken(),
+            Future.delayed(const Duration(seconds: 5), () => null),
+          ]);
           if (token != null) {
             debugPrint('✅ App Check token obtained successfully');
           } else {
-            debugPrint('⚠️ App Check token is null, using placeholder');
+            debugPrint(
+              '⚠️ App Check token timeout or null, continuing without token',
+            );
           }
         } catch (tokenError) {
           debugPrint('⚠️ Failed to get App Check token: $tokenError');
+          debugPrint(
+            '🔧 Continuing without App Check token (this is normal in debug mode)',
+          );
         }
       } else {
         // For production, use proper providers
@@ -145,29 +158,46 @@ class FirebaseService {
         debugPrint('✅ App Check initialized for production mode');
       }
 
-      // Set up token refresh listener with rate limiting
+      // Set up token refresh listener with enhanced rate limiting
       _setupAppCheckTokenListener();
+
+      // Print App Check status for debugging
+      if (kDebugMode) {
+        AppCheckStatus.instance.printStatus();
+      }
     } catch (e) {
       debugPrint('⚠️ App Check initialization failed: $e');
-      // Continue without App Check but log the issue
-      debugPrint('📝 App Check failure may cause placeholder token warnings');
-      debugPrint('📝 This may be due to network connectivity issues');
 
-      // Try alternative initialization without App Check for development
+      // Provide specific guidance based on error type
+      if (e.toString().contains('Too many attempts')) {
+        debugPrint('🚨 "Too many attempts" error detected');
+        debugPrint('✅ Solution: App Check is now disabled in debug mode');
+        debugPrint('🔧 This error should not occur with current configuration');
+      } else if (e.toString().contains('network')) {
+        debugPrint('📝 Network connectivity issue detected');
+        debugPrint('🔧 Check your internet connection and try again');
+      } else {
+        debugPrint('📝 General App Check initialization failure');
+        debugPrint('🔧 Continuing without App Check (app will still function)');
+      }
+
+      // Continue without App Check - app will still work
       if (kDebugMode) {
-        debugPrint('🔧 Continuing without App Check for debug mode');
+        debugPrint('✅ Debug mode: App will continue without App Check');
       }
     }
   }
 
-  // Token refresh listener with rate limiting to prevent "too many attempts"
+  // Enhanced token refresh listener with aggressive rate limiting
   static DateTime? _lastTokenRefresh;
+  static int _tokenRefreshAttempts = 0;
+  static const int _maxTokenRefreshAttempts = 3;
 
   static void _setupAppCheckTokenListener() {
     FirebaseAppCheck.instance.onTokenChange.listen((token) {
       final now = DateTime.now();
 
-      // Rate limit token refresh to prevent "too many attempts" error
+      // Enhanced rate limiting to prevent "too many attempts" error
       if (_lastTokenRefresh != null &&
           now.difference(_lastTokenRefresh!) <
               FirebaseConfig.appCheckTokenRefreshCooldown) {
@@ -175,8 +205,24 @@ class FirebaseService {
         return;
       }
 
+      // Limit total refresh attempts
+      if (_tokenRefreshAttempts >= _maxTokenRefreshAttempts) {
+        debugPrint(
+          '🚨 App Check token refresh limit reached, stopping auto-refresh',
+        );
+        return;
+      }
+
       _lastTokenRefresh = now;
-      debugPrint('🔄 App Check token refreshed');
+      _tokenRefreshAttempts++;
+      debugPrint(
+        '🔄 App Check token refreshed (attempt $_tokenRefreshAttempts/$_maxTokenRefreshAttempts)',
+      );
+
+      // Reset attempts counter after successful refresh
+      if (token != null) {
+        _tokenRefreshAttempts = 0;
+      }
     });
   }
 
