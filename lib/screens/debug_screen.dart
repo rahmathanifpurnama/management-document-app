@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/connection_status_widget.dart';
+import '../widgets/debug/debug_token_widget.dart';
 import '../core/utils/firebase_debug_helper.dart';
 
 /// Debug screen to test Firebase connectivity
@@ -55,6 +56,8 @@ class _DebugScreenState extends State<DebugScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            const DebugTokenWidget(),
+            const SizedBox(height: 16),
             const Card(
               child: Padding(
                 padding: EdgeInsets.all(16.0),
@@ -71,7 +74,9 @@ class _DebugScreenState extends State<DebugScreen> {
                     SizedBox(height: 8),
                     Text('1. Check your internet connection'),
                     Text('2. Verify Firebase project configuration'),
-                    Text('3. Check if App Check debug token is configured'),
+                    Text(
+                      '3. Debug token is pre-configured: 0D5038C4-B4F2-4628-8AD4-D500B904BA04',
+                    ),
                     Text('4. Ensure firewall allows Firebase domains'),
                     Text('5. Try restarting the app'),
                   ],

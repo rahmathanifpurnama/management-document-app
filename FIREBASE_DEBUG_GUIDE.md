@@ -41,10 +41,10 @@ W/NetworkRequest: no auth token for request
 
 **Solutions:**
 1. **Add Debug Token to Firebase Console:**
-   - Run the app and check logs for debug token
-   - Copy the token from logs: `D/FirebaseAppCheck: Debug token: XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX`
+   - Debug token is pre-configured: `0D5038C4-B4F2-4628-8AD4-D500B904BA04`
    - Go to Firebase Console → App Check → Debug tokens
-   - Add the debug token
+   - Add the debug token: `0D5038C4-B4F2-4628-8AD4-D500B904BA04`
+   - You can also copy the token from the debug screen
 
 2. **Configure Network Security (Android):**
    - Ensure `network_security_config.xml` is properly configured
@@ -85,8 +85,10 @@ The debug screen provides specific recommendations based on detected issues.
 1. Go to Firebase Console → App Check
 2. Select your Android app
 3. Click "Debug tokens" → "Add debug token"
-4. Enter the debug token from app logs
+4. Enter the debug token: `0D5038C4-B4F2-4628-8AD4-D500B904BA04`
 5. Save the configuration
+
+**Note**: The debug token is pre-configured in the app and can be copied from the debug screen.
 
 ### **2. Storage Rules**
 Ensure your Firebase Storage rules allow authenticated access:

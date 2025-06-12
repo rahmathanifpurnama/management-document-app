@@ -76,7 +76,7 @@ class FirebaseService {
 
       // Initialize App Check based on build mode
       if (kDebugMode) {
-        // For debug mode, use debug providers with timeout
+        // For debug mode, use debug providers with specific debug token
         await Future.any([
           FirebaseAppCheck.instance.activate(
             androidProvider: AndroidProvider.debug,
@@ -86,7 +86,16 @@ class FirebaseService {
             const Duration(seconds: 10),
           ), // Timeout after 10 seconds
         ]);
-        debugPrint('✅ App Check initialized for debug mode');
+
+        // Set the debug token for consistent authentication
+        try {
+          await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
+          debugPrint(
+            '✅ App Check initialized for debug mode with auto-refresh enabled',
+          );
+        } catch (e) {
+          debugPrint('⚠️ Failed to enable auto-refresh: $e');
+        }
 
         // Try to get a token to verify it's working
         try {

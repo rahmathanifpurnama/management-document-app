@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import '../services/network_service.dart';
+import '../config/app_check_config.dart';
 
 /// Helper class for debugging Firebase connection issues
 class FirebaseDebugHelper {
@@ -121,6 +122,13 @@ class FirebaseDebugHelper {
     debugPrint('📁 Storage: ${report.storageStatus.name}');
     debugPrint('🛡️ App Check: ${report.appCheckStatus.name}');
     debugPrint('⏰ Timestamp: ${DateTime.now()}');
+
+    // App Check configuration info
+    final appCheckInfo = AppCheckConfig.getDebugInfo();
+    debugPrint('\n🔧 APP CHECK CONFIGURATION:');
+    appCheckInfo.forEach((key, value) {
+      debugPrint('   $key: $value');
+    });
 
     // Provide recommendations
     final recommendations = _getRecommendations(report);
