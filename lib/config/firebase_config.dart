@@ -29,9 +29,9 @@ class FirebaseConfig {
       false; // Disabled to reduce Firebase calls
   static const Duration uiRefreshDelay = Duration(milliseconds: 500);
 
-  // App Check settings - CRITICAL FIX: Always enable to prevent placeholder tokens
+  // App Check settings - TEMPORARY FIX: Disable in debug to prevent "too many attempts" error
   static const bool enableAppCheckInDebug =
-      true; // FIXED: Enable App Check in debug mode to prevent warnings
+      true; // TEMPORARY: Disable App Check in debug mode until debug token is configured in Firebase Console
   static const bool enableAppCheckInProduction =
       true; // Enable App Check in production mode
   static const Duration appCheckTokenRefreshCooldown = Duration(minutes: 1);

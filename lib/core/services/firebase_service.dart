@@ -71,7 +71,30 @@ class FirebaseService {
   // Initialize App Check to prevent warnings and improve security
   static Future<void> _initializeAppCheck() async {
     try {
-      // CRITICAL FIX: Always enable App Check to prevent placeholder token warnings
+      // Check if App Check should be enabled based on configuration
+      final shouldEnableInDebug = FirebaseConfig.enableAppCheckInDebug;
+      final shouldEnableInProduction =
+          FirebaseConfig.enableAppCheckInProduction;
+
+      if (kDebugMode && !shouldEnableInDebug) {
+        debugPrint(
+          '🔧 Skipping App Check initialization in debug mode (disabled in config)',
+        );
+        debugPrint('📝 To enable App Check in debug mode:');
+        debugPrint('   1. Add debug token to Firebase Console');
+        debugPrint(
+          '   2. Set enableAppCheckInDebug = true in firebase_config.dart',
+        );
+        return;
+      }
+
+      if (!kDebugMode && !shouldEnableInProduction) {
+        debugPrint(
+          '🔧 Skipping App Check initialization in production mode (disabled in config)',
+        );
+        return;
+      }
+
       debugPrint('🔧 Initializing Firebase App Check...');
 
       // Initialize App Check based on build mode
