@@ -37,12 +37,17 @@ class UnifiedDocumentLoader {
       return _cachedDocuments;
     }
 
-    // Check cache validity
-    if (!forceRefresh && _isCacheValid()) {
+    // FIXED: Check cache validity - don't return empty cache on first load
+    if (!forceRefresh && _isCacheValid() && _cachedDocuments.isNotEmpty) {
       debugPrint(
         '📋 Returning cached documents (${_cachedDocuments.length} items)',
       );
       return _cachedDocuments;
+    }
+
+    // FIXED: Always load if cache is empty, regardless of validity
+    if (_cachedDocuments.isEmpty) {
+      debugPrint('📋 Cache is empty, forcing document load...');
     }
 
     _isLoading = true;
@@ -93,10 +98,16 @@ class UnifiedDocumentLoader {
         );
 
         if (documents.isNotEmpty) {
+          debugPrint(
+            '✅ Loading attempt $attempt successful: ${documents.length} documents',
+          );
           return documents;
+        } else {
+          debugPrint('⚠️ Loading attempt $attempt returned empty results');
         }
 
         if (attempt < maxRetries) {
+          debugPrint('🔄 Retrying in ${500 * attempt}ms...');
           await Future.delayed(Duration(milliseconds: 500 * attempt));
         }
       } catch (e) {
@@ -161,13 +172,23 @@ class UnifiedDocumentLoader {
 
   /// Check if cache is valid
   bool _isCacheValid() {
-    if (_lastLoadTime == null || _cachedDocuments.isEmpty) {
+    // FIXED: Cache is invalid if we have no load time or if it's too old
+    if (_lastLoadTime == null) {
+      debugPrint('📋 Cache invalid: No load time recorded');
       return false;
     }
 
     final now = DateTime.now();
     final cacheAge = now.difference(_lastLoadTime!);
-    return cacheAge < _cacheValidDuration;
+    final isValid = cacheAge < _cacheValidDuration;
+
+    if (!isValid) {
+      debugPrint(
+        '📋 Cache invalid: Age ${cacheAge.inMinutes} minutes exceeds ${_cacheValidDuration.inMinutes} minutes',
+      );
+    }
+
+    return isValid;
   }
 
   /// Force refresh cache

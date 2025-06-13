@@ -48,9 +48,10 @@ class DocumentProvider extends ChangeNotifier {
 
   // ENTERPRISE SCALE: Constructor with auto-initialization
   DocumentProvider() {
-    // Auto-initialize for enterprise scale support
-    if (FirebaseConfig.shouldEnableUnlimitedFiles && !_autoInitialized) {
+    // FIXED: Always auto-initialize regardless of enterprise mode to ensure files load
+    if (!_autoInitialized) {
       _autoInitialized = true;
+      debugPrint('🚀 DocumentProvider: Scheduling auto-initialization...');
       // Schedule initialization after the provider is created
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _autoInitializeDocuments();
@@ -83,25 +84,37 @@ class DocumentProvider extends ChangeNotifier {
     debugPrint('✅ Unified documents processed successfully');
   }
 
-  /// ENTERPRISE SCALE: Auto-initialize documents for immediate availability
+  /// FIXED: Auto-initialize documents for immediate availability
   Future<void> _autoInitializeDocuments() async {
-    if (_isLoadingDocuments || _documents.isNotEmpty) {
-      debugPrint('📋 Auto-initialization skipped - already loaded or loading');
+    // FIXED: Don't skip if documents are empty - that's exactly when we need to load
+    if (_isLoadingDocuments) {
+      debugPrint(
+        '📋 Auto-initialization skipped - loading already in progress',
+      );
       return;
     }
 
-    debugPrint(
-      '🚀 ENTERPRISE: Auto-initializing documents for immediate availability...',
-    );
+    debugPrint('🚀 AUTO-INIT: Starting document auto-initialization...');
 
     try {
-      // Load documents immediately without limits for enterprise use
+      // FIXED: Always try to load documents on initialization
       await loadDocuments();
-      debugPrint('✅ ENTERPRISE: Auto-initialization completed successfully');
+      debugPrint('✅ AUTO-INIT: Auto-initialization completed successfully');
+
+      // Force UI update after auto-initialization
+      notifyListeners();
     } catch (e) {
-      debugPrint('❌ ENTERPRISE: Auto-initialization failed: $e');
+      debugPrint('❌ AUTO-INIT: Auto-initialization failed: $e');
       // Try loading from local storage as fallback
-      await _loadFromStorage();
+      try {
+        await _loadFromStorage();
+        debugPrint('📱 AUTO-INIT: Loaded from local storage as fallback');
+        notifyListeners();
+      } catch (storageError) {
+        debugPrint(
+          '❌ AUTO-INIT: Local storage fallback also failed: $storageError',
+        );
+      }
     }
   }
 

@@ -58,6 +58,10 @@ class DocumentService {
         return [];
       }
 
+      debugPrint(
+        '📊 DocumentService: Query returned ${querySnapshot.docs.length} raw documents',
+      );
+
       // Process documents in batches to prevent ANR
       final documents = <DocumentModel>[];
       await ANRPrevention.batchProcess(
@@ -77,6 +81,20 @@ class DocumentService {
           results.where((doc) => doc != null).cast<DocumentModel>(),
         );
       });
+
+      debugPrint(
+        '✅ DocumentService: Successfully parsed ${documents.length} documents',
+      );
+
+      if (documents.isEmpty) {
+        debugPrint(
+          '⚠️ DocumentService: No documents found in Firestore collection',
+        );
+      } else {
+        debugPrint(
+          '📋 DocumentService: Latest document: ${documents.first.fileName}',
+        );
+      }
 
       return documents;
     } catch (e) {

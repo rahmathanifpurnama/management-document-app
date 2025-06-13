@@ -74,7 +74,19 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           _currentPage = 0;
         });
 
-        // Files will be refreshed via pull-to-refresh mechanism
+        // FIXED: Trigger document loading if provider is empty
+        final documentProvider = Provider.of<DocumentProvider>(
+          context,
+          listen: false,
+        );
+
+        if (documentProvider.allDocuments.isEmpty &&
+            !documentProvider.isLoading) {
+          debugPrint(
+            '🔄 HomeFileListSection: Provider empty, triggering load...',
+          );
+          documentProvider.loadDocuments();
+        }
       }
     });
   }
@@ -104,6 +116,17 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   Widget build(BuildContext context) {
     return Consumer2<DocumentProvider, FileSelectionProvider>(
       builder: (context, documentProvider, selectionProvider, child) {
+        // FIXED: Trigger loading if provider is empty and not loading
+        if (documentProvider.allDocuments.isEmpty &&
+            !documentProvider.isLoading) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            debugPrint(
+              '🔄 HomeFileListSection: Triggering fallback document loading...',
+            );
+            documentProvider.loadDocuments();
+          });
+        }
+
         // ENTERPRISE SCALE: Get all available documents without artificial limits
         final recentDocuments = documentProvider.getRecentDocuments();
 
@@ -112,6 +135,8 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           debugPrint(
             '📊 Home screen: ${recentDocuments.length} files loaded, latest: ${recentDocuments.first.fileName}',
           );
+        } else if (!documentProvider.isLoading) {
+          debugPrint('⚠️ Home screen: No recent documents available');
         }
 
         // Apply search filter to recent files if search is active
