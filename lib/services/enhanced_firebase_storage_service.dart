@@ -7,6 +7,7 @@ import '../core/services/auth_service.dart';
 import '../config/firebase_config.dart';
 import '../core/utils/anr_prevention.dart';
 import '../core/config/anr_config.dart';
+import '../core/utils/circuit_breaker.dart';
 
 /// Enhanced Firebase Storage Service with improved file display and retrieval
 class EnhancedFirebaseStorageService {
@@ -154,7 +155,7 @@ class EnhancedFirebaseStorageService {
     }
   }
 
-  /// Get download URL with caching to prevent repeated requests
+  /// Get download URL with caching and circuit breaker to prevent repeated requests
   Future<String?> _getDownloadUrlWithCache(Reference ref) async {
     final cacheKey = ref.fullPath;
     final now = DateTime.now();
@@ -169,8 +170,11 @@ class EnhancedFirebaseStorageService {
       }
     }
 
-    try {
-      // Get fresh download URL
+    // Use circuit breaker to prevent repeated failures
+    final circuitKey = 'download_url_${ref.name}';
+
+    return await CircuitBreaker.execute(circuitKey, () async {
+      // Get fresh download URL with timeout
       final downloadUrl = await ANRPrevention.executeWithTimeout(
         ref.getDownloadURL(),
         timeout: ANRConfig.storageMetadataTimeout,
@@ -182,13 +186,11 @@ class EnhancedFirebaseStorageService {
         _urlCache[cacheKey] = downloadUrl;
         _urlCacheTimestamp[cacheKey] = now;
         debugPrint('💾 Cached new URL for ${ref.name}');
+        return downloadUrl;
       }
 
-      return downloadUrl;
-    } catch (e) {
-      debugPrint('❌ Failed to get download URL for ${ref.name}: $e');
-      return null;
-    }
+      throw Exception('Failed to get download URL');
+    }, operationName: 'Download URL - ${ref.name}');
   }
 
   /// Refresh download URL for a specific file

@@ -74,18 +74,21 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           _currentPage = 0;
         });
 
-        // FIXED: Trigger document loading if provider is empty
+        // FIXED: Trigger document loading if provider is empty with circuit breaker
         final documentProvider = Provider.of<DocumentProvider>(
           context,
           listen: false,
         );
 
         if (documentProvider.allDocuments.isEmpty &&
-            !documentProvider.isLoading) {
-          debugPrint(
-            '🔄 HomeFileListSection: Provider empty, triggering load...',
-          );
-          documentProvider.loadDocuments();
+            !documentProvider.isLoading &&
+            !CircuitBreaker.isCircuitOpen('home_init_loading')) {
+          CircuitBreaker.execute('home_init_loading', () async {
+            debugPrint(
+              '🔄 HomeFileListSection: Provider empty, triggering load...',
+            );
+            await documentProvider.loadDocuments();
+          }, operationName: 'Home Init Loading');
         }
       }
     });
@@ -116,14 +119,17 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   Widget build(BuildContext context) {
     return Consumer2<DocumentProvider, FileSelectionProvider>(
       builder: (context, documentProvider, selectionProvider, child) {
-        // ENHANCED: Multiple triggers to ensure documents are loaded
+        // ENHANCED: Multiple triggers to ensure documents are loaded with circuit breaker
         if (documentProvider.allDocuments.isEmpty &&
-            !documentProvider.isLoading) {
+            !documentProvider.isLoading &&
+            !CircuitBreaker.isCircuitOpen('home_fallback_loading')) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            debugPrint(
-              '🔄 HomeFileListSection: Triggering fallback document loading...',
-            );
-            documentProvider.loadDocuments();
+            CircuitBreaker.execute('home_fallback_loading', () async {
+              debugPrint(
+                '🔄 HomeFileListSection: Triggering fallback document loading...',
+              );
+              await documentProvider.loadDocuments();
+            }, operationName: 'Home Fallback Loading');
           });
         }
 
@@ -139,12 +145,30 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           if (documentProvider.isLoading) {
             debugPrint('⏳ Home screen: Documents are loading...');
           } else {
+            // ENHANCED DEBUG: Show detailed state information
             debugPrint('⚠️ Home screen: No recent documents available');
-            // Additional trigger if we have no documents and not loading
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              debugPrint('🔄 HomeFileListSection: Retry loading documents...');
-              documentProvider.loadDocuments();
-            });
+            debugPrint(
+              '📊 Debug info: allDocuments=${documentProvider.allDocuments.length}, isLoading=${documentProvider.isLoading}, error=${documentProvider.errorMessage}',
+            );
+
+            // CIRCUIT BREAKER: Prevent infinite retry loops
+            if (!CircuitBreaker.isCircuitOpen('home_document_loading')) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                CircuitBreaker.execute('home_document_loading', () async {
+                  debugPrint(
+                    '🔄 HomeFileListSection: Retry loading documents...',
+                  );
+                  await documentProvider.loadDocuments(forceRefresh: true);
+                }, operationName: 'Home Document Loading');
+              });
+            } else {
+              debugPrint(
+                '🚫 Home screen: Circuit breaker OPEN - skipping retry',
+              );
+              debugPrint(
+                '💡 Tip: Pull down to refresh and reset circuit breakers',
+              );
+            }
           }
         }
 
@@ -331,6 +355,57 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                       color: AppColors.textSecondary.withValues(alpha: 0.7),
                     ),
                   ),
+
+                  // DEBUG INFO: Show debug information in development
+                  if (kDebugMode) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.orange.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Debug Info:',
+                            style: GoogleFonts.poppins(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.orange,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Total docs: ${documentProvider.allDocuments.length}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 9,
+                              color: Colors.orange.withValues(alpha: 0.8),
+                            ),
+                          ),
+                          Text(
+                            'Error: ${documentProvider.errorMessage ?? 'None'}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 9,
+                              color: Colors.orange.withValues(alpha: 0.8),
+                            ),
+                          ),
+                          Text(
+                            'Circuit: ${CircuitBreaker.isCircuitOpen('home_document_loading') ? 'OPEN' : 'CLOSED'}',
+                            style: GoogleFonts.poppins(
+                              fontSize: 9,
+                              color: Colors.orange.withValues(alpha: 0.8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,6 +26,7 @@ import '../../core/services/greeting_service.dart';
 import '../../utils/download_location_helper.dart';
 import '../../config/firebase_config.dart';
 import '../../services/firebase_storage_direct_service.dart';
+import '../../core/utils/circuit_breaker.dart';
 part 'components/home_greeting_section.dart';
 part 'components/home_dashboard_stats.dart';
 part 'components/home_search_section.dart';
@@ -128,6 +130,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _refreshData() async {
     try {
+      // Reset circuit breakers on manual refresh
+      CircuitBreaker.resetAllCircuits();
+      debugPrint('🔄 Circuit breakers reset for manual refresh');
+
       final documentProvider = Provider.of<DocumentProvider>(
         context,
         listen: false,

@@ -31,11 +31,11 @@ class ANRConfig {
     minutes: 2,
   ); // Further reduced
   static const Duration storageListTimeout = Duration(
-    seconds: 10,
-  ); // Further reduced
+    seconds: 15,
+  ); // Increased for better reliability
   static const Duration storageMetadataTimeout = Duration(
-    seconds: 3,
-  ); // Further reduced
+    seconds: 10,
+  ); // Increased to prevent download URL timeouts
   static const Duration authTimeout = Duration(seconds: 4); // Further reduced
 
   // File reading timeouts based on size
@@ -66,6 +66,16 @@ class ANRConfig {
 
   // Additional settings
   static const int maxRetries = 2; // Reduced retries
+
+  // Circuit breaker settings to prevent infinite loops
+  static const int maxConsecutiveFailures =
+      3; // Max failures before circuit opens
+  static const Duration circuitBreakerResetTime = Duration(
+    minutes: 5,
+  ); // Time before retry
+  static const Duration circuitBreakerCooldown = Duration(
+    seconds: 30,
+  ); // Cooldown between attempts
 
   // Performance monitoring thresholds
   static const Duration slowOperationThreshold = Duration(milliseconds: 300);
