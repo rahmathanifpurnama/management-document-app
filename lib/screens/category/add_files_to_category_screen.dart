@@ -7,6 +7,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 
 import '../../providers/file_selection_provider.dart';
+import '../../providers/document_provider.dart';
 import '../../models/category_model.dart';
 import '../../models/document_model.dart';
 import '../../widgets/common/app_bottom_navigation.dart';
@@ -17,8 +18,6 @@ import '../../widgets/category/add_only_selection_bar_widget.dart';
 import '../../widgets/category/collapsible_filter_section_widget.dart';
 import '../../widgets/category/available_files_empty_state_widget.dart';
 import '../../widgets/common/reusable_search_widget.dart';
-import '../../services/unified_document_loader.dart';
-import '../../core/services/document_service.dart';
 
 class AddFilesToCategoryScreen extends StatefulWidget {
   final CategoryModel category;
@@ -33,7 +32,6 @@ class AddFilesToCategoryScreen extends StatefulWidget {
 class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchTimer;
-  final UnifiedDocumentLoader _documentLoader = UnifiedDocumentLoader.instance;
   bool _isLoadingDocuments = false;
 
   // ========== MARGIN CONFIGURATION - Easy to adjust ==========
@@ -65,31 +63,43 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     });
 
     try {
-      // Use unified document loader for consistent data loading
-      await _documentLoader.loadAllDocuments(
-        forceRefresh: true,
-        onLoadingStateChanged: (isLoading) {
-          if (mounted) {
-            setState(() {
-              _isLoadingDocuments = isLoading;
-            });
-          }
-        },
+      // FIXED: Use DocumentProvider instead of UnifiedDocumentLoader to avoid permission issues
+      final documentProvider = Provider.of<DocumentProvider>(
+        context,
+        listen: false,
       );
 
-      // ENHANCED: Sync with DocumentProvider for data consistency
-      await _documentLoader.syncWithDocumentProvider();
+      // Load documents from DocumentProvider (which has better error handling)
+      await documentProvider.loadDocuments(forceRefresh: true);
 
-      debugPrint('✅ Successfully loaded documents for Add Files screen');
+      debugPrint(
+        '✅ Successfully loaded documents for Add Files screen via DocumentProvider',
+      );
     } catch (e) {
       debugPrint('❌ Failed to load documents: $e');
 
-      // ENHANCED: Show user-friendly error message instead of silent failure
+      // FALLBACK: Try to use existing cached data if available
+      if (mounted) {
+        try {
+          final documentProvider = Provider.of<DocumentProvider>(
+            context,
+            listen: false,
+          );
+          if (documentProvider.documents.isNotEmpty) {
+            debugPrint('📋 Using cached documents as fallback');
+            return; // Use cached data
+          }
+        } catch (cacheError) {
+          debugPrint('❌ Cache fallback also failed: $cacheError');
+        }
+      }
+
+      // Show user-friendly error message only if no cached data available
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Failed to load available files. Please try again.',
+              'Failed to load available files. Please check your connection.',
               style: GoogleFonts.poppins(),
             ),
             backgroundColor: AppColors.error,
@@ -130,14 +140,43 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
   }
 
   List<DocumentModel> _getAvailableDocuments() {
-    // Use unified document loader for consistent results
-    // ENHANCED: Exclude files already in the target category
-    final searchQuery = _searchController.text.toLowerCase().trim();
-    final availableDocuments = _documentLoader.getAvailableDocuments(
-      searchQuery: searchQuery,
-      excludeCategoryId:
-          widget.category.id, // Don't show files already in this category
+    // FIXED: Use DocumentProvider instead of UnifiedDocumentLoader to avoid permission issues
+    final documentProvider = Provider.of<DocumentProvider>(
+      context,
+      listen: false,
     );
+    final searchQuery = _searchController.text.toLowerCase().trim();
+
+    // Get all documents from DocumentProvider
+    var availableDocuments = documentProvider.documents.where((doc) {
+      // Filter out files that are already in the target category
+      if (doc.category == widget.category.id) {
+        return false;
+      }
+
+      // Only show uncategorized files (empty category or 'uncategorized')
+      final category = doc.category.trim();
+      final isUncategorized =
+          category.isEmpty || category == 'uncategorized' || category == 'null';
+
+      return isUncategorized;
+    }).toList();
+
+    // Apply search filter if provided
+    if (searchQuery.isNotEmpty) {
+      availableDocuments = availableDocuments.where((document) {
+        final fileName = document.fileName.toLowerCase();
+        final description = document.metadata.description.toLowerCase();
+        final fileType = document.fileType.toLowerCase();
+
+        return fileName.contains(searchQuery) ||
+            description.contains(searchQuery) ||
+            fileType.contains(searchQuery);
+      }).toList();
+    }
+
+    // Sort by upload date (newest first) for better UX
+    availableDocuments.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
 
     debugPrint(
       'AddFilesToCategory: Available documents: ${availableDocuments.length} (search: "$searchQuery", category: ${widget.category.id})',
@@ -159,13 +198,14 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
             leading: const IOSBackButton(),
           ),
           bottomNavigationBar: const AppBottomNavigation(currentIndex: 1),
-          body: Consumer<FileSelectionProvider>(
-            builder: (context, selectionProvider, child) {
-              // Use unified document loader for consistent data
+          body: Consumer2<FileSelectionProvider, DocumentProvider>(
+            builder: (context, selectionProvider, documentProvider, child) {
+              // FIXED: Get available documents from DocumentProvider
               final availableDocuments = _getAvailableDocuments();
 
               // Show loading state if documents are being loaded
-              if (_isLoadingDocuments && availableDocuments.isEmpty) {
+              if ((_isLoadingDocuments || documentProvider.isLoading) &&
+                  availableDocuments.isEmpty) {
                 return Column(
                   children: [
                     // Custom selection bar for add-only functionality
@@ -211,7 +251,7 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
                             ),
 
                             // Files List with proper loading states
-                            _isLoadingDocuments
+                            (_isLoadingDocuments || documentProvider.isLoading)
                                 ? _buildLoadingState()
                                 : availableDocuments.isEmpty
                                 ? const AvailableFilesEmptyStateWidget()
@@ -342,22 +382,22 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     }
 
     try {
-      // Use DocumentService directly for reliable updates
-      final documentService = DocumentService.instance;
+      // FIXED: Use DocumentProvider directly for reliable updates
+      final documentProvider = Provider.of<DocumentProvider>(
+        context,
+        listen: false,
+      );
       final selectedFiles = selectionProvider.selectedFiles;
 
       for (final file in selectedFiles) {
-        await documentService.updateDocumentCategory(
+        await documentProvider.updateDocumentCategory(
           file.id,
           widget.category.id,
         );
-
-        // ENHANCED: Update UnifiedDocumentLoader cache immediately
-        _documentLoader.updateDocumentCategory(file.id, widget.category.id);
       }
 
-      // ENHANCED: Sync both data sources for consistency
-      await _documentLoader.syncWithDocumentProvider();
+      // Force refresh to ensure UI consistency
+      await documentProvider.loadDocuments(forceRefresh: true);
 
       if (mounted) {
         // Hide loading indicator
