@@ -109,6 +109,14 @@ if %errorlevel%==0 (
 findstr "usesCleartextTraffic.*true" "android\app\src\debug\AndroidManifest.xml" >nul
 if %errorlevel%==0 (
     echo ✅ Cleartext traffic enabled in debug (development flexibility)
+
+    REM Check for tools:replace attribute
+    findstr "tools:replace" "android\app\src\debug\AndroidManifest.xml" >nul
+    if %errorlevel%==0 (
+        echo ✅ Debug manifest properly configured to override main manifest
+    ) else (
+        echo ⚠️  Debug manifest missing tools:replace attribute
+    )
 ) else (
     echo ⚠️  Cleartext traffic not properly configured in debug
 )

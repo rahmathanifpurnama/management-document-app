@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- The INTERNET permission is required for development. Specifically,
          the Flutter tool needs it to communicate with the running application
          to allow setting breakpoints, to provide hot reload, etc.
@@ -8,8 +9,10 @@
     <!-- Debug-specific application configuration for Firebase App Check -->
     <application
         android:usesCleartextTraffic="true"
-        android:networkSecurityConfig="@xml/network_security_config">
+        android:networkSecurityConfig="@xml/network_security_config"
+        tools:replace="android:usesCleartextTraffic,android:networkSecurityConfig">
         <!-- Debug configuration allows cleartext traffic for development -->
         <!-- Network security config optimized for App Check debugging -->
+        <!-- tools:replace ensures debug settings override main manifest -->
     </application>
 </manifest>
