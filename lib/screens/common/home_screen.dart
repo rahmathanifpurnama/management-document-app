@@ -225,6 +225,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         listen: false,
       );
 
+      // ENHANCED: Check if documents are already loaded to avoid unnecessary loading
+      if (documentProvider.allDocuments.isEmpty) {
+        debugPrint('🏠 Home screen: Documents empty, forcing load...');
+      } else {
+        debugPrint(
+          '🏠 Home screen: ${documentProvider.allDocuments.length} documents already loaded',
+        );
+      }
+
       // Load data with proper error handling and immediate UI updates
       await Future.wait([
         userProvider.loadUsers(),
@@ -233,6 +242,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ]);
 
       debugPrint('🏠 Home screen: Data load completed successfully');
+      debugPrint(
+        '🏠 Home screen: Final document count: ${documentProvider.allDocuments.length}',
+      );
+
       _dataLoaded = true;
 
       // Force UI update after data is loaded
@@ -241,8 +254,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
     } catch (e) {
       debugPrint('❌ Home screen: Error loading data: $e');
-      // Still mark as loaded to prevent infinite loading attempts
-      _dataLoaded = true;
+
+      // Fallback: Try to load documents individually if batch loading fails
+      if (mounted) {
+        try {
+          final documentProvider = Provider.of<DocumentProvider>(
+            context,
+            listen: false,
+          );
+          await documentProvider.loadDocuments();
+          debugPrint('🏠 Home screen: Fallback document loading completed');
+          _dataLoaded = true;
+          if (mounted) {
+            setState(() {});
+          }
+        } catch (fallbackError) {
+          debugPrint(
+            '🏠 Home screen: Fallback loading also failed: $fallbackError',
+          );
+          // Still mark as loaded to prevent infinite loading attempts
+          _dataLoaded = true;
+        }
+      }
     }
   }
 
@@ -260,6 +293,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             _loadData();
           });
         }
+
+        // ADDITIONAL TRIGGER: Ensure documents are loaded even if _dataLoaded is true
+        // This handles cases where data loading completed but documents are still empty
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final documentProvider = Provider.of<DocumentProvider>(
+            context,
+            listen: false,
+          );
+          if (documentProvider.allDocuments.isEmpty &&
+              !documentProvider.isLoading) {
+            debugPrint(
+              '🏠 Home screen: Additional trigger - documents empty, loading...',
+            );
+            documentProvider.loadDocuments();
+          }
+        });
 
         return AppScaffoldWithNavigation(
           title: 'Beranda',

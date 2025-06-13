@@ -56,6 +56,22 @@ class DocumentProvider extends ChangeNotifier {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _autoInitializeDocuments();
       });
+
+      // IMMEDIATE INITIALIZATION: Also try to load immediately if possible
+      // This ensures files are available as soon as possible
+      Future.microtask(() async {
+        try {
+          await _loadFromStorage(); // Load cached data first
+          if (_documents.isNotEmpty) {
+            debugPrint(
+              '🚀 DocumentProvider: Loaded ${_documents.length} documents from cache immediately',
+            );
+            notifyListeners();
+          }
+        } catch (e) {
+          debugPrint('🚀 DocumentProvider: Immediate cache load failed: $e');
+        }
+      });
     }
   }
   final EnhancedFirebaseStorageService _enhancedStorageService =
@@ -97,23 +113,62 @@ class DocumentProvider extends ChangeNotifier {
     debugPrint('🚀 AUTO-INIT: Starting document auto-initialization...');
 
     try {
-      // FIXED: Always try to load documents on initialization
+      // ENHANCED: Check if we already have cached data first
+      if (_documents.isEmpty) {
+        try {
+          await _loadFromStorage();
+          if (_documents.isNotEmpty) {
+            debugPrint(
+              '📱 AUTO-INIT: Loaded ${_documents.length} documents from cache',
+            );
+            _applyFiltersAndSort();
+            notifyListeners();
+          }
+        } catch (e) {
+          debugPrint('📱 AUTO-INIT: Cache load failed: $e');
+        }
+      }
+
+      // FIXED: Always try to load fresh documents on initialization
       await loadDocuments();
       debugPrint('✅ AUTO-INIT: Auto-initialization completed successfully');
 
-      // Force UI update after auto-initialization
-      notifyListeners();
+      // REMOVED: Redundant notifyListeners() - loadDocuments() already calls it
     } catch (e) {
       debugPrint('❌ AUTO-INIT: Auto-initialization failed: $e');
-      // Try loading from local storage as fallback
-      try {
-        await _loadFromStorage();
-        debugPrint('📱 AUTO-INIT: Loaded from local storage as fallback');
-        notifyListeners();
-      } catch (storageError) {
-        debugPrint(
-          '❌ AUTO-INIT: Local storage fallback also failed: $storageError',
-        );
+
+      // Enhanced fallback strategy
+      if (_documents.isEmpty) {
+        try {
+          await _loadFromStorage();
+          debugPrint('📱 AUTO-INIT: Loaded from local storage as fallback');
+          // Only notify if we actually loaded something from storage
+          if (_documents.isNotEmpty) {
+            _applyFiltersAndSort();
+            notifyListeners();
+          }
+        } catch (storageError) {
+          debugPrint(
+            '❌ AUTO-INIT: Local storage fallback also failed: $storageError',
+          );
+
+          // Final fallback: Try to load from state manager
+          try {
+            final stateManagerDocs = _stateManager.documents;
+            if (stateManagerDocs.isNotEmpty) {
+              _documents = List.from(stateManagerDocs);
+              _applyFiltersAndSort();
+              notifyListeners();
+              debugPrint(
+                '📊 AUTO-INIT: Loaded ${_documents.length} documents from state manager',
+              );
+            }
+          } catch (stateError) {
+            debugPrint(
+              '❌ AUTO-INIT: State manager fallback failed: $stateError',
+            );
+          }
+        }
       }
     }
   }
@@ -182,14 +237,18 @@ class DocumentProvider extends ChangeNotifier {
   bool get isFirebaseSyncActive => _documentsSubscription != null;
 
   // Helper methods for state management
-  void _setLoading(bool loading) {
+  void _setLoading(bool loading, {bool notify = true}) {
     _isLoading = loading;
-    notifyListeners();
+    if (notify) {
+      notifyListeners();
+    }
   }
 
-  void _setError(String error) {
+  void _setError(String error, {bool notify = true}) {
     _errorMessage = error;
-    notifyListeners();
+    if (notify) {
+      notifyListeners();
+    }
   }
 
   void _clearError() {
@@ -197,26 +256,34 @@ class DocumentProvider extends ChangeNotifier {
   }
 
   // Load documents with unified approach - ELIMINATES race conditions
-  Future<void> loadDocuments() async {
-    // Prevent concurrent loading operations
-    if (_isLoadingDocuments) {
+  Future<void> loadDocuments({bool forceRefresh = false}) async {
+    // Prevent concurrent loading operations unless force refresh is requested
+    if (_isLoadingDocuments && !forceRefresh) {
       debugPrint('⚠️ Document loading already in progress, skipping...');
       return;
     }
 
     _isLoadingDocuments = true;
-    _setLoading(true);
+    _setLoading(
+      true,
+      notify: false,
+    ); // Don't notify yet, will notify at the end
     _clearError();
+
+    if (forceRefresh) {
+      debugPrint('🔄 Force refreshing documents...');
+    }
 
     try {
       debugPrint('🔄 Starting unified document loading process...');
 
       // UNIFIED APPROACH: Use single loader to eliminate race conditions
       final unifiedDocuments = await _unifiedLoader.loadAllDocuments(
-        forceRefresh: false,
+        forceRefresh: forceRefresh,
         onLoadingStateChanged: (isLoading) {
-          // Update loading state from unified loader
-          _setLoading(isLoading);
+          // OPTIMIZED: Only update loading state without notifying listeners
+          // Final notification will happen at the end of loadDocuments()
+          _isLoading = isLoading;
         },
       );
 
@@ -235,7 +302,7 @@ class DocumentProvider extends ChangeNotifier {
           _startFirebaseListener();
         }
 
-        notifyListeners();
+        // REMOVED: Redundant notifyListeners() - will be called in finally block
       } else {
         // Fallback to traditional loading if unified loader fails
         debugPrint(
@@ -248,8 +315,11 @@ class DocumentProvider extends ChangeNotifier {
     } catch (e) {
       _setError(e.toString());
     } finally {
-      _setLoading(false);
+      _setLoading(false, notify: false); // Don't notify here
       _isLoadingDocuments = false; // Reset loading flag
+
+      // OPTIMIZED: Single notification at the end to prevent multiple UI rebuilds
+      notifyListeners();
     }
   }
 
@@ -881,6 +951,12 @@ class DocumentProvider extends ChangeNotifier {
     } catch (e) {
       throw Exception('Failed to remove document: ${e.toString()}');
     }
+  }
+
+  /// Force refresh documents from server
+  Future<void> forceRefreshDocuments() async {
+    debugPrint('🔄 Force refreshing documents from server...');
+    await loadDocuments(forceRefresh: true);
   }
 
   // Search documents

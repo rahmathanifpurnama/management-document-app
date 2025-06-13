@@ -116,7 +116,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   Widget build(BuildContext context) {
     return Consumer2<DocumentProvider, FileSelectionProvider>(
       builder: (context, documentProvider, selectionProvider, child) {
-        // FIXED: Trigger loading if provider is empty and not loading
+        // ENHANCED: Multiple triggers to ensure documents are loaded
         if (documentProvider.allDocuments.isEmpty &&
             !documentProvider.isLoading) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -130,13 +130,22 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         // ENTERPRISE SCALE: Get all available documents without artificial limits
         final recentDocuments = documentProvider.getRecentDocuments();
 
-        // Minimal logging for monitoring
+        // Enhanced logging for better monitoring
         if (recentDocuments.isNotEmpty) {
           debugPrint(
             '📊 Home screen: ${recentDocuments.length} files loaded, latest: ${recentDocuments.first.fileName}',
           );
-        } else if (!documentProvider.isLoading) {
-          debugPrint('⚠️ Home screen: No recent documents available');
+        } else {
+          if (documentProvider.isLoading) {
+            debugPrint('⏳ Home screen: Documents are loading...');
+          } else {
+            debugPrint('⚠️ Home screen: No recent documents available');
+            // Additional trigger if we have no documents and not loading
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              debugPrint('🔄 HomeFileListSection: Retry loading documents...');
+              documentProvider.loadDocuments();
+            });
+          }
         }
 
         // Apply search filter to recent files if search is active
@@ -239,79 +248,106 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     List<DocumentModel> documents,
     FileSelectionProvider selectionProvider,
   ) {
-    // Show loading state during transitions
-    if (_isTransitioning) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppColors.border.withValues(alpha: 0.3),
-            width: 1,
-          ),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                ),
+    return Consumer<DocumentProvider>(
+      builder: (context, documentProvider, child) {
+        // Show loading state during transitions or when documents are loading
+        if (_isTransitioning ||
+            (documents.isEmpty && documentProvider.isLoading)) {
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.border.withValues(alpha: 0.3),
+                width: 1,
               ),
-              const SizedBox(height: 12),
-              Text(
-                'Loading...',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.textSecondary,
-                ),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    documentProvider.isLoading
+                        ? 'Loading files...'
+                        : 'Loading...',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-      );
-    }
+            ),
+          );
+        }
 
-    if (documents.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppColors.border.withValues(alpha: 0.3),
-            width: 1,
-          ),
-        ),
-        child: Center(
-          child: Column(
-            children: [
-              Icon(
-                Icons.folder_open,
-                size: 48,
-                color: AppColors.textSecondary.withValues(alpha: 0.5),
+        if (documents.isEmpty && !documentProvider.isLoading) {
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.border.withValues(alpha: 0.3),
+                width: 1,
               ),
-              const SizedBox(height: 12),
-              Text(
-                'No files found',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary,
-                ),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.folder_open,
+                    size: 48,
+                    color: AppColors.textSecondary.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No files found',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Files will appear here once uploaded',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.textSecondary.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-      );
-    }
+            ),
+          );
+        }
 
+        // Return the actual files list
+        return _buildActualFilesList(documents, selectionProvider);
+      },
+    );
+  }
+
+  /// Build the actual files list when documents are available
+  Widget _buildActualFilesList(
+    List<DocumentModel> documents,
+    FileSelectionProvider selectionProvider,
+  ) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
