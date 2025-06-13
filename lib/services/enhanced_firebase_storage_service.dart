@@ -7,7 +7,6 @@ import '../core/services/auth_service.dart';
 import '../config/firebase_config.dart';
 import '../core/utils/anr_prevention.dart';
 import '../core/config/anr_config.dart';
-import '../core/utils/circuit_breaker.dart';
 
 /// Enhanced Firebase Storage Service with improved file display and retrieval
 class EnhancedFirebaseStorageService {
@@ -19,11 +18,6 @@ class EnhancedFirebaseStorageService {
 
   final FirebaseService _firebaseService = FirebaseService.instance;
   final AuthService _authService = AuthService.instance;
-
-  // Cache for download URLs to prevent repeated requests
-  final Map<String, String> _urlCache = {};
-  final Map<String, DateTime> _urlCacheTimestamp = {};
-  static const Duration _urlCacheExpiry = Duration(hours: 1);
 
   /// Get current user data
   Future<UserModel?> get _currentUser async {
@@ -106,8 +100,8 @@ class EnhancedFirebaseStorageService {
             )
           : null;
 
-      // Get download URL with caching
-      final downloadUrl = await _getDownloadUrlWithCache(ref);
+      // Get download URL directly
+      final downloadUrl = await _getDownloadUrlDirect(ref);
       if (downloadUrl == null) {
         debugPrint('⚠️ Failed to get download URL for ${ref.name}');
         return null;
@@ -155,65 +149,45 @@ class EnhancedFirebaseStorageService {
     }
   }
 
-  /// Get download URL with caching and circuit breaker to prevent repeated requests
-  Future<String?> _getDownloadUrlWithCache(Reference ref) async {
-    final cacheKey = ref.fullPath;
-    final now = DateTime.now();
+  /// Get download URL directly without caching or circuit breaker
+  Future<String?> _getDownloadUrlDirect(Reference ref) async {
+    try {
+      debugPrint('🔗 Getting download URL for ${ref.name}');
 
-    // Check if we have a cached URL that's still valid
-    if (_urlCache.containsKey(cacheKey) &&
-        _urlCacheTimestamp.containsKey(cacheKey)) {
-      final cacheTime = _urlCacheTimestamp[cacheKey]!;
-      if (now.difference(cacheTime) < _urlCacheExpiry) {
-        debugPrint('📋 Using cached URL for ${ref.name}');
-        return _urlCache[cacheKey];
-      }
-    }
-
-    // Use circuit breaker to prevent repeated failures
-    final circuitKey = 'download_url_${ref.name}';
-
-    return await CircuitBreaker.execute(circuitKey, () async {
-      // Get fresh download URL with timeout
+      // Get download URL with timeout but no caching
       final downloadUrl = await ANRPrevention.executeWithTimeout(
         ref.getDownloadURL(),
         timeout: ANRConfig.storageMetadataTimeout,
-        operationName: 'Storage Download URL - ${ref.name}',
+        operationName: 'Direct Download URL - ${ref.name}',
       );
 
       if (downloadUrl != null) {
-        // Cache the URL
-        _urlCache[cacheKey] = downloadUrl;
-        _urlCacheTimestamp[cacheKey] = now;
-        debugPrint('💾 Cached new URL for ${ref.name}');
+        debugPrint('✅ Got download URL for ${ref.name}');
         return downloadUrl;
       }
 
-      throw Exception('Failed to get download URL');
-    }, operationName: 'Download URL - ${ref.name}');
+      debugPrint('⚠️ Download URL is null for ${ref.name}');
+      return null;
+    } catch (e) {
+      debugPrint('❌ Failed to get download URL for ${ref.name}: $e');
+      return null;
+    }
   }
 
   /// Refresh download URL for a specific file
   Future<String?> refreshDownloadUrl(String filePath) async {
     try {
       final ref = _firebaseService.storage.ref().child(filePath);
-
-      // Remove from cache to force refresh
-      _urlCache.remove(filePath);
-      _urlCacheTimestamp.remove(filePath);
-
-      return await _getDownloadUrlWithCache(ref);
+      return await _getDownloadUrlDirect(ref);
     } catch (e) {
       debugPrint('❌ Failed to refresh download URL for $filePath: $e');
       return null;
     }
   }
 
-  /// Clear URL cache
+  /// Clear URL cache (no-op for compatibility)
   void clearUrlCache() {
-    _urlCache.clear();
-    _urlCacheTimestamp.clear();
-    debugPrint('🗑️ Storage URL cache cleared');
+    debugPrint('🗑️ URL cache clearing (no cache to clear)');
   }
 
   /// Get files by category from storage

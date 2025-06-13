@@ -13,26 +13,14 @@ class OptimizedFileService {
 
   OptimizedFileService._();
 
-  final Map<String, Completer<Uint8List?>> _downloadCache = {};
-  final Map<String, DateTime> _cacheTimestamps = {};
   int _activeOperations = 0;
 
-  /// HIGH PRIORITY: Download file with chunking and caching
+  /// HIGH PRIORITY: Download file directly without caching
   Future<Uint8List?> downloadFileOptimized(
     String filePath, {
-    bool useCache = true,
+    bool useCache = false, // Disabled caching
     Function(double progress)? onProgress,
   }) async {
-    // Check cache first
-    if (useCache && _downloadCache.containsKey(filePath)) {
-      final cacheTime = _cacheTimestamps[filePath];
-      if (cacheTime != null &&
-          DateTime.now().difference(cacheTime) < ANRConfig.cacheExpiry) {
-        debugPrint('📦 Using cached file: $filePath');
-        return await _downloadCache[filePath]!.future;
-      }
-    }
-
     // Limit concurrent operations
     if (_activeOperations >= ANRConfig.maxConcurrentFileOps) {
       debugPrint('⚠️ Too many concurrent file operations, queuing...');
@@ -40,21 +28,16 @@ class OptimizedFileService {
     }
 
     _activeOperations++;
-    final completer = Completer<Uint8List?>();
-    _downloadCache[filePath] = completer;
-    _cacheTimestamps[filePath] = DateTime.now();
 
     try {
+      debugPrint('📁 Downloading file directly: $filePath');
       final result = await _downloadFileInBackground(filePath, onProgress);
-      completer.complete(result);
       return result;
     } catch (e) {
       debugPrint('❌ File download failed: $filePath - $e');
-      completer.complete(null);
       return null;
     } finally {
       _activeOperations--;
-      _cleanupOldCache();
     }
   }
 
@@ -300,52 +283,16 @@ class OptimizedFileService {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
-  /// Clean up old cache entries
-  void _cleanupOldCache() {
-    final now = DateTime.now();
-    final keysToRemove = <String>[];
-
-    for (final entry in _cacheTimestamps.entries) {
-      if (now.difference(entry.value) > ANRConfig.cacheExpiry) {
-        keysToRemove.add(entry.key);
-      }
-    }
-
-    for (final key in keysToRemove) {
-      _downloadCache.remove(key);
-      _cacheTimestamps.remove(key);
-    }
-
-    // Limit cache size
-    if (_downloadCache.length > ANRConfig.maxCacheSize) {
-      final sortedEntries = _cacheTimestamps.entries.toList()
-        ..sort((a, b) => a.value.compareTo(b.value));
-
-      final toRemove = sortedEntries.take(
-        _downloadCache.length - ANRConfig.maxCacheSize,
-      );
-      for (final entry in toRemove) {
-        _downloadCache.remove(entry.key);
-        _cacheTimestamps.remove(entry.key);
-      }
-    }
-  }
-
-  /// Clear all cache
+  /// Clear all cache (no-op for compatibility)
   void clearCache() {
-    _downloadCache.clear();
-    _cacheTimestamps.clear();
-    debugPrint('🧹 File cache cleared');
+    debugPrint('🧹 File cache clearing (no cache to clear)');
   }
 
-  /// Get cache statistics
+  /// Get operation statistics
   Map<String, dynamic> getCacheStats() {
     return {
-      'cachedFiles': _downloadCache.length,
+      'cachedFiles': 0, // No caching
       'activeOperations': _activeOperations,
-      'oldestCacheEntry': _cacheTimestamps.values.isEmpty
-          ? null
-          : _cacheTimestamps.values.reduce((a, b) => a.isBefore(b) ? a : b),
     };
   }
 }

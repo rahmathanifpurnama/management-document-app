@@ -4,7 +4,6 @@ import '../models/document_model.dart';
 import '../core/services/firebase_service.dart';
 import '../core/utils/anr_prevention.dart';
 import '../core/config/anr_config.dart';
-import '../core/utils/circuit_breaker.dart';
 
 /// Service for direct Firebase Storage access without Firestore dependency
 /// This service fetches files directly from Firebase Storage and creates DocumentModel objects
@@ -116,26 +115,15 @@ class FirebaseStorageDirectService {
       // Determine file type from extension
       final fileType = _getFileTypeFromName(fileName);
 
-      // Get download URL with circuit breaker protection
-      final circuitKey = 'download_url_${ref.name}';
-      final downloadUrl = await CircuitBreaker.execute(circuitKey, () async {
-        final url = await ANRPrevention.executeWithTimeout(
-          ref.getDownloadURL(),
-          timeout: ANRConfig.storageMetadataTimeout,
-          operationName: 'Storage Download URL - ${ref.name}',
-        );
-
-        if (url == null) {
-          throw Exception('Failed to get download URL');
-        }
-
-        return url;
-      }, operationName: 'Download URL - ${ref.name}');
+      // Get download URL directly
+      final downloadUrl = await ANRPrevention.executeWithTimeout(
+        ref.getDownloadURL(),
+        timeout: ANRConfig.storageMetadataTimeout,
+        operationName: 'Direct Download URL - ${ref.name}',
+      );
 
       if (downloadUrl == null) {
-        debugPrint(
-          '⚠️ Failed to get download URL for ${ref.name} (circuit breaker)',
-        );
+        debugPrint('⚠️ Failed to get download URL for ${ref.name}');
         return null;
       }
 

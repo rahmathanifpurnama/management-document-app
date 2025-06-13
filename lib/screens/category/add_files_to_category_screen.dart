@@ -65,7 +65,8 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     });
 
     try {
-      // Use unified document loader for consistent data loading
+      debugPrint('🔄 Loading files directly from Firebase Storage...');
+      // Direct Firebase Storage loading - no cache, always fresh
       await _documentLoader.loadAllDocuments(
         forceRefresh: true,
         onLoadingStateChanged: (isLoading) {
@@ -76,8 +77,9 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
           }
         },
       );
+      debugPrint('✅ Files loaded successfully from Firebase Storage');
     } catch (e) {
-      debugPrint('❌ Failed to load documents: $e');
+      debugPrint('❌ Failed to load documents from Firebase Storage: $e');
     } finally {
       if (mounted) {
         setState(() {
