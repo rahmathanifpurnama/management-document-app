@@ -354,57 +354,6 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                       color: AppColors.textSecondary.withValues(alpha: 0.7),
                     ),
                   ),
-
-                  // DEBUG INFO: Show debug information in development
-                  if (kDebugMode) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.orange.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: Colors.orange.withValues(alpha: 0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Debug Info:',
-                            style: GoogleFonts.poppins(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.orange,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Total docs: ${documentProvider.allDocuments.length}',
-                            style: GoogleFonts.poppins(
-                              fontSize: 9,
-                              color: Colors.orange.withValues(alpha: 0.8),
-                            ),
-                          ),
-                          Text(
-                            'Error: ${documentProvider.errorMessage ?? 'None'}',
-                            style: GoogleFonts.poppins(
-                              fontSize: 9,
-                              color: Colors.orange.withValues(alpha: 0.8),
-                            ),
-                          ),
-                          Text(
-                            'Circuit: ${CircuitBreaker.isCircuitOpen('home_document_loading') ? 'OPEN' : 'CLOSED'}',
-                            style: GoogleFonts.poppins(
-                              fontSize: 9,
-                              color: Colors.orange.withValues(alpha: 0.8),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
