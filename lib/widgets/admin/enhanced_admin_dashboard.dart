@@ -21,13 +21,29 @@ class _EnhancedAdminDashboardState extends State<EnhancedAdminDashboard> {
   Map<String, dynamic> _statistics = {};
   String? _errorMessage;
 
+  // OPTIMIZATION: Add caching for statistics to prevent unnecessary reloads
+  DateTime? _lastStatisticsLoad;
+  static const Duration _statisticsCacheDuration = Duration(minutes: 3);
+
   @override
   void initState() {
     super.initState();
     _loadStatistics();
   }
 
+  /// Load statistics with intelligent caching to prevent unnecessary Firebase calls
   Future<void> _loadStatistics() async {
+    // Check if we have recent statistics data
+    if (_lastStatisticsLoad != null &&
+        DateTime.now().difference(_lastStatisticsLoad!) <
+            _statisticsCacheDuration &&
+        _statistics.isNotEmpty) {
+      debugPrint('📊 Using cached admin statistics');
+      return; // Use cached data
+    }
+
+    if (_isLoading) return; // Prevent multiple simultaneous calls
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -40,17 +56,24 @@ class _EnhancedAdminDashboardState extends State<EnhancedAdminDashboard> {
       );
       final stats = await documentProvider.getDocumentStatistics();
 
-      setState(() {
-        _statistics = stats;
-      });
+      if (mounted) {
+        setState(() {
+          _statistics = stats;
+          _lastStatisticsLoad = DateTime.now();
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString();
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+        });
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

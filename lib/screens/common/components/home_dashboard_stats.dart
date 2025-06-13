@@ -1,9 +1,12 @@
 part of '../home_screen.dart';
 
-/// Stateless widget for displaying dashboard statistics
+/// FIXED: Stateful widget for displaying dashboard statistics with caching
 /// Uses composition pattern with individual stat cards
-/// Now includes responsive design for different mobile screen sizes
-class HomeDashboardStats extends StatelessWidget {
+/// Now includes responsive design and prevents unnecessary rebuilds during search/filter
+/// 
+/// ROOT CAUSE FIX: Removed DocumentProvider dependency to prevent statistics
+/// from showing loading state when search/filter operations are performed
+class HomeDashboardStats extends StatefulWidget {
   const HomeDashboardStats({super.key});
 
   /// Factory constructor for admin-only stats
@@ -12,77 +15,59 @@ class HomeDashboardStats extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer3<DocumentProvider, UserProvider, CategoryProvider>(
-      builder: (context, documentProvider, userProvider, categoryProvider, child) {
-        return FutureBuilder<Map<String, dynamic>>(
-          future: _getStorageStatistics(),
-          builder: (context, snapshot) {
-            // Show loading state while Firebase Storage statistics are being fetched
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return _buildLoadingStats(context);
-            }
+  State<HomeDashboardStats> createState() => _HomeDashboardStatsState();
+}
 
-            // Use Firebase Storage statistics only, no fallback to avoid flickering
-            final storageStats = snapshot.data ?? {};
-            final totalDocuments = storageStats['totalFiles'] ?? 0;
-            final recentDocuments = storageStats['recentFiles'] ?? 0;
-            final totalUsers = userProvider.users.length;
-            final totalCategories = categoryProvider.categories.length;
+class _HomeDashboardStatsState extends State<HomeDashboardStats> {
+  // Cache for storage statistics to prevent unnecessary Firebase calls
+  Map<String, dynamic>? _cachedStorageStats;
+  DateTime? _lastFetchTime;
+  bool _isLoading = false;
+  
+  // Cache duration - 5 minutes to balance freshness and performance
+  static const Duration _cacheDuration = Duration(minutes: 5);
 
-            // DEBUG: Gunakan nilai fixed untuk margin dan spacing
-            // Ganti ResponsiveUtils dengan nilai yang lebih kecil
-            final screenWidth = MediaQuery.of(context).size.width;
-            final responsiveMargin = EdgeInsets.symmetric(
-              horizontal: screenWidth < 400
-                  ? 8.0
-                  : 16.0, // Lebih kecil untuk layar kecil
-              vertical: 8.0,
-            );
-            final responsiveSpacing = screenWidth < 400
-                ? 8.0
-                : 12.0; // Spacing antar cards
-
-            // Create stat cards data
-            final statCards = [
-              _StatCardData(
-                title: 'Total',
-                value: totalDocuments.toString(),
-                icon: Icons.description,
-                color: AppColors.primary,
-              ),
-              _StatCardData(
-                title: 'Recent',
-                value: recentDocuments.toString(),
-                icon: Icons.access_time,
-                color: AppColors.success,
-              ),
-              _StatCardData(
-                title: 'Users',
-                value: totalUsers.toString(),
-                icon: Icons.people,
-                color: AppColors.warning,
-              ),
-              _StatCardData(
-                title: 'Categories',
-                value: totalCategories.toString(),
-                icon: Icons.folder,
-                color: AppColors.info,
-              ),
-            ];
-
-            return Container(
-              margin: responsiveMargin,
-              // PERUBAHAN: Selalu gunakan Row layout (1 baris)
-              child: _buildRowLayout(context, statCards, responsiveSpacing),
-            );
-          },
-        );
-      },
-    );
+  @override
+  void initState() {
+    super.initState();
+    _loadStorageStatistics();
   }
 
-  /// Get Firebase Storage statistics
+  /// Load storage statistics with intelligent caching mechanism
+  Future<void> _loadStorageStatistics() async {
+    // Check if we have valid cached data
+    if (_cachedStorageStats != null && 
+        _lastFetchTime != null && 
+        DateTime.now().difference(_lastFetchTime!) < _cacheDuration) {
+      return; // Use cached data, no need to fetch
+    }
+
+    if (_isLoading) return; // Prevent multiple simultaneous calls
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final stats = await _getStorageStatistics();
+      if (mounted) {
+        setState(() {
+          _cachedStorageStats = stats;
+          _lastFetchTime = DateTime.now();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+      debugPrint('❌ Failed to load storage statistics: $e');
+    }
+  }
+
+  /// Get Firebase Storage statistics with error handling
   Future<Map<String, dynamic>> _getStorageStatistics() async {
     try {
       final storageService = FirebaseStorageDirectService.instance;
@@ -91,6 +76,74 @@ class HomeDashboardStats extends StatelessWidget {
       debugPrint('❌ Failed to get storage statistics: $e');
       return {};
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // ARCHITECTURAL FIX: Only listen to UserProvider and CategoryProvider
+    // Removed DocumentProvider dependency to prevent unnecessary rebuilds during search/filter
+    return Consumer2<UserProvider, CategoryProvider>(
+      builder: (context, userProvider, categoryProvider, child) {
+        // Show loading only on initial load, not during search/filter operations
+        if (_isLoading && _cachedStorageStats == null) {
+          return _buildLoadingStats(context);
+        }
+
+        // Use cached storage statistics to prevent flickering
+        final storageStats = _cachedStorageStats ?? {};
+        final totalDocuments = storageStats['totalFiles'] ?? 0;
+        final recentDocuments = storageStats['recentFiles'] ?? 0;
+        final totalUsers = userProvider.users.length;
+        final totalCategories = categoryProvider.categories.length;
+
+        // DEBUG: Gunakan nilai fixed untuk margin dan spacing
+        // Ganti ResponsiveUtils dengan nilai yang lebih kecil
+        final screenWidth = MediaQuery.of(context).size.width;
+        final responsiveMargin = EdgeInsets.symmetric(
+          horizontal: screenWidth < 400
+              ? 8.0
+              : 16.0, // Lebih kecil untuk layar kecil
+          vertical: 8.0,
+        );
+        final responsiveSpacing = screenWidth < 400
+            ? 8.0
+            : 12.0; // Spacing antar cards
+
+        // Create stat cards data
+        final statCards = [
+          _StatCardData(
+            title: 'Total',
+            value: totalDocuments.toString(),
+            icon: Icons.description,
+            color: AppColors.primary,
+          ),
+          _StatCardData(
+            title: 'Recent',
+            value: recentDocuments.toString(),
+            icon: Icons.access_time,
+            color: AppColors.success,
+          ),
+          _StatCardData(
+            title: 'Users',
+            value: totalUsers.toString(),
+            icon: Icons.people,
+            color: AppColors.warning,
+          ),
+          _StatCardData(
+            title: 'Categories',
+            value: totalCategories.toString(),
+            icon: Icons.folder,
+            color: AppColors.info,
+          ),
+        ];
+
+        return Container(
+          margin: responsiveMargin,
+          // PERUBAHAN: Selalu gunakan Row layout (1 baris)
+          child: _buildRowLayout(context, statCards, responsiveSpacing),
+        );
+      },
+    );
   }
 
   /// Build loading state for statistics cards
@@ -230,7 +283,7 @@ class _StatCard extends StatelessWidget {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center, // Tambahkan untuk center
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
             padding: EdgeInsets.all(responsiveSpacing),
@@ -266,56 +319,3 @@ class _StatCard extends StatelessWidget {
     );
   }
 }
-
-// OPTIONAL: Jika Anda ingin tetap menggunakan ResponsiveUtils,
-// pastikan nilai-nilai berikut di class ResponsiveUtils:
-/*
-class ResponsiveUtils {
-  static EdgeInsetsGeometry getResponsiveMargin(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    if (width < 360) {
-      return const EdgeInsets.symmetric(horizontal: 12, vertical: 6);
-    } else if (width < 600) {
-      return const EdgeInsets.symmetric(horizontal: 16, vertical: 8);
-    } else {
-      return const EdgeInsets.symmetric(horizontal: 24, vertical: 12);
-
-    }
-  }
-
-  static double getResponsiveSpacing(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    if (width < 360) return 8;
-    else if (width < 600) return 12;
-    else return 16;
-  }
-
-  static double getStatsCardAspectRatio(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    if (width < 360) return 1.2;
-    else if (width < 600) return 1.3;
-    else return 1.4;
-  }
-
-  static double getResponsivePadding(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    if (width < 360) return 10;
-    else if (width < 600) return 12;
-    else return 16;
-  }
-
-  static double getResponsiveFontSize(BuildContext context, {required double baseSize}) {
-    final width = MediaQuery.of(context).size.width;
-    if (width < 360) return baseSize * 0.85;
-    else if (width < 600) return baseSize * 0.9;
-    else return baseSize;
-  }
-
-  static double getResponsiveIconSize(BuildContext context, {required double baseSize}) {
-    final width = MediaQuery.of(context).size.width;
-    if (width < 360) return baseSize * 0.8;
-    else if (width < 600) return baseSize * 0.85;
-    else return baseSize;
-  }
-}
-*/
