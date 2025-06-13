@@ -237,6 +237,7 @@ class DocumentProvider extends ChangeNotifier {
   // Getters
   List<DocumentModel> get documents => _filteredDocuments;
   List<DocumentModel> get allDocuments => _documents;
+  List<DocumentModel> get filteredDocuments => _filteredDocuments;
 
   String? get errorMessage => _errorMessage;
   bool get isLoading => _isLoading;
@@ -247,6 +248,13 @@ class DocumentProvider extends ChangeNotifier {
   String get sortBy => _sortBy;
   bool get sortAscending => _sortAscending;
   bool get isFirebaseSyncActive => _documentsSubscription != null;
+
+  // Check if any filters are currently active
+  bool get hasActiveFilters =>
+      _searchQuery.isNotEmpty ||
+      _selectedCategory != 'all' ||
+      _selectedStatus != 'all' ||
+      _selectedFileType != 'all';
 
   // Helper methods for state management
   void _setLoading(bool loading, {bool notify = true}) {
@@ -993,28 +1001,28 @@ class DocumentProvider extends ChangeNotifier {
   void searchDocuments(String query) {
     _searchQuery = query;
     _applyFiltersAndSort();
-    notifyListeners(); // Ensure UI updates
+    // Note: _applyFiltersAndSort() already calls notifyListeners() to prevent double notifications
   }
 
   // Filter by category
   void filterByCategory(String category) {
     _selectedCategory = category;
     _applyFiltersAndSort();
-    notifyListeners(); // Ensure UI updates
+    // Note: _applyFiltersAndSort() already calls notifyListeners() to prevent double notifications
   }
 
   // Filter by status
   void filterByStatus(String status) {
     _selectedStatus = status;
     _applyFiltersAndSort();
-    notifyListeners(); // Ensure UI updates
+    // Note: _applyFiltersAndSort() already calls notifyListeners() to prevent double notifications
   }
 
   // Filter by file type
   void filterByFileType(String fileType) {
     _selectedFileType = fileType;
     _applyFiltersAndSort();
-    notifyListeners(); // Ensure UI updates
+    // Note: _applyFiltersAndSort() already calls notifyListeners() to prevent double notifications
   }
 
   // Sort documents

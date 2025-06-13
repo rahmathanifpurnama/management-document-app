@@ -193,8 +193,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Perform search immediately if there's at least 1 character or if clearing search
     final searchText = _searchController.text.trim();
     if (searchText.isNotEmpty || searchText.isEmpty) {
-      // Use minimal delay for better performance while still preventing excessive calls
-      _searchTimer = Timer(const Duration(milliseconds: 100), () {
+      // Optimized delay to balance performance and responsiveness
+      // Shorter delay for better UX while preventing excessive provider notifications
+      _searchTimer = Timer(const Duration(milliseconds: 200), () {
         _performSearch();
       });
     }

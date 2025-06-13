@@ -87,6 +87,11 @@ class _ReusableSearchWidgetState extends State<ReusableSearchWidget> {
         child: TextField(
           controller: widget.controller,
           onChanged: widget.onChanged,
+          // Enhanced input handling for all character types
+          keyboardType: TextInputType.text,
+          textInputAction: TextInputAction.search,
+          autocorrect: false,
+          enableSuggestions: false,
           style: GoogleFonts.poppins(
             fontSize: fontSize,
             color: AppColors.textPrimary,

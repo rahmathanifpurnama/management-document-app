@@ -176,21 +176,16 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           }
         }
 
-        // Apply search filter to recent files if search is active
-        final displayDocuments = widget.searchQuery.isNotEmpty
-            ? recentDocuments.where((doc) {
-                return doc.fileName.toLowerCase().contains(
-                      widget.searchQuery.toLowerCase(),
-                    ) ||
-                    doc.metadata.description.toLowerCase().contains(
-                      widget.searchQuery.toLowerCase(),
-                    ) ||
-                    doc.metadata.tags.any(
-                      (tag) => tag.toLowerCase().contains(
-                        widget.searchQuery.toLowerCase(),
-                      ),
-                    );
-              }).toList()
+        // IMPROVED: Use DocumentProvider's filtered results when search/filter is active
+        // This ensures consistency with filter functionality
+        final displayDocuments =
+            widget.searchQuery.isNotEmpty || documentProvider.hasActiveFilters
+            ? documentProvider.filteredDocuments
+                  .where(
+                    (doc) =>
+                        recentDocuments.any((recent) => recent.id == doc.id),
+                  )
+                  .toList()
             : recentDocuments;
 
         // Update available files for selection only when necessary
