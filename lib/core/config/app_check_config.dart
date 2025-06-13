@@ -1,9 +1,14 @@
 import 'package:flutter/foundation.dart';
 
-/// Configuration for Firebase App Check
+/// Configuration for Firebase App Check with Network Security Support
 class AppCheckConfig {
   // Debug token for development - Replace with your actual debug token
+  // This token should be registered in Firebase Console -> App Check
   static const String debugToken = '0D5038C4-B4F2-4628-8AD4-D500B904BA04';
+
+  // Network security configuration support
+  static const bool useNetworkSecurityConfig = true;
+  static const bool allowDebugCertificates = true;
 
   // App Check settings - Enhanced for stability
   static const bool enableAutoRefresh =

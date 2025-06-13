@@ -4,4 +4,12 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Debug-specific application configuration for Firebase App Check -->
+    <application
+        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config">
+        <!-- Debug configuration allows cleartext traffic for development -->
+        <!-- Network security config optimized for App Check debugging -->
+    </application>
 </manifest>

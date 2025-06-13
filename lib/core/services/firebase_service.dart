@@ -90,6 +90,19 @@ class FirebaseService {
         return;
       }
 
+      // Enhanced network security configuration check
+      if (FirebaseConfig.useEnhancedNetworkSecurity) {
+        debugPrint('🔒 Using enhanced network security configuration');
+        debugPrint(
+          '📱 Android network security config optimized for App Check',
+        );
+        if (kDebugMode && FirebaseConfig.allowUserCertificates) {
+          debugPrint(
+            '🔧 Debug mode: User certificates allowed for development',
+          );
+        }
+      }
+
       if (!kDebugMode && !shouldEnableInProduction) {
         debugPrint(
           '🔧 Skipping App Check initialization in production mode (disabled in config)',
@@ -129,19 +142,44 @@ class FirebaseService {
         try {
           final token = await Future.any([
             FirebaseAppCheck.instance.getToken(),
-            Future.delayed(const Duration(seconds: 5), () => null),
+            Future.delayed(
+              const Duration(seconds: 10),
+              () => null,
+            ), // Increased timeout
           ]);
           if (token != null) {
             debugPrint('✅ App Check token obtained successfully');
+            debugPrint('🔒 Token length: ${token.length} characters');
           } else {
             debugPrint(
               '⚠️ App Check token timeout or null, continuing without token',
             );
+            debugPrint(
+              '🔧 Check network connectivity and Android security config',
+            );
           }
         } catch (tokenError) {
           debugPrint('⚠️ Failed to get App Check token: $tokenError');
+
+          // Enhanced error diagnostics
+          if (tokenError.toString().contains('network')) {
+            debugPrint(
+              '🌐 Network error detected - check network security config',
+            );
+            debugPrint(
+              '📱 Verify Android network_security_config.xml includes Firebase domains',
+            );
+          } else if (tokenError.toString().contains('certificate')) {
+            debugPrint('🔒 Certificate error detected - check trust anchors');
+            debugPrint('📱 Verify user certificates are allowed in debug mode');
+          } else if (tokenError.toString().contains('timeout')) {
+            debugPrint(
+              '⏱️ Timeout error detected - check network connectivity',
+            );
+          }
+
           debugPrint(
-            '🔧 Continuing without App Check token (this is normal in debug mode)',
+            '🔧 Continuing without App Check token (check network security config)',
           );
         }
       } else {

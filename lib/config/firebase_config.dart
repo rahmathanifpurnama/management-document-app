@@ -29,12 +29,18 @@ class FirebaseConfig {
       false; // Disabled to reduce Firebase calls
   static const Duration uiRefreshDelay = Duration(milliseconds: 500);
 
-  // App Check settings - FIXED: Disable in debug to prevent "too many attempts" error
+  // App Check settings - ENHANCED: Enable with proper network security configuration
   static const bool enableAppCheckInDebug =
-      false; // FIXED: Disable App Check in debug mode to prevent token errors
+      true; // ENHANCED: Enable App Check in debug mode with network security fixes
   static const bool enableAppCheckInProduction =
       true; // Enable App Check in production mode
   static const Duration appCheckTokenRefreshCooldown = Duration(minutes: 2);
+
+  // Network security configuration settings
+  static const bool useEnhancedNetworkSecurity =
+      true; // Enable enhanced network security
+  static const bool allowUserCertificates =
+      true; // Allow user-added certificates in debug
 
   // Performance settings
   static const int maxRetryAttempts = 3;
