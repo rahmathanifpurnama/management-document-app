@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'dart:async';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
-import '../../providers/document_provider.dart';
+
 import '../../providers/file_selection_provider.dart';
 import '../../models/category_model.dart';
 import '../../models/document_model.dart';
@@ -17,6 +17,8 @@ import '../../widgets/category/add_only_selection_bar_widget.dart';
 import '../../widgets/category/collapsible_filter_section_widget.dart';
 import '../../widgets/category/available_files_empty_state_widget.dart';
 import '../../widgets/common/reusable_search_widget.dart';
+import '../../services/unified_document_loader.dart';
+import '../../core/services/document_service.dart';
 
 class AddFilesToCategoryScreen extends StatefulWidget {
   final CategoryModel category;
@@ -31,6 +33,8 @@ class AddFilesToCategoryScreen extends StatefulWidget {
 class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchTimer;
+  final UnifiedDocumentLoader _documentLoader = UnifiedDocumentLoader.instance;
+  bool _isLoadingDocuments = false;
 
   // ========== MARGIN CONFIGURATION - Easy to adjust ==========
   // Section margins - Reduced to bring content closer to navbar
@@ -56,11 +60,31 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
   }
 
   Future<void> _loadData() async {
-    final documentProvider = Provider.of<DocumentProvider>(
-      context,
-      listen: false,
-    );
-    await documentProvider.loadDocuments();
+    setState(() {
+      _isLoadingDocuments = true;
+    });
+
+    try {
+      // Use unified document loader for consistent data loading
+      await _documentLoader.loadAllDocuments(
+        forceRefresh: true,
+        onLoadingStateChanged: (isLoading) {
+          if (mounted) {
+            setState(() {
+              _isLoadingDocuments = isLoading;
+            });
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('❌ Failed to load documents: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingDocuments = false;
+        });
+      }
+    }
   }
 
   void _onSearchChanged() {
@@ -82,38 +106,17 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     });
   }
 
-  List<DocumentModel> _getAvailableDocuments(List<DocumentModel> allDocuments) {
-    // Get documents that are NOT in any category/folder (category is empty or uncategorized)
-    var availableDocuments = allDocuments
-        .where((doc) => doc.category.isEmpty || doc.category == 'uncategorized')
-        .toList();
-
-    debugPrint(
-      'AddFilesToCategory: Total uncategorized documents: ${availableDocuments.length}',
-    );
-
-    // Apply search filter
+  List<DocumentModel> _getAvailableDocuments() {
+    // Use unified document loader for consistent results
     final searchQuery = _searchController.text.toLowerCase().trim();
-    if (searchQuery.isNotEmpty) {
-      final beforeSearchCount = availableDocuments.length;
-      availableDocuments = availableDocuments.where((document) {
-        final fileName = document.fileName.toLowerCase();
-        final description = document.metadata.description.toLowerCase();
-        final fileType = document.fileType.toLowerCase();
-
-        return fileName.contains(searchQuery) ||
-            description.contains(searchQuery) ||
-            fileType.contains(searchQuery);
-      }).toList();
-
-      debugPrint(
-        'AddFilesToCategory: After search filter "$searchQuery": ${availableDocuments.length} (was $beforeSearchCount)',
-      );
-    }
+    final availableDocuments = _documentLoader.getAvailableDocuments(
+      searchQuery: searchQuery,
+    );
 
     debugPrint(
-      'AddFilesToCategory: Final available documents: ${availableDocuments.length}',
+      'AddFilesToCategory: Available documents: ${availableDocuments.length} (search: "$searchQuery")',
     );
+
     return availableDocuments;
   }
 
@@ -130,13 +133,24 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
             leading: const IOSBackButton(),
           ),
           bottomNavigationBar: const AppBottomNavigation(currentIndex: 1),
-          body: Consumer<DocumentProvider>(
-            builder: (context, documentProvider, child) {
-              // Apply DocumentProvider filters first, then get available documents
-              final filteredDocuments = documentProvider.documents;
-              final availableDocuments = _getAvailableDocuments(
-                filteredDocuments,
-              );
+          body: Consumer<FileSelectionProvider>(
+            builder: (context, selectionProvider, child) {
+              // Use unified document loader for consistent data
+              final availableDocuments = _getAvailableDocuments();
+
+              // Show loading state if documents are being loaded
+              if (_isLoadingDocuments && availableDocuments.isEmpty) {
+                return Column(
+                  children: [
+                    // Custom selection bar for add-only functionality
+                    AddOnlySelectionBarWidget(
+                      selectionProvider: selectionProvider,
+                      onAdd: () => _addSelectedFiles(selectionProvider),
+                    ),
+                    Expanded(child: _buildLoadingState()),
+                  ],
+                );
+              }
 
               // Don't call updateAvailableFiles here to prevent race conditions
               // The available files are properly set when entering selection mode
@@ -170,8 +184,10 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
                               },
                             ),
 
-                            // Files List using ReusableFileListWidget
-                            availableDocuments.isEmpty
+                            // Files List with proper loading states
+                            _isLoadingDocuments
+                                ? _buildLoadingState()
+                                : availableDocuments.isEmpty
                                 ? const AvailableFilesEmptyStateWidget()
                                 : ReusableFileListWidget(
                                     documents: availableDocuments,
@@ -180,7 +196,7 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
                                     showFilter:
                                         false, // Filter already handled above
                                     showPagination: true,
-                                    itemsPerPage: 10,
+                                    itemsPerPage: 25, // Increased for better UX
                                     emptyStateMessage:
                                         'No available files found',
                                     emptyStateIcon: Icons.folder_open,
@@ -218,22 +234,71 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     );
   }
 
+  /// Build loading state widget
+  Widget _buildLoadingState() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 20),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Center(
+        child: Column(
+          children: [
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Loading available files...',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Please wait while we fetch the latest files',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: AppColors.textSecondary.withValues(alpha: 0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _addSelectedFiles(
     FileSelectionProvider selectionProvider,
   ) async {
     if (!selectionProvider.hasSelection) return;
 
     try {
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
-      );
+      // Use DocumentService directly for reliable updates
+      final documentService = DocumentService.instance;
+      for (final fileId in selectionProvider.selectedFileIds) {
+        await documentService.updateDocumentCategory(
+          fileId,
+          widget.category.id,
+        );
+      }
 
-      // Use batch update for better performance
-      await documentProvider.updateMultipleDocumentsCategory(
-        selectionProvider.selectedFileIds.toList(),
-        widget.category.id,
-      );
+      // Refresh the unified loader cache to reflect changes
+      await _documentLoader.refreshCache();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

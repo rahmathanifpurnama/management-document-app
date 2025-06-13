@@ -12,15 +12,14 @@ import '../core/services/category_service.dart';
 import '../services/optimized_firebase_storage_sync_service.dart';
 import '../services/file_category_management_service.dart';
 import '../services/cloud_functions_service.dart';
-import '../core/utils/anr_prevention.dart';
 import '../core/config/anr_config.dart';
-import '../config/firebase_config.dart';
 import 'category_provider.dart';
 import '../services/firebase_storage_direct_service.dart';
 import '../services/enhanced_document_service.dart';
 import '../services/enhanced_firebase_storage_service.dart';
 import '../services/enhanced_auth_service.dart';
 import '../services/document_state_manager.dart';
+import '../services/unified_document_loader.dart';
 
 class DocumentProvider extends ChangeNotifier {
   List<DocumentModel> _documents = [];
@@ -48,6 +47,52 @@ class DocumentProvider extends ChangeNotifier {
 
   // ARCHITECTURAL FIX: Centralized state management
   final DocumentStateManager _stateManager = DocumentStateManager.instance;
+
+  // UNIFIED LOADING: Use unified document loader to eliminate race conditions
+  final UnifiedDocumentLoader _unifiedLoader = UnifiedDocumentLoader.instance;
+
+  /// Handle unified documents from the unified loader
+  void _handleUnifiedDocuments(List<DocumentModel> unifiedDocuments) {
+    debugPrint('🔄 Processing ${unifiedDocuments.length} unified documents');
+
+    // Clear existing data
+    documents.clear();
+
+    // Add unified documents
+    documents.addAll(unifiedDocuments);
+
+    // Apply filters and sorting
+    _applyFiltersAndSort();
+
+    debugPrint('✅ Unified documents processed successfully');
+  }
+
+  /// Fallback to traditional loading if unified loader fails
+  Future<void> _loadDocumentsTraditional() async {
+    debugPrint('🔄 Falling back to traditional document loading...');
+
+    try {
+      // Load from DocumentService directly
+      final documents = await _documentService.getAllDocuments(
+        limit: ANRConfig.defaultPageSize,
+      );
+
+      if (documents.isNotEmpty) {
+        _handleFirebaseDocumentModels(documents);
+        debugPrint(
+          '✅ Traditional loading completed: ${documents.length} documents',
+        );
+      } else {
+        // Try loading from local storage
+        await _loadFromStorage();
+        debugPrint('📱 Loaded from local storage as fallback');
+      }
+    } catch (e) {
+      debugPrint('❌ Traditional loading failed: $e');
+      // Try loading from local storage as last resort
+      await _loadFromStorage();
+    }
+  }
 
   // Dynamic document storage - persists during app session
   static final Map<String, List<DocumentModel>> _categoryDocuments = {};
@@ -83,7 +128,22 @@ class DocumentProvider extends ChangeNotifier {
   bool get sortAscending => _sortAscending;
   bool get isFirebaseSyncActive => _documentsSubscription != null;
 
-  // Load documents with Firebase real-time sync - FIXED: Prevent excessive operations
+  // Helper methods for state management
+  void _setLoading(bool loading) {
+    _isLoading = loading;
+    notifyListeners();
+  }
+
+  void _setError(String error) {
+    _errorMessage = error;
+    notifyListeners();
+  }
+
+  void _clearError() {
+    _errorMessage = null;
+  }
+
+  // Load documents with unified approach - ELIMINATES race conditions
   Future<void> loadDocuments() async {
     // Prevent concurrent loading operations
     if (_isLoadingDocuments) {
@@ -96,102 +156,40 @@ class DocumentProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      debugPrint('🔄 Starting document loading process...');
+      debugPrint('🔄 Starting unified document loading process...');
 
-      // CRITICAL FIX: Skip automatic sync during regular loading to prevent document creation
-      bool firebaseDataLoaded = false;
-      if (_useFirebaseSync && FirebaseConfig.shouldEnableStorageSync) {
-        try {
-          debugPrint('🔄 Starting Firebase Storage sync...');
-
-          // FIXED: Use direct document service instead of sync service to prevent new document creation
-          final firebaseDocuments = await ANRPrevention.executeNetworkOperation(
-            _documentService.getAllDocuments(),
-            operationName: 'Direct Firestore Document Load',
-          );
-
-          if (firebaseDocuments != null && firebaseDocuments.isNotEmpty) {
-            debugPrint(
-              '📥 Loading ${firebaseDocuments.length} documents from Firebase service',
-            );
-            _handleFirebaseDocumentModels(firebaseDocuments);
-            firebaseDataLoaded = true;
-            _isInitialized = true;
-            await _saveToStorage();
-            // Notify listeners immediately after loading
-            notifyListeners();
-          }
-        } catch (firebaseError) {
-          debugPrint('Firebase load error: $firebaseError');
-          // Continue to try local storage if Firebase fails
-        }
-      }
-
-      // If Firebase data wasn't loaded, try local storage
-      if (!firebaseDataLoaded) {
-        debugPrint('🔄 Loading from local storage...');
-        await _loadFromStorage();
-
-        // If no local data either, try one more time with Firebase
-        if (_categoryDocuments.isEmpty) {
-          try {
-            debugPrint(
-              '🔄 No local data found, making final Firebase attempt...',
-            );
-            final firebaseDocuments = await _documentService.getAllDocuments();
-            if (firebaseDocuments.isNotEmpty) {
-              debugPrint(
-                '📥 Final attempt: Loading ${firebaseDocuments.length} documents from Firebase',
-              );
-              _handleFirebaseDocumentModels(firebaseDocuments);
-              firebaseDataLoaded = true;
-              _isInitialized = true;
-              await _saveToStorage();
-              // Notify listeners after final load
-              notifyListeners();
-            }
-          } catch (finalError) {
-            debugPrint('Final Firebase attempt failed: $finalError');
-          }
-        } else {
-          // Notify listeners if we loaded from local storage
-          debugPrint(
-            '📱 Loaded ${_categoryDocuments.length} categories from local storage',
-          );
-          notifyListeners();
-        }
-
-        // Start with empty state for new users only if no data was found anywhere
-        if (!_isInitialized && _categoryDocuments.isEmpty) {
-          debugPrint('📝 No data found anywhere, starting with empty state');
-          _isInitialized = true;
-          await _saveToStorage();
-          notifyListeners();
-        }
-      }
-
-      // Rebuild main documents list from category documents
-      _documents = [];
-      _categoryDocuments.forEach((categoryId, docs) {
-        _documents.addAll(docs);
-      });
-
-      debugPrint(
-        '📊 Document loading summary: ${_documents.length} total documents in ${_categoryDocuments.keys.length} categories',
+      // UNIFIED APPROACH: Use single loader to eliminate race conditions
+      final unifiedDocuments = await _unifiedLoader.loadAllDocuments(
+        forceRefresh: false,
+        onLoadingStateChanged: (isLoading) {
+          // Update loading state from unified loader
+          _setLoading(isLoading);
+        },
       );
 
-      // Ensure all existing categories are properly initialized
-      await _ensureCategoriesInitialized();
+      if (unifiedDocuments.isNotEmpty) {
+        debugPrint(
+          '📥 Loaded ${unifiedDocuments.length} documents from unified loader',
+        );
 
-      // Start Firebase real-time listener if enabled
-      if (_useFirebaseSync) {
-        _startFirebaseListener();
+        // Update local state with unified data
+        _handleUnifiedDocuments(unifiedDocuments);
+        _isInitialized = true;
+        await _saveToStorage();
+
+        // Start Firebase listener for real-time updates
+        if (_useFirebaseSync) {
+          _startFirebaseListener();
+        }
+
+        notifyListeners();
+      } else {
+        // Fallback to traditional loading if unified loader fails
+        debugPrint(
+          '⚠️ Unified loader returned empty, falling back to traditional loading',
+        );
+        await _loadDocumentsTraditional();
       }
-
-      // Run duplicate cleanup after initial load
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        await cleanupDuplicateDocuments();
-      });
 
       _applyFiltersAndSort();
     } catch (e) {
@@ -213,10 +211,10 @@ class DocumentProvider extends ChangeNotifier {
         return;
       }
 
-      // ENHANCED FIX: Use larger limit for recent files consistency
-      // Recent files need more comprehensive data than the default page size
+      // UNIFIED FIX: Use consistent limit across all data sources
+      // Match the limit with DocumentService for consistency
       final listenerLimit =
-          ANRConfig.maxItemsPerPage * 2; // Double the limit for recent files
+          ANRConfig.defaultPageSize; // Use unified limit for consistency
 
       _documentsSubscription = _firebaseService.documentsCollection
           .where('isActive', isEqualTo: true) // Only get active documents
@@ -247,9 +245,9 @@ class DocumentProvider extends ChangeNotifier {
 
   // Handle Firebase document updates from snapshots
   void _handleFirebaseDocumentUpdates(List<QueryDocumentSnapshot> docs) {
-    // Debounce Firebase updates to prevent excessive calls - increased to 2 seconds
+    // REDUCED debounce time for faster UI updates and consistency
     _firebaseUpdateDebouncer?.cancel();
-    _firebaseUpdateDebouncer = Timer(const Duration(seconds: 2), () {
+    _firebaseUpdateDebouncer = Timer(const Duration(milliseconds: 500), () {
       _processFirebaseDocumentUpdates(docs);
     });
   }
@@ -1659,28 +1657,14 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  // Helper methods
-
-  void _setError(String error) {
-    _errorMessage = error;
-    _isLoading = false;
-    notifyListeners();
-  }
-
-  void _clearError() {
-    _errorMessage = null;
-    notifyListeners();
-  }
-
-  void _setLoading(bool loading) {
-    _isLoading = loading;
-    notifyListeners();
-  }
+  // Helper methods - removed duplicates
 
   // Clear error manually
   void clearError() {
     _clearError();
   }
+
+  // All required methods are already implemented above
 
   @override
   void dispose() {

@@ -35,9 +35,9 @@ class DocumentService {
             query = query.startAfterDocument(startAfter);
           }
 
-          // PERFORMANCE FIX: Use smaller page sizes to prevent ANR
+          // PERFORMANCE FIX: Use unified page sizes for consistency
           final effectiveLimit =
-              limit ?? ANRConfig.smallPageSize; // Use smaller default
+              limit ?? ANRConfig.defaultPageSize; // Use unified default limit
           query = query.limit(effectiveLimit);
 
           return await query.get();

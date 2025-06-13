@@ -32,7 +32,7 @@ class ReusableFileListWidget extends StatefulWidget {
     this.onFilterTap,
     this.showFilter = true,
     this.showPagination = true,
-    this.itemsPerPage = 10,
+    this.itemsPerPage = 25, // Increased default for better UX
     this.emptyStateMessage = 'No files found',
     this.emptyStateIcon = Icons.folder_open,
     this.categoryId, // Optional category ID for folder-specific operations
@@ -90,8 +90,10 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
         // Update available files for selection only when necessary
         // Use a more conservative approach to prevent selection interference
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && selectionProvider.isSelectionMode) {
-            // Only update if we're in selection mode to avoid unnecessary calls
+          if (mounted &&
+              selectionProvider.isSelectionMode &&
+              widget.documents.isNotEmpty) {
+            // Only update if we're in selection mode and have documents to avoid unnecessary calls
             selectionProvider.updateAvailableFiles(widget.documents);
           }
         });

@@ -73,11 +73,11 @@ class ANRConfig {
     milliseconds: 1500,
   );
 
-  // HIGH PRIORITY: Pagination settings
-  static const int defaultPageSize = 10;
-  static const int smallPageSize = 5;
-  static const int largePageSize = 20;
-  static const int maxItemsPerPage = 25;
+  // HIGH PRIORITY: Pagination settings - UNIFIED LIMITS
+  static const int defaultPageSize = 50; // Increased to match listener limit
+  static const int smallPageSize = 25; // Increased for better consistency
+  static const int largePageSize = 100;
+  static const int maxItemsPerPage = 50; // Unified with Firebase listener limit
 
   // HIGH PRIORITY: Concurrent operation limits
   static const int maxConcurrentFirebaseOps = 2; // Reduced from 3
