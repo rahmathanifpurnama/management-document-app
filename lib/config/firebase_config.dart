@@ -12,11 +12,13 @@ class FirebaseConfig {
     seconds: 2,
   ); // Increased from 500ms
 
-  // Sync settings - ENHANCED: Enable optimized sync for better file management
+  // Sync settings - ENHANCED: Firebase Storage as primary source
   static const bool enableRealtimeSync =
       true; // ENABLED: Optimized real-time sync with proper debouncing
   static const bool enableStorageSync =
-      true; // ENABLED: Optimized storage sync for file display functionality
+      true; // ENABLED: Firebase Storage as primary data source for consistency
+  static const bool useStorageAsSourceOfTruth =
+      true; // ENHANCED: Firebase Storage as single source of truth
 
   // Logging settings
   static const bool enableVerboseLogging =

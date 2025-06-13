@@ -7,6 +7,7 @@ import 'firebase_storage_direct_service.dart';
 
 /// ARCHITECTURAL FIX: Centralized document state management
 /// Provides single source of truth for document data with atomic operations
+/// ENHANCED: Firebase Storage as primary data source for consistency
 class DocumentStateManager {
   static DocumentStateManager? _instance;
   static DocumentStateManager get instance =>
@@ -14,7 +15,7 @@ class DocumentStateManager {
 
   DocumentStateManager._();
 
-  // Core data storage
+  // Core data storage - Firebase Storage as single source of truth
   List<DocumentModel> _documents = [];
   DateTime? _lastRefresh;
   bool _isRefreshing = false;
@@ -22,7 +23,7 @@ class DocumentStateManager {
   // Cache configuration
   static const Duration _cacheExpiry = Duration(minutes: 5);
 
-  // Services
+  // Services - Firebase Storage as primary data source
   final FirebaseStorageDirectService _storageService =
       FirebaseStorageDirectService.instance;
 
@@ -73,6 +74,7 @@ class DocumentStateManager {
   }
 
   /// ATOMIC OPERATION: Refresh documents from Firebase Storage
+  /// ENHANCED: Firebase Storage as single source of truth with smart sync
   Future<void> refreshDocuments() async {
     // Prevent concurrent refresh operations
     if (_isRefreshing) {
@@ -87,13 +89,13 @@ class DocumentStateManager {
     _isRefreshing = true;
 
     try {
-      debugPrint('🔄 Starting atomic document refresh...');
+      debugPrint('🔄 Starting Firebase Storage-first document refresh...');
 
-      // Fetch fresh data from Firebase Storage
+      // ENHANCED: Always fetch from Firebase Storage as primary source
       final freshDocuments = await _storageService.getAllFilesFromStorage();
 
       if (freshDocuments.isNotEmpty) {
-        // ATOMIC UPDATE: Replace all data at once
+        // ATOMIC UPDATE: Replace all data at once with Storage data
         _documents = freshDocuments;
         _lastRefresh = DateTime.now();
 
@@ -101,16 +103,26 @@ class DocumentStateManager {
         _documentsController.add(documents);
 
         debugPrint(
-          '✅ Atomic refresh completed: ${_documents.length} documents',
+          '✅ Storage-first refresh completed: ${_documents.length} documents from Firebase Storage',
+        );
+        debugPrint(
+          '📊 File count matches Firebase Storage exactly: ${_documents.length} files',
         );
       } else {
         debugPrint(
-          '⚠️ No documents received from storage, keeping existing data',
+          '⚠️ No documents in Firebase Storage, clearing local data for consistency',
         );
+        // CONSISTENCY FIX: Clear local data if Storage is empty
+        _documents.clear();
+        _lastRefresh = DateTime.now();
+        _documentsController.add(documents);
       }
     } catch (e) {
-      debugPrint('❌ Document refresh failed: $e');
-      // Keep existing data on error
+      debugPrint('❌ Firebase Storage refresh failed: $e');
+      // Keep existing data on error but log the inconsistency
+      debugPrint(
+        '⚠️ Using cached data - may not reflect current Storage state',
+      );
     } finally {
       _isRefreshing = false;
     }

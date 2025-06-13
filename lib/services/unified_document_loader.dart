@@ -24,7 +24,7 @@ class UnifiedDocumentLoader {
   DateTime? _lastLoadTime;
   static const Duration _cacheValidDuration = Duration(minutes: 5);
 
-  /// Load all documents with unified approach - eliminates race conditions
+  /// ENHANCED: Load documents with Firebase Storage priority
   Future<List<DocumentModel>> loadAllDocuments({
     bool forceRefresh = false,
     Function(bool isLoading)? onLoadingStateChanged,
@@ -37,10 +37,13 @@ class UnifiedDocumentLoader {
       return _cachedDocuments;
     }
 
-    // FIXED: Check cache validity - don't return empty cache on first load
+    // ENHANCED: Check cache validity but prioritize Firebase Storage consistency
     if (!forceRefresh && _isCacheValid() && _cachedDocuments.isNotEmpty) {
       debugPrint(
         '📋 Returning cached documents (${_cachedDocuments.length} items)',
+      );
+      debugPrint(
+        '⚠️ Note: Using cached data - may not reflect current Firebase Storage state',
       );
       return _cachedDocuments;
     }
@@ -56,7 +59,7 @@ class UnifiedDocumentLoader {
     try {
       debugPrint('📋 Starting unified document loading...');
 
-      // Single source of truth - load all documents at once
+      // ENHANCED: Load documents with Firebase Storage awareness
       final documents = await _loadDocumentsWithRetry();
 
       if (documents.isNotEmpty) {
@@ -66,13 +69,22 @@ class UnifiedDocumentLoader {
         debugPrint(
           '✅ Unified loading complete: ${documents.length} documents loaded',
         );
+        debugPrint(
+          '📊 Note: Unified loader data may differ from Firebase Storage count',
+        );
       } else {
         debugPrint('⚠️ No documents loaded, keeping existing cache');
+        debugPrint(
+          '💡 TIP: Check Firebase Storage /documents/ folder for files',
+        );
       }
 
       return _cachedDocuments;
     } catch (e) {
       debugPrint('❌ Unified document loading failed: $e');
+      debugPrint(
+        '⚠️ Using cached data - may not reflect current Firebase Storage state',
+      );
       // Return cached data on error
       return _cachedDocuments;
     } finally {

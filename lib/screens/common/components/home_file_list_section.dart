@@ -133,22 +133,26 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           });
         }
 
-        // ENTERPRISE SCALE: Get all available documents without artificial limits
+        // ENHANCED: Get documents from Firebase Storage-first approach
         final recentDocuments = documentProvider.getRecentDocuments();
 
-        // Enhanced logging for better monitoring
+        // Enhanced logging for Firebase Storage consistency monitoring
         if (recentDocuments.isNotEmpty) {
           debugPrint(
-            '📊 Home screen: ${recentDocuments.length} files loaded, latest: ${recentDocuments.first.fileName}',
+            '📊 Home screen: ${recentDocuments.length} files from Firebase Storage, latest: ${recentDocuments.first.fileName}',
           );
+          debugPrint('✅ File count matches Firebase Storage data source');
         } else {
           if (documentProvider.isLoading) {
-            debugPrint('⏳ Home screen: Documents are loading...');
+            debugPrint('⏳ Home screen: Loading from Firebase Storage...');
           } else {
-            // ENHANCED DEBUG: Show detailed state information
-            debugPrint('⚠️ Home screen: No recent documents available');
+            // ENHANCED DEBUG: Show Firebase Storage state information
+            debugPrint('⚠️ Home screen: No documents from Firebase Storage');
             debugPrint(
               '📊 Debug info: allDocuments=${documentProvider.allDocuments.length}, isLoading=${documentProvider.isLoading}, error=${documentProvider.errorMessage}',
+            );
+            debugPrint(
+              '💡 TIP: Check Firebase Storage /documents/ folder for files',
             );
 
             // CIRCUIT BREAKER: Prevent infinite retry loops

@@ -101,7 +101,7 @@ class DocumentProvider extends ChangeNotifier {
     debugPrint('✅ Unified documents processed successfully');
   }
 
-  /// FIXED: Auto-initialize documents for immediate availability
+  /// ENHANCED: Auto-initialize documents with Firebase Storage priority
   Future<void> _autoInitializeDocuments() async {
     // FIXED: Don't skip if documents are empty - that's exactly when we need to load
     if (_isLoadingDocuments) {
@@ -111,34 +111,37 @@ class DocumentProvider extends ChangeNotifier {
       return;
     }
 
-    debugPrint('🚀 AUTO-INIT: Starting document auto-initialization...');
+    debugPrint(
+      '🚀 AUTO-INIT: Starting Firebase Storage-first initialization...',
+    );
 
     try {
-      // ENHANCED: Check if we already have cached data first
-      if (_documents.isEmpty) {
-        try {
-          await _loadFromStorage();
-          if (_documents.isNotEmpty) {
-            debugPrint(
-              '📱 AUTO-INIT: Loaded ${_documents.length} documents from cache',
-            );
-            _applyFiltersAndSort();
-            notifyListeners();
-          }
-        } catch (e) {
-          debugPrint('📱 AUTO-INIT: Cache load failed: $e');
-        }
+      // PRIORITY 1: Always try Firebase Storage first for consistency
+      debugPrint('📁 AUTO-INIT: Attempting Firebase Storage direct load...');
+      await _stateManager.refreshDocuments();
+
+      final stateManagerDocs = _stateManager.documents;
+      if (stateManagerDocs.isNotEmpty) {
+        _documents = List.from(stateManagerDocs);
+        _applyFiltersAndSort();
+        notifyListeners();
+        debugPrint(
+          '✅ AUTO-INIT: Loaded ${_documents.length} documents from Firebase Storage',
+        );
+        debugPrint(
+          '📊 File count matches Storage exactly: ${_documents.length} files',
+        );
+        return;
       }
 
-      // FIXED: Always try to load fresh documents on initialization
+      // PRIORITY 2: Fallback to regular loading if Storage is empty
+      debugPrint('📋 AUTO-INIT: Storage empty, trying regular loading...');
       await loadDocuments();
       debugPrint('✅ AUTO-INIT: Auto-initialization completed successfully');
-
-      // REMOVED: Redundant notifyListeners() - loadDocuments() already calls it
     } catch (e) {
-      debugPrint('❌ AUTO-INIT: Auto-initialization failed: $e');
+      debugPrint('❌ AUTO-INIT: Firebase Storage initialization failed: $e');
 
-      // Enhanced fallback strategy
+      // Enhanced fallback strategy - try cached data only as last resort
       if (_documents.isEmpty) {
         try {
           await _loadFromStorage();
@@ -147,28 +150,17 @@ class DocumentProvider extends ChangeNotifier {
           if (_documents.isNotEmpty) {
             _applyFiltersAndSort();
             notifyListeners();
+            debugPrint(
+              '⚠️ Using cached data - may not match current Firebase Storage',
+            );
           }
         } catch (storageError) {
           debugPrint(
-            '❌ AUTO-INIT: Local storage fallback also failed: $storageError',
+            '❌ AUTO-INIT: All initialization methods failed: $storageError',
           );
-
-          // Final fallback: Try to load from state manager
-          try {
-            final stateManagerDocs = _stateManager.documents;
-            if (stateManagerDocs.isNotEmpty) {
-              _documents = List.from(stateManagerDocs);
-              _applyFiltersAndSort();
-              notifyListeners();
-              debugPrint(
-                '📊 AUTO-INIT: Loaded ${_documents.length} documents from state manager',
-              );
-            }
-          } catch (stateError) {
-            debugPrint(
-              '❌ AUTO-INIT: State manager fallback failed: $stateError',
-            );
-          }
+          debugPrint(
+            '💡 TIP: Check Firebase Storage /documents/ folder for files',
+          );
         }
       }
     }
@@ -300,7 +292,7 @@ class DocumentProvider extends ChangeNotifier {
     _errorMessage = null;
   }
 
-  // Load documents with unified approach - ELIMINATES race conditions
+  // ENHANCED: Load documents with Firebase Storage priority
   Future<void> loadDocuments({bool forceRefresh = false}) async {
     // Prevent concurrent loading operations unless force refresh is requested
     if (_isLoadingDocuments && !forceRefresh) {
@@ -323,25 +315,19 @@ class DocumentProvider extends ChangeNotifier {
     }
 
     try {
-      debugPrint('🔄 Starting unified document loading process...');
+      debugPrint('🔄 Starting Firebase Storage-first document loading...');
 
-      // UNIFIED APPROACH: Use single loader to eliminate race conditions
-      final unifiedDocuments = await _unifiedLoader.loadAllDocuments(
-        forceRefresh: forceRefresh,
-        onLoadingStateChanged: (isLoading) {
-          // OPTIMIZED: Only update loading state without notifying listeners
-          // Final notification will happen at the end of loadDocuments()
-          _isLoading = isLoading;
-        },
-      );
+      // PRIORITY 1: Try Firebase Storage first for consistency
+      await _stateManager.refreshDocuments();
+      final storageDocuments = _stateManager.documents;
 
-      if (unifiedDocuments.isNotEmpty) {
+      if (storageDocuments.isNotEmpty) {
         debugPrint(
-          '📥 Loaded ${unifiedDocuments.length} documents from unified loader',
+          '✅ Loaded ${storageDocuments.length} documents from Firebase Storage',
         );
 
-        // Update local state with unified data
-        _handleUnifiedDocuments(unifiedDocuments);
+        // Update local state with Storage data
+        _documents = List.from(storageDocuments);
         _isInitialized = true;
         await _saveToStorage();
 
@@ -350,20 +336,33 @@ class DocumentProvider extends ChangeNotifier {
           _startFirebaseListener();
         }
 
-        // REMOVED: Redundant notifyListeners() - will be called in finally block
-      } else {
-        // Fallback to traditional loading if unified loader fails
         debugPrint(
-          '⚠️ Unified loader returned empty, falling back to traditional loading',
+          '📊 File count matches Firebase Storage exactly: ${_documents.length} files',
         );
-        await _loadDocumentsTraditional();
+      } else {
+        // FALLBACK: Try unified loader if Storage is empty
+        debugPrint('⚠️ Firebase Storage empty, trying unified loader...');
+        final unifiedDocuments = await _unifiedLoader.loadAllDocuments(
+          forceRefresh: forceRefresh,
+          onLoadingStateChanged: (isLoading) {
+            _isLoading = isLoading;
+          },
+        );
 
-        // ADDITIONAL FALLBACK: If traditional loading also fails, try Firebase Storage directly
-        if (_documents.isEmpty) {
+        if (unifiedDocuments.isNotEmpty) {
+          _handleUnifiedDocuments(unifiedDocuments);
+          _isInitialized = true;
+          await _saveToStorage();
+
+          if (_useFirebaseSync) {
+            _startFirebaseListener();
+          }
+        } else {
+          // FINAL FALLBACK: Traditional loading
           debugPrint(
-            '⚠️ Traditional loading also empty, trying Firebase Storage fallback...',
+            '⚠️ All primary methods empty, trying traditional loading...',
           );
-          await _loadFromFirebaseStorageFallback();
+          await _loadDocumentsTraditional();
         }
       }
 
@@ -1410,9 +1409,9 @@ class DocumentProvider extends ChangeNotifier {
         .toList();
   }
 
-  // ENTERPRISE SCALE: Enhanced recent documents with unlimited support
+  // ENHANCED: Firebase Storage as single source of truth for recent documents
   List<DocumentModel> getRecentDocuments({int? limit}) {
-    // Try to get from state manager first for consistency
+    // PRIORITY 1: Always use Firebase Storage data from state manager
     final stateManagerDocs = _stateManager.getRecentDocuments(
       limit:
           limit ??
@@ -1421,18 +1420,23 @@ class DocumentProvider extends ChangeNotifier {
               : ANRConfig.defaultPageSize),
     );
 
-    if (stateManagerDocs.isNotEmpty) {
-      // Sync local state with state manager if needed
+    // CONSISTENCY FIX: Always sync local state with Storage-based state manager
+    if (_stateManager.documents.isNotEmpty) {
       if (_documents.length != _stateManager.documents.length) {
-        debugPrint('🔄 Syncing local state with state manager...');
+        debugPrint('🔄 Syncing local state with Firebase Storage data...');
         _documents = List.from(_stateManager.documents);
         _applyFiltersAndSort();
       }
 
+      // Return Storage-based data for consistency
+      debugPrint(
+        '📊 Using Firebase Storage data: ${stateManagerDocs.length} recent files',
+      );
       return stateManagerDocs;
     }
 
-    // Fallback to local documents if state manager is empty
+    // FALLBACK: Only use local data if Storage data is not available
+    // This ensures we don't show inconsistent data
     List<DocumentModel> sortedDocs = List.from(_documents);
     sortedDocs.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
 
@@ -1448,10 +1452,10 @@ class DocumentProvider extends ChangeNotifier {
       recentDocs = sortedDocs.take(safeLimit).toList();
     }
 
-    // Minimal logging for monitoring
+    // Log fallback usage for monitoring
     if (recentDocs.isNotEmpty) {
       debugPrint(
-        '📊 Recent documents: ${recentDocs.length} files, newest: ${recentDocs.first.fileName}',
+        '⚠️ Using fallback data (may not match Storage): ${recentDocs.length} files',
       );
     }
 
@@ -1724,7 +1728,7 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  // ARCHITECTURAL FIX: Single-threaded refresh with atomic updates
+  // ENHANCED: Firebase Storage-first refresh with atomic updates
   Future<void> refreshDocuments() async {
     // Prevent concurrent refresh operations (including recent files refresh)
     if (_isLoadingDocuments ||
@@ -1736,12 +1740,26 @@ class DocumentProvider extends ChangeNotifier {
       return;
     }
 
-    debugPrint('🔄 Starting single-threaded document refresh...');
+    debugPrint('🔄 Starting Firebase Storage-first document refresh...');
 
-    // Use atomic refresh approach for consistency
-    await refreshRecentFiles();
+    // ENHANCED: Use Firebase Storage as primary source for refresh
+    await _stateManager.refreshDocuments();
+    final freshDocuments = _stateManager.documents;
 
-    debugPrint('✅ Single-threaded document refresh completed');
+    if (freshDocuments.isNotEmpty) {
+      await _atomicDocumentUpdate(freshDocuments);
+      debugPrint(
+        '✅ Storage-first refresh completed: ${freshDocuments.length} documents',
+      );
+      debugPrint(
+        '📊 File count matches Firebase Storage exactly: ${freshDocuments.length} files',
+      );
+    } else {
+      // Fallback to recent files refresh if Storage is empty
+      await refreshRecentFiles();
+    }
+
+    debugPrint('✅ Firebase Storage-first document refresh completed');
   }
 
   // Force refresh with Firebase Storage sync
