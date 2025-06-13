@@ -1,8 +1,13 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/document_model.dart';
-import '../services/firebase_storage_direct_service.dart';
+import '../core/services/document_service.dart';
+import '../core/config/anr_config.dart';
+import '../config/firebase_config.dart';
+import '../core/utils/anr_prevention.dart';
 
-/// Simplified document loader - Direct Firebase Storage access without caching
+/// Unified document loader to eliminate race conditions and ensure consistent data loading
 class UnifiedDocumentLoader {
   static UnifiedDocumentLoader? _instance;
   static UnifiedDocumentLoader get instance =>
@@ -12,13 +17,14 @@ class UnifiedDocumentLoader {
 
   // Single loading state to prevent race conditions
   bool _isLoading = false;
-  final FirebaseStorageDirectService _storageService =
-      FirebaseStorageDirectService.instance;
+  final DocumentService _documentService = DocumentService.instance;
 
-  // Current documents (no caching, always fresh)
-  List<DocumentModel> _currentDocuments = [];
+  // Cache for loaded documents
+  List<DocumentModel> _cachedDocuments = [];
+  DateTime? _lastLoadTime;
+  static const Duration _cacheValidDuration = Duration(minutes: 5);
 
-  /// Load all documents directly from Firebase Storage - no caching
+  /// Load all documents with unified approach - eliminates race conditions
   Future<List<DocumentModel>> loadAllDocuments({
     bool forceRefresh = false,
     Function(bool isLoading)? onLoadingStateChanged,
@@ -26,44 +32,99 @@ class UnifiedDocumentLoader {
     // Prevent concurrent loading operations
     if (_isLoading && !forceRefresh) {
       debugPrint(
-        '📋 Document loading already in progress, returning current data',
+        '📋 Document loading already in progress, returning cached data',
       );
-      return _currentDocuments;
+      return _cachedDocuments;
+    }
+
+    // FIXED: Check cache validity - don't return empty cache on first load
+    if (!forceRefresh && _isCacheValid() && _cachedDocuments.isNotEmpty) {
+      debugPrint(
+        '📋 Returning cached documents (${_cachedDocuments.length} items)',
+      );
+      return _cachedDocuments;
+    }
+
+    // FIXED: Always load if cache is empty, regardless of validity
+    if (_cachedDocuments.isEmpty) {
+      debugPrint('📋 Cache is empty, forcing document load...');
     }
 
     _isLoading = true;
     onLoadingStateChanged?.call(true);
 
     try {
-      debugPrint('📋 Loading documents directly from Firebase Storage...');
+      debugPrint('📋 Starting unified document loading...');
 
-      // Direct Firebase Storage access - no cache, always fresh
-      final documents = await _storageService.getAllFilesFromStorage();
+      // Single source of truth - load all documents at once
+      final documents = await _loadDocumentsWithRetry();
 
       if (documents.isNotEmpty) {
-        _currentDocuments = documents;
+        _cachedDocuments = documents;
+        _lastLoadTime = DateTime.now();
+
         debugPrint(
-          '✅ Direct storage loading complete: ${documents.length} documents loaded',
+          '✅ Unified loading complete: ${documents.length} documents loaded',
         );
       } else {
-        debugPrint('⚠️ No documents found in Firebase Storage');
-        _currentDocuments = [];
+        debugPrint('⚠️ No documents loaded, keeping existing cache');
       }
 
-      return _currentDocuments;
+      return _cachedDocuments;
     } catch (e) {
-      debugPrint('❌ Direct storage loading failed: $e');
-      // Return empty list on error instead of cached data
-      return [];
+      debugPrint('❌ Unified document loading failed: $e');
+      // Return cached data on error
+      return _cachedDocuments;
     } finally {
       _isLoading = false;
       onLoadingStateChanged?.call(false);
     }
   }
 
+  /// Load documents with retry mechanism
+  Future<List<DocumentModel>> _loadDocumentsWithRetry() async {
+    const maxRetries = 3;
+
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        debugPrint('📋 Loading attempt $attempt/$maxRetries');
+
+        // ENTERPRISE SCALE: Use unlimited loading for comprehensive data access
+        final documents = await _documentService.getAllDocuments(
+          limit: FirebaseConfig.shouldEnableUnlimitedFiles
+              ? null // No limit for enterprise mode
+              : ANRConfig.defaultPageSize *
+                    2, // Increased limit for standard mode
+        );
+
+        if (documents.isNotEmpty) {
+          debugPrint(
+            '✅ Loading attempt $attempt successful: ${documents.length} documents',
+          );
+          return documents;
+        } else {
+          debugPrint('⚠️ Loading attempt $attempt returned empty results');
+        }
+
+        if (attempt < maxRetries) {
+          debugPrint('🔄 Retrying in ${500 * attempt}ms...');
+          await Future.delayed(Duration(milliseconds: 500 * attempt));
+        }
+      } catch (e) {
+        debugPrint('❌ Loading attempt $attempt failed: $e');
+        if (attempt == maxRetries) rethrow;
+
+        // Exponential backoff
+        await Future.delayed(Duration(milliseconds: 1000 * attempt));
+      }
+    }
+
+    return [];
+  }
+
   /// Get available documents for category selection (uncategorized files)
   List<DocumentModel> getAvailableDocuments({String searchQuery = ''}) {
-    var availableDocuments = _currentDocuments
+    var availableDocuments = _cachedDocuments
         .where((doc) => doc.category.isEmpty || doc.category == 'uncategorized')
         .toList();
 
@@ -89,7 +150,7 @@ class UnifiedDocumentLoader {
 
   /// Get documents by category
   List<DocumentModel> getDocumentsByCategory(String categoryId) {
-    final categoryDocuments = _currentDocuments
+    final categoryDocuments = _cachedDocuments
         .where((doc) => doc.category == categoryId)
         .toList();
 
@@ -101,7 +162,7 @@ class UnifiedDocumentLoader {
 
   /// Get recent documents
   List<DocumentModel> getRecentDocuments({int limit = 10}) {
-    final recentDocuments = List<DocumentModel>.from(_currentDocuments)
+    final recentDocuments = List<DocumentModel>.from(_cachedDocuments)
       ..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
 
     final result = recentDocuments.take(limit).toList();
@@ -109,34 +170,62 @@ class UnifiedDocumentLoader {
     return result;
   }
 
-  /// Force refresh - reload from Firebase Storage
+  /// Check if cache is valid
+  bool _isCacheValid() {
+    // FIXED: Cache is invalid if we have no load time or if it's too old
+    if (_lastLoadTime == null) {
+      debugPrint('📋 Cache invalid: No load time recorded');
+      return false;
+    }
+
+    final now = DateTime.now();
+    final cacheAge = now.difference(_lastLoadTime!);
+    final isValid = cacheAge < _cacheValidDuration;
+
+    if (!isValid) {
+      debugPrint(
+        '📋 Cache invalid: Age ${cacheAge.inMinutes} minutes exceeds ${_cacheValidDuration.inMinutes} minutes',
+      );
+    }
+
+    return isValid;
+  }
+
+  /// Force refresh cache
   Future<List<DocumentModel>> refreshCache({
     Function(bool isLoading)? onLoadingStateChanged,
   }) async {
-    debugPrint('📋 Force refreshing from Firebase Storage...');
+    debugPrint('📋 Force refreshing document cache...');
     return await loadAllDocuments(
       forceRefresh: true,
       onLoadingStateChanged: onLoadingStateChanged,
     );
   }
 
-  /// Clear current documents
+  /// Clear cache
   void clearCache() {
-    _currentDocuments.clear();
-    debugPrint('📋 Current documents cleared');
+    _cachedDocuments.clear();
+    _lastLoadTime = null;
+    debugPrint('📋 Document cache cleared');
   }
 
-  /// Get current state info
+  /// Get cache info
   Map<String, dynamic> getCacheInfo() {
     return {
-      'currentDocuments': _currentDocuments.length,
+      'cachedDocuments': _cachedDocuments.length,
+      'lastLoadTime': _lastLoadTime?.toIso8601String(),
+      'cacheAge': _lastLoadTime != null
+          ? DateTime.now().difference(_lastLoadTime!).inMinutes
+          : null,
+      'isValid': _isCacheValid(),
       'isLoading': _isLoading,
     };
   }
 
   /// Dispose resources
   void dispose() {
-    _currentDocuments.clear();
+    _cachedDocuments.clear();
+    _lastLoadTime = null;
     _isLoading = false;
     debugPrint('📋 UnifiedDocumentLoader disposed');
   }
