@@ -13,6 +13,7 @@ import '../services/optimized_firebase_storage_sync_service.dart';
 import '../services/file_category_management_service.dart';
 import '../services/cloud_functions_service.dart';
 import '../core/config/anr_config.dart';
+import '../config/firebase_config.dart';
 import 'category_provider.dart';
 import '../services/firebase_storage_direct_service.dart';
 import '../services/enhanced_document_service.dart';
@@ -38,9 +39,24 @@ class DocumentProvider extends ChangeNotifier {
   bool _isRefreshingRecentFiles = false;
   bool _isAtomicUpdateInProgress = false;
 
+  // ENTERPRISE SCALE: Auto-initialization flag
+  bool _autoInitialized = false;
+
   // Enhanced services
   final EnhancedDocumentService _enhancedDocumentService =
       EnhancedDocumentService.instance;
+
+  // ENTERPRISE SCALE: Constructor with auto-initialization
+  DocumentProvider() {
+    // Auto-initialize for enterprise scale support
+    if (FirebaseConfig.shouldEnableUnlimitedFiles && !_autoInitialized) {
+      _autoInitialized = true;
+      // Schedule initialization after the provider is created
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _autoInitializeDocuments();
+      });
+    }
+  }
   final EnhancedFirebaseStorageService _enhancedStorageService =
       EnhancedFirebaseStorageService.instance;
   final EnhancedAuthService _enhancedAuthService = EnhancedAuthService.instance;
@@ -67,15 +83,39 @@ class DocumentProvider extends ChangeNotifier {
     debugPrint('✅ Unified documents processed successfully');
   }
 
+  /// ENTERPRISE SCALE: Auto-initialize documents for immediate availability
+  Future<void> _autoInitializeDocuments() async {
+    if (_isLoadingDocuments || _documents.isNotEmpty) {
+      debugPrint('📋 Auto-initialization skipped - already loaded or loading');
+      return;
+    }
+
+    debugPrint(
+      '🚀 ENTERPRISE: Auto-initializing documents for immediate availability...',
+    );
+
+    try {
+      // Load documents immediately without limits for enterprise use
+      await loadDocuments();
+      debugPrint('✅ ENTERPRISE: Auto-initialization completed successfully');
+    } catch (e) {
+      debugPrint('❌ ENTERPRISE: Auto-initialization failed: $e');
+      // Try loading from local storage as fallback
+      await _loadFromStorage();
+    }
+  }
+
   /// Fallback to traditional loading if unified loader fails
   Future<void> _loadDocumentsTraditional() async {
     debugPrint('🔄 Falling back to traditional document loading...');
 
     try {
-      // Load from DocumentService directly
-      final documents = await _documentService.getAllDocuments(
-        limit: ANRConfig.defaultPageSize,
-      );
+      // ENTERPRISE SCALE: Use unlimited loading for enterprise mode
+      final limit = FirebaseConfig.shouldEnableUnlimitedFiles
+          ? null // No limit for enterprise
+          : ANRConfig.defaultPageSize;
+
+      final documents = await _documentService.getAllDocuments(limit: limit);
 
       if (documents.isNotEmpty) {
         _handleFirebaseDocumentModels(documents);
@@ -211,10 +251,11 @@ class DocumentProvider extends ChangeNotifier {
         return;
       }
 
-      // UNIFIED FIX: Use consistent limit across all data sources
-      // Match the limit with DocumentService for consistency
-      final listenerLimit =
-          ANRConfig.defaultPageSize; // Use unified limit for consistency
+      // ENTERPRISE SCALE: Use appropriate limit based on configuration
+      final listenerLimit = FirebaseConfig.shouldEnableUnlimitedFiles
+          ? ANRConfig
+                .enterprisePageSize // Larger limit for enterprise
+          : ANRConfig.defaultPageSize; // Standard limit for regular use
 
       _documentsSubscription = _firebaseService.documentsCollection
           .where('isActive', isEqualTo: true) // Only get active documents
@@ -1052,16 +1093,22 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  // Get recent files (uploaded in the last 7 days, regardless of category)
-  // FIXED: Use unfiltered documents and apply ANR-safe limits
-  List<DocumentModel> getRecentFiles({int days = 7}) {
+  // ENTERPRISE SCALE: Get recent files with unlimited support
+  List<DocumentModel> getRecentFiles({int days = 7, int? limit}) {
     final cutoffDate = DateTime.now().subtract(Duration(days: days));
     final recentFiles =
         _documents.where((doc) => doc.uploadedAt.isAfter(cutoffDate)).toList()
           ..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
 
-    // Apply ANR-safe limit to prevent performance issues
-    return recentFiles.take(ANRConfig.maxItemsPerPage).toList();
+    // ENTERPRISE SCALE: Apply appropriate limit based on configuration
+    if (FirebaseConfig.shouldEnableUnlimitedFiles && limit == null) {
+      // No limit for enterprise mode
+      return recentFiles;
+    } else {
+      // Apply specified limit or safe default
+      final safeLimit = limit ?? ANRConfig.maxItemsPerPage;
+      return recentFiles.take(safeLimit).toList();
+    }
   }
 
   // Get uncategorized files
@@ -1218,10 +1265,16 @@ class DocumentProvider extends ChangeNotifier {
         .toList();
   }
 
-  // ARCHITECTURAL FIX: Use state manager for consistent recent documents
-  List<DocumentModel> getRecentDocuments({int limit = 10}) {
+  // ENTERPRISE SCALE: Enhanced recent documents with unlimited support
+  List<DocumentModel> getRecentDocuments({int? limit}) {
     // Try to get from state manager first for consistency
-    final stateManagerDocs = _stateManager.getRecentDocuments(limit: limit);
+    final stateManagerDocs = _stateManager.getRecentDocuments(
+      limit:
+          limit ??
+          (FirebaseConfig.shouldEnableUnlimitedFiles
+              ? 0
+              : ANRConfig.defaultPageSize),
+    );
 
     if (stateManagerDocs.isNotEmpty) {
       // Sync local state with state manager if needed
@@ -1238,17 +1291,22 @@ class DocumentProvider extends ChangeNotifier {
     List<DocumentModel> sortedDocs = List.from(_documents);
     sortedDocs.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
 
-    // Apply ANR-safe limit
-    final safeLimit = limit > (ANRConfig.maxItemsPerPage * 2)
-        ? (ANRConfig.maxItemsPerPage * 2)
-        : limit;
-
-    final recentDocs = sortedDocs.take(safeLimit).toList();
+    // ENTERPRISE SCALE: Apply appropriate limit based on configuration
+    List<DocumentModel> recentDocs;
+    if (FirebaseConfig.shouldEnableUnlimitedFiles &&
+        (limit == null || limit == 0)) {
+      // No limit for enterprise mode
+      recentDocs = sortedDocs;
+    } else {
+      // Apply specified limit or safe default
+      final safeLimit = limit ?? ANRConfig.defaultPageSize;
+      recentDocs = sortedDocs.take(safeLimit).toList();
+    }
 
     // Minimal logging for monitoring
     if (recentDocs.isNotEmpty) {
       debugPrint(
-        '📊 Recent documents (fallback): ${recentDocs.length} files, newest: ${recentDocs.first.fileName}',
+        '📊 Recent documents: ${recentDocs.length} files, newest: ${recentDocs.first.fileName}',
       );
     }
 

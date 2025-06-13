@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../services/firebase_service.dart';
 import '../config/anr_config.dart';
+import '../../config/firebase_config.dart';
 import '../utils/anr_prevention.dart';
 import '../../models/activity_model.dart';
 import 'optimized_network_service.dart';
@@ -35,10 +36,14 @@ class DocumentService {
             query = query.startAfterDocument(startAfter);
           }
 
-          // PERFORMANCE FIX: Use unified page sizes for consistency
-          final effectiveLimit =
-              limit ?? ANRConfig.defaultPageSize; // Use unified default limit
-          query = query.limit(effectiveLimit);
+          // ENTERPRISE SCALE: Support unlimited queries for enterprise mode
+          if (limit != null) {
+            query = query.limit(limit);
+          } else if (!FirebaseConfig.shouldEnableUnlimitedFiles) {
+            // Apply default limit only if not in enterprise mode
+            query = query.limit(ANRConfig.defaultPageSize);
+          }
+          // No limit applied for enterprise mode when limit is null
 
           return await query.get();
         },
@@ -341,11 +346,18 @@ class DocumentService {
             query = query.startAfterDocument(startAfter);
           }
 
-          // Limit to prevent ANR
-          final effectiveLimit = limit > ANRConfig.maxItemsPerPage
-              ? ANRConfig.maxItemsPerPage
-              : limit;
-          query = query.limit(effectiveLimit);
+          // ENTERPRISE SCALE: Support unlimited queries for enterprise mode
+          if (FirebaseConfig.shouldEnableUnlimitedFiles &&
+              limit > ANRConfig.maxItemsPerPage) {
+            // Allow unlimited queries for enterprise mode
+            query = query.limit(limit);
+          } else {
+            // Apply safe limit for standard mode
+            final effectiveLimit = limit > ANRConfig.maxItemsPerPage
+                ? ANRConfig.maxItemsPerPage
+                : limit;
+            query = query.limit(effectiveLimit);
+          }
 
           return await query.get();
         },

@@ -205,8 +205,10 @@ class EnhancedDocumentService {
         ? (limit ?? FirebaseConfig.getUnlimitedQueryBatchSize)
         : (limit ?? FirebaseConfig.batchSize);
 
-    if (currentUser?.isAdmin == true && (limit == null || limit > 100)) {
-      // Use unlimited query for admin users requesting large datasets
+    // ENTERPRISE SCALE: Use unlimited queries for enterprise mode or admin users
+    if ((currentUser?.isAdmin == true && (limit == null || limit > 100)) ||
+        FirebaseConfig.shouldEnableUnlimitedFiles) {
+      // Use unlimited query for admin users or enterprise mode
       final allDocs = await getAllDocumentsUnlimited();
       return limit != null ? allDocs.take(limit).toList() : allDocs;
     }

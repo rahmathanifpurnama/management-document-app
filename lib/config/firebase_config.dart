@@ -45,15 +45,16 @@ class FirebaseConfig {
   static const bool enableSmartCaching = true; // Use intelligent caching
   static const bool enablePriorityLoading = true; // Load critical data first
 
-  // UI optimization settings - ENHANCED for unlimited queries
+  // UI optimization settings - ENTERPRISE SCALE SUPPORT
   static const bool enableLazyLoading = true; // Load content as needed
   static const bool enablePreloading = true; // Preload next batch
-  static const int initialLoadSize = 50; // Increased initial load size
-  static const int batchSize =
-      25; // Increased batch size for better performance
-  static const int unlimitedQueryBatchSize = 100; // For unlimited queries
+  static const int initialLoadSize = 100; // Increased for enterprise use
+  static const int batchSize = 50; // Increased batch size for enterprise
+  static const int unlimitedQueryBatchSize = 1000; // For unlimited queries
   static const bool enableUnlimitedQueries =
       true; // Enable unlimited database queries
+  static const bool enableEnterpriseMode =
+      true; // Enable enterprise-scale features
 
   /// Check if auto-refresh should be enabled
   static bool get shouldAutoRefresh => enableAutoRefresh;
@@ -75,6 +76,14 @@ class FirebaseConfig {
 
   /// Get unlimited query batch size
   static int get getUnlimitedQueryBatchSize => unlimitedQueryBatchSize;
+
+  /// Get appropriate batch size based on enterprise mode
+  static int get getEnterpriseBatchSize =>
+      enableEnterpriseMode ? unlimitedQueryBatchSize : batchSize;
+
+  /// Check if unlimited file display is enabled
+  static bool get shouldEnableUnlimitedFiles =>
+      enableEnterpriseMode && enableUnlimitedQueries;
 
   /// Check if progressive loading should be enabled
   static bool get shouldEnableProgressiveLoading => enableProgressiveLoading;

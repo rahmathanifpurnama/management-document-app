@@ -73,11 +73,17 @@ class ANRConfig {
     milliseconds: 1500,
   );
 
-  // HIGH PRIORITY: Pagination settings - UNIFIED LIMITS
-  static const int defaultPageSize = 50; // Increased to match listener limit
-  static const int smallPageSize = 25; // Increased for better consistency
-  static const int largePageSize = 100;
-  static const int maxItemsPerPage = 50; // Unified with Firebase listener limit
+  // HIGH PRIORITY: Pagination settings - ENTERPRISE SCALE SUPPORT
+  static const int defaultPageSize = 100; // Increased for enterprise use
+  static const int smallPageSize = 50; // Increased for better performance
+  static const int largePageSize = 200; // For admin/enterprise users
+  static const int maxItemsPerPage = 100; // Increased for enterprise scale
+
+  // ENTERPRISE SCALE: Unlimited file support settings
+  static const int enterprisePageSize = 500; // For enterprise batch operations
+  static const int unlimitedQueryBatchSize = 1000; // For unlimited queries
+  static const bool enableUnlimitedFileDisplay =
+      true; // Remove file count limits
 
   // HIGH PRIORITY: Concurrent operation limits
   static const int maxConcurrentFirebaseOps = 2; // Reduced from 3

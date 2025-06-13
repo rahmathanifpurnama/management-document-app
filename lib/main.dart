@@ -130,7 +130,8 @@ class _MyAppState extends State<MyApp> {
           ),
           ChangeNotifierProvider(
             create: (_) => DocumentProvider(),
-            lazy: true, // Initialize when needed to prevent startup delay
+            lazy:
+                false, // ENTERPRISE SCALE: Initialize immediately for auto-loading
           ),
           ChangeNotifierProvider(
             create: (_) => CategoryProvider(),

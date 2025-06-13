@@ -45,7 +45,8 @@ class HomeFileListSection extends StatefulWidget {
 class _HomeFileListSectionState extends State<HomeFileListSection>
     with TickerProviderStateMixin {
   int _currentPage = 0;
-  static const int _filesPerPage = 10;
+  // ENTERPRISE SCALE: Increased pagination for better performance with large datasets
+  static const int _filesPerPage = 25;
   bool _isTransitioning = false;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -103,8 +104,8 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   Widget build(BuildContext context) {
     return Consumer2<DocumentProvider, FileSelectionProvider>(
       builder: (context, documentProvider, selectionProvider, child) {
-        // ARCHITECTURAL FIX: Clean data retrieval with minimal logging
-        final recentDocuments = documentProvider.getRecentDocuments(limit: 100);
+        // ENTERPRISE SCALE: Get all available documents without artificial limits
+        final recentDocuments = documentProvider.getRecentDocuments();
 
         // Minimal logging for monitoring
         if (recentDocuments.isNotEmpty) {
