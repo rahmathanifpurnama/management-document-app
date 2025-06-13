@@ -35,7 +35,8 @@ class ReusableFileGridWidget extends StatefulWidget {
     this.onFilterTap,
     this.showFilter = true,
     this.showPagination = true,
-    this.itemsPerPage = 8, // Default 8 items per page for grid (4x2)
+    this.itemsPerPage =
+        25, // STANDARDIZED: 25 items per page across all screens
     this.emptyStateMessage = 'No files found',
     this.emptyStateIcon = Icons.folder_open,
     this.categoryId,

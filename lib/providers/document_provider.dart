@@ -76,19 +76,58 @@ class DocumentProvider extends ChangeNotifier {
   final UnifiedDocumentLoader _unifiedLoader = UnifiedDocumentLoader.instance;
 
   /// Handle unified documents from the unified loader
+  /// ENHANCED: Better synchronization with UnifiedDocumentLoader
   void _handleUnifiedDocuments(List<DocumentModel> unifiedDocuments) {
     debugPrint('🔄 Processing ${unifiedDocuments.length} unified documents');
 
-    // Clear existing data
-    documents.clear();
+    // ENHANCED: Atomic update to prevent race conditions
+    if (_isAtomicUpdateInProgress) {
+      debugPrint(
+        '⚠️ Atomic update in progress, skipping unified document handling',
+      );
+      return;
+    }
 
-    // Add unified documents
-    documents.addAll(unifiedDocuments);
+    _isAtomicUpdateInProgress = true;
 
-    // Apply filters and sorting
-    _applyFiltersAndSort();
+    try {
+      // Clear existing data
+      documents.clear();
 
-    debugPrint('✅ Unified documents processed successfully');
+      // Add unified documents
+      documents.addAll(unifiedDocuments);
+
+      // Apply filters and sorting
+      _applyFiltersAndSort();
+
+      debugPrint('✅ Unified documents processed successfully');
+    } finally {
+      _isAtomicUpdateInProgress = false;
+    }
+  }
+
+  /// ENHANCED: Synchronize with UnifiedDocumentLoader for data consistency
+  Future<void> syncWithUnifiedLoader() async {
+    try {
+      debugPrint('🔄 Syncing DocumentProvider with UnifiedDocumentLoader...');
+
+      // Get latest data from UnifiedDocumentLoader
+      final unifiedDocuments = await _unifiedLoader.loadAllDocuments(
+        forceRefresh: true,
+      );
+
+      if (unifiedDocuments.isNotEmpty) {
+        _handleUnifiedDocuments(unifiedDocuments);
+        await _saveToStorage();
+        notifyListeners();
+      }
+
+      debugPrint(
+        '✅ DocumentProvider sync with UnifiedDocumentLoader completed',
+      );
+    } catch (e) {
+      debugPrint('❌ Failed to sync with UnifiedDocumentLoader: $e');
+    }
   }
 
   /// ENHANCED: Auto-initialize documents with Firebase Storage priority
@@ -806,6 +845,7 @@ class DocumentProvider extends ChangeNotifier {
   }
 
   // Update document category with Firebase Storage integration
+  // ENHANCED: Improved synchronization between providers
   Future<void> updateDocumentCategory(
     String documentId,
     String categoryId,
@@ -844,6 +884,9 @@ class DocumentProvider extends ChangeNotifier {
           _categoryDocuments[categoryId] = [];
         }
         _categoryDocuments[categoryId]!.add(updatedDocument);
+
+        // ENHANCED: Update UnifiedDocumentLoader cache for consistency
+        _unifiedLoader.updateDocumentCategory(documentId, categoryId);
 
         // Only notify once at the end
         notifyListeners();

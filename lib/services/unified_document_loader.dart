@@ -135,10 +135,25 @@ class UnifiedDocumentLoader {
   }
 
   /// Get available documents for category selection (uncategorized files)
-  List<DocumentModel> getAvailableDocuments({String searchQuery = ''}) {
-    var availableDocuments = _cachedDocuments
-        .where((doc) => doc.category.isEmpty || doc.category == 'uncategorized')
-        .toList();
+  /// ENHANCED: Improved filtering logic for better file visibility
+  List<DocumentModel> getAvailableDocuments({
+    String searchQuery = '',
+    String? excludeCategoryId,
+  }) {
+    // Get documents that are uncategorized or have empty category
+    // FIXED: Include files with null category and improve filtering logic
+    var availableDocuments = _cachedDocuments.where((doc) {
+      final category = doc.category.trim();
+      final isUncategorized =
+          category.isEmpty || category == 'uncategorized' || category == 'null';
+
+      // If excluding a specific category, also include files from that category
+      if (excludeCategoryId != null && category == excludeCategoryId) {
+        return false; // Don't show files already in the target category
+      }
+
+      return isUncategorized;
+    }).toList();
 
     // Apply search filter if provided
     if (searchQuery.isNotEmpty) {
@@ -154,8 +169,11 @@ class UnifiedDocumentLoader {
       }).toList();
     }
 
+    // Sort by upload date (newest first) for better UX
+    availableDocuments.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
+
     debugPrint(
-      '📋 Available documents: ${availableDocuments.length} (search: "$searchQuery")',
+      '📋 Available documents: ${availableDocuments.length} (search: "$searchQuery", excludeCategory: $excludeCategoryId)',
     );
     return availableDocuments;
   }
@@ -212,6 +230,34 @@ class UnifiedDocumentLoader {
       forceRefresh: true,
       onLoadingStateChanged: onLoadingStateChanged,
     );
+  }
+
+  /// ENHANCED: Synchronize with DocumentProvider to ensure data consistency
+  Future<void> syncWithDocumentProvider() async {
+    try {
+      debugPrint('📋 Syncing UnifiedDocumentLoader with DocumentProvider...');
+
+      // Force refresh to get latest data
+      await refreshCache();
+
+      debugPrint('✅ UnifiedDocumentLoader sync completed');
+    } catch (e) {
+      debugPrint('❌ Failed to sync UnifiedDocumentLoader: $e');
+    }
+  }
+
+  /// ENHANCED: Update document category in cache
+  void updateDocumentCategory(String documentId, String newCategoryId) {
+    final docIndex = _cachedDocuments.indexWhere((doc) => doc.id == documentId);
+    if (docIndex != -1) {
+      final updatedDoc = _cachedDocuments[docIndex].copyWith(
+        category: newCategoryId,
+      );
+      _cachedDocuments[docIndex] = updatedDoc;
+      debugPrint(
+        '📋 Updated document $documentId category to $newCategoryId in cache',
+      );
+    }
   }
 
   /// Clear cache

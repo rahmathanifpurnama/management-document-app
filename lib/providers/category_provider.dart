@@ -39,30 +39,39 @@ class CategoryProvider extends ChangeNotifier {
   }
 
   // Add category using Cloud Functions
+  // ENHANCED: Support unlimited category creation with universal visibility
   Future<void> addCategory(CategoryModel category) async {
     try {
-      debugPrint('🔄 Adding category via Cloud Functions: ${category.name}');
+      debugPrint(
+        '🔄 Adding unlimited category via Cloud Functions: ${category.name}',
+      );
+
+      // UNLIMITED CATEGORIES: Create category with universal permissions
+      final enhancedCategory = category.copyWith(
+        permissions: [], // Empty permissions for universal access
+        isActive: true, // Ensure category is active
+      );
 
       // Use Cloud Functions to create category
       final result = await _cloudFunctions.createCategory(
-        name: category.name,
-        description: category.description,
-        permissions: category.permissions,
-        isActive: category.isActive,
+        name: enhancedCategory.name,
+        description: enhancedCategory.description,
+        permissions: enhancedCategory.permissions, // Empty for universal access
+        isActive: enhancedCategory.isActive,
       );
 
       if (result['success'] == true) {
         final categoryId = result['categoryId'] as String;
 
         // Update local list with the new ID from Cloud Functions
-        final updatedCategory = category.copyWith(id: categoryId);
+        final updatedCategory = enhancedCategory.copyWith(id: categoryId);
         _categories.insert(0, updatedCategory);
 
         // Initialize empty category in DocumentProvider
         _initializeEmptyCategory(categoryId);
 
         debugPrint(
-          '✅ Category added successfully via Cloud Functions: $categoryId',
+          '✅ Unlimited category added successfully via Cloud Functions: $categoryId',
         );
         notifyListeners();
       } else {
@@ -74,20 +83,30 @@ class CategoryProvider extends ChangeNotifier {
       // Fallback: try using direct Firebase service
       try {
         debugPrint('🔄 Falling back to direct Firebase service...');
-        final categoryId = await _categoryService.addCategory(category);
+        final enhancedCategory = category.copyWith(
+          permissions: [], // Empty permissions for universal access
+          isActive: true,
+        );
+        final categoryId = await _categoryService.addCategory(enhancedCategory);
 
-        final updatedCategory = category.copyWith(id: categoryId);
+        final updatedCategory = enhancedCategory.copyWith(id: categoryId);
         _categories.insert(0, updatedCategory);
         _initializeEmptyCategory(categoryId);
 
-        debugPrint('✅ Category added via fallback method: $categoryId');
+        debugPrint(
+          '✅ Unlimited category added via fallback method: $categoryId',
+        );
         notifyListeners();
       } catch (fallbackError) {
         debugPrint('❌ Fallback also failed: $fallbackError');
 
-        // Last resort: add locally only
-        _categories.insert(0, category);
-        _initializeEmptyCategory(category.id);
+        // Last resort: add locally only with universal access
+        final enhancedCategory = category.copyWith(
+          permissions: [], // Empty permissions for universal access
+          isActive: true,
+        );
+        _categories.insert(0, enhancedCategory);
+        _initializeEmptyCategory(enhancedCategory.id);
         notifyListeners();
         rethrow;
       }
@@ -228,11 +247,18 @@ class CategoryProvider extends ChangeNotifier {
   }
 
   // Get categories that user has access to
+  // ENHANCED: Universal visibility for all authenticated users
   List<CategoryModel> getCategoriesForUser(String userId) {
+    // UNLIMITED CATEGORIES: All active categories are visible to all authenticated users
     return _categories.where((category) {
-      return category.isActive &&
-          (category.permissions.isEmpty || category.hasPermission(userId));
+      return category
+          .isActive; // Remove permission restrictions for universal access
     }).toList();
+  }
+
+  // ENHANCED: Get all categories without user restrictions (for admin/universal access)
+  List<CategoryModel> getAllCategoriesUniversal() {
+    return _categories.where((category) => category.isActive).toList();
   }
 
   // Get total categories count

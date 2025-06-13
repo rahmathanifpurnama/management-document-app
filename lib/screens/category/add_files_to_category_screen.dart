@@ -76,8 +76,31 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
           }
         },
       );
+
+      // ENHANCED: Sync with DocumentProvider for data consistency
+      await _documentLoader.syncWithDocumentProvider();
+
+      debugPrint('✅ Successfully loaded documents for Add Files screen');
     } catch (e) {
       debugPrint('❌ Failed to load documents: $e');
+
+      // ENHANCED: Show user-friendly error message instead of silent failure
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to load available files. Please try again.',
+              style: GoogleFonts.poppins(),
+            ),
+            backgroundColor: AppColors.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () => _loadData(),
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -108,13 +131,16 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
 
   List<DocumentModel> _getAvailableDocuments() {
     // Use unified document loader for consistent results
+    // ENHANCED: Exclude files already in the target category
     final searchQuery = _searchController.text.toLowerCase().trim();
     final availableDocuments = _documentLoader.getAvailableDocuments(
       searchQuery: searchQuery,
+      excludeCategoryId:
+          widget.category.id, // Don't show files already in this category
     );
 
     debugPrint(
-      'AddFilesToCategory: Available documents: ${availableDocuments.length} (search: "$searchQuery")',
+      'AddFilesToCategory: Available documents: ${availableDocuments.length} (search: "$searchQuery", category: ${widget.category.id})',
     );
 
     return availableDocuments;
@@ -196,7 +222,8 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
                                     showFilter:
                                         false, // Filter already handled above
                                     showPagination: true,
-                                    itemsPerPage: 25, // Increased for better UX
+                                    itemsPerPage:
+                                        25, // STANDARDIZED: 25 items per page across all screens
                                     emptyStateMessage:
                                         'No available files found',
                                     emptyStateIcon: Icons.folder_open,
@@ -287,24 +314,59 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
   ) async {
     if (!selectionProvider.hasSelection) return;
 
+    // Show loading indicator
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Adding ${selectionProvider.selectedCount} file(s)...',
+                style: GoogleFonts.poppins(),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.primary,
+          duration: const Duration(seconds: 10),
+        ),
+      );
+    }
+
     try {
       // Use DocumentService directly for reliable updates
       final documentService = DocumentService.instance;
-      for (final fileId in selectionProvider.selectedFileIds) {
+      final selectedFiles = selectionProvider.selectedFiles;
+
+      for (final file in selectedFiles) {
         await documentService.updateDocumentCategory(
-          fileId,
+          file.id,
           widget.category.id,
         );
+
+        // ENHANCED: Update UnifiedDocumentLoader cache immediately
+        _documentLoader.updateDocumentCategory(file.id, widget.category.id);
       }
 
-      // Refresh the unified loader cache to reflect changes
-      await _documentLoader.refreshCache();
+      // ENHANCED: Sync both data sources for consistency
+      await _documentLoader.syncWithDocumentProvider();
 
       if (mounted) {
+        // Hide loading indicator
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '${selectionProvider.selectedCount} file(s) added to ${widget.category.name}',
+              '${selectedFiles.length} file(s) added to ${widget.category.name}',
               style: GoogleFonts.poppins(),
             ),
             backgroundColor: AppColors.success,
@@ -319,6 +381,9 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
       }
     } catch (e) {
       if (mounted) {
+        // Hide loading indicator
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -326,6 +391,11 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
               style: GoogleFonts.poppins(),
             ),
             backgroundColor: AppColors.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () => _addSelectedFiles(selectionProvider),
+            ),
           ),
         );
       }

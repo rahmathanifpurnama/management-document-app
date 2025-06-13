@@ -95,6 +95,11 @@ class ANRConfig {
   static const bool enableUnlimitedFileDisplay =
       true; // Remove file count limits
 
+  // STANDARDIZED PAGINATION: Consistent across all screens
+  static const int standardPageSize = 25; // Standard 25 items per page
+  static const bool enableUnlimitedPagination =
+      true; // Allow unlimited scrolling for enterprise
+
   // HIGH PRIORITY: Concurrent operation limits
   static const int maxConcurrentFirebaseOps = 2; // Reduced from 3
   static const int maxConcurrentNetworkOps = 3;

@@ -253,7 +253,8 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                                 onFilterTap: _showFilterMenu,
                                 showFilter: true,
                                 showPagination: true,
-                                itemsPerPage: 10,
+                                itemsPerPage:
+                                    25, // STANDARDIZED: 25 items per page across all screens
                                 emptyStateMessage: 'No files in this category',
                                 emptyStateIcon: Icons.folder_open,
                                 categoryId: widget
@@ -268,7 +269,8 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                                 onFilterTap: _showFilterMenu,
                                 showFilter: true,
                                 showPagination: true,
-                                itemsPerPage: 10, // Match list mode pagination
+                                itemsPerPage:
+                                    25, // STANDARDIZED: 25 items per page across all screens
                                 emptyStateMessage: 'No files in this category',
                                 emptyStateIcon: Icons.folder_open,
                                 categoryId: widget.category.id,
@@ -421,10 +423,24 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
     final result = await Navigator.of(
       context,
     ).pushNamed(AppRoutes.addFilesToCategory, arguments: widget.category);
-    // Only refresh if files were actually added
+
+    // ENHANCED: Comprehensive refresh if files were actually added
     if (mounted && result == true) {
-      // Just trigger a rebuild, data is already updated in provider
+      final documentProvider = Provider.of<DocumentProvider>(
+        context,
+        listen: false,
+      );
+
+      // Force refresh from Firebase to ensure data consistency
+      await documentProvider.refreshFolderContents();
+
+      // Also refresh category-specific data
+      await documentProvider.getDocumentsByCategoryAsync(widget.category.id);
+
+      // Trigger UI rebuild
       setState(() {});
+
+      debugPrint('✅ Category files refreshed after adding files');
     }
   }
 
