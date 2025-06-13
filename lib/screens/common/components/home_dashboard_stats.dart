@@ -18,14 +18,15 @@ class HomeDashboardStats extends StatelessWidget {
         return FutureBuilder<Map<String, dynamic>>(
           future: _getStorageStatistics(),
           builder: (context, snapshot) {
-            // Use Firebase Storage statistics if available, fallback to Firestore
-            final storageStats = snapshot.data;
-            final totalDocuments =
-                storageStats?['totalFiles'] ??
-                documentProvider.documents.length;
-            final recentDocuments =
-                storageStats?['recentFiles'] ??
-                documentProvider.getRecentFiles(days: 7).length;
+            // Show loading state while Firebase Storage statistics are being fetched
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return _buildLoadingStats(context);
+            }
+
+            // Use Firebase Storage statistics only, no fallback to avoid flickering
+            final storageStats = snapshot.data ?? {};
+            final totalDocuments = storageStats['totalFiles'] ?? 0;
+            final recentDocuments = storageStats['recentFiles'] ?? 0;
             final totalUsers = userProvider.users.length;
             final totalCategories = categoryProvider.categories.length;
 
@@ -92,32 +93,46 @@ class HomeDashboardStats extends StatelessWidget {
     }
   }
 
-  /// Build grid layout for small screens (2x2)
-  Widget _buildGridLayout(
-    BuildContext context,
-    List<_StatCardData> statCards,
-    double spacing,
-  ) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: spacing,
-        mainAxisSpacing: spacing,
-        // FIX: Gunakan aspect ratio yang lebih sesuai
-        childAspectRatio: 1.3, // Ubah dari ResponsiveUtils ke nilai fixed
+  /// Build loading state for statistics cards
+  Widget _buildLoadingStats(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final responsiveMargin = EdgeInsets.symmetric(
+      horizontal: screenWidth < 400 ? 8.0 : 16.0,
+      vertical: 8.0,
+    );
+    final responsiveSpacing = screenWidth < 400 ? 8.0 : 12.0;
+
+    // Create loading stat cards
+    final loadingCards = [
+      _StatCardData(
+        title: 'Total',
+        value: '...',
+        icon: Icons.description,
+        color: AppColors.primary,
       ),
-      itemCount: statCards.length,
-      itemBuilder: (context, index) {
-        final cardData = statCards[index];
-        return _StatCard(
-          title: cardData.title,
-          value: cardData.value,
-          icon: cardData.icon,
-          color: cardData.color,
-        );
-      },
+      _StatCardData(
+        title: 'Recent',
+        value: '...',
+        icon: Icons.access_time,
+        color: AppColors.success,
+      ),
+      _StatCardData(
+        title: 'Users',
+        value: '...',
+        icon: Icons.people,
+        color: AppColors.warning,
+      ),
+      _StatCardData(
+        title: 'Categories',
+        value: '...',
+        icon: Icons.folder,
+        color: AppColors.info,
+      ),
+    ];
+
+    return Container(
+      margin: responsiveMargin,
+      child: _buildRowLayout(context, loadingCards, responsiveSpacing),
     );
   }
 

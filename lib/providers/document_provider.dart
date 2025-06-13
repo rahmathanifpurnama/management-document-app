@@ -58,21 +58,11 @@ class DocumentProvider extends ChangeNotifier {
         _autoInitializeDocuments();
       });
 
-      // IMMEDIATE INITIALIZATION: Also try to load immediately if possible
-      // This ensures files are available as soon as possible
-      Future.microtask(() async {
-        try {
-          await _loadFromStorage(); // Load cached data first
-          if (_documents.isNotEmpty) {
-            debugPrint(
-              '🚀 DocumentProvider: Loaded ${_documents.length} documents from cache immediately',
-            );
-            notifyListeners();
-          }
-        } catch (e) {
-          debugPrint('🚀 DocumentProvider: Immediate cache load failed: $e');
-        }
-      });
+      // REMOVED: Immediate cache loading to prevent showing cached count
+      // This ensures statistics show 0 until Firebase Storage loads
+      debugPrint(
+        '🚀 DocumentProvider: Cache loading disabled to prevent count flickering',
+      );
     }
   }
   final EnhancedFirebaseStorageService _enhancedStorageService =
@@ -141,27 +131,15 @@ class DocumentProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('❌ AUTO-INIT: Firebase Storage initialization failed: $e');
 
-      // Enhanced fallback strategy - try cached data only as last resort
+      // REMOVED: Cache fallback to prevent showing cached count
+      // This ensures statistics show 0 until Firebase Storage loads
       if (_documents.isEmpty) {
-        try {
-          await _loadFromStorage();
-          debugPrint('📱 AUTO-INIT: Loaded from local storage as fallback');
-          // Only notify if we actually loaded something from storage
-          if (_documents.isNotEmpty) {
-            _applyFiltersAndSort();
-            notifyListeners();
-            debugPrint(
-              '⚠️ Using cached data - may not match current Firebase Storage',
-            );
-          }
-        } catch (storageError) {
-          debugPrint(
-            '❌ AUTO-INIT: All initialization methods failed: $storageError',
-          );
-          debugPrint(
-            '💡 TIP: Check Firebase Storage /documents/ folder for files',
-          );
-        }
+        debugPrint(
+          '📊 AUTO-INIT: No documents loaded - statistics will show 0 until Firebase Storage loads',
+        );
+        debugPrint(
+          '💡 TIP: Check Firebase Storage /documents/ folder for files',
+        );
       }
     }
   }
@@ -184,14 +162,11 @@ class DocumentProvider extends ChangeNotifier {
           '✅ Traditional loading completed: ${documents.length} documents',
         );
       } else {
-        // Try loading from local storage
-        await _loadFromStorage();
-        debugPrint('📱 Loaded from local storage as fallback');
+        debugPrint('📱 Traditional loading: No documents found');
       }
     } catch (e) {
       debugPrint('❌ Traditional loading failed: $e');
-      // Try loading from local storage as last resort
-      await _loadFromStorage();
+      // REMOVED: Cache fallback to prevent showing cached count
     }
   }
 
@@ -1916,34 +1891,6 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  // Load data from persistent storage
-  Future<void> _loadFromStorage() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-
-      // Load initialization status
-      _isInitialized = prefs.getBool('documents_initialized') ?? false;
-
-      // Load category documents
-      final String? categoryDataString = prefs.getString('category_documents');
-      if (categoryDataString != null) {
-        final Map<String, dynamic> categoryData = jsonDecode(
-          categoryDataString,
-        );
-
-        _categoryDocuments.clear();
-        categoryData.forEach((categoryId, docsJson) {
-          final List<DocumentModel> docs = (docsJson as List)
-              .map((docJson) => DocumentModel.fromMapForStorage(docJson))
-              .toList();
-          _categoryDocuments[categoryId] = docs;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading documents from storage: $e');
-      // Reset to empty state if loading fails
-      _categoryDocuments.clear();
-      _isInitialized = false;
-    }
-  }
+  // REMOVED: _loadFromStorage method to prevent cache loading
+  // This ensures statistics show 0 until Firebase Storage loads
 }
