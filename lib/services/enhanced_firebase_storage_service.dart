@@ -280,10 +280,28 @@ class EnhancedFirebaseStorageService {
   /// Extract category from file path
   String _extractCategoryFromPath(String fullPath) {
     final pathParts = fullPath.split('/');
-    if (pathParts.length > 2) {
-      // Try to extract category from path structure
-      return pathParts[1]; // Assuming structure: documents/category/file
+
+    // Check for category-specific paths: documents/categories/categoryId/file.pdf
+    if (pathParts.length >= 3 && pathParts[1] == 'categories') {
+      final categoryFromPath = pathParts[2];
+      debugPrint(
+        '📁 Enhanced: Detected category from path: $categoryFromPath for $fullPath',
+      );
+      return categoryFromPath;
     }
+
+    // Files directly in documents/ folder are available for categorization
+    if (pathParts.length >= 2 && pathParts[0] == 'documents') {
+      debugPrint(
+        '📁 Enhanced: File in main documents folder, marking as general: $fullPath',
+      );
+      return 'general';
+    }
+
+    // Default fallback
+    debugPrint(
+      '📁 Enhanced: No specific category detected, using general: $fullPath',
+    );
     return 'general';
   }
 

@@ -214,16 +214,29 @@ class FirebaseStorageDirectService {
 
   /// Extract category from file path
   String _extractCategoryFromPath(String filePath) {
-    // Default category extraction logic
-    // You can customize this based on your folder structure
-    if (filePath.contains('/categories/')) {
-      final parts = filePath.split('/categories/');
-      if (parts.length > 1) {
-        return parts[1].split('/').first;
-      }
+    // FIXED: Updated after uncategorized folder deletion
+    final pathParts = filePath.split('/');
+
+    // Check for category-specific paths: documents/categories/categoryId/file.pdf
+    if (pathParts.length >= 3 && pathParts[1] == 'categories') {
+      final categoryFromPath = pathParts[2];
+      debugPrint(
+        '📁 Detected category from path: $categoryFromPath for $filePath',
+      );
+      return categoryFromPath;
     }
 
-    return 'uncategorized';
+    // Files directly in documents/ folder are uncategorized (available for adding to categories)
+    if (pathParts.length >= 2 && pathParts[0] == 'documents') {
+      debugPrint(
+        '📁 File in main documents folder, marking as general: $filePath',
+      );
+      return 'general'; // Use 'general' for files available to be categorized
+    }
+
+    // Default fallback
+    debugPrint('📁 No specific category detected, using general: $filePath');
+    return 'general';
   }
 
   /// Get storage statistics

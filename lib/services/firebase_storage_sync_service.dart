@@ -219,11 +219,8 @@ class FirebaseStorageSyncService {
       return categoryFromPath;
     }
 
-    // Check for uncategorized folder
-    if (pathParts.contains('uncategorized')) {
-      debugPrint('📁 File in uncategorized folder: $filePath');
-      return 'uncategorized';
-    }
+    // REMOVED: uncategorized folder check (folder has been deleted)
+    // Files are now either in categories or directly in documents/
 
     // Files directly in documents/ folder should be categorized as 'general' not 'uncategorized'
     if (pathParts.length >= 2 && pathParts[0] == 'documents') {

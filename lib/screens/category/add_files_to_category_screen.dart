@@ -154,12 +154,16 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
         return false;
       }
 
-      // Only show uncategorized files (empty category or 'uncategorized')
-      final category = doc.category.trim();
-      final isUncategorized =
-          category.isEmpty || category == 'uncategorized' || category == 'null';
+      // FIXED: Updated filter logic after uncategorized folder deletion
+      // Show files that are available to be categorized (not already in a specific category)
+      final category = doc.category.trim().toLowerCase();
+      final isAvailableForCategorization =
+          category.isEmpty ||
+          category == 'uncategorized' ||
+          category == 'general' ||
+          category == 'null';
 
-      return isUncategorized;
+      return isAvailableForCategorization;
     }).toList();
 
     // Apply search filter if provided
@@ -178,8 +182,21 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     // Sort by upload date (newest first) for better UX
     availableDocuments.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
 
+    // ENHANCED DEBUG: Show category breakdown for troubleshooting
+    final categoryBreakdown = <String, int>{};
+    for (final doc in documentProvider.documents) {
+      final category = doc.category.trim().toLowerCase();
+      final displayCategory = category.isEmpty ? 'empty' : category;
+      categoryBreakdown[displayCategory] =
+          (categoryBreakdown[displayCategory] ?? 0) + 1;
+    }
+
     debugPrint(
-      'AddFilesToCategory: Available documents: ${availableDocuments.length} (search: "$searchQuery", category: ${widget.category.id})',
+      'AddFilesToCategory: Available documents: ${availableDocuments.length} (search: "$searchQuery", target: ${widget.category.id})',
+    );
+    debugPrint('📊 Category breakdown: $categoryBreakdown');
+    debugPrint(
+      '📋 Total documents in provider: ${documentProvider.documents.length}',
     );
 
     return availableDocuments;
