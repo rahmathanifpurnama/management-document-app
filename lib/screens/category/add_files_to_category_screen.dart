@@ -48,6 +48,23 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     super.initState();
     _searchController.addListener(_onSearchChanged);
     _loadData();
+
+    // DIAGNOSTIC: Uncomment the line below to run file path diagnostic on screen load
+    // _runDiagnostic();
+  }
+
+  /// Run diagnostic to check file path issues (for troubleshooting)
+  Future<void> _runDiagnostic() async {
+    try {
+      final documentProvider = Provider.of<DocumentProvider>(
+        context,
+        listen: false,
+      );
+      final results = await documentProvider.runFilePathDiagnostic();
+      debugPrint('🔍 DIAGNOSTIC RESULTS: $results');
+    } catch (e) {
+      debugPrint('❌ Failed to run diagnostic: $e');
+    }
   }
 
   @override
@@ -483,13 +500,49 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
         // Hide loading indicator
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
+        // Enhanced error message with more context
+        String errorMessage = 'Failed to add files to ${widget.category.name}';
+        String detailedError = e.toString();
+
+        // Extract more user-friendly error messages
+        if (detailedError.contains('File not found in Firebase Storage')) {
+          errorMessage =
+              'Some files could not be found in storage. They may have been moved or deleted.';
+        } else if (detailedError.contains('Document not found in database')) {
+          errorMessage =
+              'File information not found in database. Please refresh and try again.';
+        } else if (detailedError.contains('Category not found')) {
+          errorMessage =
+              'Target category not found. Please refresh and try again.';
+        } else if (detailedError.contains('Failed to get file metadata')) {
+          errorMessage =
+              'Unable to access file information. Please check your connection and try again.';
+        }
+
+        debugPrint('❌ Add files error details: $detailedError');
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Failed to add files: $e',
-              style: GoogleFonts.poppins(),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  errorMessage,
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Check the debug console for detailed error information.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.white70,
+                  ),
+                ),
+              ],
             ),
             backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 8),
             action: SnackBarAction(
               label: 'Retry',
               textColor: Colors.white,

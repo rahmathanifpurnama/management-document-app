@@ -851,19 +851,30 @@ class DocumentProvider extends ChangeNotifier {
     String categoryId,
   ) async {
     try {
+      debugPrint('🔄 DocumentProvider: Starting category update...');
+      debugPrint('   Document ID: $documentId');
+      debugPrint('   Target Category: $categoryId');
+
       // Use the file category management service for proper file organization
       final fileCategoryService = FileCategoryManagementService();
 
+      // This will now provide detailed error logging
       await fileCategoryService.moveFileToCategory(documentId, categoryId);
 
       final documentIndex = _documents.indexWhere(
         (doc) => doc.id == documentId,
       );
+
       if (documentIndex != -1) {
         final originalDocument = _documents[documentIndex];
 
+        debugPrint(
+          '✅ Document found in local cache: ${originalDocument.fileName}',
+        );
+
         // Skip if already in the same category
         if (originalDocument.category == categoryId) {
+          debugPrint('⚠️ Document already in target category, skipping update');
           return;
         }
 
@@ -877,6 +888,9 @@ class DocumentProvider extends ChangeNotifier {
           _categoryDocuments[originalDocument.category]!.removeWhere(
             (doc) => doc.id == documentId,
           );
+          debugPrint(
+            '✅ Removed from old category: ${originalDocument.category}',
+          );
         }
 
         // Add to new category storage
@@ -884,6 +898,7 @@ class DocumentProvider extends ChangeNotifier {
           _categoryDocuments[categoryId] = [];
         }
         _categoryDocuments[categoryId]!.add(updatedDocument);
+        debugPrint('✅ Added to new category: $categoryId');
 
         // ENHANCED: Update UnifiedDocumentLoader cache for consistency
         _unifiedLoader.updateDocumentCategory(documentId, categoryId);
@@ -893,8 +908,15 @@ class DocumentProvider extends ChangeNotifier {
 
         // Save to storage
         await _saveToStorage();
+
+        debugPrint(
+          '✅ DocumentProvider: Category update completed successfully',
+        );
+      } else {
+        debugPrint('⚠️ Document not found in local cache: $documentId');
       }
     } catch (e) {
+      debugPrint('❌ DocumentProvider: Failed to update document category: $e');
       _setError('Failed to update document category: $e');
       rethrow;
     }
@@ -1038,6 +1060,21 @@ class DocumentProvider extends ChangeNotifier {
   Future<void> forceRefreshDocuments() async {
     debugPrint('🔄 Force refreshing documents from server...');
     await loadDocuments(forceRefresh: true);
+  }
+
+  /// Run file path diagnostic (for troubleshooting)
+  Future<Map<String, dynamic>> runFilePathDiagnostic() async {
+    try {
+      debugPrint('🔍 Running file path diagnostic...');
+      final fileCategoryService = FileCategoryManagementService();
+      final results = await fileCategoryService.diagnoseFilePathIssues();
+
+      debugPrint('✅ Diagnostic completed');
+      return results;
+    } catch (e) {
+      debugPrint('❌ Failed to run diagnostic: $e');
+      return {'error': e.toString()};
+    }
   }
 
   // Search documents

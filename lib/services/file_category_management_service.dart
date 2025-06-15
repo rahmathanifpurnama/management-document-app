@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../core/services/firebase_service.dart';
 import '../core/services/document_service.dart';
 import '../core/services/category_service.dart';
@@ -16,39 +17,68 @@ class FileCategoryManagementService {
   /// Move file from recent files to a specific category
   Future<void> moveFileToCategory(String documentId, String categoryId) async {
     try {
-      // Get document details
+      debugPrint('🔄 Starting file categorization process...');
+      debugPrint('   Document ID: $documentId');
+      debugPrint('   Target Category ID: $categoryId');
+
+      // Step 1: Get document details with validation
       final document = await _documentService.getDocumentById(documentId);
       if (document == null) {
-        throw Exception('Document not found');
+        debugPrint('❌ Document not found in Firestore: $documentId');
+        throw Exception('Document not found in database: $documentId');
       }
 
-      // Get category details
+      debugPrint('✅ Document found: ${document.fileName}');
+      debugPrint('   Current file path: ${document.filePath}');
+      debugPrint('   Current category: ${document.category}');
+
+      // Step 2: Get category details with validation
       final category = await _categoryService.getCategoryById(categoryId);
       if (category == null) {
-        throw Exception('Category not found');
+        debugPrint('❌ Category not found: $categoryId');
+        throw Exception('Category not found: $categoryId');
       }
 
-      // Move file in Firebase Storage
-      final newFilePath = await _storageService.moveFileToCategory(
-        document.filePath,
-        categoryId,
-        category.name,
-        document.fileName,
-      );
+      debugPrint('✅ Category found: ${category.name}');
 
-      // Update document metadata in Firestore
-      final updatedDocument = document.copyWith(
-        category: categoryId,
-        filePath: newFilePath,
-      );
+      // Step 3: Move file in Firebase Storage with enhanced error handling
+      try {
+        final newFilePath = await _storageService.moveFileToCategory(
+          document.filePath,
+          categoryId,
+          category.name,
+          document.fileName,
+        );
 
-      await _documentService.updateDocument(updatedDocument);
+        debugPrint('✅ File storage operation completed');
+        debugPrint('   New file path: $newFilePath');
 
-      debugPrint(
-        '✅ Moved file ${document.fileName} to category ${category.name}',
-      );
+        // Step 4: Update document metadata in Firestore
+        final updatedDocument = document.copyWith(
+          category: categoryId,
+          filePath: newFilePath,
+        );
+
+        await _documentService.updateDocument(updatedDocument);
+
+        debugPrint(
+          '✅ Successfully moved file ${document.fileName} to category ${category.name}',
+        );
+      } catch (storageError) {
+        debugPrint('❌ Firebase Storage operation failed: $storageError');
+        debugPrint('   Document: ${document.fileName}');
+        debugPrint('   File Path: ${document.filePath}');
+        debugPrint('   Target Category: ${category.name}');
+
+        // Re-throw with more context
+        throw Exception(
+          'Failed to move file "${document.fileName}" to category "${category.name}": $storageError',
+        );
+      }
     } catch (e) {
       debugPrint('❌ Failed to move file to category: $e');
+      debugPrint('   Document ID: $documentId');
+      debugPrint('   Category ID: $categoryId');
       rethrow;
     }
   }
@@ -247,5 +277,155 @@ class FileCategoryManagementService {
       debugPrint('❌ Failed to identify orphaned files: $e');
       return [];
     }
+  }
+
+  /// Diagnostic method to check file path consistency
+  Future<Map<String, dynamic>> diagnoseFilePathIssues() async {
+    try {
+      debugPrint('🔍 Starting file path diagnostic...');
+
+      final allDocuments = await _documentService.getAllDocuments();
+      final diagnosticResults = <String, dynamic>{
+        'totalFiles': allDocuments.length,
+        'validFiles': 0,
+        'invalidFiles': 0,
+        'pathMismatches': <Map<String, String>>[],
+        'missingFiles': <Map<String, String>>[],
+        'pathPatterns': <String, int>{},
+      };
+
+      for (final document in allDocuments) {
+        try {
+          // Analyze path pattern
+          final pathPattern = _getPathPattern(document.filePath);
+          diagnosticResults['pathPatterns'][pathPattern] =
+              (diagnosticResults['pathPatterns'][pathPattern] ?? 0) + 1;
+
+          // Check if file exists at exact path
+          final exactRef = _firebaseService.storage.ref().child(
+            document.filePath,
+          );
+
+          try {
+            await exactRef.getMetadata();
+            diagnosticResults['validFiles']++;
+            debugPrint('✅ Valid: ${document.fileName} -> ${document.filePath}');
+          } catch (e) {
+            diagnosticResults['invalidFiles']++;
+
+            // Try to find the file using the enhanced search
+            final foundRef = await _searchFileInStorage(document.fileName);
+
+            if (foundRef != null) {
+              diagnosticResults['pathMismatches'].add({
+                'fileName': document.fileName,
+                'storedPath': document.filePath,
+                'actualPath': foundRef.fullPath,
+                'documentId': document.id,
+              });
+              debugPrint('⚠️ Path mismatch: ${document.fileName}');
+              debugPrint('   Stored: ${document.filePath}');
+              debugPrint('   Actual: ${foundRef.fullPath}');
+            } else {
+              diagnosticResults['missingFiles'].add({
+                'fileName': document.fileName,
+                'storedPath': document.filePath,
+                'documentId': document.id,
+              });
+              debugPrint(
+                '❌ Missing: ${document.fileName} -> ${document.filePath}',
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('❌ Error checking ${document.fileName}: $e');
+        }
+      }
+
+      debugPrint('🔍 Diagnostic completed:');
+      debugPrint('   Total files: ${diagnosticResults['totalFiles']}');
+      debugPrint('   Valid files: ${diagnosticResults['validFiles']}');
+      debugPrint('   Invalid files: ${diagnosticResults['invalidFiles']}');
+      debugPrint(
+        '   Path mismatches: ${diagnosticResults['pathMismatches'].length}',
+      );
+      debugPrint(
+        '   Missing files: ${diagnosticResults['missingFiles'].length}',
+      );
+      debugPrint('   Path patterns: ${diagnosticResults['pathPatterns']}');
+
+      return diagnosticResults;
+    } catch (e) {
+      debugPrint('❌ Failed to run diagnostic: $e');
+      return {'error': e.toString()};
+    }
+  }
+
+  /// Get path pattern for analysis
+  String _getPathPattern(String filePath) {
+    final parts = filePath.split('/');
+    if (parts.length >= 3 && parts[1] == 'categories') {
+      return 'documents/categories/[categoryId]/[file]';
+    } else if (parts.length == 2 && parts[0] == 'documents') {
+      return 'documents/[file]';
+    } else {
+      return 'other: ${parts.take(2).join('/')}';
+    }
+  }
+
+  /// Search for file in storage by name (for diagnostic purposes)
+  Future<Reference?> _searchFileInStorage(String fileName) async {
+    try {
+      final searchPaths = ['documents/', 'documents/categories/'];
+
+      for (final basePath in searchPaths) {
+        try {
+          final folderRef = _firebaseService.storage.ref().child(basePath);
+          final listResult = await folderRef.listAll();
+
+          // Search in direct files
+          for (final fileRef in listResult.items) {
+            if (_isFileNameMatch(fileRef.name, fileName)) {
+              return fileRef;
+            }
+          }
+
+          // Search in subfolders
+          for (final folderRef in listResult.prefixes) {
+            try {
+              final subListResult = await folderRef.listAll();
+              for (final fileRef in subListResult.items) {
+                if (_isFileNameMatch(fileRef.name, fileName)) {
+                  return fileRef;
+                }
+              }
+            } catch (e) {
+              continue;
+            }
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Check if file names match (simplified version for diagnostic)
+  bool _isFileNameMatch(String storageName, String originalName) {
+    if (storageName == originalName) return true;
+    if (storageName.contains(originalName)) return true;
+
+    // Check timestamp_filename pattern
+    final parts = storageName.split('_');
+    if (parts.length > 1) {
+      final nameWithoutTimestamp = parts.sublist(1).join('_');
+      if (nameWithoutTimestamp == originalName) return true;
+    }
+
+    return false;
   }
 }
