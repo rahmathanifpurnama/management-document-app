@@ -60,14 +60,23 @@ async function verifyData() {
     
     documentsSnapshot.forEach(doc => {
       const data = doc.data();
-      documentsByStatus[data.status] = (documentsByStatus[data.status] || 0) + 1;
+      const status = data.isActive ? 'active' : 'inactive';
+      documentsByStatus[status] = (documentsByStatus[status] || 0) + 1;
       documentsByCategory[data.category] = (documentsByCategory[data.category] || 0) + 1;
       totalFileSize += data.fileSize || 0;
     });
-    
+
     console.log('   By status:', documentsByStatus);
     console.log('   By category:', documentsByCategory);
     console.log(`   Total file size: ${formatFileSize(totalFileSize)}`);
+
+    // List sample documents
+    console.log('   Sample documents:');
+    documentsSnapshot.docs.slice(0, 5).forEach(doc => {
+      const data = doc.data();
+      const status = data.isActive ? '🟢' : '🔴';
+      console.log(`     ${status} ${data.fileName} (${data.category})`);
+    });
     
     // Verify Activities
     console.log('\n📊 Activities Collection:');

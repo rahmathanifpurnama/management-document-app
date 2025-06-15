@@ -37,7 +37,7 @@ const auth = admin.auth();
 const COLLECTIONS = {
   USERS: 'users',
   CATEGORIES: 'categories',
-  DOCUMENTS: 'documents',
+  DOCUMENTS: 'document-metadata',
   ACTIVITIES: 'activities'
 };
 
