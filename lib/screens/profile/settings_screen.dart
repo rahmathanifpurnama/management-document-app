@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
 import 'help_center_screen.dart';
 import 'privacy_policy_screen.dart';
+import '../../utils/firestore_management_helper.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -138,6 +139,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                     const SizedBox(height: 12),
 
+                    _buildMenuTile(
+                      icon: Icons.storage,
+                      title: 'Database Management',
+                      subtitle: 'Manage Firestore data and clean up metadata',
+                      onTap: () =>
+                          FirestoreManagementHelper.openManagementScreen(
+                            context,
+                          ),
+                    ),
+
+                    const SizedBox(height: 12),
+
                     const SizedBox(height: 32),
                   ],
                 );
@@ -171,6 +184,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Privacy Policy',
               subtitle: 'Read our privacy policy',
               onTap: () => _navigateToPrivacy(context),
+            ),
+
+            const SizedBox(height: 12),
+
+            _buildMenuTile(
+              icon: Icons.delete_sweep,
+              title: 'Clear Document Metadata',
+              subtitle:
+                  'Remove document IDs from database (files remain intact)',
+              onTap: () => _clearDocumentMetadata(context),
             ),
 
             const SizedBox(height: 32),
@@ -495,6 +518,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       },
     );
+  }
+
+  void _clearDocumentMetadata(BuildContext context) async {
+    await FirestoreManagementHelper.safeDeleteDocumentMetadata(context);
   }
 
   void _performLogout(BuildContext context) async {
