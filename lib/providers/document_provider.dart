@@ -1270,6 +1270,20 @@ class DocumentProvider extends ChangeNotifier {
         _documents.where((doc) => doc.uploadedAt.isAfter(cutoffDate)).toList()
           ..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
 
+    // ENHANCED DEBUG: Log recent files regardless of category
+    debugPrint('📅 Recent files (${days}d): ${recentFiles.length} total');
+    if (recentFiles.isNotEmpty) {
+      final categoryBreakdown = <String, int>{};
+      for (final file in recentFiles) {
+        final category = file.category.isEmpty ? 'empty' : file.category;
+        categoryBreakdown[category] = (categoryBreakdown[category] ?? 0) + 1;
+      }
+      debugPrint('📊 Recent files by category: $categoryBreakdown');
+      debugPrint(
+        '🔍 FIXED: Recent files now show ALL files regardless of category filters',
+      );
+    }
+
     // ENTERPRISE SCALE: Apply appropriate limit based on configuration
     if (FirebaseConfig.shouldEnableUnlimitedFiles && limit == null) {
       // No limit for enterprise mode

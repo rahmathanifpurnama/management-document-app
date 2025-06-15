@@ -15,8 +15,8 @@ import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/ios_back_button.dart';
 import '../../widgets/common/reusable_file_list_widget.dart';
 import '../../widgets/category/add_only_selection_bar_widget.dart';
-import '../../widgets/category/collapsible_filter_section_widget.dart';
 import '../../widgets/category/available_files_empty_state_widget.dart';
+import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/reusable_search_widget.dart';
 
 class AddFilesToCategoryScreen extends StatefulWidget {
@@ -257,15 +257,8 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
                             // Search Section
                             _buildSearchSection(),
 
-                            // Filter Section (with title and filter button)
-                            CollapsibleFilterSectionWidget(
-                              title: 'Available Files',
-                              onFilterApplied: () {
-                                setState(() {
-                                  // Trigger rebuild to apply filters
-                                });
-                              },
-                            ),
+                            // Filter Section (consistent with home screen)
+                            _buildFilterSection(),
 
                             // Files List with proper loading states
                             (_isLoadingDocuments || documentProvider.isLoading)
@@ -315,6 +308,55 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
         });
       },
       margin: _searchSectionMargin,
+    );
+  }
+
+  /// Build filter section consistent with home screen (no animations)
+  Widget _buildFilterSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'Available Files',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          IconButton(
+            onPressed: _showFilterMenu,
+            icon: const Icon(
+              Icons.filter_list,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+            tooltip: 'Filter Files',
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Show filter menu (identical to home screen)
+  void _showFilterMenu() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => FileFilterWidget(
+        onFilterApplied: () {
+          setState(() {
+            // Trigger rebuild to apply filters
+          });
+        },
+      ),
     );
   }
 
