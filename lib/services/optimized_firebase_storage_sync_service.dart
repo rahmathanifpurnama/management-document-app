@@ -7,6 +7,7 @@ import '../core/services/optimized_network_service.dart';
 import '../core/config/anr_config.dart';
 import '../core/utils/anr_prevention.dart';
 import '../models/document_model.dart';
+import 'document_id_generator.dart';
 
 /// Optimized Firebase Storage Sync Service to prevent ANR issues
 class OptimizedFirebaseStorageSyncService {
@@ -305,8 +306,8 @@ class OptimizedFirebaseStorageSyncService {
           metadata.size ??
           0;
 
-      // Generate a more unique document ID using file path hash
-      final documentId = _generateUniqueDocumentId(
+      // Generate document ID using standardized method for sync operations
+      final documentId = DocumentIdGenerator.generateForSync(
         fileRef.fullPath,
         originalName,
       );
@@ -401,15 +402,6 @@ class OptimizedFirebaseStorageSyncService {
     // Default fallback
     debugPrint('📁 No specific category detected, using general: $filePath');
     return 'general';
-  }
-
-  /// Generate a unique document ID based on file path hash to prevent duplicates
-  String _generateUniqueDocumentId(String filePath, String fileName) {
-    // Use file path hash for uniqueness instead of timestamp to prevent duplicates
-    final pathHash = filePath.hashCode.abs().toString();
-    final cleanName = fileName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '');
-    // Remove timestamp to ensure same file always gets same ID
-    return 'sync_${pathHash}_$cleanName';
   }
 
   // Legacy document ID generation method removed

@@ -8,6 +8,7 @@ import '../config/firebase_config.dart';
 import '../core/utils/anr_prevention.dart';
 import '../core/config/anr_config.dart';
 import '../core/utils/circuit_breaker.dart';
+import 'document_id_generator.dart';
 
 /// Enhanced Firebase Storage Service with improved file display and retrieval
 class EnhancedFirebaseStorageService {
@@ -119,8 +120,8 @@ class EnhancedFirebaseStorageService {
       final uploadedAt = metadata?.timeCreated ?? DateTime.now();
       final contentType = metadata?.contentType ?? 'application/octet-stream';
 
-      // Generate document ID from filename
-      final documentId = _generateDocumentId(fileName);
+      // Generate document ID using standardized method
+      final documentId = DocumentIdGenerator.generateFromFileName(fileName);
 
       // Determine file type from extension
       final fileType = _getFileTypeFromName(fileName);
@@ -230,13 +231,6 @@ class EnhancedFirebaseStorageService {
           (file) => file.fileName.toLowerCase().contains(query.toLowerCase()),
         )
         .toList();
-  }
-
-  /// Generate document ID from filename
-  String _generateDocumentId(String fileName) {
-    // Remove timestamp prefix if exists and create clean ID
-    final cleanName = fileName.replaceAll(RegExp(r'^\d+_'), '');
-    return cleanName.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_').toLowerCase();
   }
 
   /// Get file type from filename

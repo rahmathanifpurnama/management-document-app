@@ -5,6 +5,7 @@ import '../core/services/firebase_service.dart';
 import '../core/utils/anr_prevention.dart';
 import '../core/config/anr_config.dart';
 import '../core/utils/circuit_breaker.dart';
+import 'document_id_generator.dart';
 
 /// Service for direct Firebase Storage access without Firestore dependency
 /// This service fetches files directly from Firebase Storage and creates DocumentModel objects
@@ -110,8 +111,8 @@ class FirebaseStorageDirectService {
       final fileSize = metadata.size ?? 0;
       final uploadedAt = metadata.timeCreated ?? DateTime.now();
 
-      // Generate document ID from filename (remove timestamp prefix if exists)
-      final documentId = _generateDocumentId(fileName);
+      // Generate document ID using standardized method
+      final documentId = DocumentIdGenerator.generateFromFileName(fileName);
 
       // Determine file type from extension
       final fileType = _getFileTypeFromName(fileName);
@@ -162,19 +163,6 @@ class FirebaseStorageDirectService {
       );
       return null;
     }
-  }
-
-  /// Generate document ID from filename
-  String _generateDocumentId(String fileName) {
-    // Remove file extension and timestamp prefix if exists
-    final nameWithoutExt = fileName.split('.').first;
-
-    // If filename starts with timestamp, remove it
-    if (RegExp(r'^\d+_').hasMatch(nameWithoutExt)) {
-      return nameWithoutExt.split('_').skip(1).join('_');
-    }
-
-    return nameWithoutExt;
   }
 
   /// Get file type from filename

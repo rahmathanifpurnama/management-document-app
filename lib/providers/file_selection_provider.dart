@@ -118,9 +118,9 @@ class FileSelectionProvider extends ChangeNotifier {
   }
 
   /// Update available files (useful when files list changes)
-  /// Uses debouncing to prevent multiple rapid updates that can interfere with selection
+  /// Enhanced with better race condition prevention and state validation
   void updateAvailableFiles(List<DocumentModel> files) {
-    // Don't update available files while in selection mode to prevent race conditions
+    // CRITICAL FIX: Don't update available files while in selection mode to prevent race conditions
     // The files are already set when entering selection mode
     if (_isSelectionMode) {
       debugPrint(
@@ -129,10 +129,13 @@ class FileSelectionProvider extends ChangeNotifier {
       return;
     }
 
-    // Prevent multiple rapid updates by checking if files actually changed
+    // ENHANCED: Prevent multiple rapid updates by checking if files actually changed
     final currentFilesHash = _generateFilesHash(files);
     if (_lastAvailableFilesHash == currentFilesHash ||
         _isUpdatingAvailableFiles) {
+      debugPrint(
+        'FileSelectionProvider: Skipping duplicate updateAvailableFiles call',
+      );
       return; // Skip if files haven't changed or update is in progress
     }
 
@@ -140,16 +143,41 @@ class FileSelectionProvider extends ChangeNotifier {
     _lastAvailableFilesHash = currentFilesHash;
 
     try {
-      _availableFiles = files;
+      _availableFiles = List.from(
+        files,
+      ); // Create a copy to prevent external modifications
 
       debugPrint(
         'FileSelectionProvider: Updated available files count: ${files.length}',
       );
 
-      // Never modify selections in updateAvailableFiles to prevent race conditions
+      // CRITICAL: Never modify selections in updateAvailableFiles to prevent race conditions
       // Selections should only be modified through explicit user actions
+
+      // ENHANCED: Validate selection state consistency
+      _validateSelectionState();
     } finally {
       _isUpdatingAvailableFiles = false;
+    }
+  }
+
+  /// Validate selection state consistency to prevent UI issues
+  void _validateSelectionState() {
+    if (!_isSelectionMode) return;
+
+    // Remove any selected files that are no longer in available files
+    final availableFileIds = _availableFiles.map((f) => f.id).toSet();
+    final invalidSelections = _selectedFileIds
+        .where((id) => !availableFileIds.contains(id))
+        .toList();
+
+    if (invalidSelections.isNotEmpty) {
+      debugPrint(
+        'FileSelectionProvider: Removing ${invalidSelections.length} invalid selections',
+      );
+      for (final invalidId in invalidSelections) {
+        _selectedFileIds.remove(invalidId);
+      }
     }
   }
 

@@ -87,16 +87,9 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
 
     return Consumer2<FileSelectionProvider, DocumentProvider>(
       builder: (context, selectionProvider, documentProvider, child) {
-        // Update available files for selection only when necessary
-        // Use a more conservative approach to prevent selection interference
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted &&
-              selectionProvider.isSelectionMode &&
-              widget.documents.isNotEmpty) {
-            // Only update if we're in selection mode and have documents to avoid unnecessary calls
-            selectionProvider.updateAvailableFiles(widget.documents);
-          }
-        });
+        // CRITICAL FIX: Remove problematic updateAvailableFiles call that causes race conditions
+        // Available files are already set when entering selection mode in enterSelectionMode()
+        // This prevents multiple widgets from updating the same provider simultaneously
 
         // Show loading state if documents are being loaded and no documents available
         if (documentProvider.isLoading && widget.documents.isEmpty) {
