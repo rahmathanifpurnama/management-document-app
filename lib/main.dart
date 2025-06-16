@@ -5,8 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'core/services/firebase_service.dart';
 import 'core/services/memory_management_service.dart';
 import 'core/services/optimized_network_service.dart';
-import 'core/services/performance_monitoring_service.dart';
 import 'core/config/anr_config.dart';
+import 'core/utils/debug_log_controller.dart';
 import 'core/constants/app_colors.dart';
 import 'core/constants/app_strings.dart';
 import 'core/constants/app_routes.dart';
@@ -54,10 +54,9 @@ void main() async {
   // HIGH PRIORITY: Initialize optimized network service
   OptimizedNetworkService.instance.initialize();
 
-  // MEDIUM PRIORITY: Initialize performance monitoring
-  if (kDebugMode) {
-    PerformanceMonitoringService.instance.startMonitoring();
-  }
+  // CRITICAL FIX: Set quiet mode to reduce debug logging
+  DebugLogController.setQuietMode();
+  debugPrint('🔇 Debug logging set to quiet mode to reduce terminal noise');
 
   // Initialize ANR recovery system
   await ANRRecovery.initialize();
@@ -74,8 +73,8 @@ void main() async {
     // Continue app launch even if Firebase fails
   }
 
-  // Start ANR monitoring with more aggressive settings
-  ANRDetector.instance.startMonitoring();
+  // CRITICAL FIX: Disable ANR monitoring to prevent excessive debug logging
+  debugPrint('⚠️ ANR Detector disabled to prevent excessive debug logging');
 
   // HIGH PRIORITY: Set up error handling
   FlutterError.onError = (FlutterErrorDetails details) {

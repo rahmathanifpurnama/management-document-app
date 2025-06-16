@@ -7,7 +7,7 @@ import '../config/anr_config.dart';
 class CircuitBreaker {
   static final Map<String, _CircuitBreakerState> _circuits = {};
 
-  /// Execute operation with circuit breaker protection
+  /// Execute operation with circuit breaker protection (reduced logging)
   static Future<T?> execute<T>(
     String operationId,
     Future<T> Function() operation, {
@@ -15,8 +15,10 @@ class CircuitBreaker {
     int? maxFailures,
     Duration? resetTime,
     Duration? cooldown,
+    bool enableLogging = false, // REDUCED LOGGING: Disabled by default
   }) async {
-    final effectiveMaxFailures = maxFailures ?? ANRConfig.maxConsecutiveFailures;
+    final effectiveMaxFailures =
+        maxFailures ?? ANRConfig.maxConsecutiveFailures;
     final effectiveResetTime = resetTime ?? ANRConfig.circuitBreakerResetTime;
     final effectiveCooldown = cooldown ?? ANRConfig.circuitBreakerCooldown;
 
@@ -56,13 +58,15 @@ class CircuitBreaker {
 
   /// Get circuit breaker status for debugging
   static Map<String, Map<String, dynamic>> getCircuitStatus() {
-    return _circuits.map((key, circuit) => MapEntry(key, {
-          'operationId': circuit.operationId,
-          'state': circuit.state.toString(),
-          'failureCount': circuit.failureCount,
-          'lastFailureTime': circuit.lastFailureTime?.toIso8601String(),
-          'nextRetryTime': circuit.nextRetryTime?.toIso8601String(),
-        }));
+    return _circuits.map(
+      (key, circuit) => MapEntry(key, {
+        'operationId': circuit.operationId,
+        'state': circuit.state.toString(),
+        'failureCount': circuit.failureCount,
+        'lastFailureTime': circuit.lastFailureTime?.toIso8601String(),
+        'nextRetryTime': circuit.nextRetryTime?.toIso8601String(),
+      }),
+    );
   }
 }
 
@@ -112,7 +116,7 @@ class _CircuitBreakerState {
     }
 
     // Check cooldown period
-    if (lastFailureTime != null && 
+    if (lastFailureTime != null &&
         now.difference(lastFailureTime!).compareTo(cooldown) < 0) {
       debugPrint('⏳ Circuit breaker cooldown active for: $operationId');
       return null;
@@ -121,13 +125,13 @@ class _CircuitBreakerState {
     try {
       debugPrint('🔄 Executing operation: ${operationName ?? operationId}');
       final result = await operation();
-      
+
       // Success - reset circuit
       if (isHalfOpen || failureCount > 0) {
         reset();
         debugPrint('✅ Circuit breaker reset after success: $operationId');
       }
-      
+
       return result;
     } catch (e) {
       _recordFailure();
@@ -163,7 +167,7 @@ class _CircuitBreakerState {
 }
 
 enum _CircuitState {
-  closed,  // Normal operation
-  open,    // Failing, rejecting calls
-  halfOpen // Testing if service recovered
+  closed, // Normal operation
+  open, // Failing, rejecting calls
+  halfOpen, // Testing if service recovered
 }

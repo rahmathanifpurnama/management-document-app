@@ -21,7 +21,7 @@ class FirebaseStorageDirectService {
   /// ARCHITECTURAL FIX: Optimized file fetching with proper empty state handling
   Future<List<DocumentModel>> getAllFilesFromStorage() async {
     try {
-      debugPrint('🔄 Fetching files from Firebase Storage (optimized)...');
+      // REDUCED LOGGING: Only log when actually fetching, not on every call
 
       final documentsRef = _firebaseService.storage.ref().child('documents');
 
@@ -39,10 +39,8 @@ class FirebaseStorageDirectService {
 
       // EMPTY STATE FIX: Properly handle empty storage
       if (listResult.items.isEmpty) {
-        debugPrint('📁 Firebase Storage is empty - no documents found');
-        debugPrint(
-          '✅ Empty state confirmed - this is a valid state, not an error',
-        );
+        // REDUCED LOGGING: Only log empty state once
+        debugPrint('📁 Firebase Storage is empty');
         // Set circuit breaker to prevent retries for empty storage
         CircuitBreaker.execute('storage_empty_state', () async {
           return true; // Mark as successful empty state

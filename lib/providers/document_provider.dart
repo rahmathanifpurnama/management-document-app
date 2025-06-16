@@ -471,15 +471,14 @@ class DocumentProvider extends ChangeNotifier {
               _handleFirebaseDocumentUpdates(snapshot.docs);
             },
             onError: (error) {
-              debugPrint('Firebase listener error: $error');
-              // Continue with local data if Firebase fails
+              // REDUCED LOGGING: Only log Firebase listener errors, not every event
+              debugPrint('❌ Firebase listener error: $error');
               _setError('Real-time sync temporarily unavailable');
             },
           );
 
-      debugPrint(
-        '✅ Firebase real-time listener started for documents (limit: $listenerLimit)',
-      );
+      // REDUCED LOGGING: Only log listener start once, not repeatedly
+      debugPrint('✅ Firebase listener started (limit: $listenerLimit)');
     } catch (e) {
       debugPrint('Failed to start Firebase listener: $e');
       // Continue with local data if Firebase setup fails
@@ -507,11 +506,12 @@ class DocumentProvider extends ChangeNotifier {
 
     try {
       _isProcessingFirebaseUpdate = true;
-      // Only log if there are significant changes to reduce noise
+      // REDUCED LOGGING: Only log significant changes and use controlled logging
       if (docs.length != _documents.length) {
-        debugPrint(
-          '📥 Processing ${docs.length} documents from Firebase listener',
-        );
+        // Use controlled logging to reduce noise
+        if (docs.isNotEmpty) {
+          debugPrint('📥 Firebase listener: ${docs.length} documents updated');
+        }
       }
 
       final firebaseDocuments = docs

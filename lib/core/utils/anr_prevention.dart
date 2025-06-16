@@ -218,15 +218,13 @@ class ANRPrevention {
       stopwatch.stop();
 
       final duration = stopwatch.elapsed;
+      // REDUCED LOGGING: Only log slow operations, not all operations
       if (duration > threshold) {
         debugPrint(
-          '⚠️ Slow operation detected: ${operationName ?? 'Unknown'} took ${duration.inMilliseconds}ms',
-        );
-      } else {
-        debugPrint(
-          '✅ Operation completed: ${operationName ?? 'Unknown'} took ${duration.inMilliseconds}ms',
+          '⚠️ Slow operation: ${operationName ?? 'Unknown'} took ${duration.inMilliseconds}ms',
         );
       }
+      // Removed: Normal operation completion logging to reduce noise
 
       return result;
     } catch (e) {

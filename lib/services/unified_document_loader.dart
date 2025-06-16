@@ -59,7 +59,7 @@ class UnifiedDocumentLoader {
     onLoadingStateChanged?.call(true);
 
     try {
-      debugPrint('📋 Starting unified document loading...');
+      // REDUCED LOGGING: Only log when actually starting, not on every call
 
       // ENHANCED: Load documents with Firebase Storage awareness
       final documents = await _loadDocumentsWithRetry();
@@ -68,25 +68,17 @@ class UnifiedDocumentLoader {
         _cachedDocuments = documents;
         _lastLoadTime = DateTime.now();
 
-        debugPrint(
-          '✅ Unified loading complete: ${documents.length} documents loaded',
-        );
-        debugPrint(
-          '📊 Note: Unified loader data may differ from Firebase Storage count',
-        );
+        // REDUCED LOGGING: Simplified success message
+        debugPrint('✅ Unified loader: ${documents.length} documents loaded');
       } else {
-        debugPrint('⚠️ No documents loaded, keeping existing cache');
-        debugPrint(
-          '💡 TIP: Check Firebase Storage /documents/ folder for files',
-        );
+        // REDUCED LOGGING: Simplified empty message
+        debugPrint('⚠️ Unified loader: No documents found');
       }
 
       return _cachedDocuments;
     } catch (e) {
-      debugPrint('❌ Unified document loading failed: $e');
-      debugPrint(
-        '⚠️ Using cached data - may not reflect current Firebase Storage state',
-      );
+      // REDUCED LOGGING: Simplified error message
+      debugPrint('❌ Unified loader failed: $e');
       // Return cached data on error
       return _cachedDocuments;
     } finally {

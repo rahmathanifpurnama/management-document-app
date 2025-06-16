@@ -138,15 +138,15 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         // ENHANCED: Get documents from Firebase Storage-first approach
         final recentDocuments = documentProvider.getRecentDocuments();
 
-        // Enhanced logging for Firebase Storage consistency monitoring
+        // REDUCED LOGGING: Only log when there are actual changes or issues
         if (recentDocuments.isNotEmpty) {
-          debugPrint(
-            '📊 Home screen: ${recentDocuments.length} files from Firebase Storage, latest: ${recentDocuments.first.fileName}',
-          );
-          debugPrint('✅ File count matches Firebase Storage data source');
+          // Only log once when files are first loaded, not on every rebuild
+          if (recentDocuments.length != documentProvider.allDocuments.length) {
+            debugPrint('📊 Home: ${recentDocuments.length} files loaded');
+          }
         } else {
           if (documentProvider.isLoading) {
-            debugPrint('⏳ Home screen: Loading from Firebase Storage...');
+            // REDUCED LOGGING: Don't log loading state repeatedly
           } else {
             // EMPTY STATE FIX: Check if storage is confirmed empty before retrying
             final isEmptyStateConfirmed =
@@ -154,15 +154,12 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                 CircuitBreaker.isCircuitOpen('prevent_empty_storage_retries');
 
             if (isEmptyStateConfirmed) {
-              debugPrint(
-                '📁 Home screen: Empty storage state confirmed - no retry needed',
-              );
-              debugPrint('✅ Displaying empty state UI');
+              // REDUCED LOGGING: Only log empty state confirmation once
+              debugPrint('📁 Empty storage confirmed - showing empty UI');
             } else {
-              // ENHANCED DEBUG: Show Firebase Storage state information (reduced logging)
-              debugPrint('⚠️ Home screen: No documents from Firebase Storage');
+              // REDUCED LOGGING: Minimal debug info
               debugPrint(
-                '📊 Debug info: allDocuments=${documentProvider.allDocuments.length}, isLoading=${documentProvider.isLoading}',
+                '⚠️ No documents found (${documentProvider.allDocuments.length} cached)',
               );
 
               // CIRCUIT BREAKER: Prevent infinite retry loops with additional checks
