@@ -299,7 +299,7 @@ class ConsolidatedUploadService {
     throw Exception('Upload failed after maximum retries');
   }
 
-  /// Generate storage path for file
+  /// Generate storage path for file (with timestamp for uniqueness)
   String _getStoragePath(String fileName, String userId, String? categoryId) {
     final sanitizedFileName = _sanitizeFileName(fileName);
     final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -309,6 +309,11 @@ class ConsolidatedUploadService {
     } else {
       return 'documents/${timestamp}_$sanitizedFileName';
     }
+  }
+
+  /// Get clean display filename (without timestamp)
+  String _getDisplayFileName(String fileName) {
+    return _sanitizeFileName(fileName);
   }
 
   /// Sanitize filename for storage
@@ -368,22 +373,33 @@ class ConsolidatedUploadService {
       final firestore = FirebaseFirestore.instance;
       final documentId = firestore.collection('documents').doc().id;
 
+      // Use clean display filename without timestamp
+      final displayFileName = _getDisplayFileName(file.fileName);
+      final storagePath = _getStoragePath(file.fileName, userId, categoryId);
+
       final documentData = {
         'id': documentId,
-        'fileName': file.fileName,
+        'fileName': displayFileName, // Clean display name
+        'originalFileName': file.fileName, // Original filename
         'fileSize': await file.file.length(),
         'fileType': _getFileType(file.fileName),
+        'filePath': storagePath, // Storage path with timestamp
         'downloadUrl': downloadUrl,
         'uploadedBy': userId,
         'uploadedAt': FieldValue.serverTimestamp(),
         'contentType': _getContentType(file.fileName),
         'fileHash': fileHash,
-        'categoryId': categoryId ?? '',
+        'category': categoryId ?? '', // Use 'category' instead of 'categoryId'
+        'status': 'active',
         'isActive': true,
         'metadata': {
           'deviceId': 'flutter_app',
           'timestamp': DateTime.now().toIso8601String(),
           'duplicateChecked': 'true',
+          'displayFileName': displayFileName, // Clean display name
+          'storageFileName': storagePath
+              .split('/')
+              .last, // Actual storage filename with timestamp
           ...?customMetadata,
         },
       };

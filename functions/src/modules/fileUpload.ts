@@ -341,11 +341,11 @@ const processFileUpload = functions.https.onCall(
       const documentId = uuidv4();
       const documentData = {
         id: documentId,
-        fileName: sanitizedFileName,
+        fileName: sanitizedFileName, // Display name WITHOUT timestamp
         originalFileName: originalFileName, // Keep original for reference
         fileSize,
         fileType: getFileType(sanitizedFileName),
-        filePath,
+        filePath, // Storage path WITH timestamp for uniqueness
         downloadUrl: await fileRef
           .getSignedUrl({
             action: "read",
@@ -361,6 +361,8 @@ const processFileUpload = functions.https.onCall(
           ...extractedMetadata,
           originalMetadata: metadata,
           fileHash: fileHash, // Store file hash for duplicate detection
+          storageFileName: filePath.split("/").pop() || sanitizedFileName, // Actual storage filename with timestamp
+          displayFileName: sanitizedFileName, // Clean display name
           securityChecks: {
             fileNameSanitized: originalFileName !== sanitizedFileName,
             contentValidated: true,
@@ -1117,13 +1119,12 @@ const streamingUpload = functions.https.onRequest(async (req, res) => {
       return;
     }
 
-    // Generate unique filename
-    const fileName =
+    // Generate unique filename - separate display name from storage path
+    const originalFileName =
       (req.headers["x-file-name"] as string) || `upload_${Date.now()}`;
-    const sanitizedFileName = sanitizeFileName(fileName);
-    const filePath = `documents/${
-      decodedToken.uid
-    }/${Date.now()}_${sanitizedFileName}`;
+    const sanitizedFileName = sanitizeFileName(originalFileName);
+    const timestamp = Date.now();
+    const filePath = `documents/${decodedToken.uid}/${timestamp}_${sanitizedFileName}`;
 
     // Stream upload to Firebase Storage
     const bucket = admin.storage().bucket();

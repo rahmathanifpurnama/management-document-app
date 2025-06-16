@@ -35,15 +35,18 @@ class BulkOperationsService {
     );
   }
 
-  /// Download multiple files
+  /// Download multiple files with parallel processing and progress tracking
   static Future<void> downloadSelectedFiles({
     required BuildContext context,
     required List<DocumentModel> files,
   }) async {
     final downloadService = FileDownloadService();
+    int completedDownloads = 0;
+    int failedDownloads = 0;
+    final List<String> failedFiles = [];
 
     try {
-      // Show progress indicator
+      // Show initial progress indicator
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
@@ -57,41 +60,126 @@ class BulkOperationsService {
                 ),
               ),
               const SizedBox(width: 12),
-              Expanded(child: Text('Downloading ${files.length} files...')),
+              Expanded(
+                child: Text('Starting download of ${files.length} files...'),
+              ),
             ],
           ),
-          duration: Duration(seconds: files.length * 10), // Estimate time
+          duration: Duration(
+            seconds: files.length * 5,
+          ), // Reduced estimate time
           backgroundColor: AppColors.primary,
         ),
       );
 
-      // Download each file
-      for (int i = 0; i < files.length; i++) {
-        final file = files[i];
-        await downloadService.downloadFile(file);
+      // Process downloads in batches of 3 to prevent overwhelming the system
+      const batchSize = 3;
+      for (int i = 0; i < files.length; i += batchSize) {
+        final batch = files.skip(i).take(batchSize).toList();
 
-        // Update progress if needed
-        debugPrint('Downloaded ${i + 1}/${files.length}: ${file.fileName}');
+        // Process batch in parallel
+        final futures = batch.map((file) async {
+          try {
+            await downloadService.downloadFile(file);
+            completedDownloads++;
+            debugPrint(
+              '✅ Downloaded: ${file.fileName} ($completedDownloads/${files.length})',
+            );
+
+            // Update progress in UI if possible
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Downloaded $completedDownloads of ${files.length} files...',
+                  ),
+                  backgroundColor: AppColors.primary,
+                  duration: const Duration(seconds: 1),
+                ),
+              );
+            }
+          } catch (e) {
+            failedDownloads++;
+            failedFiles.add(file.fileName);
+            debugPrint('❌ Failed to download: ${file.fileName} - $e');
+          }
+        });
+
+        // Wait for batch to complete
+        await Future.wait(futures);
+
+        // Small delay between batches to prevent overwhelming
+        if (i + batchSize < files.length) {
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
       }
 
-      // Show success message
+      // Show final result
       if (context.mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text('Successfully downloaded ${files.length} files'),
-                ),
-              ],
+
+        if (failedDownloads == 0) {
+          // All successful
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '✅ Successfully downloaded all ${files.length} files',
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: AppColors.success,
+              duration: const Duration(seconds: 4),
             ),
-            backgroundColor: AppColors.success,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+          );
+        } else if (completedDownloads > 0) {
+          // Partial success
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '⚠️ Downloaded $completedDownloads files, $failedDownloads failed\n'
+                'Failed: ${failedFiles.take(3).join(', ')}${failedFiles.length > 3 ? '...' : ''}',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 6),
+              action: SnackBarAction(
+                label: 'Retry Failed',
+                textColor: Colors.white,
+                onPressed: () {
+                  final failedDocuments = files
+                      .where((f) => failedFiles.contains(f.fileName))
+                      .toList();
+                  downloadSelectedFiles(
+                    context: context,
+                    files: failedDocuments,
+                  );
+                },
+              ),
+            ),
+          );
+        } else {
+          // All failed
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Failed to download all files'),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 4),
+              action: SnackBarAction(
+                label: 'Retry All',
+                textColor: Colors.white,
+                onPressed: () {
+                  downloadSelectedFiles(context: context, files: files);
+                },
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {
@@ -100,14 +188,21 @@ class BulkOperationsService {
           SnackBar(
             content: Text('Failed to download files: ${e.toString()}'),
             backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 3),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () {
+                downloadSelectedFiles(context: context, files: files);
+              },
+            ),
           ),
         );
       }
     }
   }
 
-  /// Delete multiple files
+  /// Delete multiple files with parallel processing and error handling
   static Future<void> deleteSelectedFiles({
     required BuildContext context,
     required List<DocumentModel> files,
@@ -146,14 +241,19 @@ class BulkOperationsService {
 
     if (confirmed != true) return;
 
-    try {
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
-      );
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final currentUserId = authProvider.currentUser?.id ?? 'unknown';
+    // Get providers before async operations to avoid context issues
+    final documentProvider = Provider.of<DocumentProvider>(
+      context,
+      listen: false,
+    );
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUserId = authProvider.currentUser?.id ?? 'unknown';
 
+    int completedDeletes = 0;
+    int failedDeletes = 0;
+    final List<String> failedFiles = [];
+
+    try {
       // Show progress
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -169,30 +269,112 @@ class BulkOperationsService {
                   ),
                 ),
                 const SizedBox(width: 12),
-                Expanded(child: Text('Deleting ${files.length} files...')),
+                Expanded(
+                  child: Text('Starting deletion of ${files.length} files...'),
+                ),
               ],
             ),
-            duration: Duration(seconds: files.length * 5),
+            duration: Duration(seconds: files.length * 3),
             backgroundColor: AppColors.warning,
           ),
         );
       }
 
-      // Delete each file
-      for (final file in files) {
-        await documentProvider.removeDocument(file.id, currentUserId);
+      // Process deletions in batches of 2 to prevent overwhelming Firebase
+      const batchSize = 2;
+      for (int i = 0; i < files.length; i += batchSize) {
+        final batch = files.skip(i).take(batchSize).toList();
+
+        // Process batch in parallel
+        final futures = batch.map((file) async {
+          try {
+            await documentProvider.removeDocument(file.id, currentUserId);
+            completedDeletes++;
+            debugPrint(
+              '✅ Deleted: ${file.fileName} ($completedDeletes/${files.length})',
+            );
+
+            // Update progress in UI
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Deleted $completedDeletes of ${files.length} files...',
+                  ),
+                  backgroundColor: AppColors.warning,
+                  duration: const Duration(seconds: 1),
+                ),
+              );
+            }
+          } catch (e) {
+            failedDeletes++;
+            failedFiles.add(file.fileName);
+            debugPrint('❌ Failed to delete: ${file.fileName} - $e');
+          }
+        });
+
+        // Wait for batch to complete
+        await Future.wait(futures);
+
+        // Small delay between batches
+        if (i + batchSize < files.length) {
+          await Future.delayed(const Duration(milliseconds: 800));
+        }
       }
 
-      // Show success message
+      // Show final result
       if (context.mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Successfully deleted ${files.length} files'),
-            backgroundColor: AppColors.success,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+
+        if (failedDeletes == 0) {
+          // All successful
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Successfully deleted all ${files.length} files'),
+              backgroundColor: AppColors.success,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } else if (completedDeletes > 0) {
+          // Partial success
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '⚠️ Deleted $completedDeletes files, $failedDeletes failed\n'
+                'Failed: ${failedFiles.take(3).join(', ')}${failedFiles.length > 3 ? '...' : ''}',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 6),
+              action: SnackBarAction(
+                label: 'Retry Failed',
+                textColor: Colors.white,
+                onPressed: () {
+                  final failedDocuments = files
+                      .where((f) => failedFiles.contains(f.fileName))
+                      .toList();
+                  deleteSelectedFiles(context: context, files: failedDocuments);
+                },
+              ),
+            ),
+          );
+        } else {
+          // All failed
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Failed to delete all files'),
+              backgroundColor: AppColors.error,
+              duration: const Duration(seconds: 4),
+              action: SnackBarAction(
+                label: 'Retry All',
+                textColor: Colors.white,
+                onPressed: () {
+                  deleteSelectedFiles(context: context, files: files);
+                },
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {
@@ -201,7 +383,14 @@ class BulkOperationsService {
           SnackBar(
             content: Text('Failed to delete files: ${e.toString()}'),
             backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 3),
+            duration: const Duration(seconds: 4),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () {
+                deleteSelectedFiles(context: context, files: files);
+              },
+            ),
           ),
         );
       }

@@ -118,38 +118,88 @@ class FileDownloadService {
     }
   }
 
-  /// Get download URL from document
+  /// Get download URL from document with enhanced error handling
   Future<String> _getDownloadUrl(DocumentModel document) async {
     try {
-      // If document already has a download URL in filePath, use it
+      // Priority 1: Check if document metadata has a download URL
+      if (document.metadata.downloadUrl != null &&
+          document.metadata.downloadUrl!.isNotEmpty) {
+        if (document.metadata.downloadUrl!.startsWith('http')) {
+          debugPrint(
+            '📥 Using metadata download URL for: ${document.fileName}',
+          );
+          return document.metadata.downloadUrl!;
+        }
+      }
+
+      // Priority 2: Check if filePath is already a URL
       if (document.filePath.startsWith('http')) {
+        debugPrint(
+          '📥 Using filePath as download URL for: ${document.fileName}',
+        );
         return document.filePath;
       }
 
-      // Otherwise, get download URL from Firebase Storage using the storage path
+      // Priority 3: Generate download URL from Firebase Storage path
       if (document.filePath.isNotEmpty) {
+        debugPrint(
+          '📥 Generating download URL from storage path: ${document.filePath}',
+        );
         final storageRef = _firebaseService.storage.ref().child(
           document.filePath,
         );
-        final downloadUrl = await storageRef.getDownloadURL();
+
+        // Add timeout for download URL generation
+        final downloadUrl = await storageRef.getDownloadURL().timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            throw Exception('Timeout while generating download URL');
+          },
+        );
+
+        debugPrint('✅ Generated download URL for: ${document.fileName}');
         return downloadUrl;
       }
 
-      throw Exception('No file path available for download');
+      throw Exception('No valid file path or download URL available');
     } catch (e) {
+      debugPrint('❌ Failed to get download URL for ${document.fileName}: $e');
+
       if (e is FirebaseException) {
         switch (e.code) {
           case 'object-not-found':
-            throw Exception('File not found in storage');
+            throw Exception(
+              'File "${document.fileName}" not found in storage. It may have been moved or deleted.',
+            );
           case 'unauthorized':
-            throw Exception('Access denied - please check permissions');
+            throw Exception(
+              'Access denied to "${document.fileName}". Please check your permissions.',
+            );
           case 'unauthenticated':
-            throw Exception('Authentication required');
+            throw Exception('Authentication required. Please sign in again.');
+          case 'quota-exceeded':
+            throw Exception('Storage quota exceeded. Please try again later.');
+          case 'retry-limit-exceeded':
+            throw Exception(
+              'Too many requests. Please wait a moment and try again.',
+            );
           default:
-            throw Exception('Failed to get download URL: ${e.message}');
+            throw Exception(
+              'Storage error for "${document.fileName}": ${e.message ?? e.code}',
+            );
         }
       }
-      throw Exception('Failed to get download URL: ${e.toString()}');
+
+      if (e.toString().contains('timeout') ||
+          e.toString().contains('Timeout')) {
+        throw Exception(
+          'Download request timed out for "${document.fileName}". Please check your internet connection.',
+        );
+      }
+
+      throw Exception(
+        'Failed to prepare download for "${document.fileName}": ${e.toString()}',
+      );
     }
   }
 
