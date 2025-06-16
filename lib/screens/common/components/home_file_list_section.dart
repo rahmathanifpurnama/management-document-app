@@ -119,12 +119,13 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   Widget build(BuildContext context) {
     return Consumer2<DocumentProvider, FileSelectionProvider>(
       builder: (context, documentProvider, selectionProvider, child) {
-        // EMPTY STATE FIX: Only trigger loading if not confirmed empty and not already loading
+        // EMPTY STATE FIX: Use EmptyStorageStateManager to prevent unnecessary loading
+        final emptyStateManager = EmptyStorageStateManager.instance;
+
         if (documentProvider.allDocuments.isEmpty &&
             !documentProvider.isLoading &&
-            !CircuitBreaker.isCircuitOpen('home_fallback_loading') &&
-            !CircuitBreaker.isCircuitOpen('prevent_empty_storage_retries') &&
-            !CircuitBreaker.isCircuitOpen('storage_empty_state')) {
+            !emptyStateManager.shouldSkipLoading() &&
+            !CircuitBreaker.isCircuitOpen('home_fallback_loading')) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             CircuitBreaker.execute('home_fallback_loading', () async {
               debugPrint(
@@ -148,25 +149,22 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           if (documentProvider.isLoading) {
             // REDUCED LOGGING: Don't log loading state repeatedly
           } else {
-            // EMPTY STATE FIX: Check if storage is confirmed empty before retrying
-            final isEmptyStateConfirmed =
-                CircuitBreaker.isCircuitOpen('storage_empty_state') ||
-                CircuitBreaker.isCircuitOpen('prevent_empty_storage_retries');
-
-            if (isEmptyStateConfirmed) {
-              // REDUCED LOGGING: Only log empty state confirmation once
-              debugPrint('📁 Empty storage confirmed - showing empty UI');
+            // EMPTY STATE FIX: Use EmptyStorageStateManager for consistent empty state handling
+            if (emptyStateManager.shouldShowEmptyUI()) {
+              // REDUCED LOGGING: Only log empty state confirmation once per session
+              if (!emptyStateManager.hasCheckedThisSession) {
+                debugPrint('📁 Empty storage confirmed - showing empty UI');
+                emptyStateManager.markCheckedThisSession();
+              }
             } else {
               // REDUCED LOGGING: Minimal debug info
               debugPrint(
                 '⚠️ No documents found (${documentProvider.allDocuments.length} cached)',
               );
 
-              // CIRCUIT BREAKER: Prevent infinite retry loops with additional checks
+              // CIRCUIT BREAKER: Prevent infinite retry loops with EmptyStorageStateManager checks
               if (!CircuitBreaker.isCircuitOpen('home_document_loading') &&
-                  !CircuitBreaker.isCircuitOpen(
-                    'prevent_empty_storage_retries',
-                  )) {
+                  !emptyStateManager.shouldSkipRetries()) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   CircuitBreaker.execute(
                     'home_document_loading',
@@ -181,7 +179,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                 });
               } else {
                 debugPrint(
-                  '🚫 Home screen: Circuit breaker OPEN - skipping retry',
+                  '🚫 Home screen: Skipping retry - empty state or circuit breaker',
                 );
               }
             }
@@ -340,7 +338,10 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         }
 
         if (documents.isEmpty && !documentProvider.isLoading) {
-          // EMPTY STATE FIX: Show appropriate message based on whether storage is confirmed empty
+          // EMPTY STATE FIX: Use EmptyStorageStateManager for consistent empty state messaging
+          final emptyStateManager = EmptyStorageStateManager.instance;
+          final isEmptyStateConfirmed = emptyStateManager.shouldShowEmptyUI();
+
           final emptyMessage = isEmptyStateConfirmed
               ? 'No files in storage'
               : 'No files found';

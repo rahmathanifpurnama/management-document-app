@@ -22,6 +22,7 @@ import '../services/enhanced_auth_service.dart';
 import '../services/document_state_manager.dart';
 import '../services/unified_document_loader.dart';
 import '../core/utils/circuit_breaker.dart';
+import '../core/utils/empty_storage_state_manager.dart';
 
 class DocumentProvider extends ChangeNotifier {
   List<DocumentModel> _documents = [];
@@ -49,6 +50,9 @@ class DocumentProvider extends ChangeNotifier {
 
   // ENTERPRISE SCALE: Constructor with auto-initialization
   DocumentProvider() {
+    // Initialize empty storage state manager
+    _initializeEmptyStorageManager();
+
     // FIXED: Always auto-initialize regardless of enterprise mode to ensure files load
     if (!_autoInitialized) {
       _autoInitialized = true;
@@ -65,6 +69,12 @@ class DocumentProvider extends ChangeNotifier {
       );
     }
   }
+
+  /// Initialize empty storage state manager
+  Future<void> _initializeEmptyStorageManager() async {
+    await EmptyStorageStateManager.instance.initialize();
+  }
+
   final EnhancedFirebaseStorageService _enhancedStorageService =
       EnhancedFirebaseStorageService.instance;
   final EnhancedAuthService _enhancedAuthService = EnhancedAuthService.instance;
@@ -132,6 +142,16 @@ class DocumentProvider extends ChangeNotifier {
 
   /// ENHANCED: Auto-initialize documents with Firebase Storage priority
   Future<void> _autoInitializeDocuments() async {
+    // Check if we should skip loading due to confirmed empty state
+    final emptyStateManager = EmptyStorageStateManager.instance;
+
+    if (emptyStateManager.shouldSkipLoading()) {
+      debugPrint(
+        '🚫 AUTO-INIT: Skipping - empty storage state confirmed and cached',
+      );
+      return;
+    }
+
     // FIXED: Don't skip if documents are empty - that's exactly when we need to load
     if (_isLoadingDocuments) {
       debugPrint(
@@ -154,31 +174,41 @@ class DocumentProvider extends ChangeNotifier {
         _documents = List.from(stateManagerDocs);
         _applyFiltersAndSort();
         notifyListeners();
+
+        // Mark storage as not empty
+        await emptyStateManager.setStorageNotEmpty();
+
         debugPrint(
           '✅ AUTO-INIT: Loaded ${_documents.length} documents from Firebase Storage',
-        );
-        debugPrint(
-          '📊 File count matches Storage exactly: ${_documents.length} files',
         );
         return;
       }
 
-      // PRIORITY 2: Fallback to regular loading if Storage is empty
-      debugPrint('📋 AUTO-INIT: Storage empty, trying regular loading...');
-      await loadDocuments();
-      debugPrint('✅ AUTO-INIT: Auto-initialization completed successfully');
+      // Check if storage is actually empty before fallback
+      if (stateManagerDocs.isEmpty &&
+          !emptyStateManager.hasCheckedThisSession) {
+        // Mark that we've checked and it's empty
+        await emptyStateManager.setStorageEmpty();
+        debugPrint(
+          '📁 AUTO-INIT: Storage confirmed empty - no fallback needed',
+        );
+        return;
+      }
+
+      // PRIORITY 2: Fallback to regular loading if Storage check failed (not empty)
+      if (!emptyStateManager.isEmptyStateConfirmed) {
+        debugPrint(
+          '📋 AUTO-INIT: Storage check failed, trying regular loading...',
+        );
+        await loadDocuments();
+      }
+
+      debugPrint('✅ AUTO-INIT: Auto-initialization completed');
     } catch (e) {
       debugPrint('❌ AUTO-INIT: Firebase Storage initialization failed: $e');
 
-      // REMOVED: Cache fallback to prevent showing cached count
-      // This ensures statistics show 0 until Firebase Storage loads
-      if (_documents.isEmpty) {
-        debugPrint(
-          '📊 AUTO-INIT: No documents loaded - statistics will show 0 until Firebase Storage loads',
-        );
-        debugPrint(
-          '💡 TIP: Check Firebase Storage /documents/ folder for files',
-        );
+      if (_documents.isEmpty && !emptyStateManager.isEmptyStateConfirmed) {
+        debugPrint('📊 AUTO-INIT: No documents loaded - may be empty storage');
       }
     }
   }
@@ -316,6 +346,16 @@ class DocumentProvider extends ChangeNotifier {
 
   // ENHANCED: Load documents with Firebase Storage priority
   Future<void> loadDocuments({bool forceRefresh = false}) async {
+    final emptyStateManager = EmptyStorageStateManager.instance;
+
+    // Check if we should skip loading due to confirmed empty state
+    if (!forceRefresh && emptyStateManager.shouldSkipLoading()) {
+      debugPrint(
+        '🚫 Document loading skipped - empty storage state confirmed and cached',
+      );
+      return;
+    }
+
     // Prevent concurrent loading operations unless force refresh is requested
     if (_isLoadingDocuments && !forceRefresh) {
       debugPrint('⚠️ Document loading already in progress, skipping...');
@@ -331,9 +371,13 @@ class DocumentProvider extends ChangeNotifier {
 
     if (forceRefresh) {
       debugPrint('🔄 Force refreshing documents...');
+      // Reset empty state on force refresh
+      await emptyStateManager.resetEmptyState();
       // Reset circuit breakers on force refresh to allow retry
       CircuitBreaker.resetCircuit('unified_document_loading');
       CircuitBreaker.resetCircuit('storage_fallback_loading');
+      CircuitBreaker.resetCircuit('storage_empty_check');
+      CircuitBreaker.resetCircuit('prevent_empty_storage_retries');
     }
 
     try {
@@ -353,6 +397,9 @@ class DocumentProvider extends ChangeNotifier {
         _isInitialized = true;
         await _saveToStorage();
 
+        // Mark storage as not empty
+        await emptyStateManager.setStorageNotEmpty();
+
         // Start Firebase listener for real-time updates
         if (_useFirebaseSync) {
           _startFirebaseListener();
@@ -362,42 +409,42 @@ class DocumentProvider extends ChangeNotifier {
           '📊 File count matches Firebase Storage exactly: ${_documents.length} files',
         );
       } else {
-        // EMPTY STATE FIX: Check if storage is confirmed empty before fallbacks
-        final isStorageEmpty = await CircuitBreaker.execute(
-          'storage_empty_check',
-          () async {
-            // Quick check to confirm storage is actually empty
-            final documentsRef = _firebaseService.storage.ref().child(
-              'documents',
-            );
-            final listResult = await documentsRef.listAll();
-            return listResult.items.isEmpty;
-          },
-          operationName: 'Storage Empty Check',
-        );
-
-        if (isStorageEmpty == true) {
-          debugPrint(
-            '📁 Firebase Storage confirmed empty - setting empty state',
+        // EMPTY STATE FIX: Use EmptyStorageStateManager for proper empty state handling
+        if (!emptyStateManager.hasCheckedThisSession) {
+          // First time checking - confirm if storage is actually empty
+          final documentsRef = _firebaseService.storage.ref().child(
+            'documents',
           );
-          debugPrint('✅ No fallback attempts needed - empty storage is valid');
+          final listResult = await documentsRef.listAll();
 
-          // Clear local data to match empty storage
+          if (listResult.items.isEmpty) {
+            // Storage is confirmed empty
+            await emptyStateManager.setStorageEmpty();
+            debugPrint(
+              '📁 Firebase Storage confirmed empty - cached for session',
+            );
+
+            // Clear local data to match empty storage
+            _documents.clear();
+            _isInitialized = true;
+            await _saveToStorage();
+            return; // Exit early, no fallback needed
+          } else {
+            // Storage has files but state manager didn't detect them
+            emptyStateManager.markCheckedThisSession();
+          }
+        } else if (emptyStateManager.isEmptyStateConfirmed) {
+          // Already confirmed empty in this session
+          debugPrint('📁 Storage already confirmed empty - skipping fallbacks');
           _documents.clear();
           _isInitialized = true;
           await _saveToStorage();
+          return; // Exit early, no fallback needed
+        }
 
-          // Set circuit breaker to prevent future retry attempts
-          CircuitBreaker.execute(
-            'prevent_empty_storage_retries',
-            () async {
-              return true;
-            },
-            operationName: 'Prevent Empty Storage Retries',
-          );
-        } else {
-          // Only try fallbacks if storage check failed (not if it's empty)
-          debugPrint('⚠️ Storage check failed, trying unified loader...');
+        // Only try fallbacks if storage is not confirmed empty
+        if (!emptyStateManager.isEmptyStateConfirmed) {
+          debugPrint('⚠️ Storage check inconclusive, trying unified loader...');
           final unifiedDocuments = await _unifiedLoader.loadAllDocuments(
             forceRefresh: forceRefresh,
             onLoadingStateChanged: (isLoading) {
@@ -409,22 +456,15 @@ class DocumentProvider extends ChangeNotifier {
             _handleUnifiedDocuments(unifiedDocuments);
             _isInitialized = true;
             await _saveToStorage();
+            await emptyStateManager.setStorageNotEmpty();
 
             if (_useFirebaseSync) {
               _startFirebaseListener();
             }
           } else {
-            // FINAL FALLBACK: Traditional loading (only if not confirmed empty)
-            if (!CircuitBreaker.isCircuitOpen(
-              'prevent_empty_storage_retries',
-            )) {
-              debugPrint('⚠️ Trying traditional loading as final fallback...');
-              await _loadDocumentsTraditional();
-            } else {
-              debugPrint(
-                '🚫 Skipping traditional loading - empty storage confirmed',
-              );
-            }
+            // FINAL FALLBACK: Traditional loading
+            debugPrint('⚠️ Trying traditional loading as final fallback...');
+            await _loadDocumentsTraditional();
           }
         }
       }

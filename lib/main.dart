@@ -7,6 +7,7 @@ import 'core/services/memory_management_service.dart';
 import 'core/services/optimized_network_service.dart';
 import 'core/config/anr_config.dart';
 import 'core/utils/debug_log_controller.dart';
+import 'core/utils/empty_storage_state_manager.dart';
 import 'core/constants/app_colors.dart';
 import 'core/constants/app_strings.dart';
 import 'core/constants/app_routes.dart';
@@ -57,6 +58,9 @@ void main() async {
   // CRITICAL FIX: Set quiet mode to reduce debug logging
   DebugLogController.setQuietMode();
   debugPrint('🔇 Debug logging set to quiet mode to reduce terminal noise');
+
+  // Initialize empty storage state manager
+  await EmptyStorageStateManager.instance.initialize();
 
   // Initialize ANR recovery system
   await ANRRecovery.initialize();
