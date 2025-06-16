@@ -362,29 +362,70 @@ class DocumentProvider extends ChangeNotifier {
           '📊 File count matches Firebase Storage exactly: ${_documents.length} files',
         );
       } else {
-        // FALLBACK: Try unified loader if Storage is empty
-        debugPrint('⚠️ Firebase Storage empty, trying unified loader...');
-        final unifiedDocuments = await _unifiedLoader.loadAllDocuments(
-          forceRefresh: forceRefresh,
-          onLoadingStateChanged: (isLoading) {
-            _isLoading = isLoading;
+        // EMPTY STATE FIX: Check if storage is confirmed empty before fallbacks
+        final isStorageEmpty = await CircuitBreaker.execute(
+          'storage_empty_check',
+          () async {
+            // Quick check to confirm storage is actually empty
+            final documentsRef = _firebaseService.storage.ref().child(
+              'documents',
+            );
+            final listResult = await documentsRef.listAll();
+            return listResult.items.isEmpty;
           },
+          operationName: 'Storage Empty Check',
         );
 
-        if (unifiedDocuments.isNotEmpty) {
-          _handleUnifiedDocuments(unifiedDocuments);
+        if (isStorageEmpty == true) {
+          debugPrint(
+            '📁 Firebase Storage confirmed empty - setting empty state',
+          );
+          debugPrint('✅ No fallback attempts needed - empty storage is valid');
+
+          // Clear local data to match empty storage
+          _documents.clear();
           _isInitialized = true;
           await _saveToStorage();
 
-          if (_useFirebaseSync) {
-            _startFirebaseListener();
-          }
-        } else {
-          // FINAL FALLBACK: Traditional loading
-          debugPrint(
-            '⚠️ All primary methods empty, trying traditional loading...',
+          // Set circuit breaker to prevent future retry attempts
+          CircuitBreaker.execute(
+            'prevent_empty_storage_retries',
+            () async {
+              return true;
+            },
+            operationName: 'Prevent Empty Storage Retries',
           );
-          await _loadDocumentsTraditional();
+        } else {
+          // Only try fallbacks if storage check failed (not if it's empty)
+          debugPrint('⚠️ Storage check failed, trying unified loader...');
+          final unifiedDocuments = await _unifiedLoader.loadAllDocuments(
+            forceRefresh: forceRefresh,
+            onLoadingStateChanged: (isLoading) {
+              _isLoading = isLoading;
+            },
+          );
+
+          if (unifiedDocuments.isNotEmpty) {
+            _handleUnifiedDocuments(unifiedDocuments);
+            _isInitialized = true;
+            await _saveToStorage();
+
+            if (_useFirebaseSync) {
+              _startFirebaseListener();
+            }
+          } else {
+            // FINAL FALLBACK: Traditional loading (only if not confirmed empty)
+            if (!CircuitBreaker.isCircuitOpen(
+              'prevent_empty_storage_retries',
+            )) {
+              debugPrint('⚠️ Trying traditional loading as final fallback...');
+              await _loadDocumentsTraditional();
+            } else {
+              debugPrint(
+                '🚫 Skipping traditional loading - empty storage confirmed',
+              );
+            }
+          }
         }
       }
 
@@ -417,7 +458,8 @@ class DocumentProvider extends ChangeNotifier {
                 .enterprisePageSize // Larger limit for enterprise
           : ANRConfig.defaultPageSize; // Standard limit for regular use
 
-      _documentsSubscription = _firebaseService.documentsCollection
+      _documentsSubscription = _firebaseService.firestore
+          .collection('document-metadata')
           .where('isActive', isEqualTo: true) // Only get active documents
           .orderBy('uploadedAt', descending: true)
           .limit(

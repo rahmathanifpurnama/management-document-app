@@ -119,10 +119,12 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   Widget build(BuildContext context) {
     return Consumer2<DocumentProvider, FileSelectionProvider>(
       builder: (context, documentProvider, selectionProvider, child) {
-        // ENHANCED: Multiple triggers to ensure documents are loaded with circuit breaker
+        // EMPTY STATE FIX: Only trigger loading if not confirmed empty and not already loading
         if (documentProvider.allDocuments.isEmpty &&
             !documentProvider.isLoading &&
-            !CircuitBreaker.isCircuitOpen('home_fallback_loading')) {
+            !CircuitBreaker.isCircuitOpen('home_fallback_loading') &&
+            !CircuitBreaker.isCircuitOpen('prevent_empty_storage_retries') &&
+            !CircuitBreaker.isCircuitOpen('storage_empty_state')) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             CircuitBreaker.execute('home_fallback_loading', () async {
               debugPrint(
@@ -146,32 +148,45 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           if (documentProvider.isLoading) {
             debugPrint('⏳ Home screen: Loading from Firebase Storage...');
           } else {
-            // ENHANCED DEBUG: Show Firebase Storage state information
-            debugPrint('⚠️ Home screen: No documents from Firebase Storage');
-            debugPrint(
-              '📊 Debug info: allDocuments=${documentProvider.allDocuments.length}, isLoading=${documentProvider.isLoading}, error=${documentProvider.errorMessage}',
-            );
-            debugPrint(
-              '💡 TIP: Check Firebase Storage /documents/ folder for files',
-            );
+            // EMPTY STATE FIX: Check if storage is confirmed empty before retrying
+            final isEmptyStateConfirmed =
+                CircuitBreaker.isCircuitOpen('storage_empty_state') ||
+                CircuitBreaker.isCircuitOpen('prevent_empty_storage_retries');
 
-            // CIRCUIT BREAKER: Prevent infinite retry loops
-            if (!CircuitBreaker.isCircuitOpen('home_document_loading')) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                CircuitBreaker.execute('home_document_loading', () async {
-                  debugPrint(
-                    '🔄 HomeFileListSection: Retry loading documents...',
-                  );
-                  await documentProvider.loadDocuments(forceRefresh: true);
-                }, operationName: 'Home Document Loading');
-              });
+            if (isEmptyStateConfirmed) {
+              debugPrint(
+                '📁 Home screen: Empty storage state confirmed - no retry needed',
+              );
+              debugPrint('✅ Displaying empty state UI');
             } else {
+              // ENHANCED DEBUG: Show Firebase Storage state information (reduced logging)
+              debugPrint('⚠️ Home screen: No documents from Firebase Storage');
               debugPrint(
-                '🚫 Home screen: Circuit breaker OPEN - skipping retry',
+                '📊 Debug info: allDocuments=${documentProvider.allDocuments.length}, isLoading=${documentProvider.isLoading}',
               );
-              debugPrint(
-                '💡 Tip: Pull down to refresh and reset circuit breakers',
-              );
+
+              // CIRCUIT BREAKER: Prevent infinite retry loops with additional checks
+              if (!CircuitBreaker.isCircuitOpen('home_document_loading') &&
+                  !CircuitBreaker.isCircuitOpen(
+                    'prevent_empty_storage_retries',
+                  )) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  CircuitBreaker.execute(
+                    'home_document_loading',
+                    () async {
+                      debugPrint(
+                        '🔄 HomeFileListSection: Retry loading documents...',
+                      );
+                      await documentProvider.loadDocuments(forceRefresh: true);
+                    },
+                    operationName: 'Home Document Loading',
+                  );
+                });
+              } else {
+                debugPrint(
+                  '🚫 Home screen: Circuit breaker OPEN - skipping retry',
+                );
+              }
             }
           }
         }
@@ -276,9 +291,16 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   ) {
     return Consumer<DocumentProvider>(
       builder: (context, documentProvider, child) {
-        // Show loading state during transitions or when documents are loading
+        // EMPTY STATE FIX: Check if storage is confirmed empty
+        final isEmptyStateConfirmed =
+            CircuitBreaker.isCircuitOpen('storage_empty_state') ||
+            CircuitBreaker.isCircuitOpen('prevent_empty_storage_retries');
+
+        // Show loading state during transitions or when documents are loading (but not if empty state confirmed)
         if (_isTransitioning ||
-            (documents.isEmpty && documentProvider.isLoading)) {
+            (documents.isEmpty &&
+                documentProvider.isLoading &&
+                !isEmptyStateConfirmed)) {
           return Container(
             padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
             decoration: BoxDecoration(
@@ -321,6 +343,14 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         }
 
         if (documents.isEmpty && !documentProvider.isLoading) {
+          // EMPTY STATE FIX: Show appropriate message based on whether storage is confirmed empty
+          final emptyMessage = isEmptyStateConfirmed
+              ? 'No files in storage'
+              : 'No files found';
+          final emptySubMessage = isEmptyStateConfirmed
+              ? 'Upload files to see them here'
+              : 'Files will appear here once uploaded';
+
           return Container(
             padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
             decoration: BoxDecoration(
@@ -335,13 +365,13 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
               child: Column(
                 children: [
                   Icon(
-                    Icons.folder_open,
+                    isEmptyStateConfirmed ? Icons.cloud_off : Icons.folder_open,
                     size: 48,
                     color: AppColors.textSecondary.withValues(alpha: 0.5),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'No files found',
+                    emptyMessage,
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -350,7 +380,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Files will appear here once uploaded',
+                    emptySubMessage,
                     style: GoogleFonts.poppins(
                       fontSize: 12,
                       fontWeight: FontWeight.w400,

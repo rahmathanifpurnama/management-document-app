@@ -268,7 +268,7 @@ class FirebaseService {
   CollectionReference get usersCollection => firestore.collection('users');
 
   CollectionReference get documentsCollection =>
-      firestore.collection('documents');
+      firestore.collection('document-metadata');
   CollectionReference get activitiesCollection =>
       firestore.collection('activities');
   CollectionReference get categoriesCollection =>

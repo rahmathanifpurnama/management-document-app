@@ -18,7 +18,7 @@ class FirebaseStorageDirectService {
 
   final FirebaseService _firebaseService = FirebaseService.instance;
 
-  /// ARCHITECTURAL FIX: Optimized file fetching with caching
+  /// ARCHITECTURAL FIX: Optimized file fetching with proper empty state handling
   Future<List<DocumentModel>> getAllFilesFromStorage() async {
     try {
       debugPrint('🔄 Fetching files from Firebase Storage (optimized)...');
@@ -34,6 +34,19 @@ class FirebaseStorageDirectService {
 
       if (listResult == null) {
         debugPrint('⚠️ Storage listing timed out');
+        return [];
+      }
+
+      // EMPTY STATE FIX: Properly handle empty storage
+      if (listResult.items.isEmpty) {
+        debugPrint('📁 Firebase Storage is empty - no documents found');
+        debugPrint(
+          '✅ Empty state confirmed - this is a valid state, not an error',
+        );
+        // Set circuit breaker to prevent retries for empty storage
+        CircuitBreaker.execute('storage_empty_state', () async {
+          return true; // Mark as successful empty state
+        }, operationName: 'Storage Empty State Confirmation');
         return [];
       }
 

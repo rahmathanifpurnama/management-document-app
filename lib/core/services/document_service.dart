@@ -26,10 +26,11 @@ class DocumentService {
     try {
       final networkService = OptimizedNetworkService.instance;
 
-      // CRITICAL FIX: Optimized query with proper timeout and error handling
+      // CRITICAL FIX: Use correct collection name and optimized query with proper timeout and error handling
       final querySnapshot = await networkService.executeFirestoreOperation(
         () async {
-          Query query = _firebaseService.documentsCollection
+          Query query = _firebaseService.firestore
+              .collection('document-metadata')
               .where('isActive', isEqualTo: true)
               .orderBy('uploadedAt', descending: true);
 

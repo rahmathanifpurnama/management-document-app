@@ -1,7 +1,7 @@
 {
   "indexes": [
     {
-      "collectionGroup": "documents",
+      "collectionGroup": "document-metadata",
       "queryScope": "COLLECTION",
       "fields": [
         {
@@ -15,7 +15,7 @@
       ]
     },
     {
-      "collectionGroup": "documents",
+      "collectionGroup": "document-metadata",
       "queryScope": "COLLECTION",
       "fields": [
         {
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "collectionGroup": "documents",
+      "collectionGroup": "document-metadata",
       "queryScope": "COLLECTION",
       "fields": [
         {
@@ -47,9 +47,28 @@
       ]
     },
     {
-      "collectionGroup": "documents",
+      "collectionGroup": "document-metadata",
       "queryScope": "COLLECTION",
       "fields": [
+        {
+          "fieldPath": "fileName",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "uploadedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+,
+    {
+      "collectionGroup": "document-metadata",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "isActive",
+          "order": "ASCENDING"
+        },
         {
           "fieldPath": "fileName",
           "order": "ASCENDING"

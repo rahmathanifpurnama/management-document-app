@@ -119,7 +119,7 @@ npm run seed
 ### Firestore Collections
 - **users**: User profiles and authentication data
 - **categories**: Document categories and permissions
-- **documents**: Document metadata and references
+- **document-metadata**: Document metadata and references
 
 ### Storage Structure
 ```

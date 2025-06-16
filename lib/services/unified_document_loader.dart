@@ -6,6 +6,8 @@ import '../core/services/document_service.dart';
 import '../core/config/anr_config.dart';
 import '../config/firebase_config.dart';
 import '../core/utils/anr_prevention.dart';
+import '../core/utils/circuit_breaker.dart';
+import 'firebase_storage_direct_service.dart';
 
 /// Unified document loader to eliminate race conditions and ensure consistent data loading
 class UnifiedDocumentLoader {
@@ -93,9 +95,18 @@ class UnifiedDocumentLoader {
     }
   }
 
-  /// Load documents with retry mechanism
+  /// Load documents with retry mechanism (respects empty state)
   Future<List<DocumentModel>> _loadDocumentsWithRetry() async {
-    const maxRetries = 3;
+    // EMPTY STATE FIX: Check if storage is confirmed empty before retrying
+    if (CircuitBreaker.isCircuitOpen('storage_empty_state') ||
+        CircuitBreaker.isCircuitOpen('prevent_empty_storage_retries')) {
+      debugPrint(
+        '📋 Unified loader: Empty storage confirmed - skipping retry attempts',
+      );
+      return [];
+    }
+
+    const maxRetries = 2; // Reduced from 3 to 2 to minimize logs
 
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -116,6 +127,28 @@ class UnifiedDocumentLoader {
           return documents;
         } else {
           debugPrint('⚠️ Loading attempt $attempt returned empty results');
+
+          // EMPTY STATE FIX: If first attempt is empty, check if storage is actually empty
+          if (attempt == 1) {
+            final isStorageEmpty = await CircuitBreaker.execute(
+              'unified_loader_empty_check',
+              () async {
+                // Quick storage check to avoid unnecessary retries
+                final storageService = FirebaseStorageDirectService.instance;
+                final storageFiles = await storageService
+                    .getAllFilesFromStorage();
+                return storageFiles.isEmpty;
+              },
+              operationName: 'Unified Loader Empty Check',
+            );
+
+            if (isStorageEmpty == true) {
+              debugPrint(
+                '📋 Unified loader: Storage confirmed empty - stopping retries',
+              );
+              return [];
+            }
+          }
         }
 
         if (attempt < maxRetries) {
