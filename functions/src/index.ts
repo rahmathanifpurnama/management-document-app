@@ -26,6 +26,7 @@ import {
 
 // File Upload Functions
 export const processFileUpload = fileUploadFunctions.processFileUpload;
+export const streamingUpload = fileUploadFunctions.streamingUpload;
 export const generateThumbnail = fileUploadFunctions.generateThumbnail;
 export const validateFile = fileUploadFunctions.validateFile;
 export const checkDuplicateFile = fileUploadFunctions.checkDuplicateFile;

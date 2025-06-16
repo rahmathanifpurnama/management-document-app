@@ -285,11 +285,11 @@ const processFileUpload = functions.https.onCall(async (data, context) => {
         const documentId = (0, uuid_1.v4)();
         const documentData = {
             id: documentId,
-            fileName: sanitizedFileName,
+            fileName: sanitizedFileName, // Display name WITHOUT timestamp
             originalFileName: originalFileName, // Keep original for reference
             fileSize,
             fileType: getFileType(sanitizedFileName),
-            filePath,
+            filePath, // Storage path WITH timestamp for uniqueness
             downloadUrl: await fileRef
                 .getSignedUrl({
                 action: "read",
@@ -301,7 +301,7 @@ const processFileUpload = functions.https.onCall(async (data, context) => {
             uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
             category: categoryId || "",
             status: "active", // Changed from "pending" to "active"
-            metadata: Object.assign(Object.assign({}, extractedMetadata), { originalMetadata: metadata, fileHash: fileHash, securityChecks: {
+            metadata: Object.assign(Object.assign({}, extractedMetadata), { originalMetadata: metadata, fileHash: fileHash, storageFileName: filePath.split("/").pop() || sanitizedFileName, displayFileName: sanitizedFileName, securityChecks: {
                     fileNameSanitized: originalFileName !== sanitizedFileName,
                     contentValidated: true,
                     duplicateChecked: true,
@@ -881,10 +881,11 @@ const streamingUpload = functions.https.onRequest(async (req, res) => {
             });
             return;
         }
-        // Generate unique filename
-        const fileName = req.headers["x-file-name"] || `upload_${Date.now()}`;
-        const sanitizedFileName = sanitizeFileName(fileName);
-        const filePath = `documents/${decodedToken.uid}/${Date.now()}_${sanitizedFileName}`;
+        // Generate unique filename - separate display name from storage path
+        const originalFileName = req.headers["x-file-name"] || `upload_${Date.now()}`;
+        const sanitizedFileName = sanitizeFileName(originalFileName);
+        const timestamp = Date.now();
+        const filePath = `documents/${decodedToken.uid}/${timestamp}_${sanitizedFileName}`;
         // Stream upload to Firebase Storage
         const bucket = admin.storage().bucket();
         const file = bucket.file(filePath);

@@ -68,15 +68,17 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   void _checkForCompletedUploads(ConsolidatedUploadProvider uploadProvider) {
     final currentCompletedCount = uploadProvider.completedFiles;
 
-    // If new uploads have completed since last check
-    if (currentCompletedCount > _lastCompletedCount) {
+    // Only show notification if using ConsolidatedUploadProvider (not ApiEnhancedUploadWidget)
+    // This prevents duplicate notifications when both systems are active
+    if (currentCompletedCount > _lastCompletedCount && !_showApiWidgets) {
       _lastCompletedCount = currentCompletedCount;
       _hasCompletedUploads = true;
 
       // Schedule notification to show after build completes
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          _showUploadSuccessNotification(currentCompletedCount);
+          final failedCount = uploadProvider.failedFiles;
+          _showFinalUploadNotification(currentCompletedCount, failedCount);
         }
       });
 
@@ -86,8 +88,8 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
         categoryId: widget.categoryId,
       );
 
-      // Schedule auto-clear for successful uploads
-      _scheduleAutoClear();
+      // Schedule delayed cleanup
+      _scheduleDelayedQueueCleanup();
 
       debugPrint(
         '🔄 UI refreshed after upload completion ($currentCompletedCount files completed)',
@@ -95,28 +97,43 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
     }
   }
 
-  // Show success notification
-  void _showUploadSuccessNotification(int completedCount) {
-    // Safety check to ensure widget is still mounted and context is valid
+  // Show final upload notification with accurate counts
+  void _showFinalUploadNotification(int successCount, int failedCount) {
     if (!mounted) return;
 
     try {
+      final bool hasFailures = failedCount > 0;
+      final String message = hasFailures
+          ? '$successCount files uploaded successfully, $failedCount failed'
+          : '$successCount file(s) uploaded successfully!';
+
+      // Prevent showing "0 files uploaded" by checking counts
+      if (successCount == 0 && failedCount == 0) {
+        debugPrint(
+          '⚠️ Skipping notification: No files to report (0 success, 0 failed)',
+        );
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.check_circle, color: Colors.white),
+              Icon(
+                hasFailures ? Icons.warning : Icons.check_circle,
+                color: Colors.white,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  '$completedCount file(s) uploaded successfully!',
+                  message,
                   style: GoogleFonts.poppins(color: Colors.white),
                 ),
               ),
             ],
           ),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
+          backgroundColor: hasFailures ? AppColors.warning : AppColors.success,
+          duration: const Duration(seconds: 4),
           action: SnackBarAction(
             label: 'Dismiss',
             textColor: Colors.white,
@@ -128,8 +145,12 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
           ),
         ),
       );
+
+      debugPrint(
+        '✅ Final upload notification shown: $successCount success, $failedCount failed',
+      );
     } catch (e) {
-      debugPrint('❌ Error showing success notification: $e');
+      debugPrint('❌ Error showing final upload notification: $e');
     }
   }
 
@@ -138,23 +159,65 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
     UIRefreshService.refreshOnNavigationExit(context);
   }
 
-  // Auto-clear completed uploads after a delay to keep UI clean
-  void _scheduleAutoClear() {
+  // Schedule delayed queue cleanup after user sees final notification
+  void _scheduleDelayedQueueCleanup() {
     if (!mounted) return;
 
-    Timer(const Duration(seconds: 3), () {
+    // Wait longer to ensure user sees the final notification
+    Timer(const Duration(seconds: 5), () {
       if (mounted) {
         final uploadProvider = Provider.of<ConsolidatedUploadProvider>(
           context,
           listen: false,
         );
-        if (uploadProvider.hasSuccessfulUploads &&
-            uploadProvider.failedFiles == 0) {
-          // Only auto-clear if all uploads succeeded (no failed uploads to retry)
+
+        // Clear completed files from queue to hide progress components
+        if (uploadProvider.hasSuccessfulUploads) {
           uploadProvider.clearCompleted();
+          debugPrint('🧹 Delayed queue cleanup completed');
         }
       }
     });
+  }
+
+  // Determine if upload progress should be shown
+  bool _shouldShowUploadProgress(ConsolidatedUploadProvider uploadProvider) {
+    // Don't show if using API widgets (to avoid duplicate progress displays)
+    if (_showApiWidgets) return false;
+
+    // Use the provider's built-in logic for determining visibility
+    return uploadProvider.shouldShowQueue;
+  }
+
+  // Build file naming information widget
+  Widget _buildFileNamingInfo() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.lightBlue.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppColors.lightBlue.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: AppColors.info, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Files are stored with unique identifiers for security and to prevent conflicts. Your original filename is preserved for display.',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -209,6 +272,13 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
                     isEnabled: !uploadProvider.isUploading,
                   ),
 
+                  // File naming info - Show helpful information about file naming
+                  if (_selectedFiles.isNotEmpty ||
+                      uploadProvider.uploadQueue.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _buildFileNamingInfo(),
+                  ],
+
                   const SizedBox(height: 16),
 
                   // Upload Security Widget - Show when files are selected
@@ -233,8 +303,8 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
                     const SizedBox(height: 16),
                   ],
 
-                  // Upload Progress - Only show when files are being processed
-                  if (uploadProvider.uploadQueue.isNotEmpty) ...[
+                  // Upload Progress - Only show when files are actively being processed
+                  if (_shouldShowUploadProgress(uploadProvider)) ...[
                     _buildImprovedProgress(uploadProvider),
                     const SizedBox(height: 24),
                   ],
@@ -306,23 +376,33 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
     final successCount = results.where((r) => r.success).length;
     final failedCount = results.where((r) => !r.success).length;
 
+    debugPrint('📊 Upload completion summary:');
+    debugPrint('   ✅ Successful uploads: $successCount');
+    debugPrint('   ❌ Failed uploads: $failedCount');
+    debugPrint('   📁 Total results: ${results.length}');
+
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '$successCount files uploaded successfully${failedCount > 0 ? ', $failedCount failed' : ''}',
-          ),
-          backgroundColor: failedCount > 0
-              ? AppColors.warning
-              : AppColors.success,
-        ),
-      );
+      // Show immediate completion notification with correct counts
+      _showFinalUploadNotification(successCount, failedCount);
 
       // Clear selected files after upload
       setState(() {
         _selectedFiles = [];
         _showApiWidgets = false;
       });
+
+      debugPrint(
+        '🔄 Upload UI state cleared: _selectedFiles and _showApiWidgets reset',
+      );
+
+      // Trigger UI refresh
+      UIRefreshService.refreshAfterUpload(
+        context,
+        categoryId: widget.categoryId,
+      );
+
+      // Schedule delayed queue cleanup (after user sees the notification)
+      _scheduleDelayedQueueCleanup();
     }
   }
 
@@ -358,9 +438,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
     final totalFiles = uploadProvider.totalFiles;
     final completedFiles = uploadProvider.completedFiles;
     final failedFiles = uploadProvider.failedFiles;
-    final uploadingFiles = uploadProvider.uploadQueue
-        .where((file) => file.status == UploadStatus.uploading)
-        .length;
+    final uploadingFiles = uploadProvider.uploadingFiles;
     final progress = totalFiles > 0 ? (completedFiles / totalFiles) : 0.0;
 
     return Container(

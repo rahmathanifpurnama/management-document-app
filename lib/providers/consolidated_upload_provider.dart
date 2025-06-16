@@ -39,8 +39,21 @@ class ConsolidatedUploadProvider with ChangeNotifier {
       _uploadQueue.where((f) => f.status == UploadStatus.failed).length;
   int get pendingFiles =>
       _uploadQueue.where((f) => f.status == UploadStatus.pending).length;
+  int get uploadingFiles =>
+      _uploadQueue.where((f) => f.status == UploadStatus.uploading).length;
   double get overallProgress =>
       totalFiles > 0 ? completedFiles / totalFiles : 0.0;
+
+  /// Check if there are active files (uploading or pending)
+  bool get hasActiveFiles => _uploadQueue.any(
+    (file) =>
+        file.status == UploadStatus.uploading ||
+        file.status == UploadStatus.pending,
+  );
+
+  /// Check if upload queue should be visible
+  bool get shouldShowQueue =>
+      _uploadQueue.isNotEmpty && (isUploading || hasActiveFiles);
 
   /// Add files to upload queue with duplicate checking
   Future<void> addFiles(
@@ -322,9 +335,21 @@ class ConsolidatedUploadProvider with ChangeNotifier {
       removeFile(file.id);
     }
 
+    // Notify listeners to update UI immediately
+    notifyListeners();
+
     debugPrint(
       '🧹 Cleared ${completedFiles.length} completed files from queue',
     );
+  }
+
+  /// Clear completed files with delay for better UX
+  void clearCompletedWithDelay({Duration delay = const Duration(seconds: 3)}) {
+    Timer(delay, () {
+      if (hasSuccessfulUploads && failedFiles == 0) {
+        clearCompleted();
+      }
+    });
   }
 
   /// Clear all files from queue

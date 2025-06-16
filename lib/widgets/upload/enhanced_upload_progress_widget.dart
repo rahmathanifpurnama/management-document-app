@@ -24,8 +24,14 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
       builder: (context, uploadProvider, child) {
         final queuedFiles = uploadProvider.uploadQueue;
         final isProcessing = uploadProvider.isUploading;
+        final hasActiveFiles = queuedFiles.any(
+          (file) =>
+              file.status == UploadStatus.uploading ||
+              file.status == UploadStatus.pending,
+        );
 
-        if (queuedFiles.isEmpty) {
+        // Hide widget if no files or only completed/failed files remain
+        if (queuedFiles.isEmpty || (!isProcessing && !hasActiveFiles)) {
           return const SizedBox.shrink();
         }
 
