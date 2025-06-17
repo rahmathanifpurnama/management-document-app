@@ -56,7 +56,7 @@ const syncStorageWithFirestore = functions.https.onCall(
           // Check if document already exists in Firestore
           const existingDoc = await admin
             .firestore()
-            .collection("documents")
+            .collection("document-metadata")
             .doc(documentId)
             .get();
 
@@ -88,7 +88,7 @@ const syncStorageWithFirestore = functions.https.onCall(
             };
 
             batch.set(
-              admin.firestore().collection("documents").doc(documentId),
+              admin.firestore().collection("document-metadata").doc(documentId),
               documentData
             );
             batchCount++;
@@ -195,7 +195,7 @@ const manualCleanupOrphanedMetadata = functions.https.onCall(
       // Get all documents from Firestore
       const documentsSnapshot = await admin
         .firestore()
-        .collection("documents")
+        .collection("document-metadata")
         .where("isActive", "==", true)
         .get();
 
@@ -371,7 +371,7 @@ async function updateCategoryDocumentCounts() {
     // Count documents in this category
     const documentsSnapshot = await admin
       .firestore()
-      .collection("documents")
+      .collection("document-metadata")
       .where("category", "==", categoryId)
       .where("isActive", "==", true)
       .get();
@@ -405,7 +405,7 @@ async function updateUserStatistics() {
     // Count documents uploaded by this user
     const documentsSnapshot = await admin
       .firestore()
-      .collection("documents")
+      .collection("document-metadata")
       .where("uploadedBy", "==", userId)
       .where("isActive", "==", true)
       .get();

@@ -61,7 +61,7 @@ const approveDocument = functions.https.onCall(async (data, context) => {
         // Update document
         await admin
             .firestore()
-            .collection("documents")
+            .collection("document-metadata")
             .doc(documentId)
             .update({
             approvedBy: context.auth.uid,
@@ -114,7 +114,7 @@ const rejectDocument = functions.https.onCall(async (data, context) => {
         // Update document
         await admin
             .firestore()
-            .collection("documents")
+            .collection("document-metadata")
             .doc(documentId)
             .update({
             rejectedBy: context.auth.uid,
@@ -172,7 +172,7 @@ const bulkDocumentOperations = functions.https.onCall(async (data, context) => {
         const results = [];
         for (const documentId of documentIds) {
             try {
-                const docRef = admin.firestore().collection("documents").doc(documentId);
+                const docRef = admin.firestore().collection("document-metadata").doc(documentId);
                 switch (operation) {
                     case "approve":
                         batch.update(docRef, {
@@ -248,7 +248,7 @@ const generateDocumentReport = functions.https.onCall(async (data, context) => {
         const { startDate, endDate, categoryId } = data;
         let query = admin
             .firestore()
-            .collection("documents")
+            .collection("document-metadata")
             .where("isActive", "==", true);
         if (startDate) {
             query = query.where("uploadedAt", ">=", new Date(startDate));

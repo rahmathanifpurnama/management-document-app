@@ -93,7 +93,7 @@ export const api = functions.https.onRequest(app);
 
 // Firestore Triggers
 export const onDocumentCreate = functions.firestore
-  .document("documents/{documentId}")
+  .document("document-metadata/{documentId}")
   .onCreate(async (snap, context) => {
     const document = snap.data();
     const documentId = context.params.documentId;

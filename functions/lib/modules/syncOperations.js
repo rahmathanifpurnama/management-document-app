@@ -76,7 +76,7 @@ const syncStorageWithFirestore = functions.https.onCall(async (data, context) =>
                 // Check if document already exists in Firestore
                 const existingDoc = await admin
                     .firestore()
-                    .collection("documents")
+                    .collection("document-metadata")
                     .doc(documentId)
                     .get();
                 if (!existingDoc.exists) {
@@ -104,7 +104,7 @@ const syncStorageWithFirestore = functions.https.onCall(async (data, context) =>
                         isActive: true,
                         syncedAt: admin.firestore.FieldValue.serverTimestamp(),
                     };
-                    batch.set(admin.firestore().collection("documents").doc(documentId), documentData);
+                    batch.set(admin.firestore().collection("document-metadata").doc(documentId), documentData);
                     batchCount++;
                     processed++;
                     // Commit batch when it reaches the limit
@@ -187,7 +187,7 @@ const manualCleanupOrphanedMetadata = functions.https.onCall(async (data, contex
         // Get all documents from Firestore
         const documentsSnapshot = await admin
             .firestore()
-            .collection("documents")
+            .collection("document-metadata")
             .where("isActive", "==", true)
             .get();
         const batchSize = 500;
@@ -319,7 +319,7 @@ async function updateCategoryDocumentCounts() {
         // Count documents in this category
         const documentsSnapshot = await admin
             .firestore()
-            .collection("documents")
+            .collection("document-metadata")
             .where("category", "==", categoryId)
             .where("isActive", "==", true)
             .get();
@@ -344,7 +344,7 @@ async function updateUserStatistics() {
         // Count documents uploaded by this user
         const documentsSnapshot = await admin
             .firestore()
-            .collection("documents")
+            .collection("document-metadata")
             .where("uploadedBy", "==", userId)
             .where("isActive", "==", true)
             .get();

@@ -180,7 +180,7 @@ async function checkForDuplicates(fileHash, fileName, fileSize, uploadedBy) {
         const firestore = admin.firestore();
         // First check by hash (most reliable)
         const hashQuery = await firestore
-            .collection("documents")
+            .collection("document-metadata")
             .where("metadata.fileHash", "==", fileHash)
             .where("isActive", "==", true)
             .limit(1)
@@ -195,7 +195,7 @@ async function checkForDuplicates(fileHash, fileName, fileSize, uploadedBy) {
         }
         // Secondary check by filename and size (less reliable but useful)
         const nameQuery = await firestore
-            .collection("documents")
+            .collection("document-metadata")
             .where("fileName", "==", fileName)
             .where("fileSize", "==", fileSize)
             .where("uploadedBy", "==", uploadedBy)
@@ -311,7 +311,7 @@ const processFileUpload = functions.https.onCall(async (data, context) => {
         };
         await admin
             .firestore()
-            .collection("documents")
+            .collection("document-metadata")
             .doc(documentId)
             .set(documentData);
         // Log activity
@@ -691,7 +691,7 @@ const cleanupOrphanedFiles = functions.https.onCall(async (_data, context) => {
         // Get all files from storage
         const [files] = await bucket.getFiles({ prefix: "documents/" });
         // Get all document records from Firestore
-        const documentsSnapshot = await firestore.collection("documents").get();
+        const documentsSnapshot = await firestore.collection("document-metadata").get();
         const documentPaths = new Set(documentsSnapshot.docs.map((doc) => doc.data().filePath));
         let deletedCount = 0;
         // DISABLED: Automatic orphaned file deletion to prevent data loss
@@ -732,7 +732,7 @@ const checkDuplicateFile = functions.https.onCall(async (data, context) => {
         const { fileName, fileSize, contentType, fileHash } = data;
         console.log(`Checking for duplicate file: ${fileName}`);
         // Query Firestore for potential duplicates
-        const documentsRef = admin.firestore().collection("documents");
+        const documentsRef = admin.firestore().collection("document-metadata");
         // First check by filename and size
         const nameAndSizeQuery = await documentsRef
             .where("fileName", "==", fileName)

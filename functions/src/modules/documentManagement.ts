@@ -40,7 +40,7 @@ const approveDocument = functions.https.onCall(async (data: any, context) => {
     // Update document
     await admin
       .firestore()
-      .collection("documents")
+      .collection("document-metadata")
       .doc(documentId)
       .update({
         approvedBy: context.auth.uid,
@@ -112,7 +112,7 @@ const rejectDocument = functions.https.onCall(async (data: any, context) => {
     // Update document
     await admin
       .firestore()
-      .collection("documents")
+      .collection("document-metadata")
       .doc(documentId)
       .update({
         rejectedBy: context.auth.uid,
@@ -194,7 +194,7 @@ const bulkDocumentOperations = functions.https.onCall(async (data: any, context)
 
     for (const documentId of documentIds) {
       try {
-        const docRef = admin.firestore().collection("documents").doc(documentId);
+        const docRef = admin.firestore().collection("document-metadata").doc(documentId);
         
         switch (operation) {
         case "approve":
@@ -287,7 +287,7 @@ const generateDocumentReport = functions.https.onCall(async (data: any, context)
 
     let query = admin
       .firestore()
-      .collection("documents")
+      .collection("document-metadata")
       .where("isActive", "==", true);
 
     if (startDate) {

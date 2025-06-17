@@ -200,7 +200,7 @@ const deleteCategory = functions.https.onCall(async (data, context) => {
         // Check if category has documents
         const documentsInCategory = await admin
             .firestore()
-            .collection("documents")
+            .collection("document-metadata")
             .where("category", "==", categoryId)
             .where("isActive", "==", true)
             .get();
@@ -277,7 +277,7 @@ const addFilesToCategory = functions.https.onCall(async (data, context) => {
             for (const documentId of batchDocumentIds) {
                 const docRef = admin
                     .firestore()
-                    .collection("documents")
+                    .collection("document-metadata")
                     .doc(documentId);
                 batch.update(docRef, {
                     category: categoryId,
@@ -350,7 +350,7 @@ const removeFilesFromCategory = functions.https.onCall(async (data, context) => 
             for (const documentId of batchDocumentIds) {
                 const docRef = admin
                     .firestore()
-                    .collection("documents")
+                    .collection("document-metadata")
                     .doc(documentId);
                 batch.update(docRef, {
                     category: "uncategorized",
@@ -409,7 +409,7 @@ exports.getCategoryDocumentsEnhanced = functions.https.onCall(async (data, conte
         // Get documents from Firestore with proper ordering
         const documentsSnapshot = await admin
             .firestore()
-            .collection("documents")
+            .collection("document-metadata")
             .where("category", "==", categoryId)
             .orderBy("uploadedAt", "desc")
             .get();
@@ -448,7 +448,7 @@ exports.refreshCategoryContents = functions.https.onCall(async (data, context) =
         }
         const { categoryId } = data;
         console.log(`Force refreshing category contents: ${categoryId || "all"}`);
-        let documentsQuery = admin.firestore().collection("documents");
+        let documentsQuery = admin.firestore().collection("document-metadata");
         // Filter by category if specified
         if (categoryId) {
             documentsQuery = documentsQuery.where("category", "==", categoryId);
