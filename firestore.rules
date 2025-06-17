@@ -29,7 +29,7 @@ service cloud.firestore {
       allow list: if isAuthenticated();
     }
     
-    // Document-metadata collection with enhanced role-based access and unlimited queries
+    // Documents collection with enhanced role-based access and unlimited queries
     match /document-metadata/{documentId} {
       // Allow single document read for authenticated users
       allow get: if isAuthenticated();

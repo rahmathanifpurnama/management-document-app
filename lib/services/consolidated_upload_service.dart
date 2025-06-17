@@ -371,7 +371,7 @@ class ConsolidatedUploadService {
   ) async {
     try {
       final firestore = FirebaseFirestore.instance;
-      final documentId = firestore.collection('documents').doc().id;
+      final documentId = firestore.collection('document-metadata').doc().id;
 
       // Use clean display filename without timestamp
       final displayFileName = _getDisplayFileName(file.fileName);
@@ -404,7 +404,10 @@ class ConsolidatedUploadService {
         },
       };
 
-      await firestore.collection('documents').doc(documentId).set(documentData);
+      await firestore
+          .collection('document-metadata')
+          .doc(documentId)
+          .set(documentData);
 
       debugPrint('✅ Document created locally: $documentId');
       return documentId;
