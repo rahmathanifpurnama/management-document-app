@@ -621,8 +621,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final currentUser = authProvider.currentUser;
 
       if (currentUser != null) {
-        // Create storage reference for profile image
-        final storageRef = _firebaseService.profileImagesStorage
+        // Ensure we're using the correct path structure: profile_images/{userId}/profile_image.jpg
+        // Using the correct bucket path: gs://document-management-c5a96.firebasestorage.app/profile_images
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('profile_images')
             .child(currentUser.id)
             .child('profile_${DateTime.now().millisecondsSinceEpoch}.jpg');
 
