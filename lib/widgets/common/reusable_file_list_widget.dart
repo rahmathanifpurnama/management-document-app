@@ -402,7 +402,7 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        document.fileName,
+                        document.displayFileName, // Use clean display name
                         style: GoogleFonts.poppins(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,

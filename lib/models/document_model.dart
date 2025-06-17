@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/filename_utils.dart';
 
 class DocumentModel {
   final String id;
@@ -153,6 +154,21 @@ class DocumentModel {
   // Get file extension
   String get fileExtension {
     return fileName.split('.').last.toLowerCase();
+  }
+
+  // Get clean display filename without timestamp prefix
+  String get displayFileName {
+    return FilenameUtils.getDisplayFileName(fileName);
+  }
+
+  // Get user-friendly display name
+  String get userFriendlyName {
+    return FilenameUtils.getUserFriendlyName(fileName);
+  }
+
+  // Check if filename has timestamp prefix
+  bool get hasTimestampPrefix {
+    return FilenameUtils.hasTimestampPrefix(fileName);
   }
 
   // Check if user has permission to access this document

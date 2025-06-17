@@ -24,7 +24,7 @@ class FilenameMigrationService {
       debugPrint('🔍 Checking filename migration status...');
 
       final querySnapshot = await _firestore
-          .collection('documents')
+          .collection('document-metadata')
           .where('isActive', isEqualTo: true)
           .get();
 

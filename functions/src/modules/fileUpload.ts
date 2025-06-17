@@ -339,12 +339,18 @@ const processFileUpload = functions.https.onCall(
 
       // Create document record in Firestore
       const documentId = uuidv4();
+
+      // CRITICAL FIX: Separate display name from storage path
+      // Extract clean filename without timestamp for display
+      const displayFileName = sanitizedFileName; // This is already clean
+      const storageFileName = filePath.split("/").pop() || sanitizedFileName; // This has timestamp
+
       const documentData = {
         id: documentId,
-        fileName: sanitizedFileName, // Display name WITHOUT timestamp
+        fileName: displayFileName, // Clean display name WITHOUT timestamp
         originalFileName: originalFileName, // Keep original for reference
         fileSize,
-        fileType: getFileType(sanitizedFileName),
+        fileType: getFileType(displayFileName),
         filePath, // Storage path WITH timestamp for uniqueness
         downloadUrl: await fileRef
           .getSignedUrl({

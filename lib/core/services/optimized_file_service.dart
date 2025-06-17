@@ -196,8 +196,9 @@ class OptimizedFileService {
     _activeOperations++;
 
     try {
-      final filePath =
-          'documents/${DateTime.now().millisecondsSinceEpoch}_$fileName';
+      // CRITICAL FIX: Let Cloud Functions handle timestamp addition
+      // Use clean filename here, Cloud Functions will add timestamp for storage uniqueness
+      final filePath = 'documents/$fileName';
       final ref = FirebaseStorage.instance.ref().child(filePath);
 
       debugPrint(

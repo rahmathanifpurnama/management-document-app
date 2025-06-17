@@ -1,4 +1,5 @@
 import 'package:file_selector/file_selector.dart';
+import '../utils/filename_utils.dart';
 
 enum UploadStatus { pending, uploading, paused, completed, failed, cancelled }
 
@@ -82,6 +83,11 @@ class UploadFileModel {
       default:
         return 'application/octet-stream';
     }
+  }
+
+  // Get clean display filename without timestamp prefix
+  String get displayFileName {
+    return FilenameUtils.getDisplayFileName(fileName);
   }
 
   // Get file type icon

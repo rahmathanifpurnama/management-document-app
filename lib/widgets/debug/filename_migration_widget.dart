@@ -3,20 +3,22 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/filename_migration_service.dart';
 import '../../utils/filename_utils.dart';
+import '../../services/filename_display_service.dart';
 
 /// Debug widget for filename migration operations
-/// 
+///
 /// Provides UI for checking migration status and running filename cleanup
 class FilenameMigrationWidget extends StatefulWidget {
   const FilenameMigrationWidget({super.key});
 
   @override
-  State<FilenameMigrationWidget> createState() => _FilenameMigrationWidgetState();
+  State<FilenameMigrationWidget> createState() =>
+      _FilenameMigrationWidgetState();
 }
 
 class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
   final FilenameMigrationService _migrationService = FilenameMigrationService();
-  
+
   bool _isLoading = false;
   Map<String, dynamic>? _migrationStatus;
   Map<String, dynamic>? _migrationResult;
@@ -36,7 +38,7 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
     try {
       final status = await _migrationService.checkMigrationStatus();
       final stats = await _migrationService.getMigrationStatistics();
-      
+
       setState(() {
         _migrationStatus = status;
         _statistics = stats;
@@ -54,7 +56,7 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
     final confirmed = await _showConfirmationDialog(
       'Run Filename Migration',
       'This will update all document filenames to remove timestamp prefixes. '
-      'The operation is reversible. Continue?',
+          'The operation is reversible. Continue?',
     );
 
     if (!confirmed) return;
@@ -65,7 +67,7 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
 
     try {
       final result = await _migrationService.migrateAllDocuments();
-      
+
       setState(() {
         _migrationResult = result;
       });
@@ -91,7 +93,7 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
     final confirmed = await _showConfirmationDialog(
       'Rollback Migration',
       'This will restore timestamp prefixes to filenames. '
-      'This is mainly for testing purposes. Continue?',
+          'This is mainly for testing purposes. Continue?',
     );
 
     if (!confirmed) return;
@@ -102,7 +104,7 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
 
     try {
       final result = await _migrationService.rollbackMigration();
-      
+
       if (result['success'] == true) {
         _showSuccessSnackBar(
           'Rollback completed! ${result['totalRolledBack']} files restored.',
@@ -122,25 +124,29 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
 
   Future<bool> _showConfirmationDialog(String title, String content) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        content: Text(content, style: GoogleFonts.poppins()),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel', style: GoogleFonts.poppins()),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(
-              'Continue',
-              style: GoogleFonts.poppins(color: AppColors.primary),
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(
+              title,
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
             ),
+            content: Text(content, style: GoogleFonts.poppins()),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text('Cancel', style: GoogleFonts.poppins()),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(
+                  'Continue',
+                  style: GoogleFonts.poppins(color: AppColors.primary),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 
   void _showSuccessSnackBar(String message) {
@@ -223,11 +229,13 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
   Widget _buildStatusSection() {
     final status = _migrationStatus!;
     final needsMigration = status['migrationNeeded'] == true;
-    
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: needsMigration ? Colors.orange.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+        color: needsMigration
+            ? Colors.orange.withOpacity(0.1)
+            : Colors.green.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: needsMigration ? Colors.orange : Colors.green,
@@ -275,7 +283,7 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
   Widget _buildStatisticsSection() {
     final stats = _statistics!;
     final progress = stats['migrationProgress'] ?? 0.0;
-    
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -312,9 +320,9 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
 
   Widget _buildSampleFilesSection() {
     final sampleFiles = _migrationStatus!['sampleTimestampFiles'] as List;
-    
+
     if (sampleFiles.isEmpty) return const SizedBox.shrink();
-    
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -367,15 +375,15 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
   Widget _buildResultSection() {
     final result = _migrationResult!;
     final isSuccess = result['success'] == true;
-    
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isSuccess ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
+        color: isSuccess
+            ? Colors.green.withOpacity(0.1)
+            : Colors.red.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isSuccess ? Colors.green : Colors.red,
-        ),
+        border: Border.all(color: isSuccess ? Colors.green : Colors.red),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -386,10 +394,22 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
           ),
           const SizedBox(height: 8),
           if (isSuccess) ...[
-            Text('Processed: ${result['totalProcessed']}', style: GoogleFonts.poppins(fontSize: 12)),
-            Text('Migrated: ${result['successfulMigrations']}', style: GoogleFonts.poppins(fontSize: 12)),
-            Text('Already Clean: ${result['alreadyClean']}', style: GoogleFonts.poppins(fontSize: 12)),
-            Text('Failures: ${result['failures']}', style: GoogleFonts.poppins(fontSize: 12)),
+            Text(
+              'Processed: ${result['totalProcessed']}',
+              style: GoogleFonts.poppins(fontSize: 12),
+            ),
+            Text(
+              'Migrated: ${result['successfulMigrations']}',
+              style: GoogleFonts.poppins(fontSize: 12),
+            ),
+            Text(
+              'Already Clean: ${result['alreadyClean']}',
+              style: GoogleFonts.poppins(fontSize: 12),
+            ),
+            Text(
+              'Failures: ${result['failures']}',
+              style: GoogleFonts.poppins(fontSize: 12),
+            ),
           ] else ...[
             Text(
               'Error: ${result['error']}',

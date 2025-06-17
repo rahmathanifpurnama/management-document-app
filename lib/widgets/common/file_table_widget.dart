@@ -910,7 +910,10 @@ class _FileTableWidgetState extends State<FileTableWidget> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildDetailRow('Name', document.fileName),
+            _buildDetailRow(
+              'Name',
+              document.displayFileName,
+            ), // Use clean display name
             _buildDetailRow('Size', _formatFileSize(document.fileSize)),
             _buildDetailRow('Type', document.fileType),
             _buildDetailRow('Uploaded', _formatDate(document.uploadedAt)),

@@ -306,7 +306,7 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
                       children: [
                         Expanded(
                           child: Text(
-                            document.fileName,
+                            document.displayFileName, // Use clean display name
                             style: GoogleFonts.poppins(
                               fontSize: ResponsiveHelper.getResponsiveFontSize(
                                 context,
