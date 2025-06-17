@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/filename_migration_service.dart';
 import '../../utils/filename_utils.dart';
-import '../../services/filename_display_service.dart';
 
 /// Debug widget for filename migration operations
 ///
@@ -27,24 +26,24 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
   @override
   void initState() {
     super.initState();
-    _checkMigrationStatus();
+    _checkDocumentStatus();
   }
 
-  Future<void> _checkMigrationStatus() async {
+  Future<void> _checkDocumentStatus() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final status = await _migrationService.checkMigrationStatus();
-      final stats = await _migrationService.getMigrationStatistics();
+      final status = await _migrationService.checkDocumentStatus();
+      final stats = await _migrationService.getDocumentStatistics();
 
       setState(() {
         _migrationStatus = status;
         _statistics = stats;
       });
     } catch (e) {
-      _showErrorSnackBar('Failed to check migration status: $e');
+      _showErrorSnackBar('Failed to check document status: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -52,11 +51,10 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
     }
   }
 
-  Future<void> _runMigration() async {
+  Future<void> _runValidation() async {
     final confirmed = await _showConfirmationDialog(
-      'Run Filename Migration',
-      'This will update all document filenames to remove timestamp prefixes. '
-          'The operation is reversible. Continue?',
+      'Run Filename Validation',
+      'This will validate all document filenames for proper format. Continue?',
     );
 
     if (!confirmed) return;
@@ -66,7 +64,7 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
     });
 
     try {
-      final result = await _migrationService.migrateAllDocuments();
+      final result = await _migrationService.validateAllDocuments();
 
       setState(() {
         _migrationResult = result;
@@ -74,14 +72,14 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
 
       if (result['success'] == true) {
         _showSuccessSnackBar(
-          'Migration completed! ${result['successfulMigrations']} files updated.',
+          'Validation completed! ${result['validFiles']} valid files found.',
         );
-        await _checkMigrationStatus(); // Refresh status
+        await _checkDocumentStatus(); // Refresh status
       } else {
-        _showErrorSnackBar('Migration failed: ${result['error']}');
+        _showErrorSnackBar('Validation failed: ${result['error']}');
       }
     } catch (e) {
-      _showErrorSnackBar('Migration failed: $e');
+      _showErrorSnackBar('Validation failed: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -89,11 +87,10 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
     }
   }
 
-  Future<void> _rollbackMigration() async {
+  Future<void> _cleanupMetadata() async {
     final confirmed = await _showConfirmationDialog(
-      'Rollback Migration',
-      'This will restore timestamp prefixes to filenames. '
-          'This is mainly for testing purposes. Continue?',
+      'Cleanup Old Metadata',
+      'This will remove old migration-related metadata from documents. Continue?',
     );
 
     if (!confirmed) return;
@@ -103,18 +100,18 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
     });
 
     try {
-      final result = await _migrationService.rollbackMigration();
+      final result = await _migrationService.cleanupOldMetadata();
 
       if (result['success'] == true) {
         _showSuccessSnackBar(
-          'Rollback completed! ${result['totalRolledBack']} files restored.',
+          'Cleanup completed! ${result['totalCleaned']} documents cleaned.',
         );
-        await _checkMigrationStatus(); // Refresh status
+        await _checkDocumentStatus(); // Refresh status
       } else {
-        _showErrorSnackBar('Rollback failed: ${result['error']}');
+        _showErrorSnackBar('Cleanup failed: ${result['error']}');
       }
     } catch (e) {
-      _showErrorSnackBar('Rollback failed: $e');
+      _showErrorSnackBar('Cleanup failed: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -426,7 +423,7 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
       children: [
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: _isLoading ? null : _checkMigrationStatus,
+            onPressed: _isLoading ? null : _checkDocumentStatus,
             icon: const Icon(Icons.refresh),
             label: Text('Refresh Status', style: GoogleFonts.poppins()),
           ),
@@ -434,9 +431,9 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
         const SizedBox(width: 8),
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: _isLoading ? null : _runMigration,
-            icon: const Icon(Icons.play_arrow),
-            label: Text('Run Migration', style: GoogleFonts.poppins()),
+            onPressed: _isLoading ? null : _runValidation,
+            icon: const Icon(Icons.check_circle),
+            label: Text('Validate Files', style: GoogleFonts.poppins()),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
@@ -446,9 +443,9 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
         const SizedBox(width: 8),
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: _isLoading ? null : _rollbackMigration,
-            icon: const Icon(Icons.undo),
-            label: Text('Rollback', style: GoogleFonts.poppins()),
+            onPressed: _isLoading ? null : _cleanupMetadata,
+            icon: const Icon(Icons.cleaning_services),
+            label: Text('Cleanup', style: GoogleFonts.poppins()),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.orange,
               foregroundColor: Colors.white,

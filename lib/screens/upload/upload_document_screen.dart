@@ -189,8 +189,8 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
     return uploadProvider.shouldShowQueue;
   }
 
-  // Build file naming information widget
-  Widget _buildFileNamingInfo() {
+  // Build file upload information widget
+  Widget _buildFileUploadInfo() {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -207,7 +207,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Files are stored with unique identifiers for security and to prevent conflicts. Your original filename is preserved for display.',
+              'Files will be uploaded with their original names. Make sure your filenames are descriptive and unique.',
               style: GoogleFonts.poppins(
                 fontSize: 12,
                 color: AppColors.textSecondary,
@@ -272,11 +272,11 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
                     isEnabled: !uploadProvider.isUploading,
                   ),
 
-                  // File naming info - Show helpful information about file naming
+                  // File upload info - Show helpful information about file upload
                   if (_selectedFiles.isNotEmpty ||
                       uploadProvider.uploadQueue.isNotEmpty) ...[
                     const SizedBox(height: 8),
-                    _buildFileNamingInfo(),
+                    _buildFileUploadInfo(),
                   ],
 
                   const SizedBox(height: 16),

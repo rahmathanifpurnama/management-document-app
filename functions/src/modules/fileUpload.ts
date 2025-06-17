@@ -123,7 +123,10 @@ function sanitizeFileName(fileName: string): string {
 
   // Ensure filename is not empty after sanitization
   if (!sanitized) {
-    sanitized = `file_${Date.now()}`;
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Filename cannot be empty or contain only invalid characters"
+    );
   }
 
   // Limit filename length
@@ -1123,9 +1126,15 @@ const streamingUpload = functions.https.onRequest(async (req, res) => {
       return;
     }
 
-    // Use clean filename without timestamp for storage
-    const originalFileName =
-      (req.headers["x-file-name"] as string) || `upload_${Date.now()}`;
+    // Require filename header - no timestamp fallback
+    const originalFileName = req.headers["x-file-name"] as string;
+    if (!originalFileName) {
+      res.status(400).json({
+        error: "Missing x-file-name header. Filename is required for upload."
+      });
+      return;
+    }
+
     const sanitizedFileName = sanitizeFileName(originalFileName);
     const filePath = `documents/${decodedToken.uid}/${sanitizedFileName}`;
 

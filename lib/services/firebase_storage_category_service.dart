@@ -166,9 +166,8 @@ class FirebaseStorageCategoryService {
     String fileName,
   ) {
     // Use flat structure with metadata for categorization
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
     final sanitizedFileName = _sanitizeFileName(fileName);
-    return 'documents/${timestamp}_$sanitizedFileName';
+    return 'documents/$sanitizedFileName';
   }
 
   /// Sanitize file name

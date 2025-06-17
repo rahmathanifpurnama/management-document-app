@@ -122,7 +122,7 @@ function sanitizeFileName(fileName) {
     sanitized = sanitized.trim().replace(/^\.+|\.+$/g, "");
     // Ensure filename is not empty after sanitization
     if (!sanitized) {
-        sanitized = `file_${Date.now()}`;
+        throw new functions.https.HttpsError("invalid-argument", "Filename cannot be empty or contain only invalid characters");
     }
     // Limit filename length
     if (sanitized.length > 255) {
@@ -883,8 +883,14 @@ const streamingUpload = functions.https.onRequest(async (req, res) => {
             });
             return;
         }
-        // Use clean filename without timestamp for storage
-        const originalFileName = req.headers["x-file-name"] || `upload_${Date.now()}`;
+        // Require filename header - no timestamp fallback
+        const originalFileName = req.headers["x-file-name"];
+        if (!originalFileName) {
+            res.status(400).json({
+                error: "Missing x-file-name header. Filename is required for upload."
+            });
+            return;
+        }
         const sanitizedFileName = sanitizeFileName(originalFileName);
         const filePath = `documents/${decodedToken.uid}/${sanitizedFileName}`;
         // Stream upload to Firebase Storage

@@ -3,11 +3,10 @@ import 'package:flutter/foundation.dart';
 import '../models/document_model.dart';
 import '../utils/filename_utils.dart';
 
-/// Service to migrate existing documents to use clean display filenames
+/// Service for filename operations (migration no longer needed)
 ///
-/// This service helps fix existing documents that have timestamp prefixes
-/// in their fileName field by updating them to use clean display names
-/// while preserving the storage path with timestamps.
+/// This service was previously used for timestamp migration but is now
+/// simplified since we removed the timestamp system entirely.
 class FilenameMigrationService {
   static final FilenameMigrationService _instance =
       FilenameMigrationService._internal();
@@ -16,12 +15,12 @@ class FilenameMigrationService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// Check if migration is needed for the current documents
+  /// Check document status (migration no longer needed)
   ///
-  /// Returns a report of how many documents need filename cleaning
-  Future<Map<String, dynamic>> checkMigrationStatus() async {
+  /// Returns a report of document status since timestamp system was removed
+  Future<Map<String, dynamic>> checkDocumentStatus() async {
     try {
-      debugPrint('🔍 Checking filename migration status...');
+      debugPrint('🔍 Checking document status...');
 
       final querySnapshot = await _firestore
           .collection('document-metadata')
@@ -29,51 +28,51 @@ class FilenameMigrationService {
           .get();
 
       int totalDocuments = querySnapshot.docs.length;
-      int documentsWithTimestamp = 0;
-      int documentsAlreadyClean = 0;
-      List<String> sampleTimestampFiles = [];
+      int validDocuments = 0;
+      int invalidDocuments = 0;
+      List<String> sampleFiles = [];
 
       for (final doc in querySnapshot.docs) {
         final data = doc.data();
         final fileName = data['fileName'] as String? ?? '';
 
-        if (FilenameUtils.hasTimestampPrefix(fileName)) {
-          documentsWithTimestamp++;
-          if (sampleTimestampFiles.length < 5) {
-            sampleTimestampFiles.add(fileName);
-          }
+        if (FilenameUtils.isValidFileName(fileName)) {
+          validDocuments++;
         } else {
-          documentsAlreadyClean++;
+          invalidDocuments++;
+        }
+
+        if (sampleFiles.length < 5) {
+          sampleFiles.add(fileName);
         }
       }
 
       final report = {
         'totalDocuments': totalDocuments,
-        'documentsWithTimestamp': documentsWithTimestamp,
-        'documentsAlreadyClean': documentsAlreadyClean,
-        'migrationNeeded': documentsWithTimestamp > 0,
-        'sampleTimestampFiles': sampleTimestampFiles,
+        'validDocuments': validDocuments,
+        'invalidDocuments': invalidDocuments,
+        'migrationNeeded': false, // No longer needed
+        'sampleFiles': sampleFiles,
       };
 
-      debugPrint('📊 Migration Status Report:');
+      debugPrint('📊 Document Status Report:');
       debugPrint('   Total Documents: $totalDocuments');
-      debugPrint('   Need Migration: $documentsWithTimestamp');
-      debugPrint('   Already Clean: $documentsAlreadyClean');
+      debugPrint('   Valid Documents: $validDocuments');
+      debugPrint('   Invalid Documents: $invalidDocuments');
 
       return report;
     } catch (e) {
-      debugPrint('❌ Failed to check migration status: $e');
+      debugPrint('❌ Failed to check document status: $e');
       return {'error': e.toString(), 'migrationNeeded': false};
     }
   }
 
-  /// Migrate all documents to use clean display filenames
+  /// Validate all document filenames (migration no longer needed)
   ///
-  /// Updates fileName field to remove timestamp prefixes while preserving
-  /// the original storage path in filePath field
-  Future<Map<String, dynamic>> migrateAllDocuments() async {
+  /// Checks all documents for valid filenames since timestamp system was removed
+  Future<Map<String, dynamic>> validateAllDocuments() async {
     try {
-      debugPrint('🚀 Starting filename migration...');
+      debugPrint('🚀 Starting filename validation...');
 
       final querySnapshot = await _firestore
           .collection('document-metadata')
@@ -81,94 +80,60 @@ class FilenameMigrationService {
           .get();
 
       int totalProcessed = 0;
-      int successfulMigrations = 0;
-      int alreadyClean = 0;
+      int validFiles = 0;
+      int invalidFiles = 0;
       int failures = 0;
-      List<String> failedDocuments = [];
+      List<String> invalidDocuments = [];
 
-      // Process in batches to avoid overwhelming Firestore
-      const batchSize = 10;
-      final docs = querySnapshot.docs;
+      for (final doc in querySnapshot.docs) {
+        try {
+          totalProcessed++;
+          final data = doc.data();
+          final currentFileName = data['fileName'] as String? ?? '';
 
-      for (int i = 0; i < docs.length; i += batchSize) {
-        final batch = docs.skip(i).take(batchSize);
-
-        await Future.wait(
-          batch.map((doc) async {
-            try {
-              totalProcessed++;
-              final data = doc.data();
-              final currentFileName = data['fileName'] as String? ?? '';
-
-              if (FilenameUtils.hasTimestampPrefix(currentFileName)) {
-                // Extract clean display name
-                final cleanFileName = FilenameUtils.getDisplayFileName(
-                  currentFileName,
-                );
-
-                // Update document with clean filename
-                await _firestore
-                    .collection('document-metadata')
-                    .doc(doc.id)
-                    .update({
-                      'fileName': cleanFileName,
-                      'originalFileName':
-                          currentFileName, // Preserve original for reference
-                      'metadata.displayFileName': cleanFileName,
-                      'metadata.storageFileName': currentFileName,
-                      'metadata.migrated': true,
-                      'metadata.migratedAt': FieldValue.serverTimestamp(),
-                    });
-
-                successfulMigrations++;
-                debugPrint('✅ Migrated: $currentFileName -> $cleanFileName');
-              } else {
-                alreadyClean++;
-                debugPrint('✓ Already clean: $currentFileName');
-              }
-            } catch (e) {
-              failures++;
-              failedDocuments.add(doc.id);
-              debugPrint('❌ Failed to migrate document ${doc.id}: $e');
-            }
-          }),
-        );
-
-        // Small delay between batches
-        if (i + batchSize < docs.length) {
-          await Future.delayed(const Duration(milliseconds: 200));
+          if (FilenameUtils.isValidFileName(currentFileName)) {
+            validFiles++;
+            debugPrint('✓ Valid filename: $currentFileName');
+          } else {
+            invalidFiles++;
+            invalidDocuments.add(doc.id);
+            debugPrint('⚠️ Invalid filename: $currentFileName');
+          }
+        } catch (e) {
+          failures++;
+          debugPrint('❌ Failed to validate document ${doc.id}: $e');
         }
       }
 
       final result = {
         'success': true,
         'totalProcessed': totalProcessed,
-        'successfulMigrations': successfulMigrations,
-        'alreadyClean': alreadyClean,
+        'validFiles': validFiles,
+        'invalidFiles': invalidFiles,
         'failures': failures,
-        'failedDocuments': failedDocuments,
+        'invalidDocuments': invalidDocuments,
       };
 
-      debugPrint('✅ Migration completed:');
+      debugPrint('✅ Validation completed:');
       debugPrint('   Processed: $totalProcessed');
-      debugPrint('   Migrated: $successfulMigrations');
-      debugPrint('   Already Clean: $alreadyClean');
+      debugPrint('   Valid Files: $validFiles');
+      debugPrint('   Invalid Files: $invalidFiles');
       debugPrint('   Failures: $failures');
 
       return result;
     } catch (e) {
-      debugPrint('❌ Migration failed: $e');
+      debugPrint('❌ Validation failed: $e');
       return {'success': false, 'error': e.toString()};
     }
   }
 
-  /// Migrate a single document by ID
+  /// Validate a single document by ID
   ///
-  /// Useful for fixing individual documents
-  Future<bool> migrateSingleDocument(String documentId) async {
+  /// Useful for checking individual documents
+  Future<bool> validateSingleDocument(String documentId) async {
     try {
       final docSnapshot = await _firestore
-          .collection('documents')
+          .collection('document-metadata')
           .doc(documentId)
           .get();
 
@@ -180,108 +145,97 @@ class FilenameMigrationService {
       final data = docSnapshot.data()!;
       final currentFileName = data['fileName'] as String? ?? '';
 
-      if (FilenameUtils.hasTimestampPrefix(currentFileName)) {
-        final cleanFileName = FilenameUtils.getDisplayFileName(currentFileName);
-
-        await _firestore
-            .collection('document-metadata')
-            .doc(documentId)
-            .update({
-              'fileName': cleanFileName,
-              'originalFileName': currentFileName,
-              'metadata.displayFileName': cleanFileName,
-              'metadata.storageFileName': currentFileName,
-              'metadata.migrated': true,
-              'metadata.migratedAt': FieldValue.serverTimestamp(),
-            });
-
-        debugPrint(
-          '✅ Migrated single document: $currentFileName -> $cleanFileName',
-        );
+      if (FilenameUtils.isValidFileName(currentFileName)) {
+        debugPrint('✓ Document has valid filename: $currentFileName');
         return true;
       } else {
-        debugPrint('✓ Document already has clean filename: $currentFileName');
-        return true;
+        debugPrint('⚠️ Document has invalid filename: $currentFileName');
+        return false;
       }
     } catch (e) {
-      debugPrint('❌ Failed to migrate document $documentId: $e');
+      debugPrint('❌ Failed to validate document $documentId: $e');
       return false;
     }
   }
 
-  /// Rollback migration for testing purposes
+  /// Clean up old migration metadata (no longer needed)
   ///
-  /// WARNING: This will restore timestamp prefixes to filenames
-  Future<Map<String, dynamic>> rollbackMigration() async {
+  /// Removes old migration-related metadata fields from documents
+  Future<Map<String, dynamic>> cleanupOldMetadata() async {
     try {
-      debugPrint('⚠️ Starting migration rollback...');
+      debugPrint('🧹 Starting metadata cleanup...');
 
       final querySnapshot = await _firestore
-          .collection('documents')
+          .collection('document-metadata')
           .where('metadata.migrated', isEqualTo: true)
           .get();
 
-      int totalRolledBack = 0;
+      int totalCleaned = 0;
       int failures = 0;
 
       for (final doc in querySnapshot.docs) {
         try {
-          final data = doc.data();
-          final originalFileName = data['originalFileName'] as String? ?? '';
+          await _firestore.collection('document-metadata').doc(doc.id).update({
+            'metadata.migrated': FieldValue.delete(),
+            'metadata.migratedAt': FieldValue.delete(),
+            'metadata.rolledBackAt': FieldValue.delete(),
+            'metadata.storageFileName': FieldValue.delete(),
+          });
 
-          if (originalFileName.isNotEmpty) {
-            await _firestore.collection('documents').doc(doc.id).update({
-              'fileName': originalFileName,
-              'metadata.migrated': false,
-              'metadata.rolledBackAt': FieldValue.serverTimestamp(),
-            });
-
-            totalRolledBack++;
-          }
+          totalCleaned++;
         } catch (e) {
           failures++;
-          debugPrint('❌ Failed to rollback document ${doc.id}: $e');
+          debugPrint('❌ Failed to cleanup document ${doc.id}: $e');
         }
       }
 
-      debugPrint('⚠️ Rollback completed: $totalRolledBack documents restored');
+      debugPrint('🧹 Cleanup completed: $totalCleaned documents cleaned');
 
       return {
         'success': true,
-        'totalRolledBack': totalRolledBack,
+        'totalCleaned': totalCleaned,
         'failures': failures,
       };
     } catch (e) {
-      debugPrint('❌ Rollback failed: $e');
+      debugPrint('❌ Cleanup failed: $e');
       return {'success': false, 'error': e.toString()};
     }
   }
 
-  /// Get migration statistics
+  /// Get document statistics
   ///
-  /// Returns detailed statistics about the migration status
-  Future<Map<String, dynamic>> getMigrationStatistics() async {
+  /// Returns detailed statistics about document status
+  Future<Map<String, dynamic>> getDocumentStatistics() async {
     try {
       final allDocs = await _firestore
-          .collection('documents')
+          .collection('document-metadata')
           .where('isActive', isEqualTo: true)
           .get();
 
-      final migratedDocs = await _firestore
-          .collection('documents')
-          .where('metadata.migrated', isEqualTo: true)
-          .get();
+      int validDocs = 0;
+      int invalidDocs = 0;
+
+      for (final doc in allDocs.docs) {
+        final data = doc.data();
+        final fileName = data['fileName'] as String? ?? '';
+
+        if (FilenameUtils.isValidFileName(fileName)) {
+          validDocs++;
+        } else {
+          invalidDocs++;
+        }
+      }
 
       return {
         'totalDocuments': allDocs.docs.length,
-        'migratedDocuments': migratedDocs.docs.length,
-        'pendingMigration': allDocs.docs.length - migratedDocs.docs.length,
-        'migrationProgress': allDocs.docs.isEmpty
-            ? 0.0
-            : (migratedDocs.docs.length / allDocs.docs.length) * 100,
+        'validDocuments': validDocs,
+        'invalidDocuments': invalidDocs,
+        'validationProgress': allDocs.docs.isEmpty
+            ? 100.0
+            : (validDocs / allDocs.docs.length) * 100,
       };
     } catch (e) {
-      debugPrint('❌ Failed to get migration statistics: $e');
+      debugPrint('❌ Failed to get document statistics: $e');
       return {'error': e.toString()};
     }
   }

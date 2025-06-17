@@ -1,41 +1,26 @@
 /// Utility class for handling filename operations and display formatting
 ///
-/// This utility helps separate storage paths from display names to ensure
-/// users see clean filenames without timestamps while maintaining unique
-/// storage paths for Firebase Storage.
+/// This utility provides clean filename handling without timestamp prefixes
+/// for better user experience and simplified file management.
 class FilenameUtils {
-  /// Extract clean display filename from storage path
+  /// Get clean display filename from storage path
   ///
-  /// Removes timestamp prefixes that are added during upload
-  /// Example: "1748961795557_daftar_isi.pdf" -> "daftar_isi.pdf"
+  /// Simply extracts filename from path without timestamp processing
+  /// Example: "documents/user123/document.pdf" -> "document.pdf"
   static String getDisplayFileName(String storageFileName) {
     if (storageFileName.isEmpty) return '';
 
-    // Extract just the filename from full path if needed
+    // Extract just the filename from full path
     final fileName = storageFileName.split('/').last;
 
-    // IMPROVED: More robust timestamp detection
-    // Check for timestamp prefix pattern (10-13 digits followed by underscore)
-    final timestampPattern = RegExp(r'^\d{10,13}_(.+)$');
-    final match = timestampPattern.firstMatch(fileName);
-
-    if (match != null) {
-      // Return filename without timestamp prefix
-      final cleanName = match.group(1) ?? fileName;
-      // Additional validation to ensure we have a valid filename
-      if (cleanName.isNotEmpty && cleanName.contains('.')) {
-        return cleanName;
-      }
-    }
-
-    // Return original filename if no timestamp pattern found
+    // Return the filename as-is (no timestamp processing needed)
     return fileName;
   }
 
   /// Get user-friendly display name for UI
   ///
   /// Converts storage filename to a clean, readable format
-  /// Example: "1750128027374_penerapan_cnn_untuk_identifikasi.pdf" -> "Penerapan CNN Untuk Identifikasi.pdf"
+  /// Example: "penerapan_cnn_untuk_identifikasi.pdf" -> "Penerapan CNN Untuk Identifikasi.pdf"
   static String getUserFriendlyName(String storageFileName) {
     final cleanName = getDisplayFileName(storageFileName);
 
@@ -61,22 +46,20 @@ class FilenameUtils {
     return extension.isNotEmpty ? '$friendlyName.$extension' : friendlyName;
   }
 
-  /// Generate storage path with timestamp for uniqueness
+  /// Generate storage path without timestamp
   ///
-  /// Creates unique storage paths while preserving original filename
-  /// for display purposes
+  /// Creates clean storage paths using original filename
   static String generateStoragePath({
     required String originalFileName,
     required String userId,
     String? categoryId,
   }) {
     final sanitizedFileName = _sanitizeFileName(originalFileName);
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
 
     if (categoryId != null && categoryId.isNotEmpty) {
-      return 'documents/categories/$categoryId/${timestamp}_$sanitizedFileName';
+      return 'documents/categories/$categoryId/$sanitizedFileName';
     } else {
-      return 'documents/${timestamp}_$sanitizedFileName';
+      return 'documents/$sanitizedFileName';
     }
   }
 
@@ -88,28 +71,6 @@ class FilenameUtils {
         .replaceAll(RegExp(r'[^\w\s\-\.]'), '_')
         .replaceAll(RegExp(r'\s+'), '_')
         .toLowerCase();
-  }
-
-  /// Check if filename has timestamp prefix
-  ///
-  /// Useful for identifying files that need display name cleaning
-  static bool hasTimestampPrefix(String fileName) {
-    final timestampPattern = RegExp(r'^\d+_');
-    return timestampPattern.hasMatch(fileName);
-  }
-
-  /// Extract timestamp from filename if present
-  ///
-  /// Returns null if no timestamp prefix found
-  static int? extractTimestamp(String fileName) {
-    final timestampPattern = RegExp(r'^(\d+)_');
-    final match = timestampPattern.firstMatch(fileName);
-
-    if (match != null) {
-      return int.tryParse(match.group(1) ?? '');
-    }
-
-    return null;
   }
 
   /// Get file extension from filename
@@ -128,7 +89,7 @@ class FilenameUtils {
 
   /// Get filename without extension
   ///
-  /// Returns clean filename without extension and timestamp
+  /// Returns clean filename without extension
   static String getFileNameWithoutExtension(String fileName) {
     final cleanFileName = getDisplayFileName(fileName);
     final parts = cleanFileName.split('.');

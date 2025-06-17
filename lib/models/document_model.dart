@@ -166,9 +166,9 @@ class DocumentModel {
     return FilenameUtils.getUserFriendlyName(fileName);
   }
 
-  // Check if filename has timestamp prefix
-  bool get hasTimestampPrefix {
-    return FilenameUtils.hasTimestampPrefix(fileName);
+  // Check if filename is valid
+  bool get isValidFileName {
+    return FilenameUtils.isValidFileName(fileName);
   }
 
   // Check if user has permission to access this document
