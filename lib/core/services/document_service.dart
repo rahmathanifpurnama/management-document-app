@@ -8,7 +8,6 @@ import '../utils/anr_prevention.dart';
 import '../../models/activity_model.dart';
 import 'optimized_network_service.dart';
 import '../../models/document_model.dart';
-import '../../services/document_id_generator.dart';
 
 class DocumentService {
   static DocumentService? _instance;
@@ -105,124 +104,26 @@ class DocumentService {
     }
   }
 
-  // Get document by ID with enhanced resolution for legacy document IDs
+  // Get document by ID using direct lookup only (simplified)
   Future<DocumentModel?> getDocumentById(String documentId) async {
     try {
       debugPrint('🔍 Searching for document with ID: $documentId');
 
-      // First, try direct lookup
+      // Direct lookup only - no complex resolution needed with UUID system
       DocumentSnapshot doc = await _firebaseService.documentsCollection
           .doc(documentId)
           .get();
 
       if (doc.exists) {
-        debugPrint('✅ Document found with direct lookup: $documentId');
+        debugPrint('✅ Document found: $documentId');
         return DocumentModel.fromFirestore(doc);
       }
 
-      debugPrint(
-        '⚠️ Document not found with direct lookup, trying alternative strategies...',
-      );
-
-      // If direct lookup fails, try to find document using alternative ID strategies
-      return await _findDocumentWithAlternativeIds(documentId);
+      debugPrint('⚠️ Document not found: $documentId');
+      return null;
     } catch (e) {
       debugPrint('❌ Error in getDocumentById: $e');
       throw Exception('Failed to get document: ${e.toString()}');
-    }
-  }
-
-  // Enhanced document resolution using multiple ID generation strategies
-  Future<DocumentModel?> _findDocumentWithAlternativeIds(
-    String originalId,
-  ) async {
-    try {
-      debugPrint(
-        '🔍 Attempting alternative document ID resolution for: $originalId',
-      );
-
-      // Generate possible document IDs based on the original ID
-      final possibleIds = DocumentIdGenerator.generatePossibleIds(originalId);
-
-      // Try each possible ID
-      for (final possibleId in possibleIds) {
-        if (possibleId == originalId) {
-          continue; // Skip the original ID we already tried
-        }
-
-        try {
-          debugPrint('🔍 Trying alternative ID: $possibleId');
-
-          final doc = await _firebaseService.documentsCollection
-              .doc(possibleId)
-              .get();
-
-          if (doc.exists) {
-            debugPrint('✅ Document found with alternative ID: $possibleId');
-            return DocumentModel.fromFirestore(doc);
-          }
-        } catch (e) {
-          debugPrint('⚠️ Failed to check alternative ID $possibleId: $e');
-          continue;
-        }
-      }
-
-      // If no direct ID match, try searching by filename patterns
-      return await _searchDocumentByFilename(originalId);
-    } catch (e) {
-      debugPrint('❌ Error in alternative document resolution: $e');
-      return null;
-    }
-  }
-
-  // Search for document by filename patterns when ID resolution fails
-  Future<DocumentModel?> _searchDocumentByFilename(String searchTerm) async {
-    try {
-      debugPrint('🔍 Searching documents by filename pattern: $searchTerm');
-
-      // Try to extract potential filename from the search term
-      String searchPattern = searchTerm;
-
-      // Remove common prefixes that might be in document IDs
-      searchPattern = searchPattern.replaceAll(RegExp(r'^(doc_|sync_)'), '');
-      searchPattern = searchPattern.replaceAll(RegExp(r'_hash_[a-f0-9]+'), '');
-      searchPattern = searchPattern.replaceAll(RegExp(r'^[a-f0-9]+_'), '');
-
-      if (searchPattern.isEmpty) {
-        debugPrint('⚠️ No valid search pattern extracted from: $searchTerm');
-        return null;
-      }
-
-      debugPrint('🔍 Using search pattern: $searchPattern');
-
-      // Search for documents with filename containing the pattern
-      final querySnapshot = await _firebaseService.documentsCollection
-          .where('isActive', isEqualTo: true)
-          .where('fileName', isGreaterThanOrEqualTo: searchPattern)
-          .where('fileName', isLessThanOrEqualTo: '$searchPattern\uf8ff')
-          .limit(5) // Limit to prevent excessive queries
-          .get();
-
-      if (querySnapshot.docs.isNotEmpty) {
-        debugPrint(
-          '✅ Found ${querySnapshot.docs.length} documents matching filename pattern',
-        );
-
-        // Return the first match (most likely candidate)
-        final document = DocumentModel.fromFirestore(querySnapshot.docs.first);
-        debugPrint(
-          '✅ Selected document: ${document.fileName} (ID: ${document.id})',
-        );
-        return document;
-      }
-
-      debugPrint(
-        '⚠️ No documents found matching filename pattern: $searchPattern',
-      );
-      return null;
-    } catch (e) {
-      debugPrint('❌ Error searching document by filename: $e');
-      return null;
     }
   }
 

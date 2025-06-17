@@ -7,15 +7,13 @@ import '../models/document_model.dart';
 import '../core/services/document_service.dart';
 import '../core/services/firebase_service.dart';
 import '../core/services/category_service.dart';
-// DISABLED: Regular sync service to prevent duplicate operations
-// import '../services/firebase_storage_sync_service.dart';
-import '../services/optimized_firebase_storage_sync_service.dart';
+// REMOVED: Sync services that created duplicate documents
 import '../services/file_category_management_service.dart';
 import '../services/cloud_functions_service.dart';
 import '../core/config/anr_config.dart';
 import '../config/firebase_config.dart';
 import 'category_provider.dart';
-import '../services/firebase_storage_direct_service.dart';
+
 import '../services/enhanced_document_service.dart';
 import '../services/enhanced_firebase_storage_service.dart';
 import '../services/enhanced_auth_service.dart';
@@ -290,12 +288,6 @@ class DocumentProvider extends ChangeNotifier {
   // Firebase real-time listener
   final FirebaseService _firebaseService = FirebaseService.instance;
   final DocumentService _documentService = DocumentService.instance;
-  // Use optimized sync service to prevent duplicate operations
-  final OptimizedFirebaseStorageSyncService _optimizedSyncService =
-      OptimizedFirebaseStorageSyncService.instance;
-  // Firebase Storage direct service for primary data source
-  final FirebaseStorageDirectService _storageDirectService =
-      FirebaseStorageDirectService.instance;
   StreamSubscription? _documentsSubscription;
   final bool _useFirebaseSync =
       true; // Enable Firebase sync for data persistence
@@ -1921,24 +1913,19 @@ class DocumentProvider extends ChangeNotifier {
     debugPrint('✅ Firebase Storage-first document refresh completed');
   }
 
-  // Force refresh with Firebase Storage sync
+  // Force refresh (simplified - no sync service needed)
   Future<void> refreshWithStorageSync() async {
     _setLoading(true);
     _clearError();
 
     try {
-      debugPrint('🔄 Force refreshing with Firebase Storage sync...');
+      debugPrint('🔄 Force refreshing documents...');
 
-      // Perform optimized sync (no automatic cleanup)
-      final syncedDocuments = await _optimizedSyncService
-          .syncStorageWithFirestoreOptimized();
-      debugPrint('📊 Sync results: ${syncedDocuments.length} documents synced');
-
-      // Reload documents after sync
+      // Simply reload documents from current sources
       await loadDocuments();
     } catch (e) {
-      debugPrint('❌ Force refresh with sync failed: $e');
-      _setError('Failed to sync with Firebase Storage: $e');
+      debugPrint('❌ Force refresh failed: $e');
+      _setError('Failed to refresh documents: $e');
     } finally {
       _setLoading(false);
     }

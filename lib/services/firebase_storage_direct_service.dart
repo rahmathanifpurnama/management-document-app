@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:uuid/uuid.dart';
 import '../models/document_model.dart';
 import '../core/services/firebase_service.dart';
 import '../core/utils/anr_prevention.dart';
 import '../core/config/anr_config.dart';
 import '../core/utils/circuit_breaker.dart';
-import 'document_id_generator.dart';
 
 /// Service for direct Firebase Storage access without Firestore dependency
 /// This service fetches files directly from Firebase Storage and creates DocumentModel objects
@@ -122,8 +122,8 @@ class FirebaseStorageDirectService {
       final fileSize = metadata.size ?? 0;
       final uploadedAt = metadata.timeCreated ?? DateTime.now();
 
-      // Generate document ID using standardized method
-      final documentId = DocumentIdGenerator.generateFromFileName(fileName);
+      // Generate document ID using UUID (standardized across all systems)
+      final documentId = const Uuid().v4();
 
       // Determine file type from extension
       final fileType = _getFileTypeFromName(fileName);

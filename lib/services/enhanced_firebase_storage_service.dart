@@ -8,7 +8,7 @@ import '../config/firebase_config.dart';
 import '../core/utils/anr_prevention.dart';
 import '../core/config/anr_config.dart';
 import '../core/utils/circuit_breaker.dart';
-import 'document_id_generator.dart';
+import 'package:uuid/uuid.dart';
 
 /// Enhanced Firebase Storage Service with improved file display and retrieval
 class EnhancedFirebaseStorageService {
@@ -120,8 +120,8 @@ class EnhancedFirebaseStorageService {
       final uploadedAt = metadata?.timeCreated ?? DateTime.now();
       final contentType = metadata?.contentType ?? 'application/octet-stream';
 
-      // Generate document ID using standardized method
-      final documentId = DocumentIdGenerator.generateFromFileName(fileName);
+      // Generate document ID using UUID (standardized across all systems)
+      final documentId = const Uuid().v4();
 
       // Determine file type from extension
       final fileType = _getFileTypeFromName(fileName);
