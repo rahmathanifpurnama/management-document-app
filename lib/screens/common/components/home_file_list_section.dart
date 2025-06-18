@@ -3,10 +3,10 @@ part of '../home_screen.dart';
 /// Stateful widget for file list display with integrated operations
 /// Consolidates file operations and API calls for better maintainability
 ///
-/// COMPREHENSIVE FIX: Recent files now display actual recent uploads with multiple data sources
-/// - Uses both Firestore recent documents and all documents sorted by time
-/// - Combines and deduplicates data sources for maximum consistency
-/// - Prioritizes time-based sorting as primary filter
+/// COMPREHENSIVE FIX: File list with full search and filter functionality
+/// - Uses DocumentProvider's filtered results for complete filter support
+/// - Maintains search functionality through DocumentProvider
+/// - Supports all filter types: category, file type, and search
 /// - Forces refresh on initialization for immediate storage consistency
 /// - Maintains ANR optimizations while ensuring complete data coverage
 class HomeFileListSection extends StatefulWidget {
@@ -186,20 +186,9 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           }
         }
 
-        // FIXED: Recent files should always show ALL recent files regardless of category filters
-        // Only apply search filter to recent files, ignore category/file type filters
-        final displayDocuments = widget.searchQuery.isNotEmpty
-            ? recentDocuments.where((doc) {
-                final searchQuery = widget.searchQuery.toLowerCase();
-                return doc.fileName.toLowerCase().contains(searchQuery) ||
-                    doc.metadata.description.toLowerCase().contains(
-                      searchQuery,
-                    ) ||
-                    doc.metadata.tags.any(
-                      (tag) => tag.toLowerCase().contains(searchQuery),
-                    );
-              }).toList()
-            : recentDocuments;
+        // FILTER FIX: Use DocumentProvider's filtered results instead of bypassing filters
+        // This restores full filter functionality while maintaining search capability
+        final displayDocuments = documentProvider.filteredDocuments;
 
         // Update available files for selection only when necessary
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -565,28 +554,48 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                 // Individual file operations menu (only show when NOT in selection mode)
                 if (!isSelectionMode) ...[
                   const SizedBox(width: 12),
-                  SizedBox(
-                    width: 32,
-                    height: 32,
-                    child: IconButton(
-                      onPressed: widget.onDocumentMenu != null
-                          ? () => widget.onDocumentMenu!(document)
-                          : null,
-                      icon: const Icon(
-                        Icons.more_vert,
-                        color: AppColors.textSecondary,
-                        size: 18,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 32,
-                        minHeight: 32,
-                      ),
-                      style: IconButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        foregroundColor: AppColors.textSecondary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                  // DELETE FIX: Improved menu button with better error handling and constraints
+                  Container(
+                    width: 40, // Increased touch target for better UX
+                    height: 40,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        onTap: widget.onDocumentMenu != null
+                            ? () {
+                                try {
+                                  widget.onDocumentMenu!(document);
+                                } catch (e) {
+                                  debugPrint(
+                                    '❌ Error opening document menu: $e',
+                                  );
+                                  // Show user-friendly error message
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        'Unable to open menu. Please try again.',
+                                      ),
+                                      backgroundColor: AppColors.error,
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                              }
+                            : null,
+                        child: Center(
+                          child: Icon(
+                            Icons.more_vert,
+                            color: widget.onDocumentMenu != null
+                                ? AppColors.textSecondary
+                                : AppColors.textSecondary.withValues(
+                                    alpha: 0.3,
+                                  ),
+                            size: 18,
+                          ),
                         ),
                       ),
                     ),
@@ -776,21 +785,39 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   }
 
   /// Handle smooth transition when exiting selection mode
+  /// DELETE FIX: Enhanced transition handling with error boundaries
   Future<void> _handleSmoothTransition() async {
     if (!mounted) return;
 
-    setState(() {
-      _isTransitioning = true;
-    });
-
-    // Brief fade out and in for smooth transition
-    await _fadeController.reverse();
-
-    if (mounted) {
+    try {
       setState(() {
-        _isTransitioning = false;
+        _isTransitioning = true;
       });
-      await _fadeController.forward();
+
+      // Brief fade out and in for smooth transition with error handling
+      if (_fadeController.isAnimating) {
+        _fadeController.stop();
+      }
+
+      await _fadeController.reverse();
+
+      if (mounted) {
+        setState(() {
+          _isTransitioning = false;
+        });
+        await _fadeController.forward();
+      }
+    } catch (e) {
+      debugPrint('❌ Error during transition animation: $e');
+      // Ensure UI is in a consistent state even if animation fails
+      if (mounted) {
+        setState(() {
+          _isTransitioning = false;
+        });
+        // Reset animation to forward state
+        _fadeController.reset();
+        _fadeController.forward();
+      }
     }
   }
 

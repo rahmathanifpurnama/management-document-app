@@ -52,7 +52,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _updateSessionActivity();
-    _searchController.addListener(_onSearchChanged);
+    // SEARCH FIX: Remove duplicate listener - HomeSearchSection will handle search events
+    // _searchController.addListener(_onSearchChanged); // REMOVED: Duplicate listener
     _startAutoRefresh();
     _generateNewGreeting();
 
@@ -187,19 +188,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  void _onSearchChanged() {
-    if (_searchTimer?.isActive ?? false) _searchTimer!.cancel();
-
-    // Perform search immediately if there's at least 1 character or if clearing search
-    final searchText = _searchController.text.trim();
-    if (searchText.isNotEmpty || searchText.isEmpty) {
-      // Optimized delay to balance performance and responsiveness
-      // Shorter delay for better UX while preventing excessive provider notifications
-      _searchTimer = Timer(const Duration(milliseconds: 200), () {
-        _performSearch();
-      });
-    }
-  }
+  // SEARCH FIX: Method removed - search handling consolidated in HomeSearchSection
+  // This eliminates duplicate listener registration and conflicting debounce timers
 
   void _performSearch() {
     final documentProvider = Provider.of<DocumentProvider>(
@@ -495,27 +485,42 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _deleteFile(DocumentModel document) async {
+    // DELETE FIX: Enhanced error handling and UI state management
     try {
-      // Show loading indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+      // Validate document before deletion
+      if (document.id.isEmpty || document.fileName.isEmpty) {
+        throw Exception('Invalid document data');
+      }
+
+      // Show loading indicator with better UX
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Text('Deleting ${document.fileName}...'),
-            ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Deleting ${document.fileName}...',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            duration: const Duration(
+              seconds: 5,
+            ), // Longer duration for delete operations
           ),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+        );
+      }
 
       // Get current user ID for logging
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -526,30 +531,64 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         context,
         listen: false,
       );
-      await documentProvider.removeDocument(document.id, currentUserId);
+
+      // DELETE FIX: Add timeout and better error handling
+      await documentProvider
+          .removeDocument(document.id, currentUserId)
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () => throw Exception('Delete operation timed out'),
+          );
 
       // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              '${document.fileName} deleted permanently from storage',
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${document.fileName} deleted successfully',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: AppColors.success,
             duration: const Duration(seconds: 3),
           ),
         );
       }
     } catch (e) {
-      // Show error message
+      debugPrint('❌ Delete operation failed: $e');
+
+      // Show error message with better UX
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to delete file: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Failed to delete ${document.fileName}: ${e.toString()}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () => _deleteFile(document),
+            ),
           ),
         );
       }
@@ -586,53 +625,105 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _showDocumentMenu(DocumentModel document) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.download),
-              title: Text('Download', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                _downloadFile(document);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.share),
-              title: Text('Share', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                _shareDocument(document);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title: Text(
-                'Delete',
-                style: GoogleFonts.poppins(color: Colors.red),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                _showDeleteConfirmation(document);
-              },
-            ),
-
-            ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: Text('Details', style: GoogleFonts.poppins()),
-              onTap: () {
-                Navigator.pop(context);
-                _showDocumentDetails(document);
-              },
-            ),
-          ],
+    // DELETE FIX: Enhanced menu with error boundaries and better UX
+    try {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
-      ),
-    );
+        builder: (context) => Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+
+              ListTile(
+                leading: const Icon(Icons.download, color: AppColors.primary),
+                title: Text('Download', style: GoogleFonts.poppins()),
+                onTap: () {
+                  try {
+                    Navigator.pop(context);
+                    _downloadFile(document);
+                  } catch (e) {
+                    debugPrint('❌ Download error: $e');
+                    Navigator.pop(context);
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.share, color: AppColors.primary),
+                title: Text('Share', style: GoogleFonts.poppins()),
+                onTap: () {
+                  try {
+                    Navigator.pop(context);
+                    _shareDocument(document);
+                  } catch (e) {
+                    debugPrint('❌ Share error: $e');
+                    Navigator.pop(context);
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete, color: AppColors.error),
+                title: Text(
+                  'Delete',
+                  style: GoogleFonts.poppins(color: AppColors.error),
+                ),
+                onTap: () {
+                  try {
+                    Navigator.pop(context);
+                    _showDeleteConfirmation(document);
+                  } catch (e) {
+                    debugPrint('❌ Delete menu error: $e');
+                    Navigator.pop(context);
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.info_outline,
+                  color: AppColors.primary,
+                ),
+                title: Text('Details', style: GoogleFonts.poppins()),
+                onTap: () {
+                  try {
+                    Navigator.pop(context);
+                    _showDocumentDetails(document);
+                  } catch (e) {
+                    debugPrint('❌ Details error: $e');
+                    Navigator.pop(context);
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ Error showing document menu: $e');
+      // Show fallback error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unable to open menu. Please try again.'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   void _navigateToFilePreview(DocumentModel document) {
