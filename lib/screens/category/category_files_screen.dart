@@ -706,11 +706,14 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
         );
       }
 
-      // Share with link (default behavior)
+      // Upload to Google Drive and share
       await _shareService.shareFileWithLink(
         document: document,
         linkExpiration: const Duration(hours: 24),
         customMessage: 'I\'m sharing a document with you from Management Doc:',
+        onProgress: (progress) {
+          debugPrint('Upload progress: ${(progress * 100).toInt()}%');
+        },
       );
 
       // Hide loading message and show success
@@ -722,7 +725,9 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
               children: [
                 const Icon(Icons.check_circle, color: Colors.white, size: 20),
                 const SizedBox(width: 8),
-                Expanded(child: Text('Document shared successfully!')),
+                Expanded(
+                  child: Text('Document uploaded to Google Drive and shared!'),
+                ),
               ],
             ),
             backgroundColor: AppColors.success,

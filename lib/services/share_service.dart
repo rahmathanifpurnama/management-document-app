@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../models/document_model.dart';
 import 'google_drive_service.dart';
 
-/// Simplified service for sharing documents via Google Drive links only
+/// Enhanced service for sharing documents via Google Drive upload
 class ShareService {
   static final ShareService _instance = ShareService._internal();
   factory ShareService() => _instance;
@@ -12,66 +11,102 @@ class ShareService {
 
   final GoogleDriveService _googleDriveService = GoogleDriveService();
 
-  /// Share document link (Firebase Storage or Google Drive)
-  Future<void> shareGoogleDriveLink(DocumentModel document) async {
+  /// Share document by uploading to Google Drive and sharing the link
+  Future<void> shareGoogleDriveLink(
+    DocumentModel document, {
+    Function(double progress)? onProgress,
+  }) async {
     try {
+      debugPrint('🔄 Starting Google Drive share for: ${document.fileName}');
+
       // Check if document has file path
       if (document.filePath.isEmpty) {
         throw Exception('Document does not have a file path');
       }
 
+      // Initialize Google Drive service
+      await _googleDriveService.initialize();
+      onProgress?.call(0.1);
+
       String shareableLink;
 
-      // Check if filePath is a Google Drive file ID (short alphanumeric string)
+      // Check if filePath is already a Google Drive file ID
       if (_isGoogleDriveFileId(document.filePath)) {
-        // Use Google Drive link
+        // Use existing Google Drive link
         shareableLink = _googleDriveService.getShareableLink(document.filePath);
+        onProgress?.call(0.9);
       } else {
-        // Generate Firebase Storage download link
-        shareableLink = await _getFirebaseStorageDownloadUrl(document.filePath);
+        // Upload file to Google Drive first
+        debugPrint('📤 Uploading file to Google Drive...');
+
+        final fileId = await _googleDriveService.uploadDocumentToGoogleDrive(
+          document,
+          onProgress: (uploadProgress) {
+            // Map upload progress to 10-80% of total progress
+            onProgress?.call(0.1 + (uploadProgress * 0.7));
+          },
+        );
+
+        if (fileId == null) {
+          throw Exception('Failed to upload file to Google Drive');
+        }
+
+        // Generate shareable link from uploaded file
+        shareableLink = _googleDriveService.getShareableLink(fileId);
+        onProgress?.call(0.9);
       }
 
+      // Share the Google Drive link
       final shareText = _generateShareText(document, shareableLink);
 
       await Share.share(
         shareText,
-        subject: 'Shared Document: ${document.fileName}',
+        subject: 'Shared Document: ${document.displayFileName}',
       );
 
-      debugPrint('✅ Document link shared successfully: ${document.fileName}');
+      onProgress?.call(1.0);
+      debugPrint(
+        '✅ Document shared via Google Drive successfully: ${document.fileName}',
+      );
     } catch (e) {
-      debugPrint('❌ Failed to share document link: $e');
+      debugPrint('❌ Failed to share document via Google Drive: $e');
       rethrow;
     }
   }
 
-  /// Legacy method for backward compatibility - now uses Google Drive
+  /// Legacy method for backward compatibility - now uses Google Drive upload
   Future<void> shareFileWithLink({
     required DocumentModel document,
     Duration? linkExpiration,
     String? customMessage,
+    Function(double progress)? onProgress,
   }) async {
-    await shareGoogleDriveLink(document);
+    await shareGoogleDriveLink(document, onProgress: onProgress);
   }
 
-  /// Legacy method for backward compatibility - now uses Google Drive
-  Future<void> shareFileInfo(DocumentModel document) async {
-    await shareGoogleDriveLink(document);
+  /// Legacy method for backward compatibility - now uses Google Drive upload
+  Future<void> shareFileInfo(
+    DocumentModel document, {
+    Function(double progress)? onProgress,
+  }) async {
+    await shareGoogleDriveLink(document, onProgress: onProgress);
   }
 
-  /// Legacy method for backward compatibility - now uses Google Drive
+  /// Legacy method for backward compatibility - now uses Google Drive upload
   Future<void> shareFileDetails({
     required DocumentModel document,
     String? ownerName,
+    Function(double progress)? onProgress,
   }) async {
-    await shareGoogleDriveLink(document);
+    await shareGoogleDriveLink(document, onProgress: onProgress);
   }
 
-  /// Legacy method for bulk sharing - now uses Google Drive
+  /// Enhanced bulk sharing with Google Drive upload
   Future<void> shareBulkFiles({
     required List<DocumentModel> documents,
     Duration? linkExpiration,
     String? customMessage,
+    Function(int completed, int total, String currentFile)? onProgress,
   }) async {
     if (documents.isEmpty) {
       throw ArgumentError('No documents provided for sharing');
@@ -79,41 +114,56 @@ class ShareService {
 
     try {
       debugPrint(
-        '🔄 Starting bulk Google Drive share for ${documents.length} files',
+        '🔄 Starting bulk Google Drive upload and share for ${documents.length} files',
       );
 
-      // Generate share text for all files
+      // Initialize Google Drive service
+      await _googleDriveService.initialize();
+
+      // Upload all files to Google Drive
+      final uploadedIds = await _googleDriveService.uploadMultipleDocuments(
+        documents,
+        onProgress: onProgress,
+      );
+
+      if (uploadedIds.isEmpty) {
+        throw Exception('Failed to upload any files to Google Drive');
+      }
+
+      // Generate share text for all uploaded files
       final buffer = StringBuffer();
-      buffer.writeln('📄 Shared Documents (${documents.length} files)\n');
+      buffer.writeln('📄 Shared Documents (${uploadedIds.length} files)\n');
 
-      for (int i = 0; i < documents.length; i++) {
+      for (int i = 0; i < documents.length && i < uploadedIds.length; i++) {
         final doc = documents[i];
+        final fileId = uploadedIds[i];
+        final shareableLink = _googleDriveService.getShareableLink(fileId);
 
-        String shareableLink;
-        if (_isGoogleDriveFileId(doc.filePath)) {
-          shareableLink = _googleDriveService.getShareableLink(doc.filePath);
-        } else {
-          shareableLink = await _getFirebaseStorageDownloadUrl(doc.filePath);
-        }
-
-        buffer.writeln('${i + 1}. ${doc.fileName}');
+        buffer.writeln('${i + 1}. ${doc.displayFileName}');
         buffer.writeln(
           '   ${doc.fileType.toUpperCase()} • ${_formatFileSize(doc.fileSize)}',
         );
-        buffer.writeln('   🔗 Download Link: $shareableLink');
-        if (i < documents.length - 1) buffer.writeln();
+        buffer.writeln('   🔗 Google Drive Link: $shareableLink');
+        if (i < uploadedIds.length - 1) buffer.writeln();
       }
 
-      buffer.writeln('\n📱 Shared via Management Doc App');
+      if (customMessage != null && customMessage.isNotEmpty) {
+        buffer.writeln('\n📝 Message: $customMessage');
+      }
+
+      buffer.writeln('\n✨ Files uploaded to your Google Drive and shared!');
 
       await Share.share(
         buffer.toString(),
-        subject: 'Shared Documents (${documents.length} files)',
+        subject:
+            'Shared Documents via Google Drive (${uploadedIds.length} files)',
       );
 
-      debugPrint('✅ Bulk document share completed successfully');
+      debugPrint(
+        '✅ Bulk Google Drive share completed for ${uploadedIds.length} files',
+      );
     } catch (e) {
-      debugPrint('❌ Bulk document share failed: $e');
+      debugPrint('❌ Failed to bulk share files via Google Drive: $e');
       rethrow;
     }
   }
@@ -128,29 +178,18 @@ class ShareService {
         RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(filePath);
   }
 
-  /// Get Firebase Storage download URL
-  Future<String> _getFirebaseStorageDownloadUrl(String filePath) async {
-    try {
-      final ref = FirebaseStorage.instance.ref().child(filePath);
-      return await ref.getDownloadURL();
-    } catch (e) {
-      debugPrint('❌ Failed to get Firebase Storage download URL: $e');
-      // Fallback: return a generic Firebase Storage URL (may not work without proper permissions)
-      return 'https://firebasestorage.googleapis.com/v0/b/document-management-c5a96.firebasestorage.app/o/${Uri.encodeComponent(filePath)}?alt=media';
-    }
-  }
-
-  /// Generate share text for document link
+  /// Generate share text for Google Drive document link
   String _generateShareText(DocumentModel document, String shareableLink) {
     return '''
-📄 I'm sharing a document with you:
+📄 I'm sharing a document with you via Google Drive:
 
-📄 ${document.fileName}
+📄 ${document.displayFileName}
 📊 ${document.fileType.toUpperCase()} • ${_formatFileSize(document.fileSize)}
 📂 Category: ${document.category}
 
-🔗 Download Link: $shareableLink
+🔗 Google Drive Link: $shareableLink
 
+✨ This file has been uploaded to Google Drive for easy access!
 📱 Shared via Management Doc App
 ''';
   }

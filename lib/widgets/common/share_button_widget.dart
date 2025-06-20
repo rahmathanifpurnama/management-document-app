@@ -182,7 +182,7 @@ class _ShareButtonWidgetState extends State<ShareButtonWidget> {
               color: widget.iconColor ?? AppColors.textSecondary,
               size: widget.iconSize ?? 18,
             ),
-      tooltip: widget.customTooltip ?? 'Share via Google Drive',
+      tooltip: widget.customTooltip ?? 'Upload to Google Drive & Share',
       onSelected: (_) => _handleShare(),
       itemBuilder: (context) => [
         PopupMenuItem(
@@ -191,9 +191,24 @@ class _ShareButtonWidgetState extends State<ShareButtonWidget> {
             children: [
               Icon(ShareService.getShareIcon(null), size: 18),
               const SizedBox(width: 12),
-              Text(
-                ShareService.getShareTypeName(null),
-                style: GoogleFonts.poppins(fontSize: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      ShareService.getShareTypeName(null),
+                      style: GoogleFonts.poppins(fontSize: 14),
+                    ),
+                    Text(
+                      'Upload to your Google Drive',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -215,17 +230,85 @@ class _ShareButtonWidgetState extends State<ShareButtonWidget> {
 
     widget.onShareStart?.call();
 
+    // Show progress snackbar
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Uploading ${widget.document.displayFileName} to Google Drive...',
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(minutes: 5), // Long duration for upload
+          backgroundColor: Colors.blue,
+        ),
+      );
+    }
+
     try {
-      // Always use Google Drive sharing
-      await _shareService.shareGoogleDriveLink(widget.document);
+      // Upload to Google Drive and share
+      await _shareService.shareGoogleDriveLink(
+        widget.document,
+        onProgress: (progress) {
+          // Update progress if needed (could show percentage)
+          debugPrint('Upload progress: ${(progress * 100).toInt()}%');
+        },
+      );
+
+      // Hide progress snackbar and show success
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${widget.document.displayFileName} uploaded to Google Drive and shared!',
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+
       widget.onShareComplete?.call();
     } catch (e) {
-      final errorMessage = 'Failed to share document: ${e.toString()}';
+      final errorMessage = 'Failed to upload to Google Drive: ${e.toString()}';
       widget.onShareError?.call(errorMessage);
 
       if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(child: Text(errorMessage)),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     } finally {
@@ -243,16 +326,68 @@ class _ShareButtonWidgetState extends State<ShareButtonWidget> {
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              title: Text(
-                'Confirm Share',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
+              title: Row(
+                children: [
+                  Icon(Icons.drive_file_move, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Upload to Google Drive',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
               ),
-              content: Text(
-                'Are you sure you want to share "${widget.document.fileName}"? This will generate a shareable link for this file.',
-                style: GoogleFonts.poppins(color: AppColors.textSecondary),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Upload "${widget.document.displayFileName}" to your Google Drive and share?',
+                    style: GoogleFonts.poppins(color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.cloud_upload,
+                              color: Colors.blue.shade700,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'This will:',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '• Upload the file to your Google Drive\n• Create a shareable link\n• Open your device\'s share menu',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               actions: [
                 TextButton(
@@ -262,15 +397,16 @@ class _ShareButtonWidgetState extends State<ShareButtonWidget> {
                     style: GoogleFonts.poppins(color: AppColors.textSecondary),
                   ),
                 ),
-                ElevatedButton(
+                ElevatedButton.icon(
                   onPressed: () => Navigator.of(context).pop(true),
+                  icon: const Icon(Icons.drive_file_move, size: 18),
+                  label: Text(
+                    'Upload & Share',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.textWhite,
-                  ),
-                  child: Text(
-                    'Share',
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
                   ),
                 ),
               ],

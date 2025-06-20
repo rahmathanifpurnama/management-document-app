@@ -861,11 +861,14 @@ class _FileTableWidgetState extends State<FileTableWidget> {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text('Preparing to share ${document.fileName}...'),
+                child: Text(
+                  'Uploading ${document.displayFileName} to Google Drive...',
+                ),
               ),
             ],
           ),
-          duration: const Duration(seconds: 3),
+          duration: const Duration(minutes: 5), // Longer duration for upload
+          backgroundColor: Colors.blue,
         ),
       );
 
@@ -873,15 +876,28 @@ class _FileTableWidgetState extends State<FileTableWidget> {
         document: document,
         linkExpiration: const Duration(hours: 24),
         customMessage: 'Sharing document from Management Doc:',
+        onProgress: (progress) {
+          debugPrint('Upload progress: ${(progress * 100).toInt()}%');
+        },
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${document.fileName} shared successfully'),
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${document.displayFileName} uploaded to Google Drive and shared!',
+                  ),
+                ),
+              ],
+            ),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -890,9 +906,19 @@ class _FileTableWidgetState extends State<FileTableWidget> {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Share failed: ${e.toString()}'),
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Failed to upload to Google Drive: ${e.toString()}',
+                  ),
+                ),
+              ],
+            ),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
+            duration: const Duration(seconds: 5),
           ),
         );
       }

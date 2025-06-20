@@ -600,7 +600,7 @@ class BulkOperationsService {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    'Generating share links for ${files.length} files...',
+                    'Uploading ${files.length} files to Google Drive...',
                   ),
                 ),
               ],
@@ -611,11 +611,14 @@ class BulkOperationsService {
         );
       }
 
-      // Use consolidated bulk share operation
+      // Use consolidated bulk share operation with progress tracking
       await shareService.shareBulkFiles(
         documents: files,
         linkExpiration: const Duration(hours: 24),
         customMessage: 'Sharing ${files.length} files from Management Doc:',
+        onProgress: (completed, total, currentFile) {
+          debugPrint('Bulk upload progress: $completed/$total - $currentFile');
+        },
       );
 
       // Show success message
@@ -628,7 +631,9 @@ class BulkOperationsService {
                 const Icon(Icons.check_circle, color: Colors.white, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: Text('Successfully shared ${files.length} files'),
+                  child: Text(
+                    '${files.length} files uploaded to Google Drive and shared!',
+                  ),
                 ),
               ],
             ),
