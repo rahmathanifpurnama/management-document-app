@@ -4,16 +4,17 @@ import '../models/document_model.dart';
 
 /// Service for managing download notifications in the Android notification bar
 class DownloadNotificationService {
-  static final DownloadNotificationService _instance = 
+  static final DownloadNotificationService _instance =
       DownloadNotificationService._internal();
   factory DownloadNotificationService() => _instance;
   DownloadNotificationService._internal();
 
   static const String _channelId = 'download_channel';
   static const String _channelName = 'File Downloads';
-  static const String _channelDescription = 'Notifications for file download progress';
+  static const String _channelDescription =
+      'Notifications for file download progress';
 
-  final FlutterLocalNotificationsPlugin _notificationsPlugin = 
+  final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
   bool _isInitialized = false;
@@ -25,8 +26,10 @@ class DownloadNotificationService {
 
     try {
       // Android initialization settings
-      const androidSettings = AndroidInitializationSettings('@mipmap/launcher_icon');
-      
+      const androidSettings = AndroidInitializationSettings(
+        '@mipmap/launcher_icon',
+      );
+
       // iOS initialization settings (for future compatibility)
       const iosSettings = DarwinInitializationSettings(
         requestAlertPermission: true,
@@ -72,7 +75,9 @@ class DownloadNotificationService {
     );
 
     await _notificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(androidChannel);
   }
 
@@ -85,14 +90,16 @@ class DownloadNotificationService {
   /// Request notification permissions (Android 13+)
   Future<bool> requestPermissions() async {
     final androidPlugin = _notificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+
     if (androidPlugin != null) {
       final granted = await androidPlugin.requestNotificationsPermission();
       debugPrint('📱 Notification permission granted: $granted');
       return granted ?? false;
     }
-    
+
     return true; // Assume granted for older Android versions
   }
 
@@ -108,7 +115,7 @@ class DownloadNotificationService {
     }
 
     final notificationId = _getNextNotificationId();
-    final title = isBulkDownload 
+    final title = isBulkDownload
         ? 'Downloading $totalFiles files'
         : 'Downloading file';
     final body = isBulkDownload
@@ -132,7 +139,7 @@ class DownloadNotificationService {
       icon: '@mipmap/launcher_icon',
     );
 
-    const notificationDetails = NotificationDetails(android: androidDetails);
+    final notificationDetails = NotificationDetails(android: androidDetails);
 
     await _notificationsPlugin.show(
       notificationId,
@@ -182,7 +189,7 @@ class DownloadNotificationService {
       icon: '@mipmap/launcher_icon',
     );
 
-    const notificationDetails = NotificationDetails(android: androidDetails);
+    final notificationDetails = NotificationDetails(android: androidDetails);
 
     await _notificationsPlugin.show(
       notificationId,
@@ -205,11 +212,12 @@ class DownloadNotificationService {
 
     String title;
     String body;
-    
+
     if (isBulkDownload) {
       if (failedFiles != null && failedFiles > 0) {
         title = 'Download completed with errors';
-        body = 'Downloaded ${(totalFiles ?? 0) - failedFiles}/$totalFiles files successfully';
+        body =
+            'Downloaded ${(totalFiles ?? 0) - failedFiles}/$totalFiles files successfully';
       } else {
         title = 'All files downloaded';
         body = 'Successfully downloaded $totalFiles files';
@@ -233,7 +241,7 @@ class DownloadNotificationService {
       icon: '@mipmap/launcher_icon',
     );
 
-    const notificationDetails = NotificationDetails(android: androidDetails);
+    final notificationDetails = NotificationDetails(android: androidDetails);
 
     await _notificationsPlugin.show(
       notificationId,
@@ -274,7 +282,7 @@ class DownloadNotificationService {
       icon: '@mipmap/launcher_icon',
     );
 
-    const notificationDetails = NotificationDetails(android: androidDetails);
+    final notificationDetails = NotificationDetails(android: androidDetails);
 
     await _notificationsPlugin.show(
       notificationId,
@@ -307,13 +315,15 @@ class DownloadNotificationService {
   /// Check if notifications are enabled
   Future<bool> areNotificationsEnabled() async {
     final androidPlugin = _notificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+
     if (androidPlugin != null) {
       final enabled = await androidPlugin.areNotificationsEnabled();
       return enabled ?? false;
     }
-    
+
     return true;
   }
 }
