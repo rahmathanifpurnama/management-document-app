@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.manualCleanupActivityLogs = exports.onFileUpload = exports.onUserCreate = exports.onDocumentCreate = exports.api = exports.healthCheck = exports.validateUserSession = exports.handleLogoutOperations = exports.handlePostLoginOperations = exports.processActivityLog = exports.sendNotification = exports.performComprehensiveSync = exports.cleanupOrphanedMetadata = exports.syncStorageWithFirestore = exports.generateDocumentReport = exports.bulkDocumentOperations = exports.rejectDocument = exports.approveDocument = exports.bulkUserOperations = exports.deleteUser = exports.updateUserPermissions = exports.createUser = exports.refreshCategoryContents = exports.getCategoryDocumentsEnhanced = exports.removeFilesFromCategory = exports.addFilesToCategory = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.batchProcessFiles = exports.cleanupOrphanedFiles = exports.getFileAccessUrl = exports.getStorageQuota = exports.extractMetadata = exports.checkDuplicateFile = exports.validateFile = exports.generateThumbnail = exports.streamingUpload = exports.processFileUpload = void 0;
+exports.manualCleanupActivityLogs = exports.onFileUpload = exports.onUserCreate = exports.onDocumentCreate = exports.api = exports.healthCheck = exports.validateUserSession = exports.handleLogoutOperations = exports.handlePostLoginOperations = exports.processActivityLog = exports.sendNotification = exports.performComprehensiveSync = exports.cleanupOrphanedMetadata = exports.syncStorageWithFirestore = exports.generateDocumentReport = exports.bulkDocumentOperations = exports.deleteDocument = exports.rejectDocument = exports.approveDocument = exports.initializeAdmin = exports.setAdminClaims = exports.bulkUserOperations = exports.deleteUser = exports.updateUserPermissions = exports.createUser = exports.refreshCategoryContents = exports.getCategoryDocumentsEnhanced = exports.removeFilesFromCategory = exports.addFilesToCategory = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.batchProcessFiles = exports.cleanupOrphanedFiles = exports.getFileAccessUrl = exports.getStorageQuota = exports.extractMetadata = exports.checkDuplicateFile = exports.validateFile = exports.generateThumbnail = exports.streamingUpload = exports.processFileUpload = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const cors_1 = __importDefault(require("cors"));
@@ -81,9 +81,12 @@ exports.createUser = userManagement_1.userFunctions.createUser;
 exports.updateUserPermissions = userManagement_1.userFunctions.updateUserPermissions;
 exports.deleteUser = userManagement_1.userFunctions.deleteUser;
 exports.bulkUserOperations = userManagement_1.userFunctions.bulkUserOperations;
+exports.setAdminClaims = userManagement_1.userFunctions.setAdminClaims;
+exports.initializeAdmin = userManagement_1.userFunctions.initializeAdmin;
 // Document Management Functions
 exports.approveDocument = documentManagement_1.documentFunctions.approveDocument;
 exports.rejectDocument = documentManagement_1.documentFunctions.rejectDocument;
+exports.deleteDocument = documentManagement_1.documentFunctions.deleteDocument;
 exports.bulkDocumentOperations = documentManagement_1.documentFunctions.bulkDocumentOperations;
 exports.generateDocumentReport = documentManagement_1.documentFunctions.generateDocumentReport;
 // Sync Operations Functions

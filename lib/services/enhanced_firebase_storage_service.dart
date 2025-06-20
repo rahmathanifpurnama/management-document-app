@@ -8,6 +8,7 @@ import '../config/firebase_config.dart';
 import '../core/utils/anr_prevention.dart';
 import '../core/config/anr_config.dart';
 import '../core/utils/circuit_breaker.dart';
+import '../core/services/unified_id_system.dart';
 import 'package:uuid/uuid.dart';
 
 /// Enhanced Firebase Storage Service with improved file display and retrieval
@@ -20,6 +21,7 @@ class EnhancedFirebaseStorageService {
 
   final FirebaseService _firebaseService = FirebaseService.instance;
   final AuthService _authService = AuthService.instance;
+  final UnifiedIdSystem _unifiedIdSystem = UnifiedIdSystem.instance;
 
   // Cache for download URLs to prevent repeated requests
   final Map<String, String> _urlCache = {};
@@ -120,8 +122,25 @@ class EnhancedFirebaseStorageService {
       final uploadedAt = metadata?.timeCreated ?? DateTime.now();
       final contentType = metadata?.contentType ?? 'application/octet-stream';
 
-      // Generate document ID using UUID (standardized across all systems)
-      final documentId = const Uuid().v4();
+      // UNIFIED ID SYSTEM: Try to resolve existing Firestore ID first
+      String documentId;
+      final existingId = await _unifiedIdSystem.getFirestoreIdFromStoragePath(
+        ref.fullPath,
+      );
+
+      if (existingId != null) {
+        // Use existing Firestore ID for consistency
+        documentId = existingId;
+        debugPrint(
+          '🔗 Using existing Firestore ID: $documentId for ${ref.name}',
+        );
+      } else {
+        // Generate new UUID as fallback (will be reconciled later)
+        documentId = const Uuid().v4();
+        debugPrint(
+          '⚠️ Generated fallback UUID: $documentId for ${ref.name} (needs reconciliation)',
+        );
+      }
 
       // Determine file type from extension
       final fileType = _getFileTypeFromName(fileName);

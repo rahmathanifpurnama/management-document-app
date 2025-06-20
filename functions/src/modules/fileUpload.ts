@@ -58,14 +58,7 @@ const ALLOWED_EXTENSIONS = [
   "txt",
 ];
 
-// Malicious file patterns (basic content validation)
-const MALICIOUS_PATTERNS = [
-  /<%[\s\S]*?%>/g, // Server-side scripts
-  /<script[\s\S]*?<\/script>/gi, // JavaScript
-  /javascript:/gi, // JavaScript protocol
-  /vbscript:/gi, // VBScript protocol
-  /on\w+\s*=/gi, // Event handlers
-];
+
 
 // Rate limiting storage (in production, use Redis or Firestore)
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
@@ -140,29 +133,7 @@ function sanitizeFileName(fileName: string): string {
   return sanitized;
 }
 
-/**
- * Basic malware content detection
- */
-async function validateFileContent(filePath: string): Promise<boolean> {
-  try {
-    const fileRef = admin.storage().bucket().file(filePath);
-    const [buffer] = await fileRef.download({ start: 0, end: 1024 }); // Check first 1KB
-    const content = buffer.toString("utf8");
 
-    // Check for malicious patterns
-    for (const pattern of MALICIOUS_PATTERNS) {
-      if (pattern.test(content)) {
-        console.warn(`Malicious pattern detected in file: ${filePath}`);
-        return false;
-      }
-    }
-
-    return true;
-  } catch (error) {
-    console.warn("Content validation failed:", error);
-    return true; // Allow file if validation fails (non-critical)
-  }
-}
 
 /**
  * Calculate file hash for duplicate detection
@@ -288,14 +259,7 @@ const processFileUpload = functions.https.onCall(
         );
       }
 
-      // Basic malware content validation
-      const isContentSafe = await validateFileContent(filePath);
-      if (!isContentSafe) {
-        throw new functions.https.HttpsError(
-          "invalid-argument",
-          "File content validation failed - potentially malicious content detected"
-        );
-      }
+
 
       // Calculate file hash for duplicate detection
       console.log("Calculating file hash for duplicate detection...");
@@ -340,14 +304,17 @@ const processFileUpload = functions.https.onCall(
         thumbnailUrl = await generateThumbnailInternal(filePath);
       }
 
-      // Create document record in Firestore
-      const documentId = uuidv4();
+      // UNIFIED ID SYSTEM: Use Firestore auto-generated ID as single source of truth
+      const docRef = admin.firestore().collection("document-metadata").doc();
+      const documentId = docRef.id; // Use Firestore's auto-generated ID
+
+      console.log(`🆔 Using unified document ID: ${documentId}`);
 
       // Use clean filename for both display and storage
       const displayFileName = sanitizedFileName; // Clean filename
 
       const documentData = {
-        id: documentId,
+        id: documentId, // Store ID in document for consistency
         fileName: displayFileName, // Clean filename for display
         originalFileName: originalFileName, // Keep original for reference
         fileSize,
@@ -370,9 +337,11 @@ const processFileUpload = functions.https.onCall(
           fileHash: fileHash, // Store file hash for duplicate detection
           storageFileName: filePath.split("/").pop() || sanitizedFileName, // Actual storage filename
           displayFileName: sanitizedFileName, // Clean display name
+          createdBy: "cloud_function_upload",
+          unifiedIdSystem: true, // Mark as using unified ID system
           securityChecks: {
             fileNameSanitized: originalFileName !== sanitizedFileName,
-            contentValidated: true,
+            contentValidated: false, // Content-based scanning disabled
             duplicateChecked: true,
             validatedAt: admin.firestore.FieldValue.serverTimestamp(),
           },

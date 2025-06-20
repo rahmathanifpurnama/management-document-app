@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/config/cloud_functions_config.dart';
 import '../models/upload_file_model.dart';
 import '../core/services/firebase_service.dart';
+import '../core/services/unified_id_system.dart';
 import '../services/image_compression_service.dart';
 import '../services/file_hash_service.dart';
 import '../services/google_drive_service.dart';
@@ -130,9 +131,9 @@ class ConsolidatedUploadService {
       } catch (e) {
         if (e.toString().contains('Cloud Functions not available')) {
           debugPrint(
-            '⚠️ Cloud Functions not available for validation, using local validation...',
+            '⚠️ Cloud Functions not available for validation, proceeding with basic validation...',
           );
-          // Perform local validation as fallback
+          // Perform basic local validation as fallback (no content scanning)
           await _validateFile(file);
         } else {
           rethrow;
@@ -142,79 +143,96 @@ class ConsolidatedUploadService {
 
       // Step 6: Image compression if needed
       File processedFile = File(file.file.path);
-      if (_isImageFile(file.fileName)) {
-        final compressionResult = await _compressionService.compressImage(
-          imageFile: file.file,
-          maxFileSize: 5 * 1024 * 1024, // 5MB max for images
-        );
-
-        if (compressionResult.wasCompressed) {
-          // Write compressed bytes to a temporary file
-          final tempFile = File('${file.file.path}_compressed');
-          await tempFile.writeAsBytes(compressionResult.compressedBytes);
-          processedFile = tempFile;
-          debugPrint('📷 Image compressed successfully');
-        }
-      }
-      onProgress(30);
-
-      // Step 5: Upload to Firebase Storage with retry logic
-      final downloadUrl = await _uploadWithRetry(
-        processedFile,
-        file.fileName,
-        currentUser.uid,
-        categoryId,
-        onProgress: (progress) => onProgress(30 + (progress * 0.4)), // 30-70%
-      );
-      onProgress(70);
-
-      // Step 6: Process with Cloud Functions (with fallback)
-      String? documentId;
+      File? tempFile;
       try {
-        final processingResult = await CloudFunctionsConfig.processFileUpload(
-          filePath: _getStoragePath(file.fileName, currentUser.uid, categoryId),
-          fileName: file.fileName,
-          contentType: _getContentType(file.fileName),
-          categoryId: categoryId,
-          metadata: {
-            'uploadedBy': currentUser.uid,
-            'downloadUrl': downloadUrl,
-            'fileSize': (await processedFile.length()).toString(),
-            'fileHash': fileHash, // Include file hash for duplicate detection
-            'deviceId': 'flutter_app',
-            'timestamp': DateTime.now().toIso8601String(),
-            'duplicateChecked': 'true',
-            ...?customMetadata,
-          },
+        if (_isImageFile(file.fileName)) {
+          final compressionResult = await _compressionService.compressImage(
+            imageFile: file.file,
+            maxFileSize: 5 * 1024 * 1024, // 5MB max for images
+          );
+
+          if (compressionResult.wasCompressed) {
+            // Write compressed bytes to a temporary file
+            tempFile = File('${file.file.path}_compressed');
+            await tempFile.writeAsBytes(compressionResult.compressedBytes);
+            processedFile = tempFile;
+            debugPrint('📷 Image compressed successfully');
+          }
+        }
+        onProgress(30);
+
+        // Step 5: Upload to Firebase Storage with retry logic
+        final downloadUrl = await _uploadWithRetry(
+          processedFile,
+          file.fileName,
+          currentUser.uid,
+          categoryId,
+          onProgress: (progress) => onProgress(30 + (progress * 0.4)), // 30-70%
         );
-        documentId = processingResult['documentId'];
-      } catch (e) {
-        if (e.toString().contains('Cloud Functions not available')) {
-          debugPrint(
-            '⚠️ Cloud Functions not available for processing, creating document locally...',
+        onProgress(70);
+
+        // Step 7: Process with Cloud Functions (with fallback)
+        String? documentId;
+        try {
+          final processingResult = await CloudFunctionsConfig.processFileUpload(
+            filePath: _getStoragePath(
+              file.fileName,
+              currentUser.uid,
+              categoryId,
+            ),
+            fileName: file.fileName,
+            contentType: _getContentType(file.fileName),
+            categoryId: categoryId,
+            metadata: {
+              'uploadedBy': currentUser.uid,
+              'downloadUrl': downloadUrl,
+              'fileSize': (await processedFile.length()).toString(),
+              'fileHash': fileHash, // Include file hash for duplicate detection
+              'deviceId': 'flutter_app',
+              'timestamp': DateTime.now().toIso8601String(),
+              'duplicateChecked': 'true',
+              ...?customMetadata,
+            },
           );
-          // Create document record locally as fallback
-          documentId = await _createDocumentLocally(
-            file,
-            downloadUrl,
-            currentUser.uid,
-            categoryId,
-            fileHash,
-            customMetadata,
-          );
-        } else {
-          rethrow;
+          documentId = processingResult['documentId'];
+        } catch (e) {
+          if (e.toString().contains('Cloud Functions not available')) {
+            debugPrint(
+              '⚠️ Cloud Functions not available for processing, creating document locally...',
+            );
+            // Create document record locally as fallback
+            documentId = await _createDocumentLocally(
+              file,
+              downloadUrl,
+              currentUser.uid,
+              categoryId,
+              fileHash,
+              customMetadata,
+            );
+          } else {
+            rethrow;
+          }
+        }
+        onProgress(100);
+
+        debugPrint('✅ File upload completed successfully');
+        return {
+          'success': true,
+          'downloadUrl': downloadUrl,
+          'documentId': documentId,
+          'message': 'File uploaded and processed successfully',
+        };
+      } finally {
+        // Clean up temporary file if it was created
+        if (tempFile != null && await tempFile.exists()) {
+          try {
+            await tempFile.delete();
+            debugPrint('🧹 Temporary file cleaned up: ${tempFile.path}');
+          } catch (e) {
+            debugPrint('⚠️ Failed to clean up temporary file: $e');
+          }
         }
       }
-      onProgress(100);
-
-      debugPrint('✅ File upload completed successfully');
-      return {
-        'success': true,
-        'downloadUrl': downloadUrl,
-        'documentId': documentId,
-        'message': 'File uploaded and processed successfully',
-      };
     } catch (e) {
       debugPrint('❌ Upload failed: $e');
       rethrow;
@@ -360,6 +378,7 @@ class ConsolidatedUploadService {
   }
 
   /// Create document record locally when Cloud Functions are not available
+  /// Uses unified ID system for consistency
   Future<String> _createDocumentLocally(
     UploadFileModel file,
     String downloadUrl,
@@ -369,46 +388,27 @@ class ConsolidatedUploadService {
     Map<String, String>? customMetadata,
   ) async {
     try {
-      final firestore = FirebaseFirestore.instance;
-      final documentId = firestore.collection('document-metadata').doc().id;
-
-      // Use clean filename for both display and storage
-      final displayFileName = _getDisplayFileName(file.fileName);
-      final storagePath = _getStoragePath(file.fileName, userId, categoryId);
-
-      final documentData = {
-        'id': documentId,
-        'fileName': displayFileName, // Clean filename
-        'originalFileName': file.fileName, // Original filename
-        'fileSize': await file.file.length(),
-        'fileType': _getFileType(file.fileName),
-        'filePath': storagePath, // Storage path without timestamp
-        'downloadUrl': downloadUrl,
-        'uploadedBy': userId,
-        'uploadedAt': FieldValue.serverTimestamp(),
-        'contentType': _getContentType(file.fileName),
-        'fileHash': fileHash,
-        'category': categoryId ?? '', // Use 'category' instead of 'categoryId'
-        'status': 'active',
-        'isActive': true,
-        'metadata': {
-          'deviceId': 'flutter_app',
-          'timestamp': DateTime.now().toIso8601String(),
-          'duplicateChecked': 'true',
-          'displayFileName': displayFileName, // Clean filename
-          'storageFileName': storagePath
-              .split('/')
-              .last, // Actual storage filename
+      // UNIFIED ID SYSTEM: Use UnifiedIdSystem for consistent ID generation
+      final unifiedIdSystem = UnifiedIdSystem.instance;
+      final documentId = await unifiedIdSystem.createDocumentWithUnifiedId(
+        fileName: _getDisplayFileName(file.fileName),
+        filePath: _getStoragePath(file.fileName, userId, categoryId),
+        uploadedBy: userId,
+        category: categoryId ?? 'uncategorized',
+        fileSize: await file.file.length(),
+        fileType: _getFileType(file.fileName),
+        additionalMetadata: {
+          'downloadUrl': downloadUrl,
+          'fileHash': fileHash,
+          'createdBy': 'flutter_upload_service',
+          'uploadMethod': 'local_fallback',
           ...?customMetadata,
         },
-      };
+      );
 
-      await firestore
-          .collection('document-metadata')
-          .doc(documentId)
-          .set(documentData);
-
-      debugPrint('✅ Document created locally: $documentId');
+      debugPrint(
+        '✅ ConsolidatedUploadService: Document created with unified ID: $documentId',
+      );
       return documentId;
     } catch (e) {
       debugPrint('❌ Failed to create document locally: $e');

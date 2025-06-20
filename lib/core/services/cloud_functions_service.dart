@@ -82,6 +82,22 @@ class CloudFunctionsService {
     }
   }
 
+  /// Delete a document permanently using Cloud Functions
+  Future<Map<String, dynamic>> deleteDocument(String documentId) async {
+    try {
+      debugPrint('🔄 Deleting document via Cloud Functions: $documentId');
+
+      final HttpsCallable callable = _functions.httpsCallable('deleteDocument');
+      final result = await callable.call({'documentId': documentId});
+
+      debugPrint('✅ Document deleted successfully: ${result.data}');
+      return Map<String, dynamic>.from(result.data);
+    } catch (e) {
+      debugPrint('❌ Failed to delete document: $e');
+      rethrow;
+    }
+  }
+
   /// Add files to a category using Cloud Functions
   Future<Map<String, dynamic>> addFilesToCategory({
     required String categoryId,

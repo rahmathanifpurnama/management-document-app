@@ -53,10 +53,13 @@ export const createUser = userFunctions.createUser;
 export const updateUserPermissions = userFunctions.updateUserPermissions;
 export const deleteUser = userFunctions.deleteUser;
 export const bulkUserOperations = userFunctions.bulkUserOperations;
+export const setAdminClaims = userFunctions.setAdminClaims;
+export const initializeAdmin = userFunctions.initializeAdmin;
 
 // Document Management Functions
 export const approveDocument = documentFunctions.approveDocument;
 export const rejectDocument = documentFunctions.rejectDocument;
+export const deleteDocument = documentFunctions.deleteDocument;
 export const bulkDocumentOperations = documentFunctions.bulkDocumentOperations;
 export const generateDocumentReport = documentFunctions.generateDocumentReport;
 

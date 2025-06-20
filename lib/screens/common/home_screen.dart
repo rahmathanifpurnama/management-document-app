@@ -25,6 +25,7 @@ import '../../core/services/greeting_service.dart';
 import '../../utils/download_location_helper.dart';
 import '../../config/firebase_config.dart';
 import '../../services/firebase_storage_direct_service.dart';
+import '../../services/statistics_notification_service.dart';
 import '../../core/utils/circuit_breaker.dart';
 import '../../core/utils/empty_storage_state_manager.dart';
 part 'components/home_greeting_section.dart';
@@ -485,11 +486,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _deleteFile(DocumentModel document) async {
-    // DELETE FIX: Enhanced error handling and UI state management
+    // ENHANCED DELETE FIX: Comprehensive error handling and UI state management
     try {
+      debugPrint(
+        '🗑️ HomeScreen: Starting delete operation for ${document.fileName} (ID: ${document.id})',
+      );
+
       // Validate document before deletion
       if (document.id.isEmpty || document.fileName.isEmpty) {
-        throw Exception('Invalid document data');
+        throw Exception('Invalid document data - missing ID or filename');
       }
 
       // Show loading indicator with better UX
@@ -516,7 +521,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ],
             ),
             duration: const Duration(
-              seconds: 5,
+              seconds: 10,
             ), // Longer duration for delete operations
           ),
         );
@@ -532,13 +537,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         listen: false,
       );
 
-      // DELETE FIX: Add timeout and better error handling
+      // ENHANCED DELETE FIX: Add comprehensive timeout and error handling
       await documentProvider
           .removeDocument(document.id, currentUserId)
           .timeout(
-            const Duration(seconds: 30),
-            onTimeout: () => throw Exception('Delete operation timed out'),
+            const Duration(
+              seconds: 45,
+            ), // Increased timeout for complex operations
+            onTimeout: () =>
+                throw Exception('Delete operation timed out after 45 seconds'),
           );
+
+      debugPrint('✅ HomeScreen: Delete operation completed successfully');
 
       // Show success message
       if (mounted) {
@@ -563,35 +573,127 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         );
       }
     } catch (e) {
-      debugPrint('❌ Delete operation failed: $e');
+      debugPrint(
+        '❌ HomeScreen: Delete operation failed for ${document.fileName}: $e',
+      );
+
+      // ENHANCED ERROR HANDLING: Provide more specific error messages
+      String errorMessage = 'Failed to delete ${document.fileName}';
+      String detailedError = e.toString();
+
+      // Parse specific error types for better user experience
+      if (detailedError.contains('Document not found')) {
+        errorMessage = 'File may have already been deleted or moved';
+      } else if (detailedError.contains('timed out')) {
+        errorMessage = 'Delete operation timed out - please try again';
+      } else if (detailedError.contains('permission')) {
+        errorMessage =
+            'Permission denied - you may not have access to delete this file';
+      } else if (detailedError.contains('network') ||
+          detailedError.contains('connection')) {
+        errorMessage =
+            'Network error - please check your connection and try again';
+      }
 
       // Show error message with better UX
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.error, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        errorMessage,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+                if (detailedError.contains('Document not found')) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'The file will be removed from your view',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 6),
+            action: SnackBarAction(
+              label: detailedError.contains('Document not found')
+                  ? 'Remove'
+                  : 'Retry',
+              textColor: Colors.white,
+              onPressed: () {
+                if (detailedError.contains('Document not found')) {
+                  // If document not found, just remove it from local UI
+                  _removeFromLocalUI(document);
+                } else {
+                  // Otherwise, retry the delete operation
+                  _deleteFile(document);
+                }
+              },
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  /// Remove document from local UI when backend deletion fails due to "not found"
+  void _removeFromLocalUI(DocumentModel document) {
+    try {
+      debugPrint(
+        '🧹 HomeScreen: Removing document from local UI: ${document.fileName}',
+      );
+
+      final documentProvider = Provider.of<DocumentProvider>(
+        context,
+        listen: false,
+      );
+
+      // Force remove from local cache without backend call
+      documentProvider.forceRemoveFromLocal(document.id);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.error, color: Colors.white, size: 20),
+                const Icon(
+                  Icons.cleaning_services,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Failed to delete ${document.fileName}: ${e.toString()}',
+                    '${document.fileName} removed from view',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'Retry',
-              textColor: Colors.white,
-              onPressed: () => _deleteFile(document),
-            ),
+            backgroundColor: AppColors.primary,
+            duration: const Duration(seconds: 2),
           ),
         );
       }
+    } catch (e) {
+      debugPrint('❌ HomeScreen: Failed to remove from local UI: $e');
     }
   }
 

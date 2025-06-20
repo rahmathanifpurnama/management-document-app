@@ -319,10 +319,12 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
           Navigator.pop(context);
           _showRemoveFileDialog(document);
         },
-        onDelete: () {
-          Navigator.pop(context);
-          _showDeleteConfirmation(document);
-        },
+        onDelete: _isCurrentUserAdmin()
+            ? () {
+                Navigator.pop(context);
+                _showDeleteConfirmation(document);
+              }
+            : null,
       ),
     );
   }
@@ -586,8 +588,36 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
     );
   }
 
+  /// Check if current user is admin
+  bool _isCurrentUserAdmin() {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final currentUser = authProvider.currentUser;
+      return currentUser?.isAdmin ?? false;
+    } catch (e) {
+      debugPrint('⚠️ Error checking admin status: $e');
+      return false;
+    }
+  }
+
   Future<void> _deleteFile(DocumentModel document) async {
     try {
+      // ADMIN-ONLY: Double-check admin status before deletion
+      if (!_isCurrentUserAdmin()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Access denied: Only administrators can delete files',
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
       // Show loading indicator
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

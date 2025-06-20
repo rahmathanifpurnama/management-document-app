@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/upload_file_model.dart';
 import '../services/consolidated_upload_service.dart';
 import '../services/file_hash_service.dart';
+import '../services/statistics_notification_service.dart';
 import '../core/config/cloud_functions_config.dart';
 import '../core/config/file_config.dart';
 import '../services/error_message_service.dart';
@@ -20,6 +22,8 @@ class ConsolidatedUploadProvider with ChangeNotifier {
 
   final ConsolidatedUploadService _uploadService = ConsolidatedUploadService();
   final FileHashService _hashService = FileHashService();
+  final StatisticsNotificationService _statisticsService =
+      StatisticsNotificationService.instance;
   final List<UploadFileModel> _uploadQueue = [];
   final Map<String, StreamController<double>> _progressControllers = {};
 
@@ -195,7 +199,7 @@ class ConsolidatedUploadProvider with ChangeNotifier {
     }
   }
 
-  /// Upload a single file
+  /// Upload a single file with enhanced error handling
   Future<void> _uploadSingleFile(UploadFileModel file) async {
     try {
       debugPrint('📤 Uploading file: ${file.fileName}');
@@ -214,19 +218,70 @@ class ConsolidatedUploadProvider with ChangeNotifier {
         customMetadata: file.customMetadata,
       );
 
+      // Validate upload result
+      if (result['success'] != true) {
+        throw Exception(
+          result['message'] ?? 'Upload failed without specific error',
+        );
+      }
+
       // Update file with results
       _updateFileStatus(file.id, UploadStatus.completed);
       _updateFileDownloadUrl(file.id, result['downloadUrl']);
       _updateFileDocumentId(file.id, result['documentId']);
 
       // Add to document provider
-      _addToDocumentProvider(file);
+      await _addToDocumentProvider(file);
+
+      // STATISTICS UPDATE: Notify about successful file upload
+      try {
+        _statisticsService.notifyFileUploaded(
+          fileId: result['documentId'] ?? file.id,
+          fileName: file.fileName,
+          category: file.categoryId ?? 'uncategorized',
+          fileSize: file.fileSize,
+        );
+        debugPrint(
+          '📊 Statistics notification sent for uploaded file: ${file.fileName}',
+        );
+      } catch (statsError) {
+        debugPrint(
+          '⚠️ Statistics notification failed (non-critical): $statsError',
+        );
+        // Don't fail the upload if statistics update fails
+      }
 
       debugPrint('✅ File uploaded successfully: ${file.fileName}');
     } catch (e) {
-      debugPrint('❌ File upload failed: ${file.fileName} - $e');
+      final errorMessage = _categorizeUploadError(e);
+      debugPrint('❌ File upload failed: ${file.fileName} - $errorMessage');
       _updateFileStatus(file.id, UploadStatus.failed);
-      _updateFileError(file.id, e.toString());
+      _updateFileError(file.id, errorMessage);
+    }
+  }
+
+  /// Categorize upload errors for better user feedback
+  String _categorizeUploadError(dynamic error) {
+    final errorString = error.toString().toLowerCase();
+
+    if (errorString.contains('network') || errorString.contains('connection')) {
+      return 'Network error - please check your internet connection and try again';
+    } else if (errorString.contains('authentication') ||
+        errorString.contains('permission')) {
+      return 'Authentication error - please log in again and try again';
+    } else if (errorString.contains('storage') ||
+        errorString.contains('quota')) {
+      return 'Storage error - you may have reached your storage limit';
+    } else if (errorString.contains('file too large') ||
+        errorString.contains('size')) {
+      return 'File too large - please choose a smaller file';
+    } else if (errorString.contains('invalid') ||
+        errorString.contains('format')) {
+      return 'Invalid file format - please check the file type';
+    } else if (errorString.contains('timeout')) {
+      return 'Upload timeout - please try again with a stable connection';
+    } else {
+      return 'Upload failed - ${error.toString()}';
     }
   }
 
@@ -245,10 +300,16 @@ class ConsolidatedUploadProvider with ChangeNotifier {
     if (index != -1) {
       _uploadQueue[index] = _uploadQueue[index].copyWith(progress: progress);
 
-      // Emit progress to stream
+      // Emit progress to stream with error handling
       final controller = _progressControllers[fileId];
       if (controller != null && !controller.isClosed) {
-        controller.add(progress);
+        try {
+          controller.add(progress);
+        } catch (e) {
+          debugPrint('⚠️ Error updating progress for file $fileId: $e');
+          // Remove the problematic controller
+          _safelyCloseController(fileId);
+        }
       }
 
       notifyListeners();
@@ -286,14 +347,37 @@ class ConsolidatedUploadProvider with ChangeNotifier {
     }
   }
 
-  /// Add uploaded file to document provider
-  void _addToDocumentProvider(UploadFileModel file) {
+  /// Add uploaded file to document provider using unified ID system
+  Future<void> _addToDocumentProvider(UploadFileModel file) async {
     try {
-      // This would integrate with your document provider
-      // DocumentProvider.instance.addDocument(file.toDocument());
-      debugPrint('📋 File added to document provider: ${file.fileName}');
+      // UNIFIED ID SYSTEM: Convert upload file to DocumentModel with proper ID validation
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        debugPrint(
+          '⚠️ Cannot add to document provider: User not authenticated',
+        );
+        return;
+      }
+
+      final documentModel = await file.toDocument(
+        uploadedBy: currentUser.uid,
+        filePath:
+            'documents/${file.categoryId ?? 'uncategorized'}/${file.fileName}',
+      );
+
+      if (documentModel != null) {
+        // Add to document provider if conversion successful
+        // DocumentProvider.instance.addDocument(documentModel);
+        debugPrint(
+          '✅ File added to document provider: ${file.fileName} (ID: ${documentModel.id})',
+        );
+      } else {
+        debugPrint(
+          '⚠️ Failed to convert upload file to document model: ${file.fileName}',
+        );
+      }
     } catch (e) {
-      debugPrint('⚠️ Failed to add file to document provider: $e');
+      debugPrint('❌ Failed to add file to document provider: $e');
     }
   }
 
@@ -313,15 +397,25 @@ class ConsolidatedUploadProvider with ChangeNotifier {
         _uploadQueue.removeAt(index);
 
         // Close progress controller safely
-        final controller = _progressControllers[fileId];
-        if (controller != null && !controller.isClosed) {
-          controller.close();
-          _progressControllers.remove(fileId);
-        }
+        _safelyCloseController(fileId);
 
         notifyListeners();
         debugPrint('🗑️ File removed from queue: ${file.fileName}');
       }
+    }
+  }
+
+  /// Safely close and remove a progress controller
+  void _safelyCloseController(String fileId) {
+    try {
+      final controller = _progressControllers[fileId];
+      if (controller != null && !controller.isClosed) {
+        controller.close();
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error closing controller for file $fileId: $e');
+    } finally {
+      _progressControllers.remove(fileId);
     }
   }
 
@@ -355,14 +449,12 @@ class ConsolidatedUploadProvider with ChangeNotifier {
   /// Clear all files from queue
   void clearAll() {
     // Close all progress controllers safely
-    for (final controller in _progressControllers.values) {
-      if (!controller.isClosed) {
-        controller.close();
-      }
+    final controllerIds = List<String>.from(_progressControllers.keys);
+    for (final fileId in controllerIds) {
+      _safelyCloseController(fileId);
     }
 
     _uploadQueue.clear();
-    _progressControllers.clear();
     _isUploading = false;
 
     notifyListeners();
@@ -459,12 +551,10 @@ class ConsolidatedUploadProvider with ChangeNotifier {
   @override
   void dispose() {
     // Close all progress controllers safely
-    for (final controller in _progressControllers.values) {
-      if (!controller.isClosed) {
-        controller.close();
-      }
+    final controllerIds = List<String>.from(_progressControllers.keys);
+    for (final fileId in controllerIds) {
+      _safelyCloseController(fileId);
     }
-    _progressControllers.clear();
     super.dispose();
   }
 }

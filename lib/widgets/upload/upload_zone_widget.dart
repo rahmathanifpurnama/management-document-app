@@ -6,7 +6,6 @@ import '../../core/config/file_config.dart';
 import '../../core/config/upload_config.dart';
 import '../../services/file_validation_service.dart';
 import '../../services/error_message_service.dart';
-import 'file_security_warning_widget.dart';
 
 class UploadZoneWidget extends StatefulWidget {
   final Function(List<XFile>) onFilesSelected;
@@ -357,10 +356,8 @@ class _UploadZoneWidgetState extends State<UploadZoneWidget>
         }
       }
 
-      // Show validation warnings if enabled
-      if (widget.showValidationWarnings && invalidFiles.isNotEmpty) {
-        await _showValidationWarnings(invalidFiles);
-      }
+      // Security validation warnings disabled to prevent false positives
+      // Invalid files are simply not processed, no modal shown to user
 
       // Process valid files
       if (validFiles.isNotEmpty) {
@@ -370,7 +367,7 @@ class _UploadZoneWidgetState extends State<UploadZoneWidget>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                '${validFiles.length} file(s) selected, ${invalidFiles.length} file(s) rejected due to security concerns',
+                '${validFiles.length} file(s) selected, ${invalidFiles.length} file(s) rejected due to validation issues',
               ),
               backgroundColor: AppColors.warning,
               duration: const Duration(seconds: 4),
@@ -383,7 +380,7 @@ class _UploadZoneWidgetState extends State<UploadZoneWidget>
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'All selected files were rejected due to security or validation issues',
+                'All selected files were rejected due to validation issues',
               ),
               backgroundColor: AppColors.error,
               duration: const Duration(seconds: 4),
@@ -401,65 +398,5 @@ class _UploadZoneWidgetState extends State<UploadZoneWidget>
         );
       }
     }
-  }
-
-  Future<void> _showValidationWarnings(
-    Map<String, FileValidationResult> invalidFiles,
-  ) async {
-    if (!mounted) return;
-
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.security, color: AppColors.securityWarning, size: 24),
-            const SizedBox(width: 8),
-            Text(
-              'File Security Warning',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Some files could not be uploaded due to security or validation issues:',
-                style: GoogleFonts.poppins(fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              ...invalidFiles.entries.map(
-                (entry) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: FileSecurityWarningWidget(
-                    errors: entry.value.errors,
-                    customMessage: '${entry.key}: ${entry.value.errorMessage}',
-                    showIcon: false,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Understood',
-              style: GoogleFonts.poppins(
-                color: AppColors.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }

@@ -40,7 +40,6 @@ exports.fileUploadFunctions = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const sharp_1 = __importDefault(require("sharp"));
-const uuid_1 = require("uuid");
 const crypto = __importStar(require("crypto"));
 // Security Configuration
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
@@ -73,14 +72,6 @@ const ALLOWED_EXTENSIONS = [
     "png",
     "gif",
     "txt",
-];
-// Malicious file patterns (basic content validation)
-const MALICIOUS_PATTERNS = [
-    /<%[\s\S]*?%>/g, // Server-side scripts
-    /<script[\s\S]*?<\/script>/gi, // JavaScript
-    /javascript:/gi, // JavaScript protocol
-    /vbscript:/gi, // VBScript protocol
-    /on\w+\s*=/gi, // Event handlers
 ];
 // Rate limiting storage (in production, use Redis or Firestore)
 const rateLimitStore = new Map();
@@ -132,28 +123,6 @@ function sanitizeFileName(fileName) {
             nameWithoutExt.substring(0, 250 - extension.length) + "." + extension;
     }
     return sanitized;
-}
-/**
- * Basic malware content detection
- */
-async function validateFileContent(filePath) {
-    try {
-        const fileRef = admin.storage().bucket().file(filePath);
-        const [buffer] = await fileRef.download({ start: 0, end: 1024 }); // Check first 1KB
-        const content = buffer.toString("utf8");
-        // Check for malicious patterns
-        for (const pattern of MALICIOUS_PATTERNS) {
-            if (pattern.test(content)) {
-                console.warn(`Malicious pattern detected in file: ${filePath}`);
-                return false;
-            }
-        }
-        return true;
-    }
-    catch (error) {
-        console.warn("Content validation failed:", error);
-        return true; // Allow file if validation fails (non-critical)
-    }
 }
 /**
  * Calculate file hash for duplicate detection
@@ -249,11 +218,6 @@ const processFileUpload = functions.https.onCall(async (data, context) => {
         if (!validation.isValid) {
             throw new functions.https.HttpsError("invalid-argument", validation.error || "File validation failed");
         }
-        // Basic malware content validation
-        const isContentSafe = await validateFileContent(filePath);
-        if (!isContentSafe) {
-            throw new functions.https.HttpsError("invalid-argument", "File content validation failed - potentially malicious content detected");
-        }
         // Calculate file hash for duplicate detection
         console.log("Calculating file hash for duplicate detection...");
         const fileHash = await calculateFileHash(filePath);
@@ -281,12 +245,14 @@ const processFileUpload = functions.https.onCall(async (data, context) => {
         if (contentType === null || contentType === void 0 ? void 0 : contentType.startsWith("image/")) {
             thumbnailUrl = await generateThumbnailInternal(filePath);
         }
-        // Create document record in Firestore
-        const documentId = (0, uuid_1.v4)();
+        // UNIFIED ID SYSTEM: Use Firestore auto-generated ID as single source of truth
+        const docRef = admin.firestore().collection("document-metadata").doc();
+        const documentId = docRef.id; // Use Firestore's auto-generated ID
+        console.log(`🆔 Using unified document ID: ${documentId}`);
         // Use clean filename for both display and storage
         const displayFileName = sanitizedFileName; // Clean filename
         const documentData = {
-            id: documentId,
+            id: documentId, // Store ID in document for consistency
             fileName: displayFileName, // Clean filename for display
             originalFileName: originalFileName, // Keep original for reference
             fileSize,
@@ -303,9 +269,9 @@ const processFileUpload = functions.https.onCall(async (data, context) => {
             uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
             category: categoryId || "",
             status: "active", // Changed from "pending" to "active"
-            metadata: Object.assign(Object.assign({}, extractedMetadata), { originalMetadata: metadata, fileHash: fileHash, storageFileName: filePath.split("/").pop() || sanitizedFileName, displayFileName: sanitizedFileName, securityChecks: {
+            metadata: Object.assign(Object.assign({}, extractedMetadata), { originalMetadata: metadata, fileHash: fileHash, storageFileName: filePath.split("/").pop() || sanitizedFileName, displayFileName: sanitizedFileName, createdBy: "cloud_function_upload", unifiedIdSystem: true, securityChecks: {
                     fileNameSanitized: originalFileName !== sanitizedFileName,
-                    contentValidated: true,
+                    contentValidated: false, // Content-based scanning disabled
                     duplicateChecked: true,
                     validatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 } }),

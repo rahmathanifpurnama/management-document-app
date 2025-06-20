@@ -489,9 +489,85 @@ const bulkUserOperations = functions.https.onCall(
   }
 );
 
+/**
+ * Set admin custom claims for a user
+ */
+const setAdminClaims = functions.https.onCall(async (data: { userId: string, isAdmin: boolean }, context) => {
+  // Only existing admins can set admin claims
+  if (!context.auth || !context.auth.token.admin) {
+    throw new functions.https.HttpsError(
+      "permission-denied",
+      "Only administrators can set admin claims"
+    );
+  }
+
+  try {
+    const { userId, isAdmin } = data;
+
+    // Set custom claims
+    await admin.auth().setCustomUserClaims(userId, { admin: isAdmin });
+
+    // Update user document in Firestore
+    await admin.firestore().collection("users").doc(userId).update({
+      role: isAdmin ? "admin" : "user",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedBy: context.auth.uid,
+    });
+
+    console.log(`Admin claims set for user ${userId}: ${isAdmin}`);
+
+    return {
+      success: true,
+      message: `User ${userId} ${isAdmin ? "granted" : "revoked"} admin privileges`,
+    };
+  } catch (error) {
+    console.error("Error setting admin claims:", error);
+    throw new functions.https.HttpsError(
+      "internal",
+      `Failed to set admin claims: ${error}`
+    );
+  }
+});
+
+/**
+ * Initialize admin user (for first-time setup)
+ */
+const initializeAdmin = functions.https.onCall(async (data: { email: string }, context) => {
+  try {
+    const { email } = data;
+
+    // Get user by email
+    const userRecord = await admin.auth().getUserByEmail(email);
+
+    // Set admin claims
+    await admin.auth().setCustomUserClaims(userRecord.uid, { admin: true });
+
+    // Update user document in Firestore
+    await admin.firestore().collection("users").doc(userRecord.uid).update({
+      role: "admin",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    console.log(`Admin initialized for user: ${email}`);
+
+    return {
+      success: true,
+      message: `Admin privileges granted to ${email}`,
+    };
+  } catch (error) {
+    console.error("Error initializing admin:", error);
+    throw new functions.https.HttpsError(
+      "internal",
+      `Failed to initialize admin: ${error}`
+    );
+  }
+});
+
 export const userFunctions = {
   createUser,
   updateUserPermissions,
   deleteUser,
   bulkUserOperations,
+  setAdminClaims,
+  initializeAdmin,
 };

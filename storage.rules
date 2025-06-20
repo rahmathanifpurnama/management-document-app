@@ -30,9 +30,23 @@ service firebase.storage {
       allow update: if request.auth != null
                     && resource.metadata.uploadedBy == request.auth.uid;
 
-      // Allow delete for document owner (admin check moved to client-side to prevent ANR)
+      // ADMIN-ONLY DELETE RULES: Only admin users can delete files
       allow delete: if request.auth != null
-                    && resource.metadata.uploadedBy == request.auth.uid;
+                    && request.auth.token.admin == true;
+    }
+
+    // User-specific documents folder (new structure)
+    match /documents/{userId}/{fileName} {
+      // Allow read for authenticated users
+      allow read: if request.auth != null;
+
+      // Allow create/update for the file owner
+      allow create, update: if request.auth != null
+                            && request.auth.uid == userId;
+
+      // Allow delete ONLY for admin users
+      allow delete: if request.auth != null
+                    && request.auth.token.admin == true;
     }
 
     // Profile images storage

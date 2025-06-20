@@ -470,6 +470,22 @@ class CloudFunctionsService {
     }
   }
 
+  /// Delete a document permanently
+  Future<Map<String, dynamic>> deleteDocument(String documentId) async {
+    try {
+      debugPrint('🔄 Deleting document via Cloud Function: $documentId');
+
+      final callable = _functions.httpsCallable('deleteDocument');
+      final result = await callable.call({'documentId': documentId});
+
+      debugPrint('✅ Document deleted successfully');
+      return Map<String, dynamic>.from(result.data);
+    } catch (e) {
+      debugPrint('❌ Error deleting document: $e');
+      rethrow;
+    }
+  }
+
   /// Bulk document operations
   Future<Map<String, dynamic>> bulkDocumentOperations({
     required String operation,

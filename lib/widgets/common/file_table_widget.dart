@@ -747,19 +747,21 @@ class _FileTableWidgetState extends State<FileTableWidget> {
             ],
           ),
         ),
-        PopupMenuItem(
-          value: 'delete',
-          child: Row(
-            children: [
-              const Icon(Icons.delete, color: Colors.red, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                'Delete',
-                style: GoogleFonts.poppins(fontSize: 14, color: Colors.red),
-              ),
-            ],
+        // ADMIN-ONLY: Only show delete option for admin users
+        if (_isCurrentUserAdmin())
+          PopupMenuItem(
+            value: 'delete',
+            child: Row(
+              children: [
+                const Icon(Icons.delete, color: Colors.red, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Delete',
+                  style: GoogleFonts.poppins(fontSize: 14, color: Colors.red),
+                ),
+              ],
+            ),
           ),
-        ),
       ],
     );
   }
@@ -971,10 +973,38 @@ class _FileTableWidgetState extends State<FileTableWidget> {
     );
   }
 
+  /// Check if current user is admin
+  bool _isCurrentUserAdmin() {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final currentUser = authProvider.currentUser;
+      return currentUser?.isAdmin ?? false;
+    } catch (e) {
+      debugPrint('⚠️ Error checking admin status: $e');
+      return false;
+    }
+  }
+
   /// Perform actual file deletion
   Future<void> _performDelete(DocumentModel document) async {
     try {
       if (!mounted) return;
+
+      // ADMIN-ONLY: Double-check admin status before deletion
+      if (!_isCurrentUserAdmin()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Access denied: Only administrators can delete files',
+              ),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1004,6 +1034,13 @@ class _FileTableWidgetState extends State<FileTableWidget> {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final currentUserId = authProvider.currentUser?.id ?? 'unknown';
 
+      // ENHANCED DEBUG: Log detailed information before deletion
+      debugPrint('🗑️ UI: Starting deletion for document: ${document.id}');
+      debugPrint('📁 UI: Document fileName: ${document.fileName}');
+      debugPrint('📁 UI: Document filePath: ${document.filePath}');
+      debugPrint('👤 UI: Document uploadedBy: ${document.uploadedBy}');
+      debugPrint('👤 UI: Current user: $currentUserId');
+
       await documentProvider.removeDocument(document.id, currentUserId);
 
       if (mounted) {
@@ -1017,13 +1054,28 @@ class _FileTableWidgetState extends State<FileTableWidget> {
         );
       }
     } catch (e) {
+      // ENHANCED DEBUG: Log detailed error information
+      debugPrint('❌ UI: Delete operation failed for ${document.fileName}');
+      debugPrint('❌ UI: Error details: $e');
+      debugPrint('❌ UI: Error type: ${e.runtimeType}');
+
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Delete failed: ${e.toString()}'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Delete failed: ${document.fileName}'),
+                Text(
+                  'Error: ${e.toString()}',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
+            duration: const Duration(seconds: 5),
           ),
         );
       }

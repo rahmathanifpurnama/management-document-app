@@ -1,104 +1,44 @@
 const { db, COLLECTIONS, generateTimestamp, generateId } = require("./config");
 
-// Sample categories data that match the documents
+// Categories data - restored default categories
 const categoriesData = [
   {
-    id: "finance",
-    name: "Keuangan",
-    description: "Dokumen terkait keuangan, laporan, dan anggaran",
+    id: "surat-masuk",
+    name: "Surat Masuk",
+    description: "Kategori untuk surat-surat yang masuk ke organisasi",
     createdBy: "admin-uid-001", // Will be replaced with actual admin UID
-    createdAt: generateTimestamp(30), // 1 month ago
+    createdAt: generateTimestamp(30), // 30 days ago
     permissions: ["admin-uid-001", "user1-uid-002"],
     isActive: true,
     documentCount: 0
   },
   {
-    id: "projects",
-    name: "Proyek",
-    description: "Dokumen proyek, proposal, dan rencana pengembangan",
-    createdBy: "admin-uid-001",
+    id: "surat-keputusan",
+    name: "Surat Keputusan",
+    description: "Kategori untuk surat keputusan dan kebijakan organisasi",
+    createdBy: "admin-uid-001", // Will be replaced with actual admin UID
     createdAt: generateTimestamp(25), // 25 days ago
-    permissions: ["admin-uid-001", "user1-uid-002", "user2-uid-003"],
-    isActive: true,
-    documentCount: 0
-  },
-  {
-    id: "documentation",
-    name: "Dokumentasi",
-    description: "Panduan, manual, dan dokumentasi sistem",
-    createdBy: "user2-uid-003",
-    createdAt: generateTimestamp(20), // 20 days ago
-    permissions: ["admin-uid-001", "user1-uid-002", "user2-uid-003"],
-    isActive: true,
-    documentCount: 0
-  },
-  {
-    id: "legal",
-    name: "Legal",
-    description: "Dokumen hukum, surat keputusan, dan peraturan",
-    createdBy: "admin-uid-001",
-    createdAt: generateTimestamp(15), // 15 days ago
-    permissions: ["admin-uid-001"],
-    isActive: true,
-    documentCount: 0
-  },
-  {
-    id: "hr",
-    name: "SDM",
-    description: "Dokumen sumber daya manusia dan kepegawaian",
-    createdBy: "user3-uid-004",
-    createdAt: generateTimestamp(10), // 10 days ago
-    permissions: ["admin-uid-001", "user3-uid-004"],
-    isActive: true,
-    documentCount: 0
-  },
-  {
-    id: "strategy",
-    name: "Strategi",
-    description: "Rencana strategis dan dokumen perencanaan",
-    createdBy: "admin-uid-001",
-    createdAt: generateTimestamp(8), // 8 days ago
-    permissions: ["admin-uid-001", "user1-uid-002", "user2-uid-003"],
-    isActive: true,
-    documentCount: 0
-  },
-  {
-    id: "contracts",
-    name: "Kontrak",
-    description: "Kontrak, perjanjian, dan dokumen kerjasama",
-    createdBy: "user1-uid-002",
-    createdAt: generateTimestamp(12), // 12 days ago
     permissions: ["admin-uid-001", "user1-uid-002"],
     isActive: true,
     documentCount: 0
   },
   {
-    id: "technical",
-    name: "Teknis",
-    description: "Dokumen teknis, manual sistem, dan spesifikasi",
-    createdBy: "user2-uid-003",
-    createdAt: generateTimestamp(18), // 18 days ago
-    permissions: ["admin-uid-001", "user2-uid-003"],
+    id: "notulen-rapat",
+    name: "Notulen Rapat",
+    description: "Kategori untuk notulen dan hasil rapat organisasi",
+    createdBy: "admin-uid-001", // Will be replaced with actual admin UID
+    createdAt: generateTimestamp(20), // 20 days ago
+    permissions: ["admin-uid-001", "user1-uid-002"],
     isActive: true,
     documentCount: 0
   },
   {
-    id: "archive",
-    name: "Arsip",
-    description: "Dokumen arsip dan dokumen lama",
-    createdBy: "admin-uid-001",
-    createdAt: generateTimestamp(35), // 35 days ago
-    permissions: ["admin-uid-001"],
-    isActive: true,
-    documentCount: 0
-  },
-  {
-    id: "backup",
-    name: "Backup",
-    description: "File backup dan restore sistem",
-    createdBy: "user2-uid-003",
-    createdAt: generateTimestamp(5), // 5 days ago
-    permissions: ["admin-uid-001", "user2-uid-003"],
+    id: "laporan-evaluasi",
+    name: "Laporan Evaluasi",
+    description: "Kategori untuk laporan evaluasi dan monitoring",
+    createdBy: "admin-uid-001", // Will be replaced with actual admin UID
+    createdAt: generateTimestamp(15), // 15 days ago
+    permissions: ["admin-uid-001", "user1-uid-002"],
     isActive: true,
     documentCount: 0
   }
@@ -108,6 +48,13 @@ async function seedCategories() {
   console.log("🚀 Starting categories seeding...");
 
   try {
+    // Check if there are any categories to seed
+    if (categoriesData.length === 0) {
+      console.log("ℹ️ No default categories to seed. Categories collection will remain empty.");
+      console.log("💡 Add categories to the categoriesData array if you want to seed default categories.");
+      return;
+    }
+
     // Get actual user UIDs from users collection
     const usersSnapshot = await db.collection(COLLECTIONS.USERS).get();
     const userMap = {};

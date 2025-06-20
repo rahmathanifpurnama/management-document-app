@@ -42,14 +42,25 @@ service cloud.firestore {
         && !isAdmin()
         && request.query.limit <= 100;
 
-      // Allow write for document owner or admin
+      // Allow write for document owner or admin with unified ID validation
       allow write: if isAuthenticated()
-        && (request.auth.uid == resource.data.uploadedBy || isAdmin());
+        && (request.auth.uid == resource.data.uploadedBy || isAdmin())
+        && (
+          // If updating, ensure ID consistency is maintained
+          !('id' in request.resource.data) ||
+          request.resource.data.id == documentId
+        );
 
-      // Allow create for authenticated users
+      // Allow create for authenticated users with enhanced validation for unified ID system
       allow create: if isAuthenticated()
         && request.auth.uid == request.resource.data.uploadedBy
-        && request.resource.data.keys().hasAll(['fileName', 'uploadedAt', 'isActive']);
+        && request.resource.data.keys().hasAll(['id', 'fileName', 'uploadedAt', 'isActive'])
+        && request.resource.data.id == documentId  // Ensure unified ID consistency
+        && request.resource.data.isActive == true
+        && request.resource.data.status in ['active', 'pending']
+        && request.resource.data.fileName is string
+        && request.resource.data.fileName.size() > 0
+        && request.resource.data.fileName.size() <= 255;
 
       // ENHANCED: Unlimited batch operations for admin users
       allow list: if isAdmin()
@@ -63,12 +74,9 @@ service cloud.firestore {
         && 'isActive' in request.query.where
         && request.query.where.isActive == true;
 
-      // Allow admin to delete documents
+      // ADMIN-ONLY DELETE POLICY: Only administrators can delete documents
+      // This enforces the admin-only file deletion policy preference
       allow delete: if isAdmin();
-
-      // Allow document owner to delete their own documents
-      allow delete: if isAuthenticated()
-        && request.auth.uid == resource.data.uploadedBy;
     }
     
     // Categories collection with unlimited access
@@ -100,6 +108,37 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Processing queue collection removed since status management is removed
+    // Upload statistics collection for real-time file count tracking
+    match /upload-statistics/{statId} {
+      // Allow read for authenticated users
+      allow read: if isAuthenticated();
+
+      // Allow write for authenticated users (for real-time updates)
+      allow write: if isAuthenticated();
+
+      // Allow admin full access
+      allow read, write: if isAdmin();
+    }
+
+    // File validation logs collection (for security monitoring)
+    match /file-validation-logs/{logId} {
+      // Allow read for admin only
+      allow read: if isAdmin();
+
+      // Allow create for authenticated users (for logging validation results)
+      allow create: if isAuthenticated();
+
+      // Allow admin to delete old logs
+      allow delete: if isAdmin();
+    }
+
+    // Duplicate file detection cache
+    match /duplicate-cache/{cacheId} {
+      // Allow read/write for authenticated users (for duplicate detection)
+      allow read, write: if isAuthenticated();
+
+      // Allow admin full access
+      allow read, write, delete: if isAdmin();
+    }
   }
 }

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_selector/file_selector.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/upload_ui_constants.dart';
 
 import '../../providers/consolidated_upload_provider.dart';
 import '../../widgets/upload/duplicate_file_dialog.dart';
@@ -12,8 +13,6 @@ import '../../models/upload_file_model.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/upload/upload_zone_widget.dart';
 
-import '../../widgets/upload/api_upload_security_widget.dart';
-import '../../widgets/upload/api_enhanced_upload_widget.dart';
 import '../../services/ui_refresh_service.dart';
 import '../../widgets/common/file_filter_widget.dart';
 
@@ -30,10 +29,6 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
     with DuplicateFileHandler {
   bool _hasCompletedUploads = false;
   int _lastCompletedCount = 0;
-
-  // API Integration state
-  List<XFile> _selectedFiles = [];
-  bool _showApiWidgets = false;
 
   @override
   void initState() {
@@ -68,9 +63,8 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   void _checkForCompletedUploads(ConsolidatedUploadProvider uploadProvider) {
     final currentCompletedCount = uploadProvider.completedFiles;
 
-    // Only show notification if using ConsolidatedUploadProvider (not ApiEnhancedUploadWidget)
-    // This prevents duplicate notifications when both systems are active
-    if (currentCompletedCount > _lastCompletedCount && !_showApiWidgets) {
+    // Show notification when uploads are completed
+    if (currentCompletedCount > _lastCompletedCount) {
       _lastCompletedCount = currentCompletedCount;
       _hasCompletedUploads = true;
 
@@ -182,9 +176,6 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
 
   // Determine if upload progress should be shown
   bool _shouldShowUploadProgress(ConsolidatedUploadProvider uploadProvider) {
-    // Don't show if using API widgets (to avoid duplicate progress displays)
-    if (_showApiWidgets) return false;
-
     // Use the provider's built-in logic for determining visibility
     return uploadProvider.shouldShowQueue;
   }
@@ -192,19 +183,16 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   // Build file upload information widget
   Widget _buildFileUploadInfo() {
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.lightBlue.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppColors.lightBlue.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
+      padding: UploadUIConstants.smallContainerPadding,
+      decoration: UploadUIConstants.infoContainerDecoration,
       child: Row(
         children: [
-          Icon(Icons.info_outline, color: AppColors.info, size: 16),
-          const SizedBox(width: 8),
+          Icon(
+            Icons.info_outline,
+            color: AppColors.info,
+            size: UploadUIConstants.smallIconSize,
+          ),
+          SizedBox(width: UploadUIConstants.smallSpacing),
           Expanded(
             child: Text(
               'Files will be uploaded with their original names. Make sure your filenames are descriptive and unique.',
@@ -270,38 +258,17 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
                   UploadZoneWidget(
                     onFilesSelected: (files) => _handleFilesSelected(files),
                     isEnabled: !uploadProvider.isUploading,
+                    showValidationWarnings:
+                        false, // Disable security warnings to prevent false positives
                   ),
 
                   // File upload info - Show helpful information about file upload
-                  if (_selectedFiles.isNotEmpty ||
-                      uploadProvider.uploadQueue.isNotEmpty) ...[
+                  if (uploadProvider.uploadQueue.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     _buildFileUploadInfo(),
                   ],
 
                   const SizedBox(height: 16),
-
-                  // Upload Security Widget - Show when files are selected
-                  if (_showApiWidgets && _selectedFiles.isNotEmpty) ...[
-                    ApiUploadSecurityWidget(
-                      selectedFiles: _selectedFiles,
-                      onValidationComplete: _onValidationComplete,
-                      showSecurityStatus: true,
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // Enhanced Upload Widget - Show when files are selected
-                  if (_showApiWidgets && _selectedFiles.isNotEmpty) ...[
-                    ApiEnhancedUploadWidget(
-                      selectedFiles: _selectedFiles,
-                      categoryId: widget.categoryId,
-                      onUploadComplete: _onUploadComplete,
-                      allowRetry: true,
-                      maxConcurrentUploads: 3,
-                    ),
-                    const SizedBox(height: 16),
-                  ],
 
                   // Upload Progress - Only show when files are actively being processed
                   if (_shouldShowUploadProgress(uploadProvider)) ...[
@@ -326,12 +293,6 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   // Handle file selection
   Future<void> _handleFilesSelected(List<XFile> files) async {
     if (files.isNotEmpty) {
-      // Update selected files for API widgets
-      setState(() {
-        _selectedFiles = files;
-        _showApiWidgets = true;
-      });
-
       final uploadProvider = Provider.of<ConsolidatedUploadProvider>(
         context,
         listen: false,
@@ -363,46 +324,6 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
           }
         }
       }
-    }
-  }
-
-  // Handle validation completion from security widget
-  void _onValidationComplete(List<Map<String, dynamic>> results) {
-    // Validation results processed
-  }
-
-  // Handle upload completion from enhanced upload widget
-  void _onUploadComplete(List<UploadResult> results) {
-    final successCount = results.where((r) => r.success).length;
-    final failedCount = results.where((r) => !r.success).length;
-
-    debugPrint('📊 Upload completion summary:');
-    debugPrint('   ✅ Successful uploads: $successCount');
-    debugPrint('   ❌ Failed uploads: $failedCount');
-    debugPrint('   📁 Total results: ${results.length}');
-
-    if (mounted) {
-      // Show immediate completion notification with correct counts
-      _showFinalUploadNotification(successCount, failedCount);
-
-      // Clear selected files after upload
-      setState(() {
-        _selectedFiles = [];
-        _showApiWidgets = false;
-      });
-
-      debugPrint(
-        '🔄 Upload UI state cleared: _selectedFiles and _showApiWidgets reset',
-      );
-
-      // Trigger UI refresh
-      UIRefreshService.refreshAfterUpload(
-        context,
-        categoryId: widget.categoryId,
-      );
-
-      // Schedule delayed queue cleanup (after user sees the notification)
-      _scheduleDelayedQueueCleanup();
     }
   }
 
@@ -442,18 +363,8 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
     final progress = totalFiles > 0 ? (completedFiles / totalFiles) : 0.0;
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      padding: UploadUIConstants.containerPadding,
+      decoration: UploadUIConstants.defaultContainerDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -478,16 +389,16 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: UploadUIConstants.smallSpacing),
           LinearProgressIndicator(
             value: progress,
             backgroundColor: Colors.grey[200],
             valueColor: AlwaysStoppedAnimation<Color>(
               failedFiles > 0 ? AppColors.error : AppColors.primary,
             ),
-            minHeight: 8,
+            minHeight: UploadUIConstants.progressIndicatorHeight,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: UploadUIConstants.smallSpacing),
           Row(
             children: [
               if (uploadingFiles > 0) ...[
@@ -564,18 +475,8 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
     final files = _applyFileTypeFilter(allFiles);
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      padding: UploadUIConstants.containerPadding,
+      decoration: UploadUIConstants.defaultContainerDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

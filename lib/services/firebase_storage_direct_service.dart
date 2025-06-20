@@ -3,6 +3,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:uuid/uuid.dart';
 import '../models/document_model.dart';
 import '../core/services/firebase_service.dart';
+import '../core/services/unified_id_system.dart';
 import '../core/utils/anr_prevention.dart';
 import '../core/config/anr_config.dart';
 import '../core/utils/circuit_breaker.dart';
@@ -17,6 +18,7 @@ class FirebaseStorageDirectService {
   FirebaseStorageDirectService._();
 
   final FirebaseService _firebaseService = FirebaseService.instance;
+  final UnifiedIdSystem _unifiedIdSystem = UnifiedIdSystem.instance;
 
   /// ARCHITECTURAL FIX: Optimized file fetching with proper empty state handling
   Future<List<DocumentModel>> getAllFilesFromStorage() async {
@@ -122,8 +124,25 @@ class FirebaseStorageDirectService {
       final fileSize = metadata.size ?? 0;
       final uploadedAt = metadata.timeCreated ?? DateTime.now();
 
-      // Generate document ID using UUID (standardized across all systems)
-      final documentId = const Uuid().v4();
+      // UNIFIED ID SYSTEM: Try to resolve existing Firestore ID first
+      String documentId;
+      final existingId = await _unifiedIdSystem.getFirestoreIdFromStoragePath(
+        ref.fullPath,
+      );
+
+      if (existingId != null) {
+        // Use existing Firestore ID for consistency
+        documentId = existingId;
+        debugPrint(
+          '🔗 Using existing Firestore ID: $documentId for ${ref.name}',
+        );
+      } else {
+        // Generate new UUID as fallback (will be reconciled later)
+        documentId = const Uuid().v4();
+        debugPrint(
+          '⚠️ Generated fallback UUID: $documentId for ${ref.name} (needs reconciliation)',
+        );
+      }
 
       // Determine file type from extension
       final fileType = _getFileTypeFromName(fileName);

@@ -28,9 +28,9 @@ async function seedAll() {
     // Summary
     console.log("\n📊 Seeding Summary:");
     console.log("✅ Users: 5 users created (1 admin, 4 regular users)");
-    console.log("✅ Categories: 10 categories created with realistic data");
-    console.log("✅ Documents: 10 sample documents created with metadata");
-    console.log("✅ Activities: 0 activities created (empty state for new users)");
+    console.log("✅ Categories: 4 default categories (Surat Masuk, Surat Keputusan, Notulen Rapat, Laporan Evaluasi)");
+    console.log("✅ Documents: 4 default document metadata entries (1 per category)");
+    console.log("✅ Activities: Sample activities created based on existing users");
 
     console.log("\n🔐 Default Login Credentials:");
     console.log("Admin: admin@simdoc.com / password123");
@@ -40,11 +40,12 @@ async function seedAll() {
     console.log("User4: user4@simdoc.com / password123 (inactive)");
 
     console.log("\n💡 Next Steps:");
-    console.log("1. Verify data in Firebase Console (document-metadata collection)");
-    console.log("2. Test login with the provided credentials");
-    console.log("3. Deploy updated Firestore security rules");
-    console.log("4. Test document upload and categorization features");
+    console.log("1. Test login with the provided credentials");
+    console.log("2. Verify default categories and documents are properly seeded");
+    console.log("3. Upload additional documents through the application interface");
+    console.log("4. Deploy updated Firestore security rules");
     console.log("5. Verify search and filter functionality works correctly");
+    console.log("6. Note: Default categories and sample documents are now seeded for testing!");
   } catch (error) {
     console.error("\n💥 Seeding failed:", error);
     process.exit(1);

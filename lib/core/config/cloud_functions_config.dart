@@ -19,6 +19,7 @@ class CloudFunctionsConfig {
   static const String addFilesToCategoryFunction = 'addFilesToCategory';
   static const String removeFilesFromCategoryFunction =
       'removeFilesFromCategory';
+  static const String deleteDocumentFunction = 'deleteDocument';
   static const String createUserFunction = 'createUser';
   static const String updateUserPermissionsFunction = 'updateUserPermissions';
   static const String deleteUserFunction = 'deleteUser';
@@ -285,6 +286,21 @@ class CloudFunctionsConfig {
     return await callFunctionWithRetry<Map<String, dynamic>>(
       deleteCategoryFunction,
       {'categoryId': categoryId},
+    );
+  }
+
+  /// Delete document using Cloud Functions
+  static Future<Map<String, dynamic>> deleteDocument(String documentId) async {
+    if (!_isAvailable) {
+      throw Exception('Cloud Functions not available');
+    }
+
+    return await callFunctionWithRetry<Map<String, dynamic>>(
+      deleteDocumentFunction,
+      {'documentId': documentId},
+      timeout: const Duration(
+        minutes: 3,
+      ), // Longer timeout for delete operations
     );
   }
 

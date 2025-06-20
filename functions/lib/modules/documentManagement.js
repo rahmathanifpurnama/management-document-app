@@ -228,6 +228,144 @@ const bulkDocumentOperations = functions.https.onCall(async (data, context) => {
     }
 });
 /**
+ * Delete document permanently (from both Firestore and Storage)
+ * This function provides atomic deletion with proper error handling
+ */
+const deleteDocument = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
+    }
+    try {
+        const { documentId } = data;
+        if (!documentId) {
+            throw new functions.https.HttpsError("invalid-argument", "Document ID is required");
+        }
+        console.log(`🗑️ Starting delete operation for document: ${documentId}`);
+        // ADMIN-ONLY: Check user permissions
+        const userDoc = await admin
+            .firestore()
+            .collection("users")
+            .doc(context.auth.uid)
+            .get();
+        const user = userDoc.data();
+        if (!user || user.role !== "admin") {
+            throw new functions.https.HttpsError("permission-denied", "Access denied: Only administrators can delete files");
+        }
+        console.log(`✅ Admin permission verified for user: ${context.auth.uid}`);
+        // Get document metadata from Firestore
+        const docRef = admin.firestore().collection("document-metadata").doc(documentId);
+        const docSnapshot = await docRef.get();
+        if (!docSnapshot.exists) {
+            console.log(`⚠️ Document not found in Firestore: ${documentId}`);
+            throw new functions.https.HttpsError("not-found", "Document not found in database");
+        }
+        const documentData = docSnapshot.data();
+        const fileName = (documentData === null || documentData === void 0 ? void 0 : documentData.fileName) || "Unknown File";
+        const filePath = (documentData === null || documentData === void 0 ? void 0 : documentData.filePath) || "";
+        console.log(`📁 Found document: ${fileName} at path: ${filePath}`);
+        // ATOMIC OPERATION: Delete from both Storage and Firestore
+        const bucket = admin.storage().bucket();
+        let storageDeleted = false;
+        let firestoreDeleted = false;
+        try {
+            // Step 1: Delete from Firebase Storage
+            if (filePath) {
+                try {
+                    const file = bucket.file(filePath);
+                    await file.delete();
+                    storageDeleted = true;
+                    console.log(`✅ Successfully deleted from Storage: ${filePath}`);
+                }
+                catch (storageError) {
+                    console.log(`⚠️ Storage deletion failed: ${storageError.message}`);
+                    // Try alternative storage paths
+                    const alternativePaths = [
+                        `documents/${documentData === null || documentData === void 0 ? void 0 : documentData.uploadedBy}/${fileName}`,
+                        `documents/${fileName}`,
+                        `documents/${documentId}`,
+                    ];
+                    for (const altPath of alternativePaths) {
+                        try {
+                            const altFile = bucket.file(altPath);
+                            await altFile.delete();
+                            storageDeleted = true;
+                            console.log(`✅ Successfully deleted from alternative path: ${altPath}`);
+                            break;
+                        }
+                        catch (altError) {
+                            console.log(`⚠️ Alternative path failed: ${altPath}`);
+                        }
+                    }
+                    if (!storageDeleted) {
+                        console.log(`❌ All storage deletion attempts failed for: ${fileName}`);
+                        // Continue with Firestore deletion even if storage fails
+                    }
+                }
+            }
+            else {
+                console.log(`⚠️ No file path found, skipping storage deletion`);
+            }
+            // Step 2: Delete from Firestore
+            await docRef.delete();
+            firestoreDeleted = true;
+            console.log(`✅ Successfully deleted from Firestore: ${documentId}`);
+            // Step 3: Log activity
+            await admin
+                .firestore()
+                .collection("activities")
+                .add({
+                type: "document_deleted",
+                documentId: documentId,
+                userId: context.auth.uid,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                details: `Document permanently deleted: ${fileName}`,
+                metadata: {
+                    fileName: fileName,
+                    filePath: filePath,
+                    storageDeleted: storageDeleted,
+                    firestoreDeleted: firestoreDeleted,
+                },
+            });
+            console.log(`✅ Delete operation completed successfully for: ${fileName}`);
+            return {
+                success: true,
+                message: `Document "${fileName}" deleted successfully`,
+                details: {
+                    documentId: documentId,
+                    fileName: fileName,
+                    storageDeleted: storageDeleted,
+                    firestoreDeleted: firestoreDeleted,
+                },
+            };
+        }
+        catch (operationError) {
+            console.error(`❌ Delete operation failed: ${operationError.message}`);
+            // Log failed deletion attempt
+            await admin
+                .firestore()
+                .collection("activities")
+                .add({
+                type: "document_delete_failed",
+                documentId: documentId,
+                userId: context.auth.uid,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                details: `Failed to delete document: ${fileName}`,
+                error: operationError.message,
+            });
+            throw new functions.https.HttpsError("internal", `Failed to delete document: ${operationError.message}`);
+        }
+    }
+    catch (error) {
+        console.error("Error in deleteDocument function:", error);
+        // Re-throw HttpsError as-is
+        if (error instanceof functions.https.HttpsError) {
+            throw error;
+        }
+        // Wrap other errors
+        throw new functions.https.HttpsError("internal", `Delete operation failed: ${error.message || error}`);
+    }
+});
+/**
  * Generate document report
  */
 const generateDocumentReport = functions.https.onCall(async (data, context) => {
@@ -338,6 +476,7 @@ function getFileTypeFromName(fileName) {
 exports.documentFunctions = {
     approveDocument,
     rejectDocument,
+    deleteDocument,
     bulkDocumentOperations,
     generateDocumentReport,
 };

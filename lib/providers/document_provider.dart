@@ -11,14 +11,24 @@ import '../core/services/category_service.dart';
 import '../services/file_category_management_service.dart';
 import '../services/cloud_functions_service.dart';
 import '../core/config/anr_config.dart';
+import '../core/config/feature_flags.dart';
 import '../config/firebase_config.dart';
 import 'category_provider.dart';
 
 import '../services/enhanced_document_service.dart';
 import '../services/enhanced_firebase_storage_service.dart';
 import '../services/enhanced_auth_service.dart';
+
+// UNIFIED ID SYSTEM: Import new architectural services
+import '../core/services/unified_id_system.dart';
+import '../core/services/database_version_tracker.dart';
+import '../core/services/smart_cache_invalidation.dart';
+import '../core/services/id_reconciliation_service.dart';
 import '../services/document_state_manager.dart';
 import '../services/unified_document_loader.dart';
+import '../services/direct_storage_deletion_service.dart';
+import '../services/optimized_deletion_service.dart';
+import '../services/statistics_notification_service.dart';
 import '../core/utils/circuit_breaker.dart';
 import '../core/utils/empty_storage_state_manager.dart';
 
@@ -82,6 +92,25 @@ class DocumentProvider extends ChangeNotifier {
 
   // UNIFIED LOADING: Use unified document loader to eliminate race conditions
   final UnifiedDocumentLoader _unifiedLoader = UnifiedDocumentLoader.instance;
+
+  // OPTIMIZED DELETION: Services for improved deletion performance
+  final DirectStorageDeletionService _directStorageService =
+      DirectStorageDeletionService.instance;
+  final OptimizedDeletionService _optimizedDeletionService =
+      OptimizedDeletionService.instance;
+
+  // STATISTICS NOTIFICATION: Service for real-time statistics updates
+  final StatisticsNotificationService _statisticsService =
+      StatisticsNotificationService.instance;
+
+  // UNIFIED ID SYSTEM: New architectural services
+  final UnifiedIdSystem _unifiedIdSystem = UnifiedIdSystem.instance;
+  final DatabaseVersionTracker _versionTracker =
+      DatabaseVersionTracker.instance;
+  final SmartCacheInvalidation _cacheInvalidation =
+      SmartCacheInvalidation.instance;
+  final IdReconciliationService _reconciliationService =
+      IdReconciliationService.instance;
 
   /// Handle unified documents from the unified loader
   /// ENHANCED: Better synchronization with UnifiedDocumentLoader
@@ -336,9 +365,23 @@ class DocumentProvider extends ChangeNotifier {
     _errorMessage = null;
   }
 
-  // ENHANCED: Load documents with Firebase Storage priority
+  // ENHANCED: Load documents with Firebase Storage priority and smart cache invalidation
   Future<void> loadDocuments({bool forceRefresh = false}) async {
     final emptyStateManager = EmptyStorageStateManager.instance;
+
+    // UNIFIED ID SYSTEM: Initialize version tracking
+    await _versionTracker.initialize();
+
+    // SMART CACHE INVALIDATION: Check if cache should be refreshed
+    if (!forceRefresh) {
+      final shouldRefresh = await _versionTracker.shouldRefreshCache(
+        maxCacheAge: const Duration(hours: 1),
+      );
+      if (shouldRefresh) {
+        debugPrint('🔄 Smart cache invalidation triggered refresh');
+        forceRefresh = true;
+      }
+    }
 
     // Check if we should skip loading due to confirmed empty state
     if (!forceRefresh && emptyStateManager.shouldSkipLoading()) {
@@ -388,6 +431,11 @@ class DocumentProvider extends ChangeNotifier {
         _documents = List.from(storageDocuments);
         _isInitialized = true;
         await _saveToStorage();
+
+        // SMART CACHE INVALIDATION: Mark cache as valid after successful load
+        await _cacheInvalidation.markCacheAsValid(
+          documentCount: _documents.length,
+        );
 
         // Mark storage as not empty
         await emptyStateManager.setStorageNotEmpty();
@@ -1081,52 +1129,484 @@ class DocumentProvider extends ChangeNotifier {
   // Remove document permanently (from Firebase Storage and Firestore)
   Future<void> removeDocument(String documentId, String deletedBy) async {
     try {
-      // Delete from Firebase Storage and Firestore
-      await _documentService.deleteDocument(documentId, deletedBy);
+      debugPrint(
+        '🗑️ DocumentProvider: Starting document removal for ID: $documentId',
+      );
 
-      // Find and remove from local category storage
-      DocumentModel? docToRemove;
+      // ADMIN-ONLY: Verify admin status before proceeding
+      final isAdmin = await _verifyUserIsAdmin(deletedBy);
+      if (!isAdmin) {
+        throw Exception('Access denied: Only administrators can delete files');
+      }
+
+      // FEATURE FLAG: Use cloud function for deletion if enabled
+      if (FeatureFlags.useCloudFunctionDelete) {
+        await _deleteDocumentViaCloudFunction(documentId, deletedBy);
+        return;
+      }
+
+      // ENHANCED FIX: Force refresh from Firestore before deletion to ensure we have latest data
+      debugPrint('🔄 Refreshing documents from Firestore before deletion...');
+      await _refreshDocumentsFromFirestore();
+
+      // ENHANCED DELETE FIX: Find document in local cache first for better error handling
+      DocumentModel? localDocument;
       String? categoryToRemoveFrom;
 
-      for (final entry in _categoryDocuments.entries) {
-        final doc = entry.value.firstWhere(
-          (d) => d.id == documentId,
-          orElse: () => DocumentModel(
-            id: '',
-            fileName: '',
-            fileSize: 0,
-            fileType: '',
-            filePath: '',
-            uploadedBy: '',
-            uploadedAt: DateTime.now(),
-            category: '',
-            permissions: [],
-            metadata: DocumentMetadata(description: '', tags: []),
-          ),
-        );
-        if (doc.id.isNotEmpty) {
-          docToRemove = doc;
-          categoryToRemoveFrom = entry.key;
-          break;
+      // Find document in main list
+      localDocument = _documents.firstWhere(
+        (d) => d.id == documentId,
+        orElse: () => DocumentModel(
+          id: '',
+          fileName: '',
+          fileSize: 0,
+          fileType: '',
+          filePath: '',
+          uploadedBy: '',
+          uploadedAt: DateTime.now(),
+          category: '',
+          permissions: [],
+          metadata: DocumentMetadata(description: '', tags: []),
+        ),
+      );
+
+      // If not found in main list, search in category storage
+      if (localDocument.id.isEmpty) {
+        for (final entry in _categoryDocuments.entries) {
+          final doc = entry.value.firstWhere(
+            (d) => d.id == documentId,
+            orElse: () => DocumentModel(
+              id: '',
+              fileName: '',
+              fileSize: 0,
+              fileType: '',
+              filePath: '',
+              uploadedBy: '',
+              uploadedAt: DateTime.now(),
+              category: '',
+              permissions: [],
+              metadata: DocumentMetadata(description: '', tags: []),
+            ),
+          );
+          if (doc.id.isNotEmpty) {
+            localDocument = doc;
+            categoryToRemoveFrom = entry.key;
+            debugPrint('📁 Found document in category: $categoryToRemoveFrom');
+            break;
+          }
         }
       }
 
-      if (docToRemove != null && categoryToRemoveFrom != null) {
+      // Log what we found locally
+      if (localDocument?.id.isNotEmpty == true) {
+        debugPrint('✅ Found document locally: ${localDocument!.fileName}');
+      } else {
+        debugPrint('⚠️ Document not found in local cache: $documentId');
+      }
+
+      // OPTIMIZED DELETE: Use OptimizedDeletionService for comprehensive deletion handling
+      bool backendDeletionSuccessful = false;
+      String? backendError;
+      String deletionMethod = 'unknown';
+
+      try {
+        // Use OptimizedDeletionService for intelligent deletion
+        if (localDocument != null && localDocument.id.isNotEmpty) {
+          debugPrint('🚀 Using OptimizedDeletionService for deletion...');
+
+          final optimizedResult = await _optimizedDeletionService
+              .deleteDocument(localDocument, deletedBy);
+
+          if (optimizedResult.success) {
+            debugPrint('✅ Optimized deletion completed successfully');
+            backendDeletionSuccessful = true;
+            deletionMethod = optimizedResult.methodName;
+
+            debugPrint(
+              '📊 Deletion stats: Storage=${optimizedResult.storageDeleted}, Firestore=${optimizedResult.firestoreDeleted}, Duration=${optimizedResult.formattedDuration}',
+            );
+          } else {
+            debugPrint(
+              '❌ Optimized deletion failed: ${optimizedResult.message}',
+            );
+            backendError = optimizedResult.message;
+            deletionMethod = 'optimized_failed';
+
+            // Check if it's an authorization error
+            if (optimizedResult.errorCode == 'UNAUTHORIZED') {
+              throw Exception(
+                'Access denied: Only administrators can delete files',
+              );
+            }
+
+            // For other errors, still proceed with local cleanup
+            backendDeletionSuccessful = false;
+          }
+        } else {
+          // No local document metadata available, try traditional deletion
+          debugPrint(
+            '⚠️ No local document metadata, using traditional deletion...',
+          );
+
+          try {
+            await _documentService.deleteDocument(documentId, deletedBy);
+            debugPrint('✅ Traditional backend deletion completed successfully');
+            backendDeletionSuccessful = true;
+            deletionMethod = 'traditional_fallback';
+          } catch (deleteError) {
+            backendError = deleteError.toString();
+            debugPrint('❌ Traditional backend deletion failed: $deleteError');
+
+            // Handle specific error cases
+            if (deleteError.toString().contains('Document not found')) {
+              debugPrint(
+                'ℹ️ Document not found in backend - proceeding with local cleanup',
+              );
+              backendDeletionSuccessful = true;
+              deletionMethod = 'not_found_cleanup';
+            } else if (deleteError.toString().contains('CRITICAL')) {
+              debugPrint('🚨 Critical storage deletion issue detected');
+              backendDeletionSuccessful = false;
+              deletionMethod = 'critical_error';
+            } else {
+              // For other errors, rethrow to let the UI handle it
+              rethrow;
+            }
+          }
+        }
+      } catch (optimizedDeleteError) {
+        debugPrint('❌ Optimized deletion service error: $optimizedDeleteError');
+        backendError = optimizedDeleteError.toString();
+        backendDeletionSuccessful = false;
+        deletionMethod = 'service_error';
+
+        // Don't rethrow here - proceed with local cleanup
+      }
+
+      // ENHANCED DELETE FIX: Always perform local cleanup regardless of backend result
+      // This ensures UI consistency even if backend operations fail
+      bool localChanges = false;
+
+      // Remove from category storage
+      if (categoryToRemoveFrom != null &&
+          _categoryDocuments.containsKey(categoryToRemoveFrom)) {
+        final removedCount = _categoryDocuments[categoryToRemoveFrom]!.length;
         _categoryDocuments[categoryToRemoveFrom]!.removeWhere(
           (d) => d.id == documentId,
         );
+        final newCount = _categoryDocuments[categoryToRemoveFrom]!.length;
+        if (removedCount != newCount) {
+          localChanges = true;
+          debugPrint('✅ Removed from category storage: $categoryToRemoveFrom');
+        }
       }
 
       // Remove from main list
+      final originalCount = _documents.length;
       _documents.removeWhere((d) => d.id == documentId);
-      _applyFiltersAndSort();
+      if (_documents.length != originalCount) {
+        localChanges = true;
+        debugPrint('✅ Removed from main document list');
+      }
 
-      // Save to storage for persistence
-      await _saveToStorage();
+      // Remove from state manager cache
+      try {
+        _stateManager.removeDocument(documentId);
+        debugPrint('✅ Removed from state manager cache');
+      } catch (e) {
+        debugPrint('⚠️ Failed to remove from state manager: $e');
+      }
 
-      notifyListeners();
+      // Update UI and persistence if any local changes were made
+      if (localChanges) {
+        _applyFiltersAndSort();
+
+        // Save to storage for persistence
+        try {
+          await _saveToStorage();
+          debugPrint('✅ Local storage updated');
+        } catch (e) {
+          debugPrint('⚠️ Failed to update local storage: $e');
+        }
+
+        // Notify listeners to update UI
+        notifyListeners();
+        debugPrint('✅ UI updated');
+      }
+
+      // Log final status with backend deletion details and method used
+      if (backendDeletionSuccessful) {
+        debugPrint(
+          '✅ DocumentProvider: Document removal completed successfully for ID: $documentId (Method: $deletionMethod)',
+        );
+
+        // STATISTICS UPDATE: Notify about successful file deletion
+        if (localDocument != null && localDocument.id.isNotEmpty) {
+          _statisticsService.notifyFileDeleted(
+            fileId: localDocument.id,
+            fileName: localDocument.fileName,
+            category: localDocument.category,
+            fileSize: localDocument.fileSize,
+          );
+          debugPrint(
+            '📊 Statistics notification sent for deleted file: ${localDocument.fileName}',
+          );
+        }
+      } else {
+        debugPrint(
+          '⚠️ DocumentProvider: Document removal completed with backend issues for ID: $documentId (Method: $deletionMethod)',
+        );
+        if (backendError != null) {
+          debugPrint('📋 Backend error details: $backendError');
+        }
+      }
     } catch (e) {
+      debugPrint(
+        '❌ DocumentProvider: Failed to remove document $documentId: $e',
+      );
       throw Exception('Failed to remove document: ${e.toString()}');
+    }
+  }
+
+  /// Force remove document from local cache only (for UI cleanup)
+  void forceRemoveFromLocal(String documentId) {
+    try {
+      debugPrint(
+        '🧹 DocumentProvider: Force removing from local cache: $documentId',
+      );
+
+      bool localChanges = false;
+
+      // Remove from category storage
+      for (final entry in _categoryDocuments.entries) {
+        final removedCount = entry.value.length;
+        entry.value.removeWhere((d) => d.id == documentId);
+        if (entry.value.length != removedCount) {
+          localChanges = true;
+          debugPrint('✅ Removed from category storage: ${entry.key}');
+        }
+      }
+
+      // Remove from main list
+      final originalCount = _documents.length;
+      _documents.removeWhere((d) => d.id == documentId);
+      if (_documents.length != originalCount) {
+        localChanges = true;
+        debugPrint('✅ Removed from main document list');
+      }
+
+      // Remove from state manager cache
+      try {
+        _stateManager.removeDocument(documentId);
+        debugPrint('✅ Removed from state manager cache');
+      } catch (e) {
+        debugPrint('⚠️ Failed to remove from state manager: $e');
+      }
+
+      // Update UI if any changes were made
+      if (localChanges) {
+        _applyFiltersAndSort();
+        notifyListeners();
+        debugPrint('✅ Local UI updated');
+
+        // Save to storage asynchronously
+        _saveToStorage().catchError((e) {
+          debugPrint('⚠️ Failed to update local storage: $e');
+        });
+      }
+
+      debugPrint(
+        '✅ DocumentProvider: Force removal completed for: $documentId',
+      );
+    } catch (e) {
+      debugPrint('❌ DocumentProvider: Failed to force remove from local: $e');
+    }
+  }
+
+  /// Delete document using Cloud Function with unified ID system
+  Future<void> _deleteDocumentViaCloudFunction(
+    String documentId,
+    String deletedBy,
+  ) async {
+    // Find document in local cache for better error handling (declare outside try-catch)
+    DocumentModel? localDocument;
+    try {
+      localDocument = _documents.firstWhere((d) => d.id == documentId);
+      debugPrint('✅ Found document locally: ${localDocument.fileName}');
+    } catch (e) {
+      debugPrint('⚠️ Document not found in local cache: $documentId');
+    }
+
+    // Declare CloudFunctions service outside try-catch for error handling access
+    final cloudFunctions = CloudFunctionsService.instance;
+
+    try {
+      debugPrint(
+        '🚀 DocumentProvider: Deleting document via Cloud Function: $documentId',
+      );
+
+      // UNIFIED ID SYSTEM: Validate and normalize document ID before deletion
+      String actualDocumentId = documentId;
+      final isValidId = await _unifiedIdSystem.validateDocumentId(documentId);
+
+      if (!isValidId && localDocument != null) {
+        debugPrint(
+          '⚠️ Document ID validation failed, attempting reconciliation...',
+        );
+
+        // Try to find the correct Firestore ID using the unified system
+        final correctId = await _unifiedIdSystem.getFirestoreIdFromStoragePath(
+          localDocument.filePath,
+        );
+        if (correctId != null && correctId != documentId) {
+          debugPrint(
+            '🔄 Found correct Firestore ID: $correctId (was: $documentId)',
+          );
+          actualDocumentId = correctId;
+        } else {
+          debugPrint(
+            '❌ Could not resolve correct Firestore ID, proceeding with original ID',
+          );
+        }
+      }
+
+      // Call cloud function for deletion using the resolved document ID
+      final cloudFunctions = CloudFunctionsService.instance;
+      final result = await cloudFunctions.deleteDocument(actualDocumentId);
+
+      debugPrint('🔍 Called Cloud Function with ID: $actualDocumentId');
+
+      if (result['success'] == true) {
+        debugPrint('✅ Cloud function deletion successful');
+
+        // Remove from local cache
+        bool localChanges = false;
+
+        // Remove from category storage
+        for (final entry in _categoryDocuments.entries) {
+          final removedCount = entry.value.length;
+          entry.value.removeWhere((d) => d.id == documentId);
+          if (entry.value.length != removedCount) {
+            localChanges = true;
+            debugPrint('✅ Removed from category storage: ${entry.key}');
+          }
+        }
+
+        // Remove from main list
+        final originalCount = _documents.length;
+        _documents.removeWhere((d) => d.id == documentId);
+        if (_documents.length != originalCount) {
+          localChanges = true;
+          debugPrint('✅ Removed from main document list');
+        }
+
+        // Remove from state manager cache
+        try {
+          _stateManager.removeDocument(documentId);
+          debugPrint('✅ Removed from state manager cache');
+        } catch (e) {
+          debugPrint('⚠️ Failed to remove from state manager: $e');
+        }
+
+        // Update UI if any changes were made
+        if (localChanges) {
+          _applyFiltersAndSort();
+          notifyListeners();
+          debugPrint('✅ Local UI updated after cloud function deletion');
+
+          // Save to storage asynchronously
+          _saveToStorage().catchError((e) {
+            debugPrint('⚠️ Failed to update local storage: $e');
+          });
+        }
+
+        debugPrint(
+          '✅ DocumentProvider: Cloud function deletion completed for: $documentId',
+        );
+
+        // STATISTICS UPDATE: Notify about successful file deletion via cloud function
+        if (localDocument != null && localDocument.id.isNotEmpty) {
+          _statisticsService.notifyFileDeleted(
+            fileId: localDocument.id,
+            fileName: localDocument.fileName,
+            category: localDocument.category,
+            fileSize: localDocument.fileSize,
+          );
+          debugPrint(
+            '📊 Statistics notification sent for cloud function deleted file: ${localDocument.fileName}',
+          );
+        }
+      } else {
+        throw Exception(
+          'Cloud function deletion failed: ${result['message'] ?? 'Unknown error'}',
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ DocumentProvider: Cloud function deletion failed: $e');
+
+      // Check if it's a "not found" error and handle gracefully with reconciliation
+      if (e.toString().contains('not-found') ||
+          e.toString().contains('Document not found')) {
+        debugPrint(
+          'ℹ️ Document not found in backend - attempting reconciliation and fallback deletion',
+        );
+
+        // UNIFIED ID SYSTEM: Try reconciliation service for ID mismatch scenarios
+        if (localDocument != null) {
+          debugPrint('🔄 Attempting document reconciliation...');
+          final reconciledDocuments = await _reconciliationService
+              .reconcileSpecificDocuments([localDocument]);
+
+          if (reconciledDocuments.isNotEmpty) {
+            final reconciledDocument = reconciledDocuments.first;
+            if (reconciledDocument.id != documentId) {
+              debugPrint(
+                '✅ Document reconciled with new ID: ${reconciledDocument.id}',
+              );
+              // Try deletion again with reconciled ID
+              try {
+                final retryResult = await cloudFunctions.deleteDocument(
+                  reconciledDocument.id,
+                );
+                if (retryResult['success'] == true) {
+                  debugPrint('✅ Deletion successful after reconciliation');
+                  forceRemoveFromLocal(documentId);
+                  return;
+                }
+              } catch (retryError) {
+                debugPrint(
+                  '⚠️ Deletion still failed after reconciliation: $retryError',
+                );
+              }
+            }
+          }
+        }
+
+        // If reconciliation fails, try direct storage deletion as fallback
+        if (localDocument != null) {
+          debugPrint('🔄 Attempting direct storage deletion as fallback...');
+          try {
+            final directResult = await _directStorageService
+                .deleteDocumentDirect(localDocument, forceDelete: true);
+            if (directResult.success) {
+              debugPrint('✅ Direct storage deletion successful');
+            } else {
+              debugPrint(
+                '⚠️ Direct storage deletion failed: ${directResult.message}',
+              );
+            }
+          } catch (directError) {
+            debugPrint('❌ Direct storage deletion error: $directError');
+          }
+        }
+
+        // Always perform local cleanup regardless of backend result
+        forceRemoveFromLocal(documentId);
+        return;
+      }
+
+      // For other errors, rethrow
+      rethrow;
     }
   }
 
@@ -1134,6 +1614,40 @@ class DocumentProvider extends ChangeNotifier {
   Future<void> forceRefreshDocuments() async {
     debugPrint('🔄 Force refreshing documents from server...');
     await loadDocuments(forceRefresh: true);
+  }
+
+  /// Refresh documents from Firestore (internal method)
+  Future<void> _refreshDocumentsFromFirestore() async {
+    try {
+      debugPrint('🔄 Refreshing documents from Firestore...');
+
+      // Get fresh data from Firestore
+      final freshDocuments = await _documentService.getAllDocuments();
+
+      // Update local cache with fresh data
+      _documents.clear();
+      _documents.addAll(freshDocuments);
+
+      // Rebuild category storage
+      _categoryDocuments.clear();
+      for (final doc in freshDocuments) {
+        final category = doc.category.isEmpty ? 'uncategorized' : doc.category;
+        if (!_categoryDocuments.containsKey(category)) {
+          _categoryDocuments[category] = [];
+        }
+        _categoryDocuments[category]!.add(doc);
+      }
+
+      // Apply filters and notify listeners
+      _applyFiltersAndSort();
+
+      debugPrint(
+        '✅ Refreshed ${freshDocuments.length} documents from Firestore',
+      );
+    } catch (e) {
+      debugPrint('❌ Failed to refresh documents from Firestore: $e');
+      // Don't rethrow - this is a best-effort operation
+    }
   }
 
   /// Run file path diagnostic (for troubleshooting)
@@ -1409,6 +1923,39 @@ class DocumentProvider extends ChangeNotifier {
   // Get uncategorized files
   List<DocumentModel> getUncategorizedFiles() {
     return getDocumentsByCategory('uncategorized');
+  }
+
+  /// Verify that the user has admin privileges
+  Future<bool> _verifyUserIsAdmin(String userId) async {
+    try {
+      debugPrint(
+        '🔐 DocumentProvider: Verifying admin status for user: $userId',
+      );
+
+      // Get user document from Firestore
+      final userDoc = await _firebaseService.firestore
+          .collection('users')
+          .doc(userId)
+          .get();
+
+      if (!userDoc.exists) {
+        debugPrint('❌ DocumentProvider: User document not found: $userId');
+        return false;
+      }
+
+      final userData = userDoc.data() as Map<String, dynamic>;
+      final userRole = userData['role']?.toString() ?? 'user';
+
+      final isAdmin = userRole == 'admin';
+      debugPrint(
+        '🔐 DocumentProvider: User role: $userRole, isAdmin: $isAdmin',
+      );
+
+      return isAdmin;
+    } catch (e) {
+      debugPrint('❌ DocumentProvider: Error verifying admin status: $e');
+      return false;
+    }
   }
 
   // Initialize empty category (for new categories)
