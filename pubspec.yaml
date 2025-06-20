@@ -78,6 +78,9 @@ dependencies:
   dio: ^5.4.0
   external_path: ^2.2.0
 
+  # Native Notifications
+  flutter_local_notifications: ^17.2.3
+
   # HTTP Client for Cloud Functions
   http: ^1.1.0
 

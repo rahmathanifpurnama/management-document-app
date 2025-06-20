@@ -5,7 +5,9 @@ import '../providers/document_provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/file_download_service.dart';
 import '../services/share_service.dart';
+import '../services/download_notification_service.dart';
 import '../core/constants/app_colors.dart';
+import '../core/config/feature_flags.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Service for handling bulk operations on selected files
@@ -35,41 +37,28 @@ class BulkOperationsService {
     );
   }
 
-  /// Download multiple files with parallel processing and progress tracking
+  /// Download multiple files with parallel processing and native notifications
   static Future<void> downloadSelectedFiles({
     required BuildContext context,
     required List<DocumentModel> files,
   }) async {
     final downloadService = FileDownloadService();
+    final notificationService = DownloadNotificationService();
     int completedDownloads = 0;
     int failedDownloads = 0;
     final List<String> failedFiles = [];
+    int? bulkNotificationId;
 
     try {
-      // Show initial progress indicator
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text('Starting download of ${files.length} files...'),
-              ),
-            ],
-          ),
-          duration: Duration(
-            seconds: files.length * 5,
-          ), // Reduced estimate time
-          backgroundColor: AppColors.primary,
-        ),
+      // Initialize notification service
+      await notificationService.initialize();
+      await notificationService.requestPermissions();
+
+      // Show bulk download started notification
+      bulkNotificationId = await notificationService.showDownloadStarted(
+        document: files.first, // Use first file as representative
+        isBulkDownload: true,
+        totalFiles: files.length,
       );
 
       // Process downloads in batches of 3 to prevent overwhelming the system
@@ -86,17 +75,16 @@ class BulkOperationsService {
               '✅ Downloaded: ${file.fileName} ($completedDownloads/${files.length})',
             );
 
-            // Update progress in UI if possible
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    'Downloaded $completedDownloads of ${files.length} files...',
-                  ),
-                  backgroundColor: AppColors.primary,
-                  duration: const Duration(seconds: 1),
-                ),
+            // Update bulk notification progress
+            if (bulkNotificationId != null && bulkNotificationId > 0) {
+              final progress = completedDownloads / files.length;
+              await notificationService.updateDownloadProgress(
+                notificationId: bulkNotificationId,
+                document: file,
+                progress: progress,
+                isBulkDownload: true,
+                completedFiles: completedDownloads,
+                totalFiles: files.length,
               );
             }
           } catch (e) {
@@ -115,91 +103,83 @@ class BulkOperationsService {
         }
       }
 
-      // Show final result
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-
+      // Show final result via notification
+      if (bulkNotificationId != null && bulkNotificationId > 0) {
         if (failedDownloads == 0) {
           // All successful
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      '✅ Successfully downloaded all ${files.length} files',
-                    ),
-                  ),
-                ],
-              ),
-              backgroundColor: AppColors.success,
-              duration: const Duration(seconds: 4),
-            ),
-          );
-        } else if (completedDownloads > 0) {
-          // Partial success
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                '⚠️ Downloaded $completedDownloads files, $failedDownloads failed\n'
-                'Failed: ${failedFiles.take(3).join(', ')}${failedFiles.length > 3 ? '...' : ''}',
-              ),
-              backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 6),
-              action: SnackBarAction(
-                label: 'Retry Failed',
-                textColor: Colors.white,
-                onPressed: () {
-                  final failedDocuments = files
-                      .where((f) => failedFiles.contains(f.fileName))
-                      .toList();
-                  downloadSelectedFiles(
-                    context: context,
-                    files: failedDocuments,
-                  );
-                },
-              ),
-            ),
+          await notificationService.showDownloadCompleted(
+            notificationId: bulkNotificationId,
+            document: files.first,
+            isBulkDownload: true,
+            totalFiles: files.length,
+            failedFiles: 0,
           );
         } else {
-          // All failed
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('❌ Failed to download all files'),
-              backgroundColor: AppColors.error,
-              duration: const Duration(seconds: 4),
-              action: SnackBarAction(
-                label: 'Retry All',
-                textColor: Colors.white,
-                onPressed: () {
-                  downloadSelectedFiles(context: context, files: files);
-                },
-              ),
-            ),
+          // Some failed
+          await notificationService.showDownloadCompleted(
+            notificationId: bulkNotificationId,
+            document: files.first,
+            isBulkDownload: true,
+            totalFiles: files.length,
+            failedFiles: failedDownloads,
           );
         }
       }
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to download files: ${e.toString()}'),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 4),
-            action: SnackBarAction(
-              label: 'Retry',
-              textColor: Colors.white,
-              onPressed: () {
-                downloadSelectedFiles(context: context, files: files);
-              },
-            ),
-          ),
+      // Show error notification
+      if (bulkNotificationId != null && bulkNotificationId > 0) {
+        await notificationService.showDownloadFailed(
+          notificationId: bulkNotificationId,
+          document: files.first,
+          error: e.toString(),
+          isBulkDownload: true,
         );
       }
+
+      debugPrint('❌ Bulk download failed: $e');
     }
+  }
+
+  /// Diagnostic function to check bulk delete prerequisites
+  static Future<Map<String, dynamic>> _diagnoseBulkDeleteIssues({
+    required BuildContext context,
+    required List<DocumentModel> files,
+    required AuthProvider authProvider,
+    required DocumentProvider documentProvider,
+  }) async {
+    final diagnostics = <String, dynamic>{};
+
+    try {
+      // Check user authentication
+      final currentUser = authProvider.currentUser;
+      diagnostics['userAuthenticated'] = currentUser != null;
+      diagnostics['userId'] = currentUser?.id ?? 'null';
+
+      // Check admin permissions
+      final isAdmin = await authProvider.isCurrentUserAdmin;
+      diagnostics['isAdmin'] = isAdmin;
+
+      // Check feature flags
+      diagnostics['useCloudFunctionDelete'] =
+          FeatureFlags.useCloudFunctionDelete;
+      diagnostics['enforceAdminOnlyDeletion'] =
+          FeatureFlags.enforceAdminOnlyDeletion;
+
+      // Check file details
+      diagnostics['fileCount'] = files.length;
+      diagnostics['fileIds'] = files.map((f) => f.id).take(5).toList();
+      diagnostics['fileNames'] = files.map((f) => f.fileName).take(5).toList();
+
+      // Check document provider
+      diagnostics['documentProviderAvailable'] = true;
+
+      debugPrint('🔍 BULK DELETE DIAGNOSTICS: $diagnostics');
+    } catch (e) {
+      diagnostics['diagnosticError'] = e.toString();
+      debugPrint('❌ Error during bulk delete diagnostics: $e');
+    }
+
+    return diagnostics;
   }
 
   /// Delete multiple files with parallel processing and error handling
@@ -207,6 +187,37 @@ class BulkOperationsService {
     required BuildContext context,
     required List<DocumentModel> files,
   }) async {
+    // Get providers before any async operations to avoid context issues
+    final documentProvider = Provider.of<DocumentProvider>(
+      context,
+      listen: false,
+    );
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    // Run diagnostics first
+    final diagnostics = await _diagnoseBulkDeleteIssues(
+      context: context,
+      files: files,
+      authProvider: authProvider,
+      documentProvider: documentProvider,
+    );
+
+    // Check if user has admin permissions before proceeding
+    if (diagnostics['isAdmin'] != true) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              '❌ Access denied: Only administrators can delete files',
+            ),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
       context: context,
@@ -241,12 +252,6 @@ class BulkOperationsService {
 
     if (confirmed != true) return;
 
-    // Get providers before async operations to avoid context issues
-    final documentProvider = Provider.of<DocumentProvider>(
-      context,
-      listen: false,
-    );
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final currentUserId = authProvider.currentUser?.id ?? 'unknown';
 
     int completedDeletes = 0;
@@ -288,6 +293,9 @@ class BulkOperationsService {
         // Process batch in parallel
         final futures = batch.map((file) async {
           try {
+            debugPrint(
+              '🔄 Starting deletion for: ${file.fileName} (ID: ${file.id})',
+            );
             await documentProvider.removeDocument(file.id, currentUserId);
             completedDeletes++;
             debugPrint(
@@ -310,7 +318,10 @@ class BulkOperationsService {
           } catch (e) {
             failedDeletes++;
             failedFiles.add(file.fileName);
-            debugPrint('❌ Failed to delete: ${file.fileName} - $e');
+            debugPrint('❌ BULK DELETE ERROR for ${file.fileName}: $e');
+            debugPrint('❌ Error type: ${e.runtimeType}');
+            debugPrint('❌ File ID: ${file.id}');
+            debugPrint('❌ User ID: $currentUserId');
           }
         });
 
@@ -653,6 +664,17 @@ class _BulkOperationsMenu extends StatelessWidget {
     this.categoryId,
   });
 
+  /// Check if current user has admin permissions
+  Future<bool> _checkAdminPermission(BuildContext context) async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      return await authProvider.isCurrentUserAdmin;
+    } catch (e) {
+      debugPrint('❌ Error checking admin permission: $e');
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -766,26 +788,59 @@ class _BulkOperationsMenu extends StatelessWidget {
             ),
           ],
 
-          ListTile(
-            leading: const Icon(Icons.delete, color: Colors.red),
-            title: Text(
-              'Delete All',
-              style: GoogleFonts.poppins(color: Colors.red),
-            ),
-            subtitle: Text(
-              'Permanently delete ${selectedFiles.length} files',
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: Colors.red.withValues(alpha: 0.7),
-              ),
-            ),
-            onTap: () {
-              Navigator.pop(context);
-              BulkOperationsService.deleteSelectedFiles(
-                context: context,
-                files: selectedFiles,
+          // ADMIN-ONLY: Show delete option only for admin users
+          FutureBuilder<bool>(
+            future: _checkAdminPermission(context),
+            builder: (context, snapshot) {
+              final isAdmin = snapshot.data ?? false;
+
+              if (!isAdmin) {
+                return const SizedBox.shrink(); // Hide delete option for non-admin users
+              }
+
+              return ListTile(
+                leading: const Icon(Icons.delete, color: Colors.red),
+                title: Text(
+                  'Delete All',
+                  style: GoogleFonts.poppins(color: Colors.red),
+                ),
+                subtitle: Text(
+                  'Permanently delete ${selectedFiles.length} files (Admin Only)',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.red.withValues(alpha: 0.7),
+                  ),
+                ),
+                onTap: () async {
+                  Navigator.pop(context);
+
+                  // Double-check admin permission before proceeding
+                  final isStillAdmin = await _checkAdminPermission(context);
+                  if (!isStillAdmin) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            '❌ Access denied: Admin privileges required',
+                          ),
+                          backgroundColor: Colors.red,
+                          duration: Duration(seconds: 3),
+                        ),
+                      );
+                    }
+                    return;
+                  }
+
+                  // Proceed with bulk delete (check context is still mounted)
+                  if (context.mounted) {
+                    BulkOperationsService.deleteSelectedFiles(
+                      context: context,
+                      files: selectedFiles,
+                    );
+                    onOperationComplete();
+                  }
+                },
               );
-              onOperationComplete();
             },
           ),
 

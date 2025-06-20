@@ -22,7 +22,6 @@ import '../../services/file_download_service.dart';
 import '../../services/share_service.dart';
 import '../../services/bulk_operations_service.dart';
 import '../../core/services/greeting_service.dart';
-import '../../utils/download_location_helper.dart';
 import '../../config/firebase_config.dart';
 import '../../services/firebase_storage_direct_service.dart';
 import '../../services/statistics_notification_service.dart';
@@ -958,156 +957,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final downloadService = FileDownloadService();
 
     try {
-      // Show initial download message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: Text('Downloading ${document.fileName}...')),
-              ],
-            ),
-            duration: const Duration(seconds: 30), // Long duration for download
-            backgroundColor: AppColors.primary,
-          ),
-        );
-      }
+      // Download the file (notifications handled by FileDownloadService)
+      await downloadService.downloadFile(document);
 
-      // Download the file
-      await downloadService.downloadFile(
-        document,
-        onProgress: (progress) {
-          // You could update a progress indicator here if needed
-          debugPrint(
-            'Download progress: ${(progress * 100).toStringAsFixed(1)}%',
-          );
-        },
-      );
-
-      // Show success message with location info
-      if (mounted) {
-        final locationDescription = await downloadService
-            .getDownloadLocationDescription();
-        final actualPath = await downloadService.getDownloadDirectoryPath();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.check_circle,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'File downloaded successfully!',
-                          style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'File: ${document.fileName}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.9),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Location: $locationDescription',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.9),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Path: $actualPath',
-                    style: GoogleFonts.poppins(
-                      fontSize: 10,
-                      color: Colors.white.withValues(alpha: 0.7),
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-              backgroundColor: AppColors.success,
-              duration: const Duration(seconds: 8),
-              action: SnackBarAction(
-                label: 'Find File',
-                textColor: Colors.white,
-                onPressed: () {
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  DownloadLocationHelper.showDownloadLocationInfo(context);
-                },
-              ),
-            ),
-          );
-        }
-      }
+      // Success notification handled by FileDownloadService
+      debugPrint('✅ Download completed: ${document.fileName}');
     } catch (e) {
-      // Show error message
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.error, color: Colors.white, size: 20),
-                    const SizedBox(width: 8),
-                    const Expanded(child: Text('Download failed')),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  e.toString(),
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.9),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'Retry',
-              textColor: Colors.white,
-              onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                _downloadFile(document); // Retry download
-              },
-            ),
-          ),
-        );
-      }
+      // Error notification handled by FileDownloadService
+      debugPrint('❌ Download failed: ${document.fileName} - $e');
     }
   }
 

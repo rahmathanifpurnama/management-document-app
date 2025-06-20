@@ -42,6 +42,8 @@ echo - removeFilesFromCategory
 echo - createUser
 echo - updateUserPermissions
 echo - deleteUser
+echo - deleteDocument
+echo - bulkDocumentOperations
 echo - syncStorageWithFirestore
 echo - cleanupOrphanedMetadata
 echo - performComprehensiveSync

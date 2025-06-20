@@ -7,6 +7,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:external_path/external_path.dart';
 import '../models/document_model.dart';
 import '../core/services/firebase_service.dart';
+import 'download_notification_service.dart';
 
 class FileDownloadService {
   static final FileDownloadService _instance = FileDownloadService._internal();
@@ -16,14 +17,28 @@ class FileDownloadService {
   final Dio _dio = Dio();
   final Map<String, CancelToken> _downloadTokens = {};
   final FirebaseService _firebaseService = FirebaseService.instance;
+  final DownloadNotificationService _notificationService =
+      DownloadNotificationService();
 
-  /// Download file from Firebase Storage and save to device
+  /// Download file from Firebase Storage and save to device with native notifications
   Future<String> downloadFile(
     DocumentModel document, {
     Function(double)? onProgress,
     String? customPath,
   }) async {
+    int? notificationId;
+
     try {
+      // Initialize notification service
+      await _notificationService.initialize();
+      await _notificationService.requestPermissions();
+
+      // Show download started notification
+      notificationId = await _notificationService.showDownloadStarted(
+        document: document,
+        isBulkDownload: false,
+      );
+
       // Request storage permission
       if (!await _requestStoragePermission()) {
         throw Exception('Storage permission denied');
@@ -46,15 +61,27 @@ class FileDownloadService {
       final cancelToken = CancelToken();
       _downloadTokens[document.id] = cancelToken;
 
-      // Download file with progress tracking
+      // Download file with progress tracking via notifications
       await _dio.download(
         downloadUrl,
         filePath,
         cancelToken: cancelToken,
         onReceiveProgress: (received, total) {
-          if (total > 0 && onProgress != null) {
+          if (total > 0) {
             final progress = received / total;
-            onProgress(progress);
+
+            // Update notification progress
+            if (notificationId != null) {
+              _notificationService.updateDownloadProgress(
+                notificationId: notificationId,
+                document: document,
+                progress: progress,
+                isBulkDownload: false,
+              );
+            }
+
+            // Still call the callback if provided (for backward compatibility)
+            onProgress?.call(progress);
           }
         },
         options: Options(
@@ -81,10 +108,29 @@ class FileDownloadService {
         );
       }
 
+      // Show download completed notification
+      if (notificationId != null && notificationId > 0) {
+        await _notificationService.showDownloadCompleted(
+          notificationId: notificationId,
+          document: document,
+          isBulkDownload: false,
+        );
+      }
+
       return filePath;
     } catch (e) {
       // Clean up on error
       _downloadTokens.remove(document.id);
+
+      // Show download failed notification
+      if (notificationId != null && notificationId > 0) {
+        await _notificationService.showDownloadFailed(
+          notificationId: notificationId,
+          document: document,
+          error: e.toString(),
+          isBulkDownload: false,
+        );
+      }
 
       if (e is DioException) {
         if (e.type == DioExceptionType.cancel) {
