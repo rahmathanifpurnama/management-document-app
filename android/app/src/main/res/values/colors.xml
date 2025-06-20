@@ -2,7 +2,10 @@
 <resources>
     <!-- Splash screen background color matching app theme -->
     <color name="splash_background">#F5F5F5</color>
-    
+
     <!-- Primary app color -->
     <color name="primary_color">#1976D2</color>
+
+    <!-- Notification icon color -->
+    <color name="notification_icon_color">#FFFFFF</color>
 </resources>
