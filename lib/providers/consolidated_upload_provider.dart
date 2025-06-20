@@ -8,6 +8,7 @@ import '../services/file_hash_service.dart';
 import '../services/statistics_notification_service.dart';
 import '../core/config/cloud_functions_config.dart';
 import '../core/config/file_config.dart';
+import '../core/config/upload_config.dart';
 import '../services/error_message_service.dart';
 
 /// Consolidated Upload Provider
@@ -26,6 +27,9 @@ class ConsolidatedUploadProvider with ChangeNotifier {
       StatisticsNotificationService.instance;
   final List<UploadFileModel> _uploadQueue = [];
   final Map<String, StreamController<double>> _progressControllers = {};
+  final Map<String, double> _lastProgressUpdate =
+      {}; // Track last progress update per file
+  Timer? _uiUpdateTimer; // Timer for batched UI updates
 
   bool _isUploading = false;
 
@@ -115,42 +119,52 @@ class ConsolidatedUploadProvider with ChangeNotifier {
     }
   }
 
-  /// Check for duplicate files before adding to queue
+  /// Check for duplicate files with optimized batched queries
   Future<List<Map<String, dynamic>>> _checkForDuplicates(
     List<XFile> files,
   ) async {
     final List<Map<String, dynamic>> duplicates = [];
 
     try {
-      for (final file in files) {
-        // Quick check by filename and size first
-        final fileSize = await file.length();
+      // Process files in batches to reduce database load
+      const int batchSize = 5; // Check 5 files at a time
 
-        // Calculate file hash for more accurate duplicate detection
-        String? fileHash;
-        try {
-          fileHash = await _hashService.calculateXFileHash(file);
-          debugPrint(
-            '🔢 Calculated hash for ${file.name}: ${fileHash.substring(0, 16)}...',
-          );
-        } catch (e) {
-          debugPrint('⚠️ Failed to calculate hash for ${file.name}: $e');
-          // Continue without hash
+      for (int i = 0; i < files.length; i += batchSize) {
+        final batch = files.skip(i).take(batchSize).toList();
+
+        // Prepare batch data
+        final List<Map<String, dynamic>> batchData = [];
+
+        for (final file in batch) {
+          final fileSize = await file.length();
+
+          // Calculate file hash for more accurate duplicate detection
+          String? fileHash;
+          try {
+            fileHash = await _hashService.calculateXFileHash(file);
+            debugPrint(
+              '🔢 Calculated hash for ${file.name}: ${fileHash.substring(0, 16)}...',
+            );
+          } catch (e) {
+            debugPrint('⚠️ Failed to calculate hash for ${file.name}: $e');
+            // Continue without hash
+          }
+
+          batchData.add({
+            'fileName': file.name,
+            'fileSize': fileSize,
+            'contentType': _getContentType(file.name),
+            'fileHash': fileHash,
+          });
         }
 
-        final duplicateResult = await CloudFunctionsConfig.checkDuplicateFile(
-          fileName: file.name,
-          fileSize: fileSize,
-          contentType: _getContentType(file.name),
-          fileHash: fileHash,
-        );
+        // Perform batched duplicate check
+        final batchResults = await _performBatchedDuplicateCheck(batchData);
+        duplicates.addAll(batchResults);
 
-        if (duplicateResult['isDuplicate'] == true) {
-          duplicates.add({
-            'fileName': file.name,
-            'existingDocument': duplicateResult['existingDocument'],
-            'reason': duplicateResult['reason'] ?? 'Duplicate detected',
-          });
+        // Small delay between batches to prevent overwhelming the database
+        if (i + batchSize < files.length) {
+          await Future.delayed(const Duration(milliseconds: 100));
         }
       }
     } catch (e) {
@@ -161,36 +175,76 @@ class ConsolidatedUploadProvider with ChangeNotifier {
     return duplicates;
   }
 
+  /// Perform batched duplicate check to reduce database queries
+  Future<List<Map<String, dynamic>>> _performBatchedDuplicateCheck(
+    List<Map<String, dynamic>> batchData,
+  ) async {
+    final List<Map<String, dynamic>> duplicates = [];
+
+    try {
+      // For now, we'll still check individually but with optimized approach
+      // In a real implementation, you might want to create a batch API endpoint
+      for (final fileData in batchData) {
+        final duplicateResult = await CloudFunctionsConfig.checkDuplicateFile(
+          fileName: fileData['fileName'],
+          fileSize: fileData['fileSize'],
+          contentType: fileData['contentType'],
+          fileHash: fileData['fileHash'],
+        );
+
+        if (duplicateResult['isDuplicate'] == true) {
+          duplicates.add({
+            'fileName': fileData['fileName'],
+            'existingDocument': duplicateResult['existingDocument'],
+            'reason': duplicateResult['reason'] ?? 'Duplicate detected',
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error in batched duplicate check: $e');
+    }
+
+    return duplicates;
+  }
+
   /// Get content type based on file extension
   String _getContentType(String fileName) {
     return FileConfig.getMimeType(fileName);
   }
 
-  /// Start uploading files from queue
+  /// Start uploading files from queue with concurrent processing
   Future<void> _startUploading() async {
     if (_isUploading || _uploadQueue.isEmpty) return;
 
     _isUploading = true;
     notifyListeners();
 
-    debugPrint('🚀 Starting upload process for ${_uploadQueue.length} files');
+    debugPrint(
+      '🚀 Starting concurrent upload process for ${_uploadQueue.length} files',
+    );
 
     try {
-      for (int i = 0; i < _uploadQueue.length; i++) {
-        final file = _uploadQueue[i];
+      // Get pending files that need to be uploaded
+      final pendingFiles = _uploadQueue
+          .where(
+            (file) =>
+                file.status != UploadStatus.completed &&
+                file.status != UploadStatus.failed,
+          )
+          .toList();
 
-        if (file.status == UploadStatus.completed ||
-            file.status == UploadStatus.failed) {
-          continue; // Skip already processed files
-        }
-
-        // Processing file at index $i
-        notifyListeners();
-
-        await _uploadSingleFile(file);
+      if (pendingFiles.isEmpty) {
+        debugPrint('✅ No pending files to upload');
+        return;
       }
 
-      debugPrint('✅ Upload process completed');
+      // Process files in concurrent batches
+      await _processConcurrentUploads(pendingFiles);
+
+      // Perform memory cleanup after bulk upload
+      _performMemoryCleanup();
+
+      debugPrint('✅ Concurrent upload process completed');
     } catch (e) {
       debugPrint('❌ Upload process failed: $e');
     } finally {
@@ -199,7 +253,36 @@ class ConsolidatedUploadProvider with ChangeNotifier {
     }
   }
 
-  /// Upload a single file with enhanced error handling
+  /// Process uploads concurrently in batches
+  Future<void> _processConcurrentUploads(List<UploadFileModel> files) async {
+    const int batchSize = UploadConfig.concurrentUploadBatchSize;
+
+    for (int i = 0; i < files.length; i += batchSize) {
+      final batch = files.skip(i).take(batchSize).toList();
+
+      debugPrint(
+        '📦 Processing batch ${(i ~/ batchSize) + 1}: ${batch.length} files',
+      );
+
+      // Upload files in current batch concurrently
+      final uploadFutures = batch
+          .map((file) => _uploadSingleFile(file))
+          .toList();
+
+      // Wait for all uploads in current batch to complete
+      await Future.wait(uploadFutures, eagerError: false);
+
+      // Small delay between batches to prevent overwhelming the system
+      if (i + batchSize < files.length) {
+        await Future.delayed(UploadConfig.concurrentUploadDelay);
+      }
+
+      // Update UI after each batch
+      notifyListeners();
+    }
+  }
+
+  /// Upload a single file with enhanced error handling and individual timeout
   Future<void> _uploadSingleFile(UploadFileModel file) async {
     try {
       debugPrint('📤 Uploading file: ${file.fileName}');
@@ -208,15 +291,29 @@ class ConsolidatedUploadProvider with ChangeNotifier {
       _updateFileStatus(file.id, UploadStatus.uploading);
       file.uploadStartTime = DateTime.now();
 
-      // Upload with progress tracking
-      final result = await _uploadService.uploadFile(
-        file,
-        onProgress: (progress) {
-          _updateFileProgress(file.id, progress);
-        },
-        categoryId: file.categoryId,
-        customMetadata: file.customMetadata,
+      // Get appropriate timeout for this file
+      final fileTimeout = UploadConfig.getFileTimeout(file.fileSize);
+      debugPrint(
+        '⏱️ Using ${fileTimeout.inSeconds}s timeout for ${file.fileName}',
       );
+
+      // Upload with progress tracking and individual timeout
+      final result = await Future.any([
+        _uploadService.uploadFile(
+          file,
+          onProgress: (progress) {
+            _updateFileProgress(file.id, progress);
+          },
+          categoryId: file.categoryId,
+          customMetadata: file.customMetadata,
+        ),
+        Future.delayed(fileTimeout).then(
+          (_) => throw TimeoutException(
+            'File upload timeout after ${fileTimeout.inSeconds} seconds',
+            fileTimeout,
+          ),
+        ),
+      ]);
 
       // Validate upload result
       if (result['success'] != true) {
@@ -294,10 +391,11 @@ class ConsolidatedUploadProvider with ChangeNotifier {
     }
   }
 
-  /// Update file progress
+  /// Update file progress with batching to prevent UI lag
   void _updateFileProgress(String fileId, double progress) {
     final index = _uploadQueue.indexWhere((f) => f.id == fileId);
     if (index != -1) {
+      // Update file progress
       _uploadQueue[index] = _uploadQueue[index].copyWith(progress: progress);
 
       // Emit progress to stream with error handling
@@ -312,8 +410,26 @@ class ConsolidatedUploadProvider with ChangeNotifier {
         }
       }
 
-      notifyListeners();
+      // Batched UI updates to prevent excessive rebuilds
+      final lastProgress = _lastProgressUpdate[fileId] ?? 0.0;
+      final progressDiff = progress - lastProgress;
+
+      // Only update UI if progress difference is significant or upload is complete
+      if (progressDiff >= UploadConfig.progressBatchThreshold ||
+          progress >= 1.0 ||
+          progress == 0.0) {
+        _lastProgressUpdate[fileId] = progress;
+        _scheduleBatchedUIUpdate();
+      }
     }
+  }
+
+  /// Schedule batched UI update to prevent excessive rebuilds
+  void _scheduleBatchedUIUpdate() {
+    _uiUpdateTimer?.cancel();
+    _uiUpdateTimer = Timer(UploadConfig.uiUpdateDebounce, () {
+      notifyListeners();
+    });
   }
 
   /// Update file download URL
@@ -405,7 +521,7 @@ class ConsolidatedUploadProvider with ChangeNotifier {
     }
   }
 
-  /// Safely close and remove a progress controller
+  /// Safely close and remove a progress controller with enhanced cleanup
   void _safelyCloseController(String fileId) {
     try {
       final controller = _progressControllers[fileId];
@@ -416,10 +532,32 @@ class ConsolidatedUploadProvider with ChangeNotifier {
       debugPrint('⚠️ Error closing controller for file $fileId: $e');
     } finally {
       _progressControllers.remove(fileId);
+      _lastProgressUpdate.remove(fileId); // Clean up progress tracking
     }
   }
 
-  /// Clear completed files from queue
+  /// Enhanced memory cleanup for bulk uploads
+  void _performMemoryCleanup() {
+    // Clean up completed files' progress tracking
+    final completedFileIds = _uploadQueue
+        .where((file) => file.status == UploadStatus.completed)
+        .map((file) => file.id)
+        .toList();
+
+    for (final fileId in completedFileIds) {
+      _lastProgressUpdate.remove(fileId);
+    }
+
+    // Cancel any pending UI update timer
+    _uiUpdateTimer?.cancel();
+    _uiUpdateTimer = null;
+
+    debugPrint(
+      '🧹 Memory cleanup completed for ${completedFileIds.length} files',
+    );
+  }
+
+  /// Clear completed files from queue with enhanced memory cleanup
   void clearCompleted() {
     final completedFiles = _uploadQueue
         .where((f) => f.status == UploadStatus.completed)
@@ -428,6 +566,9 @@ class ConsolidatedUploadProvider with ChangeNotifier {
     for (final file in completedFiles) {
       removeFile(file.id);
     }
+
+    // Perform memory cleanup for bulk uploads
+    _performMemoryCleanup();
 
     // Notify listeners to update UI immediately
     notifyListeners();
@@ -550,11 +691,19 @@ class ConsolidatedUploadProvider with ChangeNotifier {
 
   @override
   void dispose() {
+    // Cancel any pending UI update timer
+    _uiUpdateTimer?.cancel();
+
     // Close all progress controllers safely
     final controllerIds = List<String>.from(_progressControllers.keys);
     for (final fileId in controllerIds) {
       _safelyCloseController(fileId);
     }
+
+    // Clear all tracking maps
+    _lastProgressUpdate.clear();
+
+    debugPrint('🧹 ConsolidatedUploadProvider disposed with full cleanup');
     super.dispose();
   }
 }

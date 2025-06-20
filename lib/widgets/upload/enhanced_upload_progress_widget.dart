@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/config/upload_config.dart';
 import '../../models/upload_file_model.dart';
 import '../../providers/consolidated_upload_provider.dart';
 
@@ -58,22 +59,13 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
               if (allowQueueManagement && queuedFiles.isNotEmpty)
                 _buildQueueControls(uploadProvider),
 
-              // Individual file progress
+              // Individual file progress with enhanced visibility
               if (showIndividualProgress) ...[
-                // Queued files
-                ...queuedFiles
-                    .take(5)
-                    .map(
-                      (file) => _buildFileProgressItem(
-                        file,
-                        uploadProvider,
-                        isActive: isProcessing,
-                      ),
-                    ),
-
-                // Show more indicator if there are many queued files
-                if (queuedFiles.length > 5)
-                  _buildShowMoreIndicator(queuedFiles.length - 5),
+                _buildScrollableFileList(
+                  queuedFiles,
+                  uploadProvider,
+                  isProcessing,
+                ),
               ],
 
               // Overall progress
@@ -187,6 +179,81 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       ),
     );
+  }
+
+  /// Build scrollable file list with enhanced visibility for bulk uploads
+  Widget _buildScrollableFileList(
+    List<UploadFileModel> queuedFiles,
+    ConsolidatedUploadProvider uploadProvider,
+    bool isProcessing,
+  ) {
+    final maxVisibleItems = UploadConfig.maxVisibleQueueItems;
+    final showScrollable = queuedFiles.length > maxVisibleItems;
+
+    if (showScrollable) {
+      // Show scrollable list for many files
+      return Container(
+        constraints: const BoxConstraints(maxHeight: 400), // Limit height
+        child: Column(
+          children: [
+            // Show first few items normally
+            ...queuedFiles
+                .take(3)
+                .map(
+                  (file) => _buildFileProgressItem(
+                    file,
+                    uploadProvider,
+                    isActive: isProcessing,
+                  ),
+                ),
+
+            // Scrollable section for remaining files
+            if (queuedFiles.length > 3)
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: AppColors.lightGray.withValues(alpha: 0.5),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: queuedFiles.length - 3,
+                    itemBuilder: (context, index) {
+                      final file = queuedFiles[index + 3];
+                      return _buildFileProgressItem(
+                        file,
+                        uploadProvider,
+                        isActive: isProcessing,
+                      );
+                    },
+                  ),
+                ),
+              ),
+
+            // Summary indicator
+            if (queuedFiles.length > maxVisibleItems)
+              _buildQueueSummary(queuedFiles.length),
+          ],
+        ),
+      );
+    } else {
+      // Show all files normally for smaller lists
+      return Column(
+        children: queuedFiles
+            .map(
+              (file) => _buildFileProgressItem(
+                file,
+                uploadProvider,
+                isActive: isProcessing,
+              ),
+            )
+            .toList(),
+      );
+    }
   }
 
   Widget _buildFileProgressItem(
@@ -411,17 +478,32 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildShowMoreIndicator(int remainingCount) {
+  Widget _buildQueueSummary(int totalFiles) {
     return Container(
       padding: const EdgeInsets.all(16),
-      child: Text(
-        '... and $remainingCount more files in queue',
-        style: GoogleFonts.poppins(
-          fontSize: 12,
-          color: AppColors.textSecondary,
-          fontStyle: FontStyle.italic,
+      decoration: BoxDecoration(
+        color: AppColors.lightBlue.withValues(alpha: 0.05),
+        border: Border(
+          top: BorderSide(
+            color: AppColors.lightGray.withValues(alpha: 0.5),
+            width: 1,
+          ),
         ),
-        textAlign: TextAlign.center,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.queue, size: 16, color: AppColors.textSecondary),
+          const SizedBox(width: 8),
+          Text(
+            'Total: $totalFiles files in queue',
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }

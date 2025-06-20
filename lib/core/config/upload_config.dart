@@ -5,23 +5,34 @@ class UploadConfig {
   static const int maxFileSizeBytesLocal =
       10 * 1024 * 1024; // 10MB for local validation
 
-  // Timeout settings
-  static const Duration uploadTimeout = Duration(minutes: 5);
+  // Timeout settings - ENHANCED FOR INDIVIDUAL FILES
+  static const Duration uploadTimeout = Duration(
+    minutes: 5,
+  ); // Legacy batch timeout
+  static const Duration individualFileTimeout = Duration(
+    minutes: 2,
+  ); // Per file timeout
   static const Duration cloudFunctionsTimeout = Duration(minutes: 3);
+  static const Duration smallFileTimeout = Duration(seconds: 30); // < 5MB files
+  static const Duration largeFileTimeout = Duration(minutes: 2); // >= 5MB files
 
   // Retry settings
   static const int maxRetries = 2;
   static const Duration retryDelay = Duration(seconds: 1);
 
-  // Concurrent upload settings
-  static const int maxConcurrentUploads = 3;
+  // Concurrent upload settings - ENHANCED FOR BULK UPLOADS
+  static const int maxConcurrentUploads =
+      4; // Increased from 3 to 4 for better performance
   static const Duration sequentialUploadDelay = Duration(milliseconds: 200);
+  static const int concurrentUploadBatchSize =
+      4; // Process 4 files simultaneously
+  static const Duration concurrentUploadDelay = Duration(milliseconds: 100);
 
-  // File count and total size limits
+  // File count and total size limits - INCREASED LIMITS
   static const int maxFilesPerUpload =
-      20; // Maximum 20 files per upload session
+      25; // Maximum 25 files per upload session (increased from 20)
   static const int maxTotalSizeBytes =
-      200 * 1024 * 1024; // Maximum 200MB total size
+      250 * 1024 * 1024; // Maximum 250MB total size (increased from 200MB)
 
   // Allowed file extensions
   static const List<String> allowedExtensions = [
@@ -45,10 +56,16 @@ class UploadConfig {
   static const bool enableAdvancedValidation = true;
   static const bool enableSecurityValidation = true;
 
-  // UI settings
+  // UI settings - OPTIMIZED FOR BULK UPLOADS
   static const Duration progressUpdateInterval = Duration(milliseconds: 100);
   static const bool showDetailedProgress = true;
   static const bool showAiProcessingIndicator = true;
+
+  // Progress batching settings to prevent UI lag
+  static const double progressBatchThreshold =
+      0.05; // Update UI every 5% instead of 1%
+  static const Duration uiUpdateDebounce = Duration(milliseconds: 200);
+  static const int maxVisibleQueueItems = 10; // Show up to 10 items in queue UI
 
   // Error messages
   static const Map<String, String> errorMessages = {
@@ -68,8 +85,8 @@ class UploadConfig {
     'cloud_validation_failed':
         'Validasi cloud gagal - menggunakan validasi lokal',
     'generic_error': 'Upload gagal - silakan coba lagi',
-    'too_many_files': 'Terlalu banyak file (maksimal 20 file per upload)',
-    'total_size_too_large': 'Total ukuran file terlalu besar (maksimal 200MB)',
+    'too_many_files': 'Terlalu banyak file (maksimal 25 file per upload)',
+    'total_size_too_large': 'Total ukuran file terlalu besar (maksimal 250MB)',
   };
 
   // Helper methods
@@ -105,5 +122,18 @@ class UploadConfig {
 
   static Duration getRetryDelay(int retryCount) {
     return Duration(seconds: retryCount * retryDelay.inSeconds);
+  }
+
+  /// Get appropriate timeout based on file size
+  static Duration getFileTimeout(int fileSizeBytes) {
+    const int largeSizeThreshold = 5 * 1024 * 1024; // 5MB
+    return fileSizeBytes >= largeSizeThreshold
+        ? largeFileTimeout
+        : smallFileTimeout;
+  }
+
+  /// Get timeout for individual file upload
+  static Duration getIndividualFileTimeout() {
+    return individualFileTimeout;
   }
 }
