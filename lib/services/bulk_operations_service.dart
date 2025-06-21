@@ -8,6 +8,8 @@ import '../services/share_service.dart';
 import '../services/download_notification_service.dart';
 import '../core/constants/app_colors.dart';
 import '../core/config/feature_flags.dart';
+import '../widgets/common/enhanced_deletion_loading.dart';
+import 'deletion_diagnostics_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Service for handling bulk operations on selected files
@@ -140,14 +142,17 @@ class BulkOperationsService {
     }
   }
 
-  /// Diagnostic function to check bulk delete prerequisites
+  /// Enhanced diagnostic function to check bulk delete prerequisites and analyze file patterns
   static Future<Map<String, dynamic>> _diagnoseBulkDeleteIssues({
     required BuildContext context,
     required List<DocumentModel> files,
     required AuthProvider authProvider,
     required DocumentProvider documentProvider,
   }) async {
-    final diagnostics = <String, dynamic>{};
+    final diagnostics = <String, dynamic>{
+      'timestamp': DateTime.now().toIso8601String(),
+      'enhancedDiagnostics': true,
+    };
 
     try {
       // Check user authentication
@@ -164,22 +169,175 @@ class BulkOperationsService {
           FeatureFlags.useCloudFunctionDelete;
       diagnostics['enforceAdminOnlyDeletion'] =
           FeatureFlags.enforceAdminOnlyDeletion;
+      diagnostics['enableEnhancedDeleteErrorHandling'] =
+          FeatureFlags.enableEnhancedDeleteErrorHandling;
 
-      // Check file details
+      // Enhanced file analysis
       diagnostics['fileCount'] = files.length;
       diagnostics['fileIds'] = files.map((f) => f.id).take(5).toList();
       diagnostics['fileNames'] = files.map((f) => f.fileName).take(5).toList();
 
-      // Check document provider
+      // Analyze file types and potential issues
+      final fileTypeAnalysis = <String, dynamic>{};
+      final pathPatterns = <String, List<String>>{};
+      final potentialIssues = <String>[];
+
+      for (final file in files) {
+        // File type analysis
+        final fileType = _getFileTypeCategory(file.fileType);
+        fileTypeAnalysis[fileType] = (fileTypeAnalysis[fileType] ?? 0) + 1;
+
+        // Path pattern analysis
+        final pathPattern = _analyzePathPattern(file.filePath);
+        if (!pathPatterns.containsKey(pathPattern)) {
+          pathPatterns[pathPattern] = <String>[];
+        }
+        pathPatterns[pathPattern]!.add(file.fileName);
+
+        // Identify potential issues
+        if (file.filePath.isEmpty) {
+          potentialIssues.add('Empty file path: ${file.fileName}');
+        }
+        if (file.id.isEmpty) {
+          potentialIssues.add('Empty document ID: ${file.fileName}');
+        }
+        if (file.fileName.isEmpty) {
+          potentialIssues.add('Empty file name: ${file.id}');
+        }
+      }
+
+      diagnostics['fileTypeAnalysis'] = fileTypeAnalysis;
+      diagnostics['pathPatterns'] = pathPatterns;
+      diagnostics['potentialIssues'] = potentialIssues;
       diagnostics['documentProviderAvailable'] = true;
 
-      debugPrint('🔍 BULK DELETE DIAGNOSTICS: $diagnostics');
+      // Log comprehensive diagnostics
+      debugPrint('🔍 ENHANCED BULK DELETE DIAGNOSTICS:');
+      debugPrint('   File Types: $fileTypeAnalysis');
+      debugPrint('   Path Patterns: ${pathPatterns.keys.toList()}');
+      debugPrint('   Potential Issues: ${potentialIssues.length}');
+      if (potentialIssues.isNotEmpty) {
+        debugPrint('   Issues: ${potentialIssues.take(3).join(', ')}');
+      }
     } catch (e) {
       diagnostics['diagnosticError'] = e.toString();
-      debugPrint('❌ Error during bulk delete diagnostics: $e');
+      debugPrint('❌ Error during enhanced bulk delete diagnostics: $e');
     }
 
     return diagnostics;
+  }
+
+  /// Analyze file type category for diagnostics
+  static String _getFileTypeCategory(String fileType) {
+    final lowerFileType = fileType.toLowerCase();
+    if (lowerFileType.contains('pdf')) {
+      return 'PDF';
+    }
+    if (lowerFileType.contains('image') ||
+        lowerFileType.contains('jpg') ||
+        lowerFileType.contains('png')) {
+      return 'Image';
+    }
+    if (lowerFileType.contains('doc')) {
+      return 'Document';
+    }
+    if (lowerFileType.contains('excel') || lowerFileType.contains('sheet')) {
+      return 'Spreadsheet';
+    }
+    return 'Other';
+  }
+
+  /// Analyze file path pattern for diagnostics
+  static String _analyzePathPattern(String filePath) {
+    if (filePath.isEmpty) {
+      return 'empty';
+    }
+    final parts = filePath.split('/');
+    if (parts.length >= 3 && parts[1] == 'categories') {
+      return 'documents/categories/[category]/[file]';
+    }
+    if (parts.length == 2 && parts[0] == 'documents') {
+      return 'documents/[file]';
+    }
+    if (parts.length == 3 && parts[0] == 'documents') {
+      return 'documents/[user]/[file]';
+    }
+    return 'other: ${parts.take(2).join('/')}';
+  }
+
+  /// Analyze error patterns to provide better user feedback
+  static Map<String, dynamic> _analyzeErrorPatterns(
+    Map<String, Map<String, dynamic>> errorDetails,
+  ) {
+    if (errorDetails.isEmpty) {
+      return {};
+    }
+
+    final analysis = <String, dynamic>{};
+    final errorTypes = <String, int>{};
+    final fileTypeErrors = <String, int>{};
+    final commonErrors = <String>[];
+
+    // Analyze error types and patterns
+    for (final error in errorDetails.values) {
+      final errorType = error['errorType'] as String? ?? 'Unknown';
+      final fileType = error['fileTypeCategory'] as String? ?? 'Unknown';
+      final errorMessage = error['error'] as String? ?? '';
+
+      errorTypes[errorType] = (errorTypes[errorType] ?? 0) + 1;
+      fileTypeErrors[fileType] = (fileTypeErrors[fileType] ?? 0) + 1;
+
+      // Identify common error patterns
+      if (errorMessage.contains('not-found') ||
+          errorMessage.contains('Document not found')) {
+        commonErrors.add('File not found in storage');
+      } else if (errorMessage.contains('permission') ||
+          errorMessage.contains('Access denied')) {
+        commonErrors.add('Permission denied');
+      } else if (errorMessage.contains('timeout') ||
+          errorMessage.contains('deadline')) {
+        commonErrors.add('Operation timeout');
+      } else if (errorMessage.contains('path') ||
+          errorMessage.contains('storage')) {
+        commonErrors.add('Storage path issue');
+      }
+    }
+
+    // Determine most common error type
+    if (errorTypes.isNotEmpty) {
+      final mostCommonError = errorTypes.entries.reduce(
+        (a, b) => a.value > b.value ? a : b,
+      );
+      analysis['commonErrorType'] = mostCommonError.key;
+      analysis['commonErrorCount'] = mostCommonError.value;
+    }
+
+    // Determine most affected file type
+    if (fileTypeErrors.isNotEmpty) {
+      final mostAffectedType = fileTypeErrors.entries.reduce(
+        (a, b) => a.value > b.value ? a : b,
+      );
+      analysis['mostAffectedFileType'] = mostAffectedType.key;
+      analysis['affectedFileCount'] = mostAffectedType.value;
+    }
+
+    // Determine primary issue
+    if (commonErrors.isNotEmpty) {
+      final errorCounts = <String, int>{};
+      for (final error in commonErrors) {
+        errorCounts[error] = (errorCounts[error] ?? 0) + 1;
+      }
+      final primaryIssue = errorCounts.entries.reduce(
+        (a, b) => a.value > b.value ? a : b,
+      );
+      analysis['primaryIssue'] = primaryIssue.key;
+    }
+
+    analysis['totalErrors'] = errorDetails.length;
+    analysis['errorTypes'] = errorTypes;
+    analysis['fileTypeErrors'] = fileTypeErrors;
+
+    return analysis;
   }
 
   /// Delete multiple files with parallel processing and error handling
@@ -194,16 +352,20 @@ class BulkOperationsService {
     );
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-    // Run diagnostics first
-    final diagnostics = await _diagnoseBulkDeleteIssues(
-      context: context,
-      files: files,
-      authProvider: authProvider,
-      documentProvider: documentProvider,
-    );
+    // Run enhanced diagnostics first
+    final isAdmin = await authProvider.isCurrentUserAdmin;
+    final currentUserId = authProvider.currentUser?.id ?? 'unknown';
+
+    final diagnostics =
+        await DeletionDiagnosticsService.analyzeDeletionOperation(
+          files: files,
+          operationType: 'bulk',
+          userId: currentUserId,
+          isAdmin: isAdmin,
+        );
 
     // Check if user has admin permissions before proceeding
-    if (diagnostics['isAdmin'] != true) {
+    if (!isAdmin) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -218,7 +380,15 @@ class BulkOperationsService {
       return;
     }
 
-    // Show confirmation dialog
+    // Check context before showing dialog
+    if (!context.mounted) return;
+
+    // Show confirmation dialog with risk assessment
+    final riskLevel = diagnostics['riskAssessment']['riskLevel'] as String;
+    final riskFactors =
+        diagnostics['riskAssessment']['riskFactors'] as List<String>;
+    final recommendations = diagnostics['recommendations'] as List<String>;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -252,31 +422,51 @@ class BulkOperationsService {
 
     if (confirmed != true) return;
 
-    final currentUserId = authProvider.currentUser?.id ?? 'unknown';
-
     int completedDeletes = 0;
     int failedDeletes = 0;
     final List<String> failedFiles = [];
+    final Map<String, Map<String, dynamic>> errorDetails = {};
 
     try {
-      // Show progress
+      // Show enhanced progress with diagnostics info
       if (context.mounted) {
+        final fileTypeBreakdown =
+            diagnostics['fileTypeAnalysis'] as Map<String, dynamic>? ?? {};
+        final typeInfo = fileTypeBreakdown.entries
+            .map((e) => '${e.key}: ${e.value}')
+            .join(', ');
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                Row(
+                  children: [
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Starting enhanced deletion of ${files.length} files...',
+                      ),
+                    ),
+                  ],
+                ),
+                if (typeInfo.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Types: $typeInfo',
+                    style: const TextStyle(fontSize: 12, color: Colors.white70),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text('Starting deletion of ${files.length} files...'),
-                ),
+                ],
               ],
             ),
             duration: Duration(seconds: files.length * 3),
@@ -290,25 +480,32 @@ class BulkOperationsService {
       for (int i = 0; i < files.length; i += batchSize) {
         final batch = files.skip(i).take(batchSize).toList();
 
-        // Process batch in parallel
+        // Process batch in parallel with enhanced error handling
         final futures = batch.map((file) async {
           try {
             debugPrint(
-              '🔄 Starting deletion for: ${file.fileName} (ID: ${file.id})',
-            );
-            await documentProvider.removeDocument(file.id, currentUserId);
-            completedDeletes++;
-            debugPrint(
-              '✅ Deleted: ${file.fileName} ($completedDeletes/${files.length})',
+              '🔄 Enhanced deletion starting for: ${file.fileName} (ID: ${file.id}, Type: ${_getFileTypeCategory(file.fileType)})',
             );
 
-            // Update progress in UI
+            // Track deletion start time for diagnostics
+            final startTime = DateTime.now();
+
+            await documentProvider.removeDocument(file.id, currentUserId);
+
+            final duration = DateTime.now().difference(startTime);
+            completedDeletes++;
+
+            debugPrint(
+              '✅ Successfully deleted: ${file.fileName} ($completedDeletes/${files.length}) in ${duration.inMilliseconds}ms',
+            );
+
+            // Update progress in UI with enhanced information
             if (context.mounted) {
               ScaffoldMessenger.of(context).hideCurrentSnackBar();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    'Deleted $completedDeletes of ${files.length} files...',
+                    'Deleted $completedDeletes of ${files.length} files... (${file.fileName})',
                   ),
                   backgroundColor: AppColors.warning,
                   duration: const Duration(seconds: 1),
@@ -318,10 +515,32 @@ class BulkOperationsService {
           } catch (e) {
             failedDeletes++;
             failedFiles.add(file.fileName);
-            debugPrint('❌ BULK DELETE ERROR for ${file.fileName}: $e');
-            debugPrint('❌ Error type: ${e.runtimeType}');
-            debugPrint('❌ File ID: ${file.id}');
-            debugPrint('❌ User ID: $currentUserId');
+
+            // Enhanced error logging with detailed context
+            debugPrint('❌ ENHANCED BULK DELETE ERROR for ${file.fileName}:');
+            debugPrint('   Error: $e');
+            debugPrint('   Error type: ${e.runtimeType}');
+            debugPrint('   File ID: ${file.id}');
+            debugPrint('   File path: ${file.filePath}');
+            debugPrint(
+              '   File type: ${file.fileType} (${_getFileTypeCategory(file.fileType)})',
+            );
+            debugPrint('   User ID: $currentUserId');
+            debugPrint(
+              '   Batch position: ${batch.indexOf(file) + 1}/${batch.length}',
+            );
+
+            // Store detailed error information for potential retry
+            errorDetails[file.id] = {
+              'error': e.toString(),
+              'errorType': e.runtimeType.toString(),
+              'fileName': file.fileName,
+              'filePath': file.filePath,
+              'fileType': file.fileType,
+              'fileTypeCategory': _getFileTypeCategory(file.fileType),
+              'timestamp': DateTime.now().toIso8601String(),
+              'batchPosition': batch.indexOf(file) + 1,
+            };
           }
         });
 
@@ -334,9 +553,12 @@ class BulkOperationsService {
         }
       }
 
-      // Show final result
+      // Enhanced final result reporting with error analysis
       if (context.mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+        // Analyze error patterns for better user feedback
+        final errorAnalysis = _analyzeErrorPatterns(errorDetails);
 
         if (failedDeletes == 0) {
           // All successful
@@ -348,15 +570,22 @@ class BulkOperationsService {
             ),
           );
         } else if (completedDeletes > 0) {
-          // Partial success
+          // Partial success with enhanced error information
+          String errorSummary = '';
+          if (errorAnalysis['commonErrorType'] != null) {
+            errorSummary =
+                '\nCommon issue: ${errorAnalysis['commonErrorType']}';
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
                 '⚠️ Deleted $completedDeletes files, $failedDeletes failed\n'
-                'Failed: ${failedFiles.take(3).join(', ')}${failedFiles.length > 3 ? '...' : ''}',
+                'Failed: ${failedFiles.take(3).join(', ')}${failedFiles.length > 3 ? '...' : ''}'
+                '$errorSummary',
               ),
               backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 6),
+              duration: const Duration(seconds: 8),
               action: SnackBarAction(
                 label: 'Retry Failed',
                 textColor: Colors.white,
@@ -370,12 +599,18 @@ class BulkOperationsService {
             ),
           );
         } else {
-          // All failed
+          // All failed with diagnostic information
+          String diagnosticInfo = '';
+          if (errorAnalysis['primaryIssue'] != null) {
+            diagnosticInfo =
+                '\nPrimary issue: ${errorAnalysis['primaryIssue']}';
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('❌ Failed to delete all files'),
+              content: Text('❌ Failed to delete all files$diagnosticInfo'),
               backgroundColor: AppColors.error,
-              duration: const Duration(seconds: 4),
+              duration: const Duration(seconds: 6),
               action: SnackBarAction(
                 label: 'Retry All',
                 textColor: Colors.white,
@@ -385,6 +620,34 @@ class BulkOperationsService {
               ),
             ),
           );
+        }
+
+        // Enhanced results analysis using diagnostics service
+        final resultsAnalysis = DeletionDiagnosticsService.analyzeResults(
+          totalFiles: files.length,
+          successfulDeletions: completedDeletes,
+          failedDeletions: failedDeletes,
+          errorDetails: errorDetails,
+        );
+
+        // Log comprehensive operation summary
+        debugPrint('📊 ENHANCED BULK DELETE OPERATION SUMMARY:');
+        debugPrint('   Total files: ${files.length}');
+        debugPrint('   Successful: $completedDeletes');
+        debugPrint('   Failed: $failedDeletes');
+        debugPrint('   Success rate: ${resultsAnalysis['successRate']}%');
+        if (resultsAnalysis.containsKey('primaryErrorType')) {
+          debugPrint(
+            '   Primary error: ${resultsAnalysis['primaryErrorType']}',
+          );
+        }
+        if (resultsAnalysis.containsKey('mostAffectedFileType')) {
+          debugPrint(
+            '   Most affected type: ${resultsAnalysis['mostAffectedFileType']}',
+          );
+        }
+        if (errorAnalysis.isNotEmpty) {
+          debugPrint('   Legacy error analysis: $errorAnalysis');
         }
       }
     } catch (e) {

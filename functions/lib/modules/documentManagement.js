@@ -228,6 +228,122 @@ const bulkDocumentOperations = functions.https.onCall(async (data, context) => {
     }
 });
 /**
+ * Enhanced path resolution helper functions for comprehensive file deletion
+ */
+/**
+ * Validate and resolve the correct storage path for a file
+ */
+async function validateAndResolveStoragePath(bucket, originalPath, fileName, documentData, documentId) {
+    console.log(`🔍 Validating storage path: ${originalPath}`);
+    // Generate all possible storage paths based on different upload patterns
+    const possiblePaths = generateAllPossibleStoragePaths(originalPath, fileName, documentData, documentId);
+    console.log(`📋 Generated ${possiblePaths.length} possible paths to check`);
+    // Check each path for file existence
+    for (const path of possiblePaths) {
+        try {
+            const file = bucket.file(path);
+            const [exists] = await file.exists();
+            if (exists) {
+                console.log(`✅ Found file at validated path: ${path}`);
+                return path;
+            }
+            else {
+                console.log(`❌ File not found at: ${path}`);
+            }
+        }
+        catch (error) {
+            console.log(`⚠️ Error checking path ${path}: ${error.message}`);
+        }
+    }
+    console.log(`❌ File not found in any of the ${possiblePaths.length} possible locations`);
+    return null;
+}
+/**
+ * Generate all possible storage paths based on different upload patterns
+ */
+function generateAllPossibleStoragePaths(originalPath, fileName, documentData, documentId) {
+    const paths = [];
+    const sanitizedFileName = sanitizeFileName(fileName);
+    const fileExtension = getFileExtension(fileName);
+    // 1. Original stored path (highest priority)
+    if (originalPath && originalPath.trim()) {
+        paths.push(originalPath.trim());
+    }
+    // 2. Direct documents folder patterns
+    paths.push(`documents/${fileName}`);
+    paths.push(`documents/${sanitizedFileName}`);
+    // 3. User-specific folder patterns
+    if (documentData === null || documentData === void 0 ? void 0 : documentData.uploadedBy) {
+        paths.push(`documents/${documentData.uploadedBy}/${fileName}`);
+        paths.push(`documents/${documentData.uploadedBy}/${sanitizedFileName}`);
+    }
+    // 4. Category-based folder patterns
+    if ((documentData === null || documentData === void 0 ? void 0 : documentData.category) && documentData.category !== 'uncategorized') {
+        paths.push(`documents/categories/${documentData.category}/${fileName}`);
+        paths.push(`documents/categories/${documentData.category}/${sanitizedFileName}`);
+        // User + category patterns
+        if (documentData === null || documentData === void 0 ? void 0 : documentData.uploadedBy) {
+            paths.push(`documents/categories/${documentData.category}/${documentData.uploadedBy}/${fileName}`);
+            paths.push(`documents/categories/${documentData.category}/${documentData.uploadedBy}/${sanitizedFileName}`);
+        }
+    }
+    // 5. Document ID-based patterns (for files named with document ID)
+    if (fileExtension) {
+        paths.push(`documents/${documentId}.${fileExtension}`);
+        if (documentData === null || documentData === void 0 ? void 0 : documentData.uploadedBy) {
+            paths.push(`documents/${documentData.uploadedBy}/${documentId}.${fileExtension}`);
+        }
+        if ((documentData === null || documentData === void 0 ? void 0 : documentData.category) && documentData.category !== 'uncategorized') {
+            paths.push(`documents/categories/${documentData.category}/${documentId}.${fileExtension}`);
+        }
+    }
+    // 6. Legacy patterns (for backward compatibility)
+    paths.push(`documents/${documentId}`);
+    // Remove duplicates while preserving order
+    return [...new Set(paths)];
+}
+/**
+ * Attempt comprehensive deletion with all possible path patterns
+ */
+async function attemptComprehensiveDeletion(bucket, fileName, documentData, documentId) {
+    console.log(`🔄 Attempting comprehensive deletion for: ${fileName}`);
+    const allPaths = generateAllPossibleStoragePaths('', // No original path for comprehensive search
+    fileName, documentData, documentId);
+    console.log(`📋 Attempting deletion across ${allPaths.length} possible paths`);
+    for (const path of allPaths) {
+        try {
+            const file = bucket.file(path);
+            const [exists] = await file.exists();
+            if (exists) {
+                await file.delete();
+                console.log(`✅ Successfully deleted from comprehensive search path: ${path}`);
+                return true;
+            }
+        }
+        catch (error) {
+            console.log(`⚠️ Comprehensive deletion attempt failed for ${path}: ${error.message}`);
+        }
+    }
+    console.log(`❌ Comprehensive deletion failed - file not found in any location`);
+    return false;
+}
+/**
+ * Sanitize filename for storage path matching
+ */
+function sanitizeFileName(fileName) {
+    return fileName
+        .replace(/[^\w\s\-\.]/g, '_')
+        .replace(/\s+/g, '_')
+        .toLowerCase();
+}
+/**
+ * Get file extension from filename
+ */
+function getFileExtension(fileName) {
+    const parts = fileName.split('.');
+    return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
+}
+/**
  * Delete document permanently (from both Firestore and Storage)
  * This function provides atomic deletion with proper error handling
  */
@@ -263,53 +379,50 @@ const deleteDocument = functions.https.onCall(async (data, context) => {
         const fileName = (documentData === null || documentData === void 0 ? void 0 : documentData.fileName) || "Unknown File";
         const filePath = (documentData === null || documentData === void 0 ? void 0 : documentData.filePath) || "";
         console.log(`📁 Found document: ${fileName} at path: ${filePath}`);
-        // ATOMIC OPERATION: Delete from both Storage and Firestore
+        // ENHANCED ATOMIC OPERATION: Delete from both Storage and Firestore with comprehensive path resolution
         const bucket = admin.storage().bucket();
         let storageDeleted = false;
         let firestoreDeleted = false;
+        let actualStoragePath = null;
         try {
-            // Step 1: Delete from Firebase Storage
+            // Step 1: Enhanced Storage Deletion with comprehensive path resolution
             if (filePath) {
-                try {
-                    const file = bucket.file(filePath);
-                    await file.delete();
-                    storageDeleted = true;
-                    console.log(`✅ Successfully deleted from Storage: ${filePath}`);
+                console.log(`🔍 Starting enhanced path resolution for: ${fileName}`);
+                // First, try to validate and resolve the correct storage path
+                actualStoragePath = await validateAndResolveStoragePath(bucket, filePath, fileName, documentData, documentId);
+                if (actualStoragePath) {
+                    try {
+                        const file = bucket.file(actualStoragePath);
+                        await file.delete();
+                        storageDeleted = true;
+                        console.log(`✅ Successfully deleted from resolved Storage path: ${actualStoragePath}`);
+                    }
+                    catch (deleteError) {
+                        console.log(`❌ Failed to delete from resolved path ${actualStoragePath}: ${deleteError.message}`);
+                        // If resolved path fails, try comprehensive fallback
+                        storageDeleted = await attemptComprehensiveDeletion(bucket, fileName, documentData, documentId);
+                    }
                 }
-                catch (storageError) {
-                    console.log(`⚠️ Storage deletion failed: ${storageError.message}`);
-                    // Try alternative storage paths
-                    const alternativePaths = [
-                        `documents/${documentData === null || documentData === void 0 ? void 0 : documentData.uploadedBy}/${fileName}`,
-                        `documents/${fileName}`,
-                        `documents/${documentId}`,
-                    ];
-                    for (const altPath of alternativePaths) {
-                        try {
-                            const altFile = bucket.file(altPath);
-                            await altFile.delete();
-                            storageDeleted = true;
-                            console.log(`✅ Successfully deleted from alternative path: ${altPath}`);
-                            break;
-                        }
-                        catch (altError) {
-                            console.log(`⚠️ Alternative path failed: ${altPath}`);
-                        }
-                    }
-                    if (!storageDeleted) {
-                        console.log(`❌ All storage deletion attempts failed for: ${fileName}`);
-                        // Continue with Firestore deletion even if storage fails
-                    }
+                else {
+                    console.log(`⚠️ Could not resolve storage path, attempting comprehensive fallback`);
+                    // Attempt comprehensive deletion with all possible paths
+                    storageDeleted = await attemptComprehensiveDeletion(bucket, fileName, documentData, documentId);
+                }
+                if (!storageDeleted) {
+                    console.log(`❌ All storage deletion attempts failed for: ${fileName}`);
+                    console.log(`📊 Attempted paths logged above for debugging`);
                 }
             }
             else {
-                console.log(`⚠️ No file path found, skipping storage deletion`);
+                console.log(`⚠️ No file path found in document metadata, attempting path reconstruction`);
+                // Try to reconstruct path from available data
+                storageDeleted = await attemptComprehensiveDeletion(bucket, fileName, documentData, documentId);
             }
             // Step 2: Delete from Firestore
             await docRef.delete();
             firestoreDeleted = true;
             console.log(`✅ Successfully deleted from Firestore: ${documentId}`);
-            // Step 3: Log activity
+            // Step 3: Enhanced activity logging with path resolution details
             await admin
                 .firestore()
                 .collection("activities")
@@ -321,9 +434,12 @@ const deleteDocument = functions.https.onCall(async (data, context) => {
                 details: `Document permanently deleted: ${fileName}`,
                 metadata: {
                     fileName: fileName,
-                    filePath: filePath,
+                    originalFilePath: filePath,
+                    actualStoragePath: actualStoragePath,
                     storageDeleted: storageDeleted,
                     firestoreDeleted: firestoreDeleted,
+                    enhancedPathResolution: true,
+                    deletionMethod: actualStoragePath ? 'resolved_path' : 'comprehensive_search',
                 },
             });
             console.log(`✅ Delete operation completed successfully for: ${fileName}`);
@@ -339,8 +455,9 @@ const deleteDocument = functions.https.onCall(async (data, context) => {
             };
         }
         catch (operationError) {
-            console.error(`❌ Delete operation failed: ${operationError.message}`);
-            // Log failed deletion attempt
+            console.error(`❌ Enhanced delete operation failed: ${operationError.message}`);
+            console.error(`📊 Deletion context - File: ${fileName}, Original Path: ${filePath}, Resolved Path: ${actualStoragePath}`);
+            // Enhanced error logging with diagnostic information
             await admin
                 .firestore()
                 .collection("activities")
@@ -351,8 +468,24 @@ const deleteDocument = functions.https.onCall(async (data, context) => {
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 details: `Failed to delete document: ${fileName}`,
                 error: operationError.message,
+                diagnostics: {
+                    originalFilePath: filePath,
+                    resolvedStoragePath: actualStoragePath,
+                    storageDeleted: storageDeleted,
+                    firestoreDeleted: firestoreDeleted,
+                    enhancedPathResolution: true,
+                    errorType: operationError.constructor.name,
+                },
             });
-            throw new functions.https.HttpsError("internal", `Failed to delete document: ${operationError.message}`);
+            // Provide more specific error messages based on deletion status
+            let errorMessage = `Failed to delete document: ${operationError.message}`;
+            if (storageDeleted && !firestoreDeleted) {
+                errorMessage = `Storage deleted but Firestore deletion failed: ${operationError.message}`;
+            }
+            else if (!storageDeleted && firestoreDeleted) {
+                errorMessage = `Firestore deleted but storage deletion failed: ${operationError.message}`;
+            }
+            throw new functions.https.HttpsError("internal", errorMessage);
         }
     }
     catch (error) {

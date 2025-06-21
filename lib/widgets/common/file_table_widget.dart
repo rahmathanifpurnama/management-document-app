@@ -9,6 +9,7 @@ import '../../services/file_download_service.dart';
 import '../../providers/document_provider.dart';
 import '../../providers/auth_provider.dart';
 import 'empty_state_widget.dart';
+import 'enhanced_deletion_loading.dart';
 import 'share_button_widget.dart';
 
 enum FileTableMode {
@@ -1032,52 +1033,68 @@ class _FileTableWidgetState extends State<FileTableWidget> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text('Deleting ${document.fileName}...'),
-            ],
-          ),
-          duration: const Duration(seconds: 2),
-        ),
+      // Show enhanced deletion loading dialog
+      showEnhancedDeletionLoading(
+        context: context,
+        fileName: document.fileName,
+        operationType: 'single',
       );
 
-      // Use Provider to delete document
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
-      );
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final currentUserId = authProvider.currentUser?.id ?? 'unknown';
-
-      // ENHANCED DEBUG: Log detailed information before deletion
-      debugPrint('🗑️ UI: Starting deletion for document: ${document.id}');
-      debugPrint('📁 UI: Document fileName: ${document.fileName}');
-      debugPrint('📁 UI: Document filePath: ${document.filePath}');
-      debugPrint('👤 UI: Document uploadedBy: ${document.uploadedBy}');
-      debugPrint('👤 UI: Current user: $currentUserId');
-
-      await documentProvider.removeDocument(document.id, currentUserId);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${document.fileName} deleted successfully'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
+      try {
+        // Use Provider to delete document
+        final documentProvider = Provider.of<DocumentProvider>(
+          context,
+          listen: false,
         );
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final currentUserId = authProvider.currentUser?.id ?? 'unknown';
+
+        // ENHANCED DEBUG: Log detailed information before deletion
+        debugPrint(
+          '🗑️ UI: Starting enhanced deletion for document: ${document.id}',
+        );
+        debugPrint('📁 UI: Document fileName: ${document.fileName}');
+        debugPrint('📁 UI: Document filePath: ${document.filePath}');
+        debugPrint('👤 UI: Document uploadedBy: ${document.uploadedBy}');
+        debugPrint('👤 UI: Current user: $currentUserId');
+
+        await documentProvider.removeDocument(document.id, currentUserId);
+
+        // Close loading dialog and show success
+        if (mounted) {
+          Navigator.of(context).pop(); // Close loading dialog
+
+          showDialog(
+            context: context,
+            builder: (context) => EnhancedDeletionResult(
+              success: true,
+              message: '${document.fileName} deleted successfully',
+              onClose: () => Navigator.of(context).pop(),
+            ),
+          );
+        }
+      } catch (deleteError) {
+        // Close loading dialog and show error
+        if (mounted) {
+          Navigator.of(context).pop(); // Close loading dialog
+
+          showDialog(
+            context: context,
+            builder: (context) => EnhancedDeletionResult(
+              success: false,
+              message: 'Failed to delete ${document.fileName}',
+              errorDetails: deleteError.toString(),
+              onRetry: () {
+                Navigator.of(context).pop();
+                _performDelete(document); // Retry deletion
+              },
+              onClose: () => Navigator.of(context).pop(),
+            ),
+          );
+        }
+
+        // Re-throw for outer catch block
+        rethrow;
       }
     } catch (e) {
       // ENHANCED DEBUG: Log detailed error information
