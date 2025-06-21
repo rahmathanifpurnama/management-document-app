@@ -574,10 +574,222 @@ function getFileTypeFromName(fileName) {
             return "Other";
     }
 }
+/**
+ * Monitor sync consistency between document-metadata and activities collections
+ * Detects files recorded in activities but missing from document-metadata
+ */
+const monitorSyncConsistency = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
+    }
+    try {
+        // Check user permissions
+        const userDoc = await admin
+            .firestore()
+            .collection("users")
+            .doc(context.auth.uid)
+            .get();
+        const user = userDoc.data();
+        if (!user || user.role !== "admin") {
+            throw new functions.https.HttpsError("permission-denied", "Only admins can monitor sync consistency");
+        }
+        console.log("🔍 Starting sync consistency monitoring...");
+        const startTime = Date.now();
+        // Get all file upload activities
+        const activitiesSnapshot = await admin
+            .firestore()
+            .collection("activities")
+            .where("type", "==", "file_uploaded")
+            .orderBy("timestamp", "desc")
+            .limit(1000) // Check last 1000 uploads
+            .get();
+        const inconsistencies = [];
+        const orphanedActivities = [];
+        let checkedCount = 0;
+        console.log(`📊 Checking ${activitiesSnapshot.docs.length} file upload activities...`);
+        for (const activity of activitiesSnapshot.docs) {
+            try {
+                const activityData = activity.data();
+                const documentId = activityData.documentId;
+                if (!documentId) {
+                    orphanedActivities.push({
+                        activityId: activity.id,
+                        reason: "Missing documentId",
+                        timestamp: activityData.timestamp,
+                    });
+                    continue;
+                }
+                // Check if corresponding document exists in document-metadata
+                const docSnapshot = await admin
+                    .firestore()
+                    .collection("document-metadata")
+                    .doc(documentId)
+                    .get();
+                if (!docSnapshot.exists) {
+                    inconsistencies.push({
+                        documentId,
+                        activityId: activity.id,
+                        timestamp: activityData.timestamp,
+                        details: activityData.details,
+                        userId: activityData.userId,
+                        issue: "Document exists in activities but not in document-metadata",
+                    });
+                }
+                checkedCount++;
+            }
+            catch (error) {
+                console.error(`Error checking activity ${activity.id}:`, error);
+            }
+        }
+        // Also check for documents without corresponding activities
+        const documentsSnapshot = await admin
+            .firestore()
+            .collection("document-metadata")
+            .where("isActive", "==", true)
+            .orderBy("uploadedAt", "desc")
+            .limit(1000)
+            .get();
+        const missingActivities = [];
+        console.log(`📊 Checking ${documentsSnapshot.docs.length} documents for missing activities...`);
+        for (const doc of documentsSnapshot.docs) {
+            try {
+                const docData = doc.data();
+                // Look for corresponding activity
+                const activityQuery = await admin
+                    .firestore()
+                    .collection("activities")
+                    .where("type", "==", "file_uploaded")
+                    .where("documentId", "==", doc.id)
+                    .limit(1)
+                    .get();
+                if (activityQuery.empty) {
+                    missingActivities.push({
+                        documentId: doc.id,
+                        fileName: docData.fileName,
+                        uploadedAt: docData.uploadedAt,
+                        uploadedBy: docData.uploadedBy,
+                        issue: "Document exists in document-metadata but no corresponding activity",
+                    });
+                }
+            }
+            catch (error) {
+                console.error(`Error checking document ${doc.id}:`, error);
+            }
+        }
+        const duration = Date.now() - startTime;
+        const summary = {
+            checkedActivities: checkedCount,
+            checkedDocuments: documentsSnapshot.docs.length,
+            inconsistencies: inconsistencies.length,
+            orphanedActivities: orphanedActivities.length,
+            missingActivities: missingActivities.length,
+            duration: `${duration}ms`,
+        };
+        console.log("✅ Sync consistency monitoring completed:", summary);
+        // Log monitoring activity
+        await admin
+            .firestore()
+            .collection("activities")
+            .add({
+            type: "sync_consistency_check",
+            userId: context.auth.uid,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            details: `Sync monitoring completed: ${inconsistencies.length} inconsistencies found`,
+            summary,
+        });
+        return {
+            success: true,
+            summary,
+            inconsistencies,
+            orphanedActivities,
+            missingActivities,
+        };
+    }
+    catch (error) {
+        console.error("❌ Sync consistency monitoring failed:", error);
+        throw new functions.https.HttpsError("internal", `Sync consistency monitoring failed: ${error}`);
+    }
+});
+/**
+ * Repair sync inconsistencies by creating missing records
+ */
+const repairSyncInconsistencies = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
+    }
+    try {
+        // Check user permissions
+        const userDoc = await admin
+            .firestore()
+            .collection("users")
+            .doc(context.auth.uid)
+            .get();
+        const user = userDoc.data();
+        if (!user || user.role !== "admin") {
+            throw new functions.https.HttpsError("permission-denied", "Only admins can repair sync inconsistencies");
+        }
+        const { repairType, inconsistencies } = data;
+        console.log(`🔧 Starting sync repair: ${repairType}`);
+        let repairedCount = 0;
+        const errors = [];
+        if (repairType === "create_missing_activities") {
+            // Create missing activities for documents
+            for (const item of inconsistencies || []) {
+                try {
+                    await admin
+                        .firestore()
+                        .collection("activities")
+                        .add({
+                        type: "file_uploaded",
+                        documentId: item.documentId,
+                        userId: item.uploadedBy,
+                        timestamp: item.uploadedAt || admin.firestore.FieldValue.serverTimestamp(),
+                        details: `File ${item.fileName} uploaded (auto-repaired activity)`,
+                        repaired: true,
+                        repairedBy: context.auth.uid,
+                        repairedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    });
+                    repairedCount++;
+                    console.log(`✅ Created missing activity for document: ${item.documentId}`);
+                }
+                catch (error) {
+                    const errorMsg = `Failed to create activity for ${item.documentId}: ${error}`;
+                    errors.push(errorMsg);
+                    console.error(errorMsg);
+                }
+            }
+        }
+        // Log repair activity
+        await admin
+            .firestore()
+            .collection("activities")
+            .add({
+            type: "sync_repair_completed",
+            userId: context.auth.uid,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            details: `Sync repair completed: ${repairedCount} items repaired`,
+            repairType,
+            repairedCount,
+            errorCount: errors.length,
+        });
+        return {
+            success: true,
+            repairedCount,
+            errors,
+            message: `Successfully repaired ${repairedCount} inconsistencies`,
+        };
+    }
+    catch (error) {
+        console.error("❌ Sync repair failed:", error);
+        throw new functions.https.HttpsError("internal", `Sync repair failed: ${error}`);
+    }
+});
 exports.syncFunctions = {
     syncStorageWithFirestore,
     syncStorageToFirestore,
     cleanupOrphanedMetadata: manualCleanupOrphanedMetadata,
     performComprehensiveSync,
+    monitorSyncConsistency,
+    repairSyncInconsistencies,
 };
 //# sourceMappingURL=syncOperations.js.map

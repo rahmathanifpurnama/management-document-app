@@ -349,23 +349,25 @@ const processFileUpload = functions.https.onCall(
         isActive: true,
       };
 
-      await admin
-        .firestore()
-        .collection("document-metadata")
-        .doc(documentId)
-        .set(documentData);
+      // ENHANCED: Use atomic transaction to ensure both collections are updated together
+      const batch = admin.firestore().batch();
 
-      // Log activity
-      await admin
-        .firestore()
-        .collection("activities")
-        .add({
-          type: "file_uploaded",
-          documentId,
-          userId: uploadedBy,
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
-          details: `File ${sanitizedFileName} uploaded successfully`,
-        });
+      // Add document-metadata write to batch
+      batch.set(docRef, documentData);
+
+      // Add activity log to batch
+      const activityRef = admin.firestore().collection("activities").doc();
+      batch.set(activityRef, {
+        type: "file_uploaded",
+        documentId,
+        userId: uploadedBy,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        details: `File ${sanitizedFileName} uploaded successfully`,
+      });
+
+      // Commit both operations atomically
+      await batch.commit();
+      console.log(`✅ Atomic transaction completed: document-metadata and activities updated for ${documentId}`);
 
       console.log(`File upload processed successfully: ${documentId}`);
 
