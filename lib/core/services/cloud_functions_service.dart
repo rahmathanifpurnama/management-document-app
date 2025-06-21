@@ -329,6 +329,50 @@ class CloudFunctionsService {
     }
   }
 
+  /// Monitor sync consistency between collections
+  Future<Map<String, dynamic>> monitorSyncConsistency() async {
+    try {
+      debugPrint(
+        '🔍 Starting sync consistency monitoring via Cloud Functions...',
+      );
+
+      final HttpsCallable callable = _functions.httpsCallable(
+        'monitorSyncConsistency',
+      );
+      final result = await callable.call({});
+
+      debugPrint('✅ Sync consistency monitoring completed: ${result.data}');
+      return Map<String, dynamic>.from(result.data);
+    } catch (e) {
+      debugPrint('❌ Failed to monitor sync consistency: $e');
+      rethrow;
+    }
+  }
+
+  /// Repair sync inconsistencies
+  Future<Map<String, dynamic>> repairSyncInconsistencies({
+    required String repairType,
+    required List<Map<String, dynamic>> inconsistencies,
+  }) async {
+    try {
+      debugPrint('🔧 Starting sync repair via Cloud Functions...');
+
+      final HttpsCallable callable = _functions.httpsCallable(
+        'repairSyncInconsistencies',
+      );
+      final result = await callable.call({
+        'repairType': repairType,
+        'inconsistencies': inconsistencies,
+      });
+
+      debugPrint('✅ Sync repair completed: ${result.data}');
+      return Map<String, dynamic>.from(result.data);
+    } catch (e) {
+      debugPrint('❌ Failed to repair sync inconsistencies: $e');
+      rethrow;
+    }
+  }
+
   // Notification Functions
 
   /// Send notification using Cloud Functions

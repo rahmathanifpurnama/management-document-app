@@ -140,5 +140,14 @@ service cloud.firestore {
       // Allow admin full access
       allow read, write, delete: if isAdmin();
     }
+
+    // Database version tracking collection
+    match /database-version/{versionId} {
+      // Allow read for authenticated users (for version checking)
+      allow read: if isAuthenticated();
+
+      // Allow write for admin only (for version updates)
+      allow write: if isAdmin();
+    }
   }
 }

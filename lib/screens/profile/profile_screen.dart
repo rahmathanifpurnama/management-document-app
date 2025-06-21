@@ -5,6 +5,7 @@ import '../../core/constants/app_routes.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_bottom_navigation.dart';
 import '../../models/user_model.dart';
+import '../../widgets/profile/storage_sync_dialog.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -67,6 +68,18 @@ class ProfileScreen extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 16),
+
+                  // Admin-only Storage Sync option
+                  if (authProvider.isAdmin) ...[
+                    _buildMenuItem(
+                      context,
+                      icon: Icons.sync_outlined,
+                      title: 'Storage Sync',
+                      subtitle: 'Sync orphaned files from Storage to Database',
+                      onTap: () => _showStorageSyncDialog(context),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
 
                   _buildMenuItem(
                     context,
@@ -181,6 +194,7 @@ class ProfileScreen extends StatelessWidget {
     BuildContext context, {
     required IconData icon,
     required String title,
+    String? subtitle,
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {
@@ -221,13 +235,25 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(width: 16),
 
             Expanded(
-              child: Text(
-                title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: isDestructive ? Colors.red : Colors.black87,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: isDestructive ? Colors.red : Colors.black87,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    ),
+                  ],
+                ],
               ),
             ),
 
@@ -248,6 +274,15 @@ class ProfileScreen extends StatelessWidget {
 
   void _navigateToSettings(BuildContext context) {
     Navigator.of(context).pushNamed(AppRoutes.settings);
+  }
+
+  void _showStorageSyncDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StorageSyncDialog();
+      },
+    );
   }
 
   void _showLogoutDialog(BuildContext context) {

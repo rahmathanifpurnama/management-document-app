@@ -1080,6 +1080,51 @@ class DocumentService {
     // Pattern 6: Just the document ID
     patterns.add('documents/$documentId');
 
+    // ENHANCED: PDF-specific patterns (addresses known PDF deletion issues)
+    if (fileName.toLowerCase().endsWith('.pdf')) {
+      debugPrint('🔍 Adding PDF-specific path patterns for: $fileName');
+
+      // PDF-specific storage patterns
+      patterns.addAll([
+        'documents/pdfs/$fileName',
+        'documents/files/pdf/$fileName',
+      ]);
+
+      if (uploadedBy != null && uploadedBy.isNotEmpty) {
+        patterns.addAll([
+          'documents/pdfs/$uploadedBy/$fileName',
+          'documents/$uploadedBy/pdfs/$fileName',
+          'documents/files/pdf/$uploadedBy/$fileName',
+        ]);
+      }
+
+      // PDF with sanitized names (common issue)
+      final sanitizedName = fileName.replaceAll(RegExp(r'[^\w\-_\.]'), '_');
+      if (sanitizedName != fileName) {
+        patterns.addAll([
+          'documents/$sanitizedName',
+          'documents/pdfs/$sanitizedName',
+        ]);
+
+        if (uploadedBy != null && uploadedBy.isNotEmpty) {
+          patterns.addAll([
+            'documents/$uploadedBy/$sanitizedName',
+            'documents/pdfs/$uploadedBy/$sanitizedName',
+          ]);
+        }
+      }
+
+      // PDF with encoded names (URL encoding issues)
+      final encodedName = Uri.encodeComponent(fileName);
+      if (encodedName != fileName) {
+        patterns.addAll(['documents/$encodedName']);
+
+        if (uploadedBy != null && uploadedBy.isNotEmpty) {
+          patterns.add('documents/$uploadedBy/$encodedName');
+        }
+      }
+    }
+
     return patterns;
   }
 

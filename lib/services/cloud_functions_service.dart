@@ -725,4 +725,41 @@ class CloudFunctionsService {
       rethrow;
     }
   }
+
+  // Sync Operations Functions
+
+  /// Sync orphaned Storage files to Firestore
+  Future<Map<String, dynamic>> syncStorageToFirestore() async {
+    try {
+      debugPrint('🔄 Starting storage-to-firestore sync via Cloud Function');
+
+      final callable = _functions.httpsCallable('syncStorageToFirestore');
+      final result = await callable.call({});
+
+      debugPrint('✅ Storage sync completed successfully');
+      return Map<String, dynamic>.from(result.data);
+    } catch (e) {
+      debugPrint('❌ Error in storage sync: $e');
+      rethrow;
+    }
+  }
+
+  /// Generic function caller for any Cloud Function
+  Future<Map<String, dynamic>> callFunction(
+    String functionName,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      debugPrint('🔄 Calling Cloud Function: $functionName');
+
+      final callable = _functions.httpsCallable(functionName);
+      final result = await callable.call(data);
+
+      debugPrint('✅ Cloud Function $functionName completed successfully');
+      return Map<String, dynamic>.from(result.data);
+    } catch (e) {
+      debugPrint('❌ Error calling Cloud Function $functionName: $e');
+      rethrow;
+    }
+  }
 }
