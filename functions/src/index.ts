@@ -65,6 +65,7 @@ export const generateDocumentReport = documentFunctions.generateDocumentReport;
 
 // Sync Operations Functions
 export const syncStorageWithFirestore = syncFunctions.syncStorageWithFirestore;
+export const syncStorageToFirestore = syncFunctions.syncStorageToFirestore;
 export const cleanupOrphanedMetadata = syncFunctions.cleanupOrphanedMetadata;
 export const performComprehensiveSync = syncFunctions.performComprehensiveSync;
 

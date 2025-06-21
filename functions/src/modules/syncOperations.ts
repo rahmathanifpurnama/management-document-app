@@ -280,6 +280,145 @@ const manualCleanupOrphanedMetadata = functions.https.onCall(
 );
 
 /**
+ * Enhanced Storage-to-Firestore Sync Function
+ * Specifically designed to handle PDF files and other orphaned storage files
+ */
+const syncStorageToFirestore = functions.https.onCall(
+  async (data: any, context) => {
+    // Check authentication
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "User must be authenticated"
+      );
+    }
+
+    try {
+      // Check admin permissions
+      const userDoc = await admin
+        .firestore()
+        .collection("users")
+        .doc(context.auth.uid)
+        .get();
+
+      const user = userDoc.data();
+      if (!user || user.role !== "admin") {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only administrators can perform storage sync operations"
+        );
+      }
+
+      console.log("🔄 Starting enhanced storage-to-firestore sync...");
+
+      const results = {
+        totalStorageFiles: 0,
+        orphanedFiles: 0,
+        createdRecords: 0,
+        errors: [] as string[],
+        fileTypes: {} as Record<string, number>,
+        processingTime: 0,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      const startTime = Date.now();
+
+      // Step 1: Get all files from Firebase Storage
+      console.log("📁 Scanning Firebase Storage for files...");
+      const storageFiles = await getAllStorageFiles();
+      results.totalStorageFiles = storageFiles.length;
+
+      console.log(`📊 Found ${storageFiles.length} files in Storage`);
+
+      if (storageFiles.length === 0) {
+        return {
+          success: true,
+          results: results,
+          message: "No files found in Firebase Storage",
+        };
+      }
+
+      // Step 2: Check which files are missing from Firestore
+      console.log("🔍 Checking for orphaned files...");
+      const orphanedFiles = [];
+
+      for (const file of storageFiles) {
+        const existsInFirestore = await checkFileExistsInFirestore(file.path);
+        if (!existsInFirestore) {
+          orphanedFiles.push(file);
+
+          // Track file types
+          const fileType = getFileTypeFromContentType(file.contentType);
+          results.fileTypes[fileType] = (results.fileTypes[fileType] || 0) + 1;
+        }
+      }
+
+      results.orphanedFiles = orphanedFiles.length;
+      console.log(`🔍 Found ${orphanedFiles.length} orphaned files`);
+
+      if (orphanedFiles.length === 0) {
+        results.processingTime = Date.now() - startTime;
+        return {
+          success: true,
+          results: results,
+          message: "All storage files already have Firestore records",
+        };
+      }
+
+      // Step 3: Create Firestore records for orphaned files
+      console.log("📝 Creating Firestore records for orphaned files...");
+      let createdCount = 0;
+
+      for (const file of orphanedFiles) {
+        try {
+          await createFirestoreRecordForStorageFile(file, context.auth.uid);
+          createdCount++;
+
+          if (createdCount % 10 === 0) {
+            console.log(`📝 Created ${createdCount}/${orphanedFiles.length} records...`);
+          }
+        } catch (error) {
+          const errorMsg = `Failed to create record for ${file.name}: ${error}`;
+          results.errors.push(errorMsg);
+          console.error(`❌ ${errorMsg}`);
+        }
+      }
+
+      results.createdRecords = createdCount;
+      results.processingTime = Date.now() - startTime;
+
+      const successMessage = results.errors.length === 0
+        ? `Successfully created ${createdCount} Firestore records for orphaned files`
+        : `Created ${createdCount} records with ${results.errors.length} errors`;
+
+      console.log(`✅ Storage sync completed: ${successMessage}`);
+
+      // Log activity
+      await admin.firestore().collection("activities").add({
+        type: "storage_firestore_sync",
+        userId: context.auth.uid,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        details: successMessage,
+        results: results,
+      });
+
+      return {
+        success: true,
+        results: results,
+        message: successMessage,
+      };
+
+    } catch (error) {
+      console.error("❌ Storage sync failed:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        `Storage sync operation failed: ${error}`
+      );
+    }
+  }
+);
+
+/**
  * Perform comprehensive sync (Storage to Firestore + Cleanup)
  */
 const performComprehensiveSync = functions.https.onCall(
@@ -420,6 +559,111 @@ async function updateUserStatistics() {
   console.log(`Updated statistics for ${usersSnapshot.size} users`);
 }
 
+// Helper functions for storage sync
+
+interface StorageFileInfo {
+  name: string;
+  path: string;
+  size: number;
+  contentType: string;
+  timeCreated: Date;
+}
+
+async function getAllStorageFiles(): Promise<StorageFileInfo[]> {
+  const files: StorageFileInfo[] = [];
+  const bucket = admin.storage().bucket();
+
+  try {
+    // Get files from documents folder
+    const [storageFiles] = await bucket.getFiles({
+      prefix: 'documents/',
+    });
+
+    for (const file of storageFiles) {
+      const [metadata] = await file.getMetadata();
+      files.push({
+        name: file.name.split('/').pop() || file.name,
+        path: file.name,
+        size: parseInt(String(metadata.size || 0)),
+        contentType: metadata.contentType || 'application/octet-stream',
+        timeCreated: new Date(metadata.timeCreated || Date.now()),
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Error scanning storage:', error);
+  }
+
+  return files;
+}
+
+async function checkFileExistsInFirestore(filePath: string): Promise<boolean> {
+  try {
+    const querySnapshot = await admin
+      .firestore()
+      .collection('document-metadata')
+      .where('filePath', '==', filePath)
+      .limit(1)
+      .get();
+
+    return !querySnapshot.empty;
+  } catch (error) {
+    console.error(`⚠️ Error checking Firestore for ${filePath}:`, error);
+    return false;
+  }
+}
+
+async function createFirestoreRecordForStorageFile(
+  file: StorageFileInfo,
+  adminUserId: string
+): Promise<void> {
+  const documentId = admin.firestore().collection('document-metadata').doc().id;
+
+  const documentData = {
+    id: documentId,
+    fileName: file.name,
+    filePath: file.path,
+    fileSize: file.size,
+    fileType: getFileTypeFromContentType(file.contentType),
+    uploadedBy: adminUserId,
+    uploadedAt: admin.firestore.Timestamp.fromDate(file.timeCreated),
+    category: extractCategoryFromPath(file.path),
+    isActive: true,
+    permissions: [adminUserId],
+    metadata: {
+      description: 'Auto-synced from Storage',
+      tags: ['storage-synced'],
+      version: '1.0',
+      contentType: file.contentType,
+      syncedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+  };
+
+  await admin
+    .firestore()
+    .collection('document-metadata')
+    .doc(documentId)
+    .set(documentData);
+
+  console.log(`✅ Created Firestore record for: ${file.name}`);
+}
+
+function getFileTypeFromContentType(contentType: string): string {
+  if (contentType.includes('pdf')) return 'PDF';
+  if (contentType.includes('image')) return 'Image';
+  if (contentType.includes('word') || contentType.includes('document')) return 'Document';
+  if (contentType.includes('sheet') || contentType.includes('excel')) return 'Spreadsheet';
+  return 'Other';
+}
+
+function extractCategoryFromPath(filePath: string): string {
+  const parts = filePath.split('/');
+  if (parts.length >= 3 && parts[1] === 'categories') {
+    return parts[2];
+  }
+  return 'general';
+}
+
 function getFileTypeFromName(fileName: string): string {
   const extension = fileName.split(".").pop()?.toLowerCase();
 
@@ -449,6 +693,7 @@ function getFileTypeFromName(fileName: string): string {
 
 export const syncFunctions = {
   syncStorageWithFirestore,
+  syncStorageToFirestore,
   cleanupOrphanedMetadata: manualCleanupOrphanedMetadata,
   performComprehensiveSync,
 };
