@@ -619,6 +619,18 @@ async function createFirestoreRecordForStorageFile(
 ): Promise<void> {
   const documentId = admin.firestore().collection('document-metadata').doc().id;
 
+  // Generate download URL for the file
+  let downloadUrl: string | null = null;
+  try {
+    const storageRef = admin.storage().bucket().file(file.path);
+    downloadUrl = await storageRef.getSignedUrl({
+      action: 'read',
+      expires: '03-09-2491' // Far future date
+    }).then(urls => urls[0]);
+  } catch (error) {
+    console.warn(`⚠️ Failed to generate download URL for ${file.name}:`, error);
+  }
+
   const documentData = {
     id: documentId,
     fileName: file.name,
@@ -627,7 +639,9 @@ async function createFirestoreRecordForStorageFile(
     fileType: getFileTypeFromContentType(file.contentType),
     uploadedBy: adminUserId,
     uploadedAt: admin.firestore.Timestamp.fromDate(file.timeCreated),
+    downloadUrl: downloadUrl,
     category: extractCategoryFromPath(file.path),
+    status: 'active',
     isActive: true,
     permissions: [adminUserId],
     metadata: {
@@ -636,16 +650,33 @@ async function createFirestoreRecordForStorageFile(
       version: '1.0',
       contentType: file.contentType,
       syncedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdBy: 'sync_operations',
+      unifiedIdSystem: true,
     },
   };
 
-  await admin
-    .firestore()
-    .collection('document-metadata')
-    .doc(documentId)
-    .set(documentData);
+  // ENHANCED: Use atomic transaction to ensure both collections are updated together
+  const batch = admin.firestore().batch();
 
-  console.log(`✅ Created Firestore record for: ${file.name}`);
+  // Add document-metadata record to batch
+  const docRef = admin.firestore().collection('document-metadata').doc(documentId);
+  batch.set(docRef, documentData);
+
+  // Add activity log to batch
+  const activityRef = admin.firestore().collection('activities').doc();
+  batch.set(activityRef, {
+    type: 'file_synced',
+    documentId: documentId,
+    userId: adminUserId,
+    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+    details: `File ${file.name} synced from Storage to Firestore`,
+    syncSource: 'sync_operations',
+  });
+
+  // Commit both operations atomically
+  await batch.commit();
+
+  console.log(`✅ Created Firestore record and activity log for: ${file.name}`);
 }
 
 function getFileTypeFromContentType(contentType: string): string {

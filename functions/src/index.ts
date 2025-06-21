@@ -68,6 +68,8 @@ export const syncStorageWithFirestore = syncFunctions.syncStorageWithFirestore;
 export const syncStorageToFirestore = syncFunctions.syncStorageToFirestore;
 export const cleanupOrphanedMetadata = syncFunctions.cleanupOrphanedMetadata;
 export const performComprehensiveSync = syncFunctions.performComprehensiveSync;
+export const monitorSyncConsistency = syncFunctions.monitorSyncConsistency;
+export const repairSyncInconsistencies = syncFunctions.repairSyncInconsistencies;
 
 // Notification Functions
 export const sendNotification = notificationFunctions.sendNotification;
