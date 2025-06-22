@@ -2,6 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../models/document_model.dart';
 
+/// Enum for notification states
+enum NotificationState { created, inProgress, completed, failed, cancelled }
+
+/// Class to track notification state
+class NotificationTracker {
+  final int id;
+  final String documentId;
+  NotificationState state;
+  final DateTime createdAt;
+  DateTime? lastUpdated;
+
+  NotificationTracker({
+    required this.id,
+    required this.documentId,
+    required this.state,
+    required this.createdAt,
+    this.lastUpdated,
+  });
+
+  void updateState(NotificationState newState) {
+    state = newState;
+    lastUpdated = DateTime.now();
+  }
+}
+
 /// Service for managing download notifications in the Android notification bar
 class DownloadNotificationService {
   static final DownloadNotificationService _instance =
@@ -19,6 +44,10 @@ class DownloadNotificationService {
 
   bool _isInitialized = false;
   int _notificationIdCounter = 1000;
+
+  // State management for notifications
+  final Map<int, NotificationTracker> _activeNotifications = {};
+  final Map<String, int> _documentToNotificationId = {};
 
   /// Initialize the notification service
   Future<bool> initialize() async {
@@ -50,6 +79,10 @@ class DownloadNotificationService {
       if (initialized == true) {
         await _createNotificationChannel();
         _isInitialized = true;
+
+        // Clean up old notifications on initialization
+        _cleanupOldNotifications();
+
         debugPrint('✅ DownloadNotificationService initialized successfully');
         return true;
       }
@@ -149,6 +182,13 @@ class DownloadNotificationService {
       payload: 'download_${document.id}',
     );
 
+    // Register notification in state management
+    _registerNotification(
+      notificationId,
+      document.id,
+      NotificationState.created,
+    );
+
     debugPrint('📱 Download notification started: ID $notificationId');
     return notificationId;
   }
@@ -163,6 +203,15 @@ class DownloadNotificationService {
     int? totalFiles,
   }) async {
     if (!_isInitialized) return;
+
+    // Check if notification is still valid for progress updates
+    if (!_isNotificationInProgress(notificationId) &&
+        !_activeNotifications.containsKey(notificationId)) {
+      debugPrint(
+        '⚠️ Skipping progress update for invalid notification: $notificationId',
+      );
+      return;
+    }
 
     final progressPercent = (progress * 100).round();
     final title = isBulkDownload
@@ -198,6 +247,9 @@ class DownloadNotificationService {
       notificationDetails,
       payload: 'download_${document.id}',
     );
+
+    // Update notification state to in progress
+    _updateNotificationState(notificationId, NotificationState.inProgress);
   }
 
   /// Show download completed notification
@@ -210,48 +262,66 @@ class DownloadNotificationService {
   }) async {
     if (!_isInitialized) return;
 
-    String title;
-    String body;
+    try {
+      // CRITICAL FIX: Cancel the progress notification first
+      await cancelNotification(notificationId);
 
-    if (isBulkDownload) {
-      if (failedFiles != null && failedFiles > 0) {
-        title = 'Download completed with errors';
-        body =
-            'Downloaded ${(totalFiles ?? 0) - failedFiles}/$totalFiles files successfully';
+      // Add small delay to ensure the cancellation is processed
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      String title;
+      String body;
+
+      if (isBulkDownload) {
+        if (failedFiles != null && failedFiles > 0) {
+          title = 'Download completed with errors';
+          body =
+              'Downloaded ${(totalFiles ?? 0) - failedFiles}/$totalFiles files successfully';
+        } else {
+          title = 'All files downloaded';
+          body = 'Successfully downloaded $totalFiles files';
+        }
       } else {
-        title = 'All files downloaded';
-        body = 'Successfully downloaded $totalFiles files';
+        title = 'Download completed';
+        body = '${document.fileName} downloaded successfully';
       }
-    } else {
-      title = 'Download completed';
-      body = '${document.fileName} downloaded successfully';
+
+      final androidDetails = AndroidNotificationDetails(
+        _channelId,
+        _channelName,
+        channelDescription: _channelDescription,
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+        showProgress: false,
+        ongoing: false, // CRITICAL: Ensure not sticky
+        autoCancel: true, // CRITICAL: Allow swipe to dismiss
+        enableVibration: true,
+        playSound: true,
+        icon: '@mipmap/launcher_icon',
+        // Additional properties to ensure dismissible behavior
+        category: AndroidNotificationCategory.status,
+        visibility: NotificationVisibility.public,
+      );
+
+      final notificationDetails = NotificationDetails(android: androidDetails);
+
+      await _notificationsPlugin.show(
+        notificationId,
+        title,
+        body,
+        notificationDetails,
+        payload: 'download_complete_${document.id}',
+      );
+
+      // Update notification state to completed
+      _updateNotificationState(notificationId, NotificationState.completed);
+
+      debugPrint(
+        '📱 Download completed notification shown: ID $notificationId',
+      );
+    } catch (e) {
+      debugPrint('❌ Error showing download completed notification: $e');
     }
-
-    final androidDetails = AndroidNotificationDetails(
-      _channelId,
-      _channelName,
-      channelDescription: _channelDescription,
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-      showProgress: false,
-      ongoing: false,
-      autoCancel: true,
-      enableVibration: true,
-      playSound: true,
-      icon: '@mipmap/launcher_icon',
-    );
-
-    final notificationDetails = NotificationDetails(android: androidDetails);
-
-    await _notificationsPlugin.show(
-      notificationId,
-      title,
-      body,
-      notificationDetails,
-      payload: 'download_complete_${document.id}',
-    );
-
-    debugPrint('📱 Download completed notification shown: ID $notificationId');
   }
 
   /// Show download failed notification
@@ -263,41 +333,62 @@ class DownloadNotificationService {
   }) async {
     if (!_isInitialized) return;
 
-    final title = isBulkDownload ? 'Bulk download failed' : 'Download failed';
-    final body = isBulkDownload
-        ? 'Failed to download files: $error'
-        : 'Failed to download ${document.fileName}: $error';
+    try {
+      // CRITICAL FIX: Cancel the progress notification first
+      await cancelNotification(notificationId);
 
-    final androidDetails = AndroidNotificationDetails(
-      _channelId,
-      _channelName,
-      channelDescription: _channelDescription,
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-      showProgress: false,
-      ongoing: false,
-      autoCancel: true,
-      enableVibration: true,
-      playSound: true,
-      icon: '@mipmap/launcher_icon',
-    );
+      // Add small delay to ensure the cancellation is processed
+      await Future.delayed(const Duration(milliseconds: 100));
 
-    final notificationDetails = NotificationDetails(android: androidDetails);
+      final title = isBulkDownload ? 'Bulk download failed' : 'Download failed';
+      final body = isBulkDownload
+          ? 'Failed to download files: $error'
+          : 'Failed to download ${document.fileName}: $error';
 
-    await _notificationsPlugin.show(
-      notificationId,
-      title,
-      body,
-      notificationDetails,
-      payload: 'download_failed_${document.id}',
-    );
+      final androidDetails = AndroidNotificationDetails(
+        _channelId,
+        _channelName,
+        channelDescription: _channelDescription,
+        importance: Importance.defaultImportance,
+        priority: Priority.defaultPriority,
+        showProgress: false,
+        ongoing: false, // CRITICAL: Ensure not sticky
+        autoCancel: true, // CRITICAL: Allow swipe to dismiss
+        enableVibration: true,
+        playSound: true,
+        icon: '@mipmap/launcher_icon',
+        // Additional properties to ensure dismissible behavior
+        category: AndroidNotificationCategory.error,
+        visibility: NotificationVisibility.public,
+      );
 
-    debugPrint('📱 Download failed notification shown: ID $notificationId');
+      final notificationDetails = NotificationDetails(android: androidDetails);
+
+      await _notificationsPlugin.show(
+        notificationId,
+        title,
+        body,
+        notificationDetails,
+        payload: 'download_failed_${document.id}',
+      );
+
+      // Update notification state to failed
+      _updateNotificationState(notificationId, NotificationState.failed);
+
+      debugPrint('📱 Download failed notification shown: ID $notificationId');
+    } catch (e) {
+      debugPrint('❌ Error showing download failed notification: $e');
+    }
   }
 
   /// Cancel a specific notification
   Future<void> cancelNotification(int notificationId) async {
     await _notificationsPlugin.cancel(notificationId);
+
+    // Update state and unregister
+    _updateNotificationState(notificationId, NotificationState.cancelled);
+    _unregisterNotification(notificationId);
+
     debugPrint('📱 Cancelled notification: ID $notificationId');
   }
 
@@ -310,6 +401,82 @@ class DownloadNotificationService {
   /// Get next available notification ID
   int _getNextNotificationId() {
     return _notificationIdCounter++;
+  }
+
+  /// Register a new notification in state management
+  void _registerNotification(
+    int notificationId,
+    String documentId,
+    NotificationState state,
+  ) {
+    final tracker = NotificationTracker(
+      id: notificationId,
+      documentId: documentId,
+      state: state,
+      createdAt: DateTime.now(),
+    );
+
+    _activeNotifications[notificationId] = tracker;
+    _documentToNotificationId[documentId] = notificationId;
+
+    debugPrint(
+      '📱 Registered notification: ID $notificationId for document $documentId',
+    );
+  }
+
+  /// Update notification state
+  void _updateNotificationState(
+    int notificationId,
+    NotificationState newState,
+  ) {
+    final tracker = _activeNotifications[notificationId];
+    if (tracker != null) {
+      tracker.updateState(newState);
+      debugPrint('📱 Updated notification $notificationId state to $newState');
+    }
+  }
+
+  /// Remove notification from state management
+  void _unregisterNotification(int notificationId) {
+    final tracker = _activeNotifications.remove(notificationId);
+    if (tracker != null) {
+      _documentToNotificationId.remove(tracker.documentId);
+      debugPrint('📱 Unregistered notification: ID $notificationId');
+    }
+  }
+
+  /// Check if notification is in progress state
+  bool _isNotificationInProgress(int notificationId) {
+    final tracker = _activeNotifications[notificationId];
+    return tracker?.state == NotificationState.inProgress;
+  }
+
+  /// Get notification ID for document (if exists)
+  int? getNotificationIdForDocument(String documentId) {
+    return _documentToNotificationId[documentId];
+  }
+
+  /// Clean up old completed/failed notifications (older than 1 hour)
+  void _cleanupOldNotifications() {
+    final cutoffTime = DateTime.now().subtract(const Duration(hours: 1));
+    final toRemove = <int>[];
+
+    for (final entry in _activeNotifications.entries) {
+      final tracker = entry.value;
+      if ((tracker.state == NotificationState.completed ||
+              tracker.state == NotificationState.failed) &&
+          (tracker.lastUpdated ?? tracker.createdAt).isBefore(cutoffTime)) {
+        toRemove.add(entry.key);
+      }
+    }
+
+    for (final id in toRemove) {
+      _unregisterNotification(id);
+    }
+
+    if (toRemove.isNotEmpty) {
+      debugPrint('📱 Cleaned up ${toRemove.length} old notifications');
+    }
   }
 
   /// Check if notifications are enabled
@@ -325,5 +492,93 @@ class DownloadNotificationService {
     }
 
     return true;
+  }
+
+  /// Test notification dismissal behavior
+  Future<void> testNotificationDismissal() async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+
+    // Create a test document
+    final testDocument = DocumentModel(
+      id: 'test_notification_${DateTime.now().millisecondsSinceEpoch}',
+      fileName: 'Test Notification.pdf',
+      fileSize: 1024000,
+      fileType: 'pdf',
+      filePath: 'test/notification.pdf',
+      uploadedBy: 'test_user',
+      uploadedAt: DateTime.now(),
+      category: 'Test',
+      permissions: [],
+      metadata: DocumentMetadata(
+        description: 'Test notification for dismissal behavior',
+        tags: ['test'],
+      ),
+    );
+
+    try {
+      debugPrint('🧪 Testing notification dismissal behavior...');
+
+      // Test 1: Progress notification (should be sticky)
+      final progressId = await showDownloadStarted(
+        document: testDocument,
+        isBulkDownload: false,
+      );
+
+      debugPrint('📱 Created progress notification: $progressId');
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Test 2: Update progress
+      await updateDownloadProgress(
+        notificationId: progressId,
+        document: testDocument,
+        progress: 0.5,
+      );
+
+      debugPrint('📱 Updated progress to 50%');
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Test 3: Complete notification (should be dismissible)
+      await showDownloadCompleted(
+        notificationId: progressId,
+        document: testDocument,
+      );
+
+      debugPrint('✅ Test completed - Check if notification can be swiped away');
+      debugPrint('📱 Notification ID: $progressId should now be dismissible');
+
+      // Clean up after test
+      await Future.delayed(const Duration(seconds: 5));
+      await cancelNotification(progressId);
+    } catch (e) {
+      debugPrint('❌ Test failed: $e');
+    }
+  }
+
+  /// Get diagnostic information about notifications
+  Map<String, dynamic> getDiagnosticInfo() {
+    return {
+      'isInitialized': _isInitialized,
+      'activeNotifications': _activeNotifications.length,
+      'notificationIdCounter': _notificationIdCounter,
+      'activeNotificationDetails': _activeNotifications.map(
+        (id, tracker) => MapEntry(id.toString(), {
+          'documentId': tracker.documentId,
+          'state': tracker.state.toString(),
+          'createdAt': tracker.createdAt.toIso8601String(),
+          'lastUpdated': tracker.lastUpdated?.toIso8601String(),
+        }),
+      ),
+      'documentToNotificationMapping': _documentToNotificationId,
+    };
+  }
+
+  /// Force cleanup of all notifications (for testing)
+  Future<void> forceCleanupAllNotifications() async {
+    await cancelAllNotifications();
+    _activeNotifications.clear();
+    _documentToNotificationId.clear();
+    debugPrint('🧹 Force cleaned up all notifications');
   }
 }

@@ -11,6 +11,8 @@ import '../core/config/feature_flags.dart';
 import '../widgets/common/enhanced_deletion_loading.dart';
 import 'deletion_diagnostics_service.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../services/google_drive_service.dart';
+import '../widgets/dialogs/share_message_editor_dialog.dart';
 
 /// Service for handling bulk operations on selected files
 class BulkOperationsService {
@@ -50,15 +52,34 @@ class BulkOperationsService {
     int failedDownloads = 0;
     final List<String> failedFiles = [];
     int? bulkNotificationId;
+    DocumentModel? bulkDocument;
 
     try {
       // Initialize notification service
       await notificationService.initialize();
       await notificationService.requestPermissions();
 
-      // Show bulk download started notification
+      // Show bulk download started notification with unique identifier
+      final bulkDocumentId =
+          'bulk_download_${DateTime.now().millisecondsSinceEpoch}';
+      bulkDocument = DocumentModel(
+        id: bulkDocumentId,
+        fileName: 'Bulk Download (${files.length} files)',
+        fileSize: files.fold<int>(0, (sum, file) => sum + file.fileSize),
+        fileType: 'bulk',
+        filePath: 'bulk_download',
+        uploadedBy: 'system',
+        uploadedAt: DateTime.now(),
+        category: 'Downloads',
+        permissions: [],
+        metadata: DocumentMetadata(
+          description: 'Bulk download operation',
+          tags: ['bulk', 'download'],
+        ),
+      );
+
       bulkNotificationId = await notificationService.showDownloadStarted(
-        document: files.first, // Use first file as representative
+        document: bulkDocument,
         isBulkDownload: true,
         totalFiles: files.length,
       );
@@ -78,11 +99,13 @@ class BulkOperationsService {
             );
 
             // Update bulk notification progress
-            if (bulkNotificationId != null && bulkNotificationId > 0) {
+            if (bulkNotificationId != null &&
+                bulkNotificationId > 0 &&
+                bulkDocument != null) {
               final progress = completedDownloads / files.length;
               await notificationService.updateDownloadProgress(
                 notificationId: bulkNotificationId,
-                document: file,
+                document: bulkDocument,
                 progress: progress,
                 isBulkDownload: true,
                 completedFiles: completedDownloads,
@@ -106,12 +129,14 @@ class BulkOperationsService {
       }
 
       // Show final result via notification
-      if (bulkNotificationId != null && bulkNotificationId > 0) {
+      if (bulkNotificationId != null &&
+          bulkNotificationId > 0 &&
+          bulkDocument != null) {
         if (failedDownloads == 0) {
           // All successful
           await notificationService.showDownloadCompleted(
             notificationId: bulkNotificationId,
-            document: files.first,
+            document: bulkDocument,
             isBulkDownload: true,
             totalFiles: files.length,
             failedFiles: 0,
@@ -120,7 +145,7 @@ class BulkOperationsService {
           // Some failed
           await notificationService.showDownloadCompleted(
             notificationId: bulkNotificationId,
-            document: files.first,
+            document: bulkDocument,
             isBulkDownload: true,
             totalFiles: files.length,
             failedFiles: failedDownloads,
@@ -129,10 +154,12 @@ class BulkOperationsService {
       }
     } catch (e) {
       // Show error notification
-      if (bulkNotificationId != null && bulkNotificationId > 0) {
+      if (bulkNotificationId != null &&
+          bulkNotificationId > 0 &&
+          bulkDocument != null) {
         await notificationService.showDownloadFailed(
           notificationId: bulkNotificationId,
-          document: files.first,
+          document: bulkDocument,
           error: e.toString(),
           isBulkDownload: true,
         );
@@ -838,76 +865,118 @@ class BulkOperationsService {
     }
   }
 
-  /// Share multiple files with consolidated operation
+  /// Share multiple files with consolidated operation and editable message
   static Future<void> shareSelectedFiles({
     required BuildContext context,
     required List<DocumentModel> files,
   }) async {
     final shareService = ShareService();
+    final googleDriveService = GoogleDriveService();
 
     try {
-      // Show single progress indicator
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Uploading ${files.length} files to Google Drive...',
-                  ),
-                ),
-              ],
-            ),
-            duration: const Duration(seconds: 30),
-            backgroundColor: AppColors.primary,
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Preparing ${files.length} files for sharing...',
+                style: GoogleFonts.poppins(fontSize: 14),
+              ),
+            ],
           ),
-        );
-      }
+        ),
+      );
 
-      // Use consolidated bulk share operation with progress tracking
-      await shareService.shareBulkFiles(
-        documents: files,
-        linkExpiration: const Duration(hours: 24),
-        customMessage: 'Sharing ${files.length} files from Management Doc:',
+      // Initialize Google Drive service
+      await googleDriveService.initialize();
+
+      // Upload all files to Google Drive first
+      final uploadedIds = await googleDriveService.uploadMultipleDocuments(
+        files,
         onProgress: (completed, total, currentFile) {
           debugPrint('Bulk upload progress: $completed/$total - $currentFile');
         },
       );
 
-      // Show success message
+      if (uploadedIds.isEmpty) {
+        throw Exception('Failed to upload any files to Google Drive');
+      }
+
+      // Hide loading dialog
       if (context.mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '${files.length} files uploaded to Google Drive and shared!',
+        Navigator.pop(context);
+      }
+
+      // Generate default bulk message
+      final defaultMessage =
+          '''📄 I'm sharing ${files.length} documents with you via Google Drive:
+
+${files.asMap().entries.map((entry) {
+            final index = entry.key;
+            final file = entry.value;
+            return '${index + 1}. ${file.displayFileName}\n   ${file.fileType.toUpperCase()} • ${_formatFileSize(file.fileSize)}';
+          }).join('\n\n')}
+
+✨ All files have been uploaded to Google Drive for easy access!
+📱 Shared via Management Doc App''';
+
+      // Show message editor dialog for bulk sharing
+      if (context.mounted) {
+        await ShareMessageEditorDialog.show(
+          context: context,
+          document: files.first, // Use first file as representative
+          googleDriveLink: 'Multiple Google Drive links will be included',
+          defaultMessage: defaultMessage,
+          onShare: (customMessage) async {
+            // Use consolidated bulk share operation with custom message
+            await shareService.shareBulkFiles(
+              documents: files,
+              linkExpiration: const Duration(hours: 24),
+              customMessage: customMessage,
+              onProgress: (completed, total, currentFile) {
+                debugPrint(
+                  'Bulk share progress: $completed/$total - $currentFile',
+                );
+              },
+            );
+
+            // Show success message
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(
+                        Icons.check_circle,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${files.length} files shared successfully!',
+                        ),
+                      ),
+                    ],
                   ),
+                  backgroundColor: AppColors.success,
+                  duration: const Duration(seconds: 3),
                 ),
-              ],
-            ),
-            backgroundColor: AppColors.success,
-            duration: const Duration(seconds: 3),
-          ),
+              );
+            }
+          },
         );
       }
     } catch (e) {
+      // Hide loading dialog if still showing
       if (context.mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to share files: ${e.toString()}'),
@@ -917,6 +986,16 @@ class BulkOperationsService {
         );
       }
     }
+  }
+
+  /// Format file size in human readable format
+  static String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 }
 

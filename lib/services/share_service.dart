@@ -15,6 +15,7 @@ class ShareService {
   Future<void> shareGoogleDriveLink(
     DocumentModel document, {
     Function(double progress)? onProgress,
+    String? customMessage,
   }) async {
     try {
       debugPrint('🔄 Starting Google Drive share for: ${document.fileName}');
@@ -57,7 +58,11 @@ class ShareService {
       }
 
       // Share the Google Drive link
-      final shareText = _generateShareText(document, shareableLink);
+      final shareText = _generateShareText(
+        document,
+        shareableLink,
+        customMessage: customMessage,
+      );
 
       await Share.share(
         shareText,
@@ -81,7 +86,11 @@ class ShareService {
     String? customMessage,
     Function(double progress)? onProgress,
   }) async {
-    await shareGoogleDriveLink(document, onProgress: onProgress);
+    await shareGoogleDriveLink(
+      document,
+      onProgress: onProgress,
+      customMessage: customMessage,
+    );
   }
 
   /// Legacy method for backward compatibility - now uses Google Drive upload
@@ -169,7 +178,7 @@ class ShareService {
   }
 
   /// Check if filePath is a Google Drive file ID
-  bool _isGoogleDriveFileId(String filePath) {
+  bool isGoogleDriveFileId(String filePath) {
     // Google Drive file IDs are typically 25-44 characters long, alphanumeric with some special chars
     // Firebase Storage paths contain slashes and are longer
     return !filePath.contains('/') &&
@@ -178,20 +187,41 @@ class ShareService {
         RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(filePath);
   }
 
-  /// Generate share text for Google Drive document link
-  String _generateShareText(DocumentModel document, String shareableLink) {
-    return '''
-📄 I'm sharing a document with you via Google Drive:
+  /// Check if filePath is a Google Drive file ID (private method for internal use)
+  bool _isGoogleDriveFileId(String filePath) {
+    return isGoogleDriveFileId(filePath);
+  }
+
+  /// Get default share message template (without Google Drive link)
+  String getDefaultShareMessage(DocumentModel document) {
+    return '''📄 I'm sharing a document with you via Google Drive:
 
 📄 ${document.displayFileName}
 📊 ${document.fileType.toUpperCase()} • ${_formatFileSize(document.fileSize)}
 📂 Category: ${document.category}
 
-🔗 Google Drive Link: $shareableLink
-
 ✨ This file has been uploaded to Google Drive for easy access!
-📱 Shared via Management Doc App
-''';
+📱 Shared via Management Doc App''';
+  }
+
+  /// Generate share text for Google Drive document link
+  String _generateShareText(
+    DocumentModel document,
+    String shareableLink, {
+    String? customMessage,
+  }) {
+    if (customMessage != null && customMessage.isNotEmpty) {
+      // Use custom message but ensure Google Drive link is included
+      if (!customMessage.contains(shareableLink)) {
+        return '$customMessage\n\n🔗 Google Drive Link: $shareableLink';
+      }
+      return customMessage;
+    }
+
+    // Default template
+    return '''${getDefaultShareMessage(document)}
+
+🔗 Google Drive Link: $shareableLink''';
   }
 
   /// Format file size in human readable format

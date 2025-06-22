@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/document_model.dart';
 import '../../services/share_service.dart';
+import '../../services/google_drive_service.dart';
+import '../dialogs/share_message_editor_dialog.dart';
 
 enum ShareButtonStyle { icon, iconWithText, text, menu }
 
@@ -224,75 +226,125 @@ class _ShareButtonWidgetState extends State<ShareButtonWidget> {
     final confirmed = await _showShareConfirmationDialog();
     if (!confirmed) return;
 
-    setState(() {
-      _isSharing = true;
-    });
-
-    widget.onShareStart?.call();
-
-    // Show progress snackbar
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Uploading ${widget.document.displayFileName} to Google Drive...',
-                ),
-              ),
-            ],
-          ),
-          duration: const Duration(minutes: 5), // Long duration for upload
-          backgroundColor: Colors.blue,
-        ),
-      );
-    }
-
     try {
-      // Upload to Google Drive and share
-      await _shareService.shareGoogleDriveLink(
-        widget.document,
-        onProgress: (progress) {
-          // Update progress if needed (could show percentage)
-          debugPrint('Upload progress: ${(progress * 100).toInt()}%');
-        },
-      );
+      // First, prepare Google Drive link (upload if needed)
+      setState(() {
+        _isSharing = true;
+      });
 
-      // Hide progress snackbar and show success
+      widget.onShareStart?.call();
+
+      // Show progress snackbar
       if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '${widget.document.displayFileName} uploaded to Google Drive and shared!',
+                    'Preparing ${widget.document.displayFileName} for sharing...',
                   ),
                 ),
               ],
             ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
+            duration: const Duration(minutes: 5),
+            backgroundColor: Colors.blue,
           ),
         );
       }
 
-      widget.onShareComplete?.call();
+      // Get Google Drive service and prepare link
+      final googleDriveService = GoogleDriveService();
+      await googleDriveService.initialize();
+
+      String shareableLink;
+
+      // Check if filePath is already a Google Drive file ID
+      if (_shareService.isGoogleDriveFileId(widget.document.filePath)) {
+        shareableLink = googleDriveService.getShareableLink(
+          widget.document.filePath,
+        );
+      } else {
+        // Upload file to Google Drive first
+        final fileId = await googleDriveService.uploadDocumentToGoogleDrive(
+          widget.document,
+          onProgress: (progress) {
+            debugPrint('Upload progress: ${(progress * 100).toInt()}%');
+          },
+        );
+
+        if (fileId == null) {
+          throw Exception('Failed to upload file to Google Drive');
+        }
+
+        shareableLink = googleDriveService.getShareableLink(fileId);
+      }
+
+      // Hide progress snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
+
+      // Get default message template
+      final defaultMessage = _shareService.getDefaultShareMessage(
+        widget.document,
+      );
+
+      // Show message editor dialog
+      if (mounted) {
+        await ShareMessageEditorDialog.show(
+          context: context,
+          document: widget.document,
+          googleDriveLink: shareableLink,
+          defaultMessage: defaultMessage,
+          onShare: (customMessage) async {
+            // Share with custom message
+            await _shareService.shareGoogleDriveLink(
+              widget.document,
+              customMessage: customMessage,
+            );
+
+            // Show success message
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(
+                        Icons.check_circle,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${widget.document.displayFileName} shared successfully!',
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+
+            widget.onShareComplete?.call();
+          },
+        );
+      }
     } catch (e) {
-      final errorMessage = 'Failed to upload to Google Drive: ${e.toString()}';
+      final errorMessage =
+          'Failed to prepare file for sharing: ${e.toString()}';
       widget.onShareError?.call(errorMessage);
 
       if (mounted) {

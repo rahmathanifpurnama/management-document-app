@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/document_model.dart';
 import '../../services/share_service.dart';
+import '../../services/google_drive_service.dart';
+import '../dialogs/share_message_editor_dialog.dart';
 
 /// Simplified widget for sharing documents via Google Drive only
 class ShareOptionsWidget extends StatelessWidget {
@@ -152,13 +154,74 @@ class ShareOptionsWidget extends StatelessWidget {
 
   Future<void> _shareGoogleDriveLink(BuildContext context) async {
     Navigator.pop(context);
+
     try {
-      await ShareService().shareGoogleDriveLink(document);
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // Get Google Drive service and prepare link
+      final shareService = ShareService();
+      final googleDriveService = GoogleDriveService();
+      await googleDriveService.initialize();
+
+      String shareableLink;
+
+      // Check if filePath is already a Google Drive file ID
+      if (shareService.isGoogleDriveFileId(document.filePath)) {
+        shareableLink = googleDriveService.getShareableLink(document.filePath);
+      } else {
+        // Upload file to Google Drive first
+        final fileId = await googleDriveService.uploadDocumentToGoogleDrive(
+          document,
+          onProgress: (progress) {
+            debugPrint('Upload progress: ${(progress * 100).toInt()}%');
+          },
+        );
+
+        if (fileId == null) {
+          throw Exception('Failed to upload file to Google Drive');
+        }
+
+        shareableLink = googleDriveService.getShareableLink(fileId);
+      }
+
+      // Hide loading indicator
       if (context.mounted) {
-        _showSuccessMessage(context, 'Google Drive link shared successfully!');
+        Navigator.pop(context);
+      }
+
+      // Get default message template
+      final defaultMessage = shareService.getDefaultShareMessage(document);
+
+      // Show message editor dialog
+      if (context.mounted) {
+        await ShareMessageEditorDialog.show(
+          context: context,
+          document: document,
+          googleDriveLink: shareableLink,
+          defaultMessage: defaultMessage,
+          onShare: (customMessage) async {
+            // Share with custom message
+            await shareService.shareGoogleDriveLink(
+              document,
+              customMessage: customMessage,
+            );
+
+            // Show success message
+            if (context.mounted) {
+              _showSuccessMessage(context, 'Document shared successfully!');
+            }
+          },
+        );
       }
     } catch (e) {
+      // Hide loading indicator if still showing
       if (context.mounted) {
+        Navigator.pop(context);
         _showErrorMessage(context, 'Failed to share Google Drive link: $e');
       }
     }
