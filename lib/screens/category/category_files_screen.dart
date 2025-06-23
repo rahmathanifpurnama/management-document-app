@@ -14,7 +14,7 @@ import '../../widgets/common/custom_app_bar.dart';
 import '../../services/file_download_service.dart';
 import '../../services/share_service.dart';
 import '../../widgets/common/ios_back_button.dart';
-
+import '../../widgets/common/reusable_file_list_widget.dart';
 import '../../widgets/common/reusable_file_grid_widget.dart';
 import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/file_selection_bar.dart';
@@ -34,8 +34,7 @@ class CategoryFilesScreen extends StatefulWidget {
 }
 
 class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
-  ViewMode _currentViewMode =
-      ViewMode.grid; // Default to grid mode as requested
+  ViewMode _currentViewMode = ViewMode.list; // Restore original default
   final TextEditingController _searchController = TextEditingController();
   final ShareService _shareService = ShareService();
   String _searchQuery = '';
@@ -185,7 +184,7 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
           Expanded(
             child: Consumer<DocumentProvider>(
               builder: (context, documentProvider, child) {
-                // FIXED: Use single consistent data source
+                // FIXED: Use single consistent data source to prevent UI inconsistencies
                 final allCategoryDocuments = documentProvider.documents
                     .where((doc) => doc.category == widget.category.id)
                     .toList();
@@ -193,15 +192,10 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                   allCategoryDocuments,
                 );
 
-                // Show loading state during refresh or initial loading
-                if (_isRefreshing ||
-                    (documentProvider.isLoading &&
-                        allCategoryDocuments.isEmpty)) {
-                  return _buildLoadingStateWithHeader();
-                }
-
-                // Show empty state only if no documents exist
-                if (allCategoryDocuments.isEmpty) {
+                // Show empty state only if no documents exist and not loading
+                if (allCategoryDocuments.isEmpty &&
+                    !documentProvider.isLoading &&
+                    !_isRefreshing) {
                   return CategoryEmptyStateWidget(
                     categoryName: widget.category.name,
                     onAddExisting: () => _navigateToAddFiles(),
@@ -254,30 +248,12 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                         ),
                         // Search Widget
                         _buildSearchWidget(),
-                        // Files List
-                        filteredDocuments.isEmpty && _searchQuery.isNotEmpty
-                            ? NoSearchResultsWidget(searchQuery: _searchQuery)
-                            : filteredDocuments.isEmpty
-                            ? CategoryEmptyStateWidget(
-                                categoryName: widget.category.name,
-                                onAddExisting: () => _navigateToAddFiles(),
-                                onUploadNew: () => _navigateToUpload(),
-                              )
-                            // ENHANCED: Default to grid mode after loading as requested
-                            : ReusableFileGridWidget(
-                                documents: filteredDocuments,
-                                title: widget.category.name,
-                                onDocumentTap: _navigateToFilePreview,
-                                onDocumentMenu: _showDocumentMenu,
-                                onFilterTap: _showFilterMenu,
-                                showFilter: true,
-                                showPagination: true,
-                                itemsPerPage:
-                                    25, // STANDARDIZED: 25 items per page across all screens
-                                emptyStateMessage: 'No files in this category',
-                                emptyStateIcon: Icons.folder_open,
-                                categoryId: widget.category.id,
-                              ),
+                        // Files List with Dynamic Loading Logic
+                        _buildFileListSection(
+                          allCategoryDocuments,
+                          filteredDocuments,
+                          documentProvider,
+                        ),
                         // Add bottom spacing for better UX
                         const SizedBox(height: 100),
                       ],
@@ -299,79 +275,110 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
     );
   }
 
-  /// Build loading state with header and search - shows during pull-to-refresh
-  Widget _buildLoadingStateWithHeader() {
+  /// Build dynamic file list section with loading states
+  Widget _buildFileListSection(
+    List<DocumentModel> allCategoryDocuments,
+    List<DocumentModel> filteredDocuments,
+    DocumentProvider documentProvider,
+  ) {
+    // Show loading state during refresh or initial loading
+    if (_isRefreshing ||
+        (documentProvider.isLoading && allCategoryDocuments.isEmpty)) {
+      return _buildLoadingWidget();
+    }
+
+    // Show search results or file list
+    if (filteredDocuments.isEmpty && _searchQuery.isNotEmpty) {
+      return NoSearchResultsWidget(searchQuery: _searchQuery);
+    }
+
+    if (filteredDocuments.isEmpty) {
+      return CategoryEmptyStateWidget(
+        categoryName: widget.category.name,
+        onAddExisting: () => _navigateToAddFiles(),
+        onUploadNew: () => _navigateToUpload(),
+      );
+    }
+
+    // Show files in selected view mode
+    return _currentViewMode == ViewMode.list
+        ? ReusableFileListWidget(
+            documents: filteredDocuments,
+            title: widget.category.name,
+            onDocumentTap: _navigateToFilePreview,
+            onDocumentMenu: _showDocumentMenu,
+            onFilterTap: _showFilterMenu,
+            showFilter: true,
+            showPagination: true,
+            itemsPerPage: 25,
+            emptyStateMessage: 'No files in this category',
+            emptyStateIcon: Icons.folder_open,
+            categoryId: widget.category.id,
+          )
+        : ReusableFileGridWidget(
+            documents: filteredDocuments,
+            title: widget.category.name,
+            onDocumentTap: _navigateToFilePreview,
+            onDocumentMenu: _showDocumentMenu,
+            onFilterTap: _showFilterMenu,
+            showFilter: true,
+            showPagination: true,
+            itemsPerPage: 25,
+            emptyStateMessage: 'No files in this category',
+            emptyStateIcon: Icons.folder_open,
+            categoryId: widget.category.id,
+          );
+  }
+
+  /// Build loading widget for file list section only
+  Widget _buildLoadingWidget() {
     return Container(
-      color: const Color(0xFFF5F5F5),
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Center(
         child: Column(
           children: [
-            // Category Info Header (with loading count)
-            CategoryInfoHeaderWidget(
-              category: widget.category,
-              fileCount: 0, // Show 0 during loading
-              onAddExisting: () => _navigateToAddFiles(),
-              onUploadNew: () => _navigateToUpload(),
-            ),
-            // Search Widget
-            _buildSearchWidget(),
-            // Loading State
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 20),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppColors.border.withValues(alpha: 0.3),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Column(
-                  children: [
-                    SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          AppColors.primary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'Loading files...',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Please wait while we fetch your documents',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: AppColors.textSecondary.withValues(alpha: 0.7),
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+            SizedBox(
+              width: 40,
+              height: 40,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
               ),
             ),
-            // Add bottom spacing
-            const SizedBox(height: 100),
+            const SizedBox(height: 20),
+            Text(
+              'Loading files...',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Please wait while we fetch your documents',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                color: AppColors.textSecondary.withValues(alpha: 0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
