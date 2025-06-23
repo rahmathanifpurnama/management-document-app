@@ -51,6 +51,16 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
+  // Enhanced animations for initial page load
+  late AnimationController _slideController;
+  late AnimationController _staggerController;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _scaleAnimation;
+
+  // Initial loading state management
+  bool _isInitialLoading = true;
+  bool _hasInitialLoadCompleted = false;
+
   @override
   void initState() {
     super.initState();
@@ -64,8 +74,38 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
 
-    // Start with full opacity
+    // Initialize enhanced animations for initial page load
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _staggerController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic),
+        );
+
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _staggerController, curve: Curves.elasticOut),
+    );
+
+    // Start animations with delay for better visual effect
     _fadeController.forward();
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        _slideController.forward();
+      }
+    });
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) {
+        _staggerController.forward();
+      }
+    });
 
     // Reset page when search query changes and refresh recent files
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -74,22 +114,8 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           _currentPage = 0;
         });
 
-        // FIXED: Trigger document loading if provider is empty with circuit breaker
-        final documentProvider = Provider.of<DocumentProvider>(
-          context,
-          listen: false,
-        );
-
-        if (documentProvider.allDocuments.isEmpty &&
-            !documentProvider.isLoading &&
-            !CircuitBreaker.isCircuitOpen('home_init_loading')) {
-          CircuitBreaker.execute('home_init_loading', () async {
-            debugPrint(
-              '🔄 HomeFileListSection: Provider empty, triggering load...',
-            );
-            await documentProvider.loadDocuments();
-          }, operationName: 'Home Init Loading');
-        }
+        // Start initial loading process
+        _startInitialLoading();
       }
     });
   }
@@ -97,7 +123,67 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   @override
   void dispose() {
     _fadeController.dispose();
+    _slideController.dispose();
+    _staggerController.dispose();
     super.dispose();
+  }
+
+  /// Start initial loading process with proper state management
+  Future<void> _startInitialLoading() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isInitialLoading = true;
+      _hasInitialLoadCompleted = false;
+    });
+
+    try {
+      final documentProvider = Provider.of<DocumentProvider>(
+        context,
+        listen: false,
+      );
+
+      // Show loading for minimum duration for better UX
+      final loadingFuture = Future.delayed(const Duration(milliseconds: 800));
+
+      // Load documents if needed
+      Future<void> documentLoadingFuture = Future.value();
+
+      if (documentProvider.allDocuments.isEmpty &&
+          !documentProvider.isLoading &&
+          !CircuitBreaker.isCircuitOpen('home_init_loading')) {
+        documentLoadingFuture = CircuitBreaker.execute(
+          'home_init_loading',
+          () async {
+            debugPrint(
+              '🔄 HomeFileListSection: Starting initial document loading...',
+            );
+            await documentProvider.loadDocuments();
+          },
+          operationName: 'Home Init Loading',
+        );
+      }
+
+      // Wait for both loading animation and document loading to complete
+      await Future.wait([loadingFuture, documentLoadingFuture]);
+
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = false;
+          _hasInitialLoadCompleted = true;
+        });
+
+        debugPrint('✅ HomeFileListSection: Initial loading completed');
+      }
+    } catch (e) {
+      debugPrint('❌ HomeFileListSection: Initial loading failed: $e');
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = false;
+          _hasInitialLoadCompleted = true;
+        });
+      }
+    }
   }
 
   @override
@@ -224,41 +310,70 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with title and filter
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Recent Files',
-                style: GoogleFonts.poppins(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              // Filter button only (manual refresh button removed - using pull-to-refresh instead)
-              if (widget.onFilterTap != null)
-                IconButton(
-                  onPressed: widget.onFilterTap,
-                  icon: const Icon(
-                    Icons.filter_list,
-                    color: AppColors.textSecondary,
-                    size: 20,
+          // Header with title and filter - animated
+          TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 600),
+            tween: Tween<double>(begin: 0.0, end: 1.0),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, child) {
+              return Transform.translate(
+                offset: Offset(-30 * (1 - value), 0),
+                child: Opacity(
+                  opacity: value,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Recent Files',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      // Filter button only (manual refresh button removed - using pull-to-refresh instead)
+                      if (widget.onFilterTap != null)
+                        TweenAnimationBuilder<double>(
+                          duration: const Duration(milliseconds: 800),
+                          tween: Tween<double>(begin: 0.0, end: 1.0),
+                          curve: Curves.elasticOut,
+                          builder: (context, buttonValue, child) {
+                            return Transform.scale(
+                              scale: buttonValue,
+                              child: IconButton(
+                                onPressed: widget.onFilterTap,
+                                icon: const Icon(
+                                  Icons.filter_list,
+                                  color: AppColors.textSecondary,
+                                  size: 20,
+                                ),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 24,
+                                  minHeight: 24,
+                                ),
+                                tooltip: 'Filter Files',
+                              ),
+                            );
+                          },
+                        ),
+                    ],
                   ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 24,
-                    minHeight: 24,
-                  ),
-                  tooltip: 'Filter Files',
                 ),
-            ],
+              );
+            },
           ),
 
-          // Files List with smooth transition
-          FadeTransition(
-            opacity: _fadeAnimation,
-            child: _buildFilesList(currentPageDocuments, selectionProvider),
+          // Files List with enhanced animations
+          SlideTransition(
+            position: _slideAnimation,
+            child: ScaleTransition(
+              scale: _scaleAnimation,
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: _buildFilesList(currentPageDocuments, selectionProvider),
+              ),
+            ),
           ),
 
           // Pagination Controls
@@ -275,12 +390,17 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   ) {
     return Consumer<DocumentProvider>(
       builder: (context, documentProvider, child) {
+        // PRIORITY 1: Show initial loading state first
+        if (_isInitialLoading || !_hasInitialLoadCompleted) {
+          return _buildInitialLoadingState();
+        }
+
         // EMPTY STATE FIX: Check if storage is confirmed empty
         final isEmptyStateConfirmed =
             CircuitBreaker.isCircuitOpen('storage_empty_state') ||
             CircuitBreaker.isCircuitOpen('prevent_empty_storage_retries');
 
-        // Show loading state during transitions or when documents are loading (but not if empty state confirmed)
+        // PRIORITY 2: Show transition loading state
         if (_isTransitioning ||
             (documents.isEmpty &&
                 documentProvider.isLoading &&
@@ -326,58 +446,11 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           );
         }
 
-        if (documents.isEmpty && !documentProvider.isLoading) {
-          // EMPTY STATE FIX: Use EmptyStorageStateManager for consistent empty state messaging
-          final emptyStateManager = EmptyStorageStateManager.instance;
-          final isEmptyStateConfirmed = emptyStateManager.shouldShowEmptyUI();
-
-          final emptyMessage = isEmptyStateConfirmed
-              ? 'No files in storage'
-              : 'No files found';
-          final emptySubMessage = isEmptyStateConfirmed
-              ? 'Upload files to see them here'
-              : 'Files will appear here once uploaded';
-
-          return Container(
-            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppColors.border.withValues(alpha: 0.3),
-                width: 1,
-              ),
-            ),
-            child: Center(
-              child: Column(
-                children: [
-                  Icon(
-                    isEmptyStateConfirmed ? Icons.cloud_off : Icons.folder_open,
-                    size: 48,
-                    color: AppColors.textSecondary.withValues(alpha: 0.5),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    emptyMessage,
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    emptySubMessage,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.textSecondary.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
+        // PRIORITY 3: Show empty state after loading is complete
+        if (documents.isEmpty &&
+            !documentProvider.isLoading &&
+            _hasInitialLoadCompleted) {
+          return _buildEmptyState();
         }
 
         // Return the actual files list
@@ -406,7 +479,25 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           final document = entry.value;
           final isLast = index == documents.length - 1;
 
-          return _buildFileListItem(document, isLast, selectionProvider);
+          // Add staggered animation for each file item
+          return TweenAnimationBuilder<double>(
+            duration: Duration(milliseconds: 300 + (index * 100)),
+            tween: Tween<double>(begin: 0.0, end: 1.0),
+            curve: Curves.easeOutBack,
+            builder: (context, value, child) {
+              return Transform.translate(
+                offset: Offset(0, 20 * (1 - value)),
+                child: Opacity(
+                  opacity: value,
+                  child: _buildFileListItem(
+                    document,
+                    isLast,
+                    selectionProvider,
+                  ),
+                ),
+              );
+            },
+          );
         }).toList(),
       ),
     );
@@ -782,6 +873,159 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     setState(() {
       _currentPage = page;
     });
+  }
+
+  /// Build initial loading state with enhanced animation
+  Widget _buildInitialLoadingState() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 50, horizontal: 20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Animated loading indicator
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 1000),
+              tween: Tween<double>(begin: 0.0, end: 1.0),
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: 0.8 + (0.2 * value),
+                  child: Opacity(
+                    opacity: 0.6 + (0.4 * value),
+                    child: const SizedBox(
+                      width: 32,
+                      height: 32,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 3,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            // Loading text with fade animation
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 800),
+              tween: Tween<double>(begin: 0.0, end: 1.0),
+              builder: (context, value, child) {
+                return Opacity(
+                  opacity: value,
+                  child: Text(
+                    'Loading files...',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            // Subtitle with delayed animation
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 1200),
+              tween: Tween<double>(begin: 0.0, end: 1.0),
+              builder: (context, value, child) {
+                return Opacity(
+                  opacity: value,
+                  child: Text(
+                    'Please wait while we fetch your documents',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: AppColors.textSecondary.withValues(alpha: 0.7),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build empty state with animation
+  Widget _buildEmptyState() {
+    final emptyStateManager = EmptyStorageStateManager.instance;
+    final isEmptyStateConfirmed = emptyStateManager.shouldShowEmptyUI();
+
+    final emptyMessage = isEmptyStateConfirmed
+        ? 'No files in storage'
+        : 'No files found';
+    final emptySubMessage = isEmptyStateConfirmed
+        ? 'Upload files to see them here'
+        : 'Files will appear here once uploaded';
+
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 600),
+      tween: Tween<double>(begin: 0.0, end: 1.0),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Transform.translate(
+          offset: Offset(0, 20 * (1 - value)),
+          child: Opacity(
+            opacity: value,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: AppColors.border.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(
+                      isEmptyStateConfirmed
+                          ? Icons.cloud_off
+                          : Icons.folder_open,
+                      size: 48,
+                      color: AppColors.textSecondary.withValues(alpha: 0.5),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      emptyMessage,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      emptySubMessage,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.textSecondary.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   /// Handle smooth transition when exiting selection mode
