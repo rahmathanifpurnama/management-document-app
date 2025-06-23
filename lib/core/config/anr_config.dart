@@ -36,7 +36,9 @@ class ANRConfig {
   static const Duration storageMetadataTimeout = Duration(
     seconds: 10,
   ); // Increased to prevent download URL timeouts
-  static const Duration authTimeout = Duration(seconds: 4); // Further reduced
+  static const Duration authTimeout = Duration(
+    seconds: 30,
+  ); // Increased for Firebase Auth reliability
 
   // File reading timeouts based on size
   static const Duration smallFileReadTimeout = Duration(seconds: 3); // < 5MB

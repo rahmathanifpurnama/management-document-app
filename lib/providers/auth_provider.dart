@@ -3,8 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../core/services/auth_service.dart';
-import '../core/utils/anr_prevention.dart';
-import '../core/config/anr_config.dart';
+
 import '../services/enhanced_auth_service.dart';
 import '../models/user_model.dart';
 
@@ -77,11 +76,11 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      // Execute login with ANR prevention and timeout
-      UserModel? user = await ANRPrevention.executeWithTimeout<UserModel?>(
-        _authService.login(email, password, rememberMe: rememberMe),
-        timeout: ANRConfig.authTimeout,
-        operationName: 'User Login',
+      // Execute login - AuthService already has timeout, no need for double timeout
+      UserModel? user = await _authService.login(
+        email,
+        password,
+        rememberMe: rememberMe,
       );
 
       if (user != null) {

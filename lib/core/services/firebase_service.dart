@@ -40,8 +40,15 @@ class FirebaseService {
 
       await Firebase.initializeApp();
 
-      // Initialize App Check to prevent warnings and improve security
-      await _initializeAppCheck();
+      // Initialize App Check only if enabled in configuration
+      if (FirebaseConfig.enableAppCheckInDebug ||
+          FirebaseConfig.enableAppCheckInProduction) {
+        await _initializeAppCheck();
+      } else {
+        debugPrint(
+          '🔧 App Check disabled in configuration - skipping initialization',
+        );
+      }
 
       // Enable offline persistence for Firestore with timeout
       await Future.any([

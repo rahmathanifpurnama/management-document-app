@@ -32,23 +32,26 @@ class AuthService {
     bool rememberMe = false,
   }) async {
     try {
-      // Step 1: Firebase Authentication with timeout
-      UserCredential? userCredential = await ANRPrevention.executeWithTimeout(
-        _firebaseService.auth.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        ),
-        timeout: ANRConfig.authTimeout,
-        operationName: 'Firebase Authentication',
-      );
+      // Step 1: Firebase Authentication with timeout and retry
+      UserCredential userCredential =
+          await ANRPrevention.executeWithRetry(
+            () => _firebaseService.auth.signInWithEmailAndPassword(
+              email: email,
+              password: password,
+            ),
+            maxRetries: 2,
+            delay: const Duration(seconds: 2),
+            operationName: 'Firebase Authentication',
+          ) ??
+          (throw Exception('Gagal melakukan autentikasi.'));
 
-      if (userCredential?.user == null) {
+      if (userCredential.user == null) {
         throw Exception('Gagal melakukan autentikasi.');
       }
 
       // Step 2: Get user data from Firestore with timeout
       DocumentSnapshot? userDoc = await ANRPrevention.executeWithTimeout(
-        _firebaseService.usersCollection.doc(userCredential!.user!.uid).get(),
+        _firebaseService.usersCollection.doc(userCredential.user!.uid).get(),
         timeout: ANRConfig.firestoreQueryTimeout,
         operationName: 'Fetch User Data',
       );
@@ -259,6 +262,12 @@ class AuthService {
         return 'Email atau password salah. Silakan coba lagi.';
       case 'credential-already-in-use':
         return 'Kredensial sudah digunakan oleh akun lain.';
+      case 'recaptcha-not-enabled':
+        return 'Sistem keamanan sedang dalam pemeliharaan. Silakan coba lagi.';
+      case 'missing-recaptcha-token':
+        return 'Token keamanan tidak tersedia. Silakan coba lagi.';
+      case 'invalid-recaptcha-token':
+        return 'Token keamanan tidak valid. Silakan coba lagi.';
       case 'invalid-verification-code':
         return 'Kode verifikasi tidak valid.';
       case 'invalid-verification-id':

@@ -172,17 +172,35 @@ class ANRPrevention {
     Duration delay = const Duration(seconds: 1),
     String? operationName,
   }) async {
+    Exception? lastException;
+
     for (int attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         debugPrint(
           '🔄 Attempt ${attempt + 1}/${maxRetries + 1}: ${operationName ?? 'Unknown'}',
         );
 
-        return await executeWithTimeout(
-          operation(),
-          operationName: operationName,
+        // Use longer timeout for authentication operations
+        final timeout = operationName?.contains('Authentication') == true
+            ? ANRConfig.authTimeout
+            : _defaultTimeout;
+
+        final result = await operation().timeout(
+          timeout,
+          onTimeout: () {
+            throw TimeoutException(
+              'Operation timeout: ${operationName ?? 'Unknown'}',
+              timeout,
+            );
+          },
         );
+
+        debugPrint(
+          '✅ ${operationName ?? 'Unknown'} succeeded on attempt ${attempt + 1}',
+        );
+        return result;
       } catch (e) {
+        lastException = e is Exception ? e : Exception(e.toString());
         debugPrint(
           '❌ Attempt ${attempt + 1} failed: ${operationName ?? 'Unknown'} - $e',
         );
@@ -191,7 +209,7 @@ class ANRPrevention {
           debugPrint(
             '💥 All retry attempts failed: ${operationName ?? 'Unknown'}',
           );
-          return null;
+          throw lastException;
         }
 
         // Exponential backoff
@@ -201,7 +219,7 @@ class ANRPrevention {
         await Future.delayed(retryDelay);
       }
     }
-    return null;
+    throw lastException ?? Exception('Unknown error in retry mechanism');
   }
 
   /// Monitor operation performance
