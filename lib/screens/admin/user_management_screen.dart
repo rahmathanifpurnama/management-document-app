@@ -1,14 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/widgets/optimized_loading_widget.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../models/user_model.dart';
 import '../../widgets/common/app_bottom_navigation.dart';
+import '../../widgets/common/reusable_search_widget.dart';
 
 import '../../widgets/user/user_card.dart';
 import '../../widgets/common/empty_state_widget.dart';
@@ -24,6 +25,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedRole = 'all';
   String _selectedStatus = 'all';
+  Timer? _searchTimer;
 
   @override
   void initState() {
@@ -34,6 +36,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchTimer?.cancel();
     super.dispose();
   }
 
@@ -58,26 +61,21 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return AppScaffoldWithNavigation(
-      title: AppStrings.userManagement,
+      title: 'User Management',
       currentNavIndex: 3, // Add User is index 3 for admin
       showAppBar: true, // Ensure app bar is shown
       actions: [
         IconButton(
-          icon: const Icon(Icons.search),
-          onPressed: _showSearchDialog,
-        ),
-        IconButton(
           icon: const Icon(Icons.filter_list),
           onPressed: _showFilterDialog,
         ),
-        IconButton(icon: const Icon(Icons.refresh), onPressed: _loadUsers),
       ],
       body: Consumer2<UserProvider, AuthProvider>(
         builder: (context, userProvider, authProvider, child) {
           if (userProvider.isLoading) {
             return const Center(
               child: OptimizedLoadingWidget(
-                message: 'Memuat data pengguna...',
+                message: 'Loading users...',
                 color: AppColors.primary,
                 size: 50,
                 showMessage: true,
@@ -103,7 +101,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: _loadUsers,
-                    child: const Text('Coba Lagi'),
+                    child: const Text('Try Again'),
                   ),
                 ],
               ),
@@ -127,13 +125,22 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   ),
                 ),
                 icon: const Icon(Icons.add),
-                label: const Text(AppStrings.createUser),
+                label: const Text('Add User'),
               ),
             );
           }
 
           return Column(
             children: [
+              // Search Section
+              ReusableSearchWidget(
+                controller: _searchController,
+                hintText: 'Search users by name or email...',
+                onChanged: _onSearchChanged,
+                onClear: _clearSearch,
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              ),
+
               // Header Section with Add User Button
               Container(
                 padding: const EdgeInsets.all(16),
@@ -152,7 +159,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           });
                         },
                         icon: const Icon(Icons.person_add),
-                        label: const Text('Tambah Pengguna Baru'),
+                        label: const Text('Add New User'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: AppColors.textWhite,
@@ -202,7 +209,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                           _selectedStatus = 'all';
                         },
                         child: const Text(
-                          'Hapus Filter',
+                          'Clear Filters',
                           style: TextStyle(fontSize: 12),
                         ),
                       ),
@@ -242,7 +249,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     List<String> filters = [];
 
     if (userProvider.searchQuery.isNotEmpty) {
-      filters.add('Pencarian: "${userProvider.searchQuery}"');
+      filters.add('Search: "${userProvider.searchQuery}"');
     }
 
     if (userProvider.selectedRole != 'all') {
@@ -256,55 +263,19 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     return filters.join(' • ');
   }
 
-  void _showSearchDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Cari Pengguna'),
-          content: TextField(
-            controller: _searchController,
-            decoration: const InputDecoration(
-              hintText: 'Masukkan nama atau email...',
-              prefixIcon: Icon(Icons.search),
-            ),
-            autofocus: true,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text(AppStrings.cancel),
-            ),
-            if (_searchController.text.isNotEmpty)
-              TextButton(
-                onPressed: () {
-                  final userProvider = Provider.of<UserProvider>(
-                    context,
-                    listen: false,
-                  );
-                  _searchController.clear();
-                  userProvider.clearFilters();
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Hapus'),
-              ),
-            ElevatedButton(
-              onPressed: () {
-                final userProvider = Provider.of<UserProvider>(
-                  context,
-                  listen: false,
-                );
-                userProvider.searchUsers(_searchController.text);
-                Navigator.of(context).pop();
-              },
-              child: const Text(AppStrings.search),
-            ),
-          ],
-        );
-      },
-    );
+  void _onSearchChanged(String query) {
+    if (_searchTimer?.isActive ?? false) _searchTimer!.cancel();
+
+    _searchTimer = Timer(const Duration(milliseconds: 300), () {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      userProvider.searchUsers(query);
+    });
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    userProvider.clearFilters();
   }
 
   void _showFilterDialog() {
@@ -316,7 +287,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             return Consumer<UserProvider>(
               builder: (context, userProvider, child) {
                 return AlertDialog(
-                  title: const Text('Filter Pengguna'),
+                  title: const Text('Filter Users'),
                   content: SingleChildScrollView(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -324,7 +295,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       children: [
                         // Statistics Section
                         const Text(
-                          'Statistik Pengguna:',
+                          'User Statistics:',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -356,14 +327,14 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                                   ),
                                   Expanded(
                                     child: _buildStatInfo(
-                                      'Aktif',
+                                      'Active',
                                       userProvider.activeUsersCount.toString(),
                                       AppColors.success,
                                     ),
                                   ),
                                   Expanded(
                                     child: _buildStatInfo(
-                                      'Tidak Aktif',
+                                      'Inactive',
                                       userProvider.inactiveUsersCount
                                           .toString(),
                                       AppColors.error,
@@ -399,7 +370,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
                         // Filter Section
                         const Text(
-                          'Filter Pengguna:',
+                          'Filter Users:',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -418,7 +389,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                             DropdownMenuItem(
                               value: 'all',
                               child: Text(
-                                'Semua Role (${userProvider.totalUsersCount})',
+                                'All Roles (${userProvider.totalUsersCount})',
                               ),
                             ),
                             DropdownMenuItem(
@@ -451,19 +422,19 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                             DropdownMenuItem(
                               value: 'all',
                               child: Text(
-                                'Semua Status (${userProvider.totalUsersCount})',
+                                'All Status (${userProvider.totalUsersCount})',
                               ),
                             ),
                             DropdownMenuItem(
                               value: 'active',
                               child: Text(
-                                'Aktif (${userProvider.activeUsersCount})',
+                                'Active (${userProvider.activeUsersCount})',
                               ),
                             ),
                             DropdownMenuItem(
                               value: 'inactive',
                               child: Text(
-                                'Tidak Aktif (${userProvider.inactiveUsersCount})',
+                                'Inactive (${userProvider.inactiveUsersCount})',
                               ),
                             ),
                           ],
@@ -481,7 +452,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       onPressed: () {
                         Navigator.of(context).pop();
                       },
-                      child: const Text(AppStrings.cancel),
+                      child: const Text('Cancel'),
                     ),
                     ElevatedButton(
                       onPressed: () {
@@ -493,7 +464,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         userProvider.filterByStatus(_selectedStatus);
                         Navigator.of(context).pop();
                       },
-                      child: const Text('Terapkan'),
+                      child: const Text('Apply'),
                     ),
                   ],
                 );
@@ -538,19 +509,19 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Konfirmasi Hapus'),
+          title: const Text('Confirm Delete'),
           content: Text(
-            'Apakah Anda yakin ingin menghapus pengguna "${user.fullName}"?',
+            'Are you sure you want to delete user "${user.fullName}"?',
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text(AppStrings.cancel),
+              child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-              child: const Text(AppStrings.delete),
+              child: const Text('Delete'),
             ),
           ],
         );
@@ -567,12 +538,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       if (mounted) {
         if (success) {
           Fluttertoast.showToast(
-            msg: 'Pengguna berhasil dihapus',
+            msg: 'User deleted successfully',
             backgroundColor: AppColors.success,
           );
         } else {
           Fluttertoast.showToast(
-            msg: userProvider.errorMessage ?? 'Gagal menghapus pengguna',
+            msg: userProvider.errorMessage ?? 'Failed to delete user',
             backgroundColor: AppColors.error,
           );
         }
@@ -594,12 +565,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     if (success) {
       Fluttertoast.showToast(
-        msg: 'Status pengguna berhasil diubah',
+        msg: 'User status updated successfully',
         backgroundColor: AppColors.success,
       );
     } else {
       Fluttertoast.showToast(
-        msg: userProvider.errorMessage ?? 'Gagal mengubah status pengguna',
+        msg: userProvider.errorMessage ?? 'Failed to update user status',
         backgroundColor: AppColors.error,
       );
     }
