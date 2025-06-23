@@ -953,7 +953,7 @@ class DocumentProvider extends ChangeNotifier {
   }
 
   // Update document category with Firebase Storage integration
-  // ENHANCED: Improved synchronization between providers
+  // FIXED: Update local cache first for immediate UI response, then sync with backend
   Future<void> updateDocumentCategory(
     String documentId,
     String categoryId,
@@ -963,70 +963,88 @@ class DocumentProvider extends ChangeNotifier {
       debugPrint('   Document ID: $documentId');
       debugPrint('   Target Category: $categoryId');
 
-      // STEP 1: Update Firestore document-metadata first
-      await _updateFirestoreDocumentCategory(documentId, categoryId);
-
-      // STEP 2: Use the file category management service for Firebase Storage organization
-      final fileCategoryService = FileCategoryManagementService();
-      await fileCategoryService.moveFileToCategory(documentId, categoryId);
-
       final documentIndex = _documents.indexWhere(
         (doc) => doc.id == documentId,
       );
 
-      if (documentIndex != -1) {
-        final originalDocument = _documents[documentIndex];
-
-        debugPrint(
-          '✅ Document found in local cache: ${originalDocument.fileName}',
-        );
-
-        // Skip if already in the same category
-        if (originalDocument.category == categoryId) {
-          debugPrint('⚠️ Document already in target category, skipping update');
-          return;
-        }
-
-        final updatedDocument = originalDocument.copyWith(category: categoryId);
-
-        // Update main documents list
-        _documents[documentIndex] = updatedDocument;
-
-        // Remove from old category storage
-        if (_categoryDocuments.containsKey(originalDocument.category)) {
-          _categoryDocuments[originalDocument.category]!.removeWhere(
-            (doc) => doc.id == documentId,
-          );
-          debugPrint(
-            '✅ Removed from old category: ${originalDocument.category}',
-          );
-        }
-
-        // Add to new category storage
-        if (!_categoryDocuments.containsKey(categoryId)) {
-          _categoryDocuments[categoryId] = [];
-        }
-        _categoryDocuments[categoryId]!.add(updatedDocument);
-        debugPrint('✅ Added to new category: $categoryId');
-
-        // ENHANCED: Update UnifiedDocumentLoader cache for consistency
-        _unifiedLoader.updateDocumentCategory(documentId, categoryId);
-
-        // Only notify once at the end
-        notifyListeners();
-
-        // Save to storage
-        await _saveToStorage();
-
-        // STEP 4: Update category document count
-        await _updateCategoryDocumentCount(categoryId);
-
-        debugPrint(
-          '✅ DocumentProvider: Category update completed successfully',
-        );
-      } else {
+      if (documentIndex == -1) {
         debugPrint('⚠️ Document not found in local cache: $documentId');
+        throw Exception('Document not found in local cache');
       }
+
+      final originalDocument = _documents[documentIndex];
+
+      debugPrint(
+        '✅ Document found in local cache: ${originalDocument.fileName}',
+      );
+
+      // Skip if already in the same category
+      if (originalDocument.category == categoryId) {
+        debugPrint('⚠️ Document already in target category, skipping update');
+        return;
+      }
+
+      // STEP 1: Update local cache FIRST for immediate UI response
+      final updatedDocument = originalDocument.copyWith(category: categoryId);
+
+      // Update main documents list
+      _documents[documentIndex] = updatedDocument;
+
+      // Remove from old category storage
+      if (_categoryDocuments.containsKey(originalDocument.category)) {
+        _categoryDocuments[originalDocument.category]!.removeWhere(
+          (doc) => doc.id == documentId,
+        );
+        debugPrint('✅ Removed from old category: ${originalDocument.category}');
+      }
+
+      // Add to new category storage
+      if (!_categoryDocuments.containsKey(categoryId)) {
+        _categoryDocuments[categoryId] = [];
+      }
+      _categoryDocuments[categoryId]!.add(updatedDocument);
+      debugPrint('✅ Added to new category: $categoryId');
+
+      // ENHANCED: Update UnifiedDocumentLoader cache for consistency
+      _unifiedLoader.updateDocumentCategory(documentId, categoryId);
+
+      // Notify listeners immediately for UI update
+      notifyListeners();
+
+      // Save to storage immediately
+      await _saveToStorage();
+
+      debugPrint('✅ Local cache updated immediately');
+
+      // STEP 2: Update Firestore document-metadata (non-blocking for UI)
+      try {
+        await _updateFirestoreDocumentCategory(documentId, categoryId);
+        debugPrint('✅ Firestore updated successfully');
+      } catch (firestoreError) {
+        debugPrint('⚠️ Firestore update failed: $firestoreError');
+        // Don't rollback local changes - Firestore will be eventually consistent
+      }
+
+      // STEP 3: Update Firebase Storage (non-blocking for UI, graceful degradation)
+      try {
+        final fileCategoryService = FileCategoryManagementService();
+        await fileCategoryService.moveFileToCategory(documentId, categoryId);
+        debugPrint('✅ Firebase Storage updated successfully');
+      } catch (storageError) {
+        debugPrint('⚠️ Firebase Storage update failed: $storageError');
+        // Don't rollback local changes - Storage organization is not critical for functionality
+      }
+
+      // STEP 4: Update category document count (non-blocking)
+      try {
+        await _updateCategoryDocumentCount(categoryId);
+        debugPrint('✅ Category document count updated');
+      } catch (countError) {
+        debugPrint('⚠️ Category count update failed: $countError');
+        // Don't rollback - count will be eventually consistent
+      }
+
+      debugPrint('✅ DocumentProvider: Category update completed successfully');
     } catch (e) {
       debugPrint('❌ DocumentProvider: Failed to update document category: $e');
       _setError('Failed to update document category: $e');
@@ -1041,6 +1059,7 @@ class DocumentProvider extends ChangeNotifier {
   ) async {
     try {
       debugPrint('🔄 Updating Firestore document-metadata for: $documentId');
+      debugPrint('   New category: $categoryId');
 
       await FirebaseFirestore.instance
           .collection('document-metadata')
@@ -1053,7 +1072,44 @@ class DocumentProvider extends ChangeNotifier {
       debugPrint('✅ Firestore document-metadata updated successfully');
     } catch (e) {
       debugPrint('❌ Failed to update Firestore document-metadata: $e');
-      // Don't throw error as this is not critical for the operation
+
+      // ENHANCED: Try to create document if it doesn't exist
+      if (e.toString().contains('No document to update')) {
+        try {
+          debugPrint('🔄 Document not found, attempting to create...');
+
+          // Find document in local cache to get metadata
+          final document = _documents.firstWhere(
+            (doc) => doc.id == documentId,
+            orElse: () => throw Exception('Document not found in local cache'),
+          );
+
+          await FirebaseFirestore.instance
+              .collection('document-metadata')
+              .doc(documentId)
+              .set({
+                'id': documentId,
+                'fileName': document.fileName,
+                'fileSize': document.fileSize,
+                'fileType': document.fileType,
+                'filePath': document.filePath,
+                'uploadedBy': document.uploadedBy,
+                'uploadedAt': document.uploadedAt,
+                'category': categoryId,
+                'permissions': document.permissions,
+                'isActive': true,
+                'createdAt': FieldValue.serverTimestamp(),
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+
+          debugPrint('✅ Firestore document created successfully');
+        } catch (createError) {
+          debugPrint('❌ Failed to create Firestore document: $createError');
+          // Don't throw - graceful degradation
+        }
+      }
+
+      // Don't throw error - graceful degradation for eventual consistency
     }
   }
 
@@ -1860,10 +1916,15 @@ class DocumentProvider extends ChangeNotifier {
   List<DocumentModel> getDocumentsByCategory(String category) {
     debugPrint('🔍 Getting documents for category: $category');
 
-    // Handle empty category
+    // Handle empty category - return documents with empty category
     if (category.isEmpty) {
-      debugPrint('⚠️ Empty category provided, returning empty list');
-      return [];
+      final uncategorizedDocs = _documents
+          .where((doc) => doc.category.isEmpty)
+          .toList();
+      debugPrint(
+        '📭 Empty category: returning ${uncategorizedDocs.length} uncategorized documents',
+      );
+      return uncategorizedDocs;
     }
 
     // First try to get from local storage
@@ -1872,28 +1933,29 @@ class DocumentProvider extends ChangeNotifier {
       '📁 Local storage has ${localDocuments.length} documents for category $category',
     );
 
-    // If local storage is empty but we have documents in main list, rebuild category storage
-    if (localDocuments.isEmpty && _documents.isNotEmpty) {
-      debugPrint('🔄 Rebuilding category storage from main documents list...');
-      final documentsInCategory = _documents
-          .where((doc) => doc.category == category)
-          .toList();
+    // ENHANCED: Always rebuild from main list to ensure consistency
+    final documentsInCategory = _documents
+        .where((doc) => doc.category == category)
+        .toList();
+
+    debugPrint(
+      '📊 Found ${documentsInCategory.length} documents in main list for category $category',
+    );
+
+    // Update category storage if there's a mismatch
+    if (documentsInCategory.length != localDocuments.length) {
+      debugPrint('🔄 Rebuilding category storage due to count mismatch...');
+      _categoryDocuments[category] = documentsInCategory;
+
+      // Save the rebuilt data asynchronously
+      _saveToStorage().catchError((e) {
+        debugPrint('⚠️ Failed to save rebuilt category storage: $e');
+      });
 
       debugPrint(
-        '📊 Found ${documentsInCategory.length} documents in main list for category $category',
+        '✅ Rebuilt category storage for $category: ${documentsInCategory.length} documents',
       );
-
-      if (documentsInCategory.isNotEmpty) {
-        _categoryDocuments[category] = documentsInCategory;
-        debugPrint(
-          '✅ Rebuilt category storage for $category: ${documentsInCategory.length} documents',
-        );
-        // Save the rebuilt data
-        _saveToStorage();
-        return documentsInCategory;
-      } else {
-        debugPrint('📭 No documents found for category $category in main list');
-      }
+      return documentsInCategory;
     }
 
     debugPrint(

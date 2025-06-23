@@ -469,8 +469,9 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
         );
       }
 
-      // Force refresh to ensure UI consistency
-      await documentProvider.loadDocuments(forceRefresh: true);
+      // FIXED: No force refresh needed - local cache is already updated by updateDocumentCategory
+      // Force refresh was causing race condition and overriding local changes
+      debugPrint('✅ Category assignment completed without force refresh');
 
       if (mounted) {
         // Hide loading indicator

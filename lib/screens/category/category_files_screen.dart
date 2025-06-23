@@ -544,23 +544,32 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
       context,
     ).pushNamed(AppRoutes.addFilesToCategory, arguments: widget.category);
 
-    // ENHANCED: Comprehensive refresh if files were actually added
+    // FIXED: Smart refresh - only refresh if needed, don't override local changes
     if (mounted && result == true) {
       final documentProvider = Provider.of<DocumentProvider>(
         context,
         listen: false,
       );
 
-      // Force refresh from Firebase to ensure data consistency
-      await documentProvider.refreshFolderContents();
+      // Check if category has files in local cache
+      final localCategoryFiles = documentProvider.getDocumentsByCategory(
+        widget.category.id,
+      );
 
-      // Also refresh category-specific data
-      await documentProvider.getDocumentsByCategoryAsync(widget.category.id);
+      debugPrint('📊 Local category files count: ${localCategoryFiles.length}');
 
-      // Trigger UI rebuild
+      // Only refresh from Firebase if local cache is empty (which shouldn't happen now)
+      if (localCategoryFiles.isEmpty) {
+        debugPrint('⚠️ Local cache empty, refreshing from Firebase...');
+        await documentProvider.getDocumentsByCategoryAsync(widget.category.id);
+      } else {
+        debugPrint('✅ Local cache has files, no refresh needed');
+      }
+
+      // Trigger UI rebuild to reflect any changes
       setState(() {});
 
-      debugPrint('✅ Category files refreshed after adding files');
+      debugPrint('✅ Category files screen updated after adding files');
     }
   }
 
