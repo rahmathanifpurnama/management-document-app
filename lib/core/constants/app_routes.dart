@@ -46,7 +46,6 @@ class AppRoutes {
   // Settings Routes
   static const String settings = '/settings';
   static const String syncManagement = '/sync-management';
-  static const String cloudFunctionsSettings = '/cloud-functions-settings';
 
   // Error Routes
   static const String notFound = '/not-found';

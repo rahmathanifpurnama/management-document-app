@@ -39,7 +39,6 @@ import 'screens/profile/edit_profile_screen.dart';
 import 'screens/profile/settings_screen.dart';
 import 'screens/profile/change_password_screen.dart';
 import 'screens/admin/sync_management_screen.dart';
-import 'screens/admin/cloud_functions_settings_screen.dart';
 import 'screens/upload/upload_document_screen.dart';
 import 'screens/common/file_preview_screen.dart';
 import 'services/download_notification_service.dart';
@@ -347,11 +346,7 @@ class _MyAppState extends State<MyApp> {
                     return MaterialPageRoute(
                       builder: (context) => const SyncManagementScreen(),
                     );
-                  case AppRoutes.cloudFunctionsSettings:
-                    return MaterialPageRoute(
-                      builder: (context) =>
-                          const CloudFunctionsSettingsScreen(),
-                    );
+
                   case AppRoutes.filePreview:
                     final document = settings.arguments as DocumentModel;
                     return MaterialPageRoute(

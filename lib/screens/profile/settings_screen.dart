@@ -126,18 +126,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                     const SizedBox(height: 12),
 
-                    _buildMenuTile(
-                      icon: Icons.cloud_queue,
-                      title: 'Cloud Functions Settings',
-                      subtitle: 'Configure Cloud Functions features',
-                      onTap: () => Navigator.pushNamed(
-                        context,
-                        AppRoutes.cloudFunctionsSettings,
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
                     const SizedBox(height: 32),
                   ],
                 );
@@ -195,10 +183,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildSectionHeader(String title) {
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w600,
-        color: Colors.black87,
+        color: Theme.of(context).textTheme.titleMedium?.color,
       ),
     );
   }
@@ -210,12 +198,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: isDark ? Colors.grey[800] : Colors.grey[50],
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!, width: 1),
+        border: Border.all(
+          color: isDark ? Colors.grey[700]! : Colors.grey[200]!,
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
@@ -235,16 +229,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: Colors.black87,
+                    color: theme.textTheme.titleMedium?.color,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.textTheme.bodySmall?.color,
+                  ),
                 ),
               ],
             ),
@@ -260,15 +257,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildLanguageTile(SettingsProvider settingsProvider) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return InkWell(
       onTap: () => _showLanguageDialog(settingsProvider),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey[50],
+          color: isDark ? Colors.grey[800] : Colors.grey[50],
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[200]!, width: 1),
+          border: Border.all(
+            color: isDark ? Colors.grey[700]! : Colors.grey[200]!,
+            width: 1,
+          ),
         ),
         child: Row(
           children: [
@@ -290,23 +293,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Language',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
-                      color: Colors.black87,
+                      color: theme.textTheme.titleMedium?.color,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     settingsProvider.selectedLanguage,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.textTheme.bodySmall?.color,
+                    ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: theme.textTheme.bodySmall?.color,
+            ),
           ],
         ),
       ),
@@ -320,15 +330,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey[50],
+          color: isDark ? Colors.grey[800] : Colors.grey[50],
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey[200]!, width: 1),
+          border: Border.all(
+            color: isDark ? Colors.grey[700]! : Colors.grey[200]!,
+            width: 1,
+          ),
         ),
         child: Row(
           children: [
@@ -357,18 +373,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
-                      color: isDestructive ? Colors.red : Colors.black87,
+                      color: isDestructive
+                          ? Colors.red
+                          : theme.textTheme.titleMedium?.color,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.textTheme.bodySmall?.color,
+                    ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+            Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: theme.textTheme.bodySmall?.color,
+            ),
           ],
         ),
       ),

@@ -5,7 +5,6 @@ import '../../core/constants/app_routes.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_bottom_navigation.dart';
 import '../../models/user_model.dart';
-import '../../widgets/profile/storage_sync_dialog.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -68,18 +67,6 @@ class ProfileScreen extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 16),
-
-                  // Admin-only Storage Sync option
-                  if (authProvider.isAdmin) ...[
-                    _buildMenuItem(
-                      context,
-                      icon: Icons.sync_outlined,
-                      title: 'Storage Sync',
-                      subtitle: 'Sync orphaned files from Storage to Database',
-                      onTap: () => _showStorageSyncDialog(context),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
 
                   _buildMenuItem(
                     context,
@@ -274,15 +261,6 @@ class ProfileScreen extends StatelessWidget {
 
   void _navigateToSettings(BuildContext context) {
     Navigator.of(context).pushNamed(AppRoutes.settings);
-  }
-
-  void _showStorageSyncDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StorageSyncDialog();
-      },
-    );
   }
 
   void _showLogoutDialog(BuildContext context) {
