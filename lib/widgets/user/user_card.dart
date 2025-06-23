@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/constants/app_strings.dart';
 import '../../models/user_model.dart';
 
 class UserCard extends StatelessWidget {
@@ -87,7 +86,7 @@ class UserCard extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                                 child: const Text(
-                                  'Anda',
+                                  'You',
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: AppColors.info,
@@ -151,9 +150,7 @@ class UserCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                user.isActive
-                                    ? AppStrings.active
-                                    : AppStrings.inactive,
+                                user.isActive ? 'Active' : 'Inactive',
                                 style: TextStyle(
                                   fontSize: 10,
                                   color: user.isActive
@@ -193,7 +190,7 @@ class UserCard extends StatelessWidget {
                         value: 'edit',
                         child: ListTile(
                           leading: Icon(Icons.edit_outlined),
-                          title: Text(AppStrings.edit),
+                          title: Text('Edit'),
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
@@ -210,7 +207,7 @@ class UserCard extends StatelessWidget {
                                   : AppColors.success,
                             ),
                             title: Text(
-                              user.isActive ? 'Nonaktifkan' : 'Aktifkan',
+                              user.isActive ? 'Deactivate' : 'Activate',
                               style: TextStyle(
                                 color: user.isActive
                                     ? AppColors.error
@@ -230,7 +227,7 @@ class UserCard extends StatelessWidget {
                               color: AppColors.error,
                             ),
                             title: Text(
-                              AppStrings.delete,
+                              'Delete',
                               style: TextStyle(color: AppColors.error),
                             ),
                             contentPadding: EdgeInsets.zero,
@@ -250,7 +247,7 @@ class UserCard extends StatelessWidget {
                   Expanded(
                     child: _buildInfoItem(
                       icon: Icons.calendar_today_outlined,
-                      label: 'Dibuat',
+                      label: 'Created',
                       value: user.createdAt != null
                           ? DateFormat('dd/MM/yyyy').format(user.createdAt!)
                           : '-',
@@ -259,10 +256,10 @@ class UserCard extends StatelessWidget {
                   Expanded(
                     child: _buildInfoItem(
                       icon: Icons.access_time_outlined,
-                      label: 'Login Terakhir',
+                      label: 'Last Login',
                       value: user.lastLogin != null
                           ? _formatLastLogin(user.lastLogin!)
-                          : AppStrings.never,
+                          : 'Never',
                     ),
                   ),
                 ],
@@ -311,13 +308,13 @@ class UserCard extends StatelessWidget {
     final difference = now.difference(lastLogin);
 
     if (difference.inDays > 0) {
-      return '${difference.inDays} hari lalu';
+      return '${difference.inDays} day${difference.inDays > 1 ? 's' : ''} ago';
     } else if (difference.inHours > 0) {
-      return '${difference.inHours} jam lalu';
+      return '${difference.inHours} hour${difference.inHours > 1 ? 's' : ''} ago';
     } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} menit lalu';
+      return '${difference.inMinutes} minute${difference.inMinutes > 1 ? 's' : ''} ago';
     } else {
-      return 'Baru saja';
+      return 'Just now';
     }
   }
 }

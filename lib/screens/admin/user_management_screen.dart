@@ -132,45 +132,65 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
           return Column(
             children: [
-              // Search Section
-              ReusableSearchWidget(
-                controller: _searchController,
-                hintText: 'Search users by name or email...',
-                onChanged: _onSearchChanged,
-                onClear: _clearSearch,
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              ),
-
-              // Header Section with Add User Button
+              // Combined Search and Add User Section
               Container(
-                padding: const EdgeInsets.all(16),
-                color: AppColors.surface,
-                child: Column(
-                  children: [
-                    // Add User Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.of(
-                            context,
-                          ).pushNamed(AppRoutes.createUser).then((_) {
-                            _loadUsers(); // Refresh list after creating user
-                          });
-                        },
-                        icon: const Icon(Icons.person_add),
-                        label: const Text('Add New User'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: AppColors.textWhite,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.border.withValues(alpha: 0.3),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      // Search Widget
+                      ReusableSearchWidget(
+                        controller: _searchController,
+                        hintText: 'Search users by name or email...',
+                        onChanged: _onSearchChanged,
+                        onClear: _clearSearch,
+                        margin: EdgeInsets
+                            .zero, // Remove margin since we're inside a container
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Add User Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(
+                              context,
+                            ).pushNamed(AppRoutes.createUser).then((_) {
+                              _loadUsers(); // Refresh list after creating user
+                            });
+                          },
+                          icon: const Icon(Icons.person_add),
+                          label: const Text('Add New User'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: AppColors.textWhite,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 
