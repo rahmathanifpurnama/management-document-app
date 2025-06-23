@@ -57,9 +57,9 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
 
-  // Initial loading state management
-  bool _isInitialLoading = true;
-  bool _hasInitialLoadCompleted = false;
+  // Simple loading state management for first-time login
+  bool _isFirstTimeLoading = true;
+  bool _hasDataCheckCompleted = false;
 
   @override
   void initState() {
@@ -128,59 +128,57 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     super.dispose();
   }
 
-  /// Start initial loading process with proper state management
+  /// Start first-time loading process for login users
   Future<void> _startInitialLoading() async {
     if (!mounted) return;
 
+    // Set loading state
     setState(() {
-      _isInitialLoading = true;
-      _hasInitialLoadCompleted = false;
+      _isFirstTimeLoading = true;
+      _hasDataCheckCompleted = false;
     });
 
     try {
+      debugPrint(
+        '🔄 HomeFileListSection: Starting first-time loading for login user...',
+      );
+
+      // Show loading UI for minimum duration (better UX)
+      final minimumLoadingTime = Future.delayed(
+        const Duration(milliseconds: 1200),
+      );
+
+      // Get document provider
       final documentProvider = Provider.of<DocumentProvider>(
         context,
         listen: false,
       );
 
-      // Show loading for minimum duration for better UX
-      final loadingFuture = Future.delayed(const Duration(milliseconds: 800));
+      // Force load documents from database
+      final dataLoadingFuture = documentProvider.loadDocuments(
+        forceRefresh: true,
+      );
 
-      // Load documents if needed
-      Future<void> documentLoadingFuture = Future.value();
-
-      if (documentProvider.allDocuments.isEmpty &&
-          !documentProvider.isLoading &&
-          !CircuitBreaker.isCircuitOpen('home_init_loading')) {
-        documentLoadingFuture = CircuitBreaker.execute(
-          'home_init_loading',
-          () async {
-            debugPrint(
-              '🔄 HomeFileListSection: Starting initial document loading...',
-            );
-            await documentProvider.loadDocuments();
-          },
-          operationName: 'Home Init Loading',
-        );
-      }
-
-      // Wait for both loading animation and document loading to complete
-      await Future.wait([loadingFuture, documentLoadingFuture]);
+      // Wait for both minimum loading time and data loading
+      await Future.wait([minimumLoadingTime, dataLoadingFuture]);
 
       if (mounted) {
         setState(() {
-          _isInitialLoading = false;
-          _hasInitialLoadCompleted = true;
+          _isFirstTimeLoading = false;
+          _hasDataCheckCompleted = true;
         });
 
-        debugPrint('✅ HomeFileListSection: Initial loading completed');
+        final documentCount = documentProvider.allDocuments.length;
+        debugPrint(
+          '✅ HomeFileListSection: First-time loading completed - Found $documentCount files',
+        );
       }
     } catch (e) {
-      debugPrint('❌ HomeFileListSection: Initial loading failed: $e');
+      debugPrint('❌ HomeFileListSection: First-time loading failed: $e');
       if (mounted) {
         setState(() {
-          _isInitialLoading = false;
-          _hasInitialLoadCompleted = true;
+          _isFirstTimeLoading = false;
+          _hasDataCheckCompleted = true;
         });
       }
     }
@@ -205,81 +203,12 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   Widget build(BuildContext context) {
     return Consumer2<DocumentProvider, FileSelectionProvider>(
       builder: (context, documentProvider, selectionProvider, child) {
-        // EMPTY STATE FIX: Use EmptyStorageStateManager to prevent unnecessary loading
-        final emptyStateManager = EmptyStorageStateManager.instance;
-
-        if (documentProvider.allDocuments.isEmpty &&
-            !documentProvider.isLoading &&
-            !emptyStateManager.shouldSkipLoading() &&
-            !CircuitBreaker.isCircuitOpen('home_fallback_loading')) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            CircuitBreaker.execute('home_fallback_loading', () async {
-              debugPrint(
-                '🔄 HomeFileListSection: Triggering fallback document loading...',
-              );
-              await documentProvider.loadDocuments();
-            }, operationName: 'Home Fallback Loading');
-          });
-        }
-
-        // ENHANCED: Get documents from Firebase Storage-first approach
-        final recentDocuments = documentProvider.getRecentDocuments();
-
-        // REDUCED LOGGING: Only log when there are actual changes or issues
-        if (recentDocuments.isNotEmpty) {
-          // Only log once when files are first loaded, not on every rebuild
-          if (recentDocuments.length != documentProvider.allDocuments.length) {
-            debugPrint('📊 Home: ${recentDocuments.length} files loaded');
-          }
-        } else {
-          if (documentProvider.isLoading) {
-            // REDUCED LOGGING: Don't log loading state repeatedly
-          } else {
-            // EMPTY STATE FIX: Use EmptyStorageStateManager for consistent empty state handling
-            if (emptyStateManager.shouldShowEmptyUI()) {
-              // REDUCED LOGGING: Only log empty state confirmation once per session
-              if (!emptyStateManager.hasCheckedThisSession) {
-                debugPrint('📁 Empty storage confirmed - showing empty UI');
-                emptyStateManager.markCheckedThisSession();
-              }
-            } else {
-              // REDUCED LOGGING: Minimal debug info
-              debugPrint(
-                '⚠️ No documents found (${documentProvider.allDocuments.length} cached)',
-              );
-
-              // CIRCUIT BREAKER: Prevent infinite retry loops with EmptyStorageStateManager checks
-              if (!CircuitBreaker.isCircuitOpen('home_document_loading') &&
-                  !emptyStateManager.shouldSkipRetries()) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  CircuitBreaker.execute(
-                    'home_document_loading',
-                    () async {
-                      debugPrint(
-                        '🔄 HomeFileListSection: Retry loading documents...',
-                      );
-                      await documentProvider.loadDocuments(forceRefresh: true);
-                    },
-                    operationName: 'Home Document Loading',
-                  );
-                });
-              } else {
-                debugPrint(
-                  '🚫 Home screen: Skipping retry - empty state or circuit breaker',
-                );
-              }
-            }
-          }
-        }
-
-        // FILTER FIX: Use DocumentProvider's filtered results instead of bypassing filters
-        // This restores full filter functionality while maintaining search capability
+        // Get filtered documents for display
         final displayDocuments = documentProvider.filteredDocuments;
 
         // Update available files for selection only when necessary
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (selectionProvider.isSelectionMode) {
-            // Only update if we're in selection mode to avoid unnecessary calls
             selectionProvider.updateAvailableFiles(displayDocuments);
           }
         });
@@ -390,21 +319,13 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   ) {
     return Consumer<DocumentProvider>(
       builder: (context, documentProvider, child) {
-        // PRIORITY 1: Show initial loading state first
-        if (_isInitialLoading || !_hasInitialLoadCompleted) {
-          return _buildInitialLoadingState();
+        // PRIORITY 1: Show first-time loading state for login users
+        if (_isFirstTimeLoading || !_hasDataCheckCompleted) {
+          return _buildFirstTimeLoadingState();
         }
 
-        // EMPTY STATE FIX: Check if storage is confirmed empty
-        final isEmptyStateConfirmed =
-            CircuitBreaker.isCircuitOpen('storage_empty_state') ||
-            CircuitBreaker.isCircuitOpen('prevent_empty_storage_retries');
-
-        // PRIORITY 2: Show transition loading state
-        if (_isTransitioning ||
-            (documents.isEmpty &&
-                documentProvider.isLoading &&
-                !isEmptyStateConfirmed)) {
+        // PRIORITY 2: Show transition loading state (for page changes, etc.)
+        if (_isTransitioning) {
           return Container(
             padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
             decoration: BoxDecoration(
@@ -415,41 +336,23 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                 width: 1,
               ),
             ),
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        AppColors.primary,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    documentProvider.isLoading
-                        ? 'Loading files...'
-                        : 'Loading...',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+            child: const Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                ),
               ),
             ),
           );
         }
 
-        // PRIORITY 3: Show empty state after loading is complete
+        // PRIORITY 3: Show empty state after data check is complete
         if (documents.isEmpty &&
             !documentProvider.isLoading &&
-            _hasInitialLoadCompleted) {
+            _hasDataCheckCompleted) {
           return _buildEmptyState();
         }
 
@@ -875,10 +778,10 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     });
   }
 
-  /// Build initial loading state with enhanced animation
-  Widget _buildInitialLoadingState() {
+  /// Build first-time loading state for login users with enhanced animations
+  Widget _buildFirstTimeLoadingState() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 50, horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 20),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
@@ -886,69 +789,148 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           color: AppColors.border.withValues(alpha: 0.3),
           width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Animated loading indicator
+            // Animated loading container with ripple effect
             TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 1000),
+              duration: const Duration(milliseconds: 2000),
               tween: Tween<double>(begin: 0.0, end: 1.0),
               builder: (context, value, child) {
-                return Transform.scale(
-                  scale: 0.8 + (0.2 * value),
-                  child: Opacity(
-                    opacity: 0.6 + (0.4 * value),
-                    child: const SizedBox(
-                      width: 32,
-                      height: 32,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          AppColors.primary,
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Outer ripple
+                    Transform.scale(
+                      scale: 1.0 + (0.3 * value),
+                      child: Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.primary.withValues(
+                            alpha: 0.1 * (1 - value),
+                          ),
                         ),
                       ),
+                    ),
+                    // Inner container
+                    Transform.scale(
+                      scale: 0.9 + (0.1 * value),
+                      child: Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.primary.withValues(alpha: 0.15),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.3),
+                            width: 2,
+                          ),
+                        ),
+                        child: const Center(
+                          child: SizedBox(
+                            width: 32,
+                            height: 32,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+            const SizedBox(height: 32),
+            // Main loading text with slide animation
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 1200),
+              tween: Tween<double>(begin: 0.0, end: 1.0),
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(0, 20 * (1 - value)),
+                  child: Opacity(
+                    opacity: value,
+                    child: Text(
+                      'Loading your files...',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            // Subtitle with delayed slide animation
+            TweenAnimationBuilder<double>(
+              duration: const Duration(milliseconds: 1600),
+              tween: Tween<double>(begin: 0.0, end: 1.0),
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(0, 15 * (1 - value)),
+                  child: Opacity(
+                    opacity: value,
+                    child: Text(
+                      'Checking database for your documents',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 );
               },
             ),
             const SizedBox(height: 20),
-            // Loading text with fade animation
+            // Progress dots animation
             TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 800),
+              duration: const Duration(milliseconds: 2000),
               tween: Tween<double>(begin: 0.0, end: 1.0),
               builder: (context, value, child) {
                 return Opacity(
                   opacity: value,
-                  child: Text(
-                    'Loading files...',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 8),
-            // Subtitle with delayed animation
-            TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 1200),
-              tween: Tween<double>(begin: 0.0, end: 1.0),
-              builder: (context, value, child) {
-                return Opacity(
-                  opacity: value,
-                  child: Text(
-                    'Please wait while we fetch your documents',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.textSecondary.withValues(alpha: 0.7),
-                    ),
-                    textAlign: TextAlign.center,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(3, (index) {
+                      final delay = index * 0.3;
+                      final animValue = (value - delay).clamp(0.0, 1.0);
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Transform.scale(
+                          scale: 0.5 + (0.5 * animValue),
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: AppColors.primary.withValues(
+                                alpha: 0.3 + (0.7 * animValue),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
                   ),
                 );
               },
