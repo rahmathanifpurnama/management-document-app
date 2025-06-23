@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_service.dart';
 import '../../models/document_model.dart';
 import 'unified_id_system.dart';
-import 'database_version_tracker.dart';
 
 /// ID Reconciliation Service
 ///
@@ -18,8 +17,6 @@ class IdReconciliationService {
 
   final FirebaseService _firebaseService = FirebaseService.instance;
   final UnifiedIdSystem _unifiedIdSystem = UnifiedIdSystem.instance;
-  final DatabaseVersionTracker _versionTracker =
-      DatabaseVersionTracker.instance;
 
   bool _isReconciling = false;
 
@@ -73,10 +70,7 @@ class IdReconciliationService {
       );
       result.createdDocuments = missingDocuments;
 
-      // Step 6: Update database version to reflect reconciliation
-      await _versionTracker.updateDatabaseVersion(
-        reason: 'ID reconciliation completed',
-      );
+      // DISABLED: Database version update removed (DatabaseVersionTracker removed)
 
       result.success = true;
       result.duration = DateTime.now().difference(startTime);

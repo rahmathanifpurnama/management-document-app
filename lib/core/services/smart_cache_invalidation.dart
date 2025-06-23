@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_service.dart';
 import '../../models/document_model.dart';
-import 'database_version_tracker.dart';
+
 import 'unified_id_system.dart';
 
 /// Smart Cache Invalidation System
@@ -16,8 +16,7 @@ class SmartCacheInvalidation {
   SmartCacheInvalidation._internal();
 
   final FirebaseService _firebaseService = FirebaseService.instance;
-  final DatabaseVersionTracker _versionTracker =
-      DatabaseVersionTracker.instance;
+
   final UnifiedIdSystem _unifiedIdSystem = UnifiedIdSystem.instance;
 
   // Cache validation settings
@@ -40,16 +39,8 @@ class SmartCacheInvalidation {
 
       final validationResult = CacheValidationResult();
 
-      // 1. Check database version mismatch
-      final versionMismatch = await _versionTracker.checkVersionMismatch();
-      if (versionMismatch) {
-        validationResult.isValid = false;
-        validationResult.reasons.add('Database version mismatch detected');
-        debugPrint(
-          '🚨 SmartCacheInvalidation: Database version mismatch - cache invalid',
-        );
-        return validationResult;
-      }
+      // DISABLED: Database version tracking removed
+      // Version mismatch check disabled because DatabaseVersionTracker was removed
 
       // 2. Check cache age
       final cacheAge = await _getCacheAge();
@@ -128,8 +119,7 @@ class SmartCacheInvalidation {
       // Clear unified ID system cache
       _unifiedIdSystem.clearCache();
 
-      // Invalidate database version tracker cache
-      await _versionTracker.invalidateLocalCache();
+      // DISABLED: Database version tracker cache invalidation removed
 
       debugPrint('✅ SmartCacheInvalidation: Cache invalidated successfully');
     } catch (e) {
@@ -147,8 +137,7 @@ class SmartCacheInvalidation {
       );
       await prefs.setInt(_documentCountKey, documentCount);
 
-      // Sync database version
-      await _versionTracker.syncLocalVersion();
+      // DISABLED: Database version sync removed
 
       debugPrint(
         '✅ SmartCacheInvalidation: Cache marked as valid with $documentCount documents',
@@ -162,7 +151,10 @@ class SmartCacheInvalidation {
   Future<Map<String, dynamic>> getCacheValidationInfo() async {
     try {
       final cacheAge = await _getCacheAge();
-      final versionInfo = await _versionTracker.getVersionInfo();
+      final versionInfo = {
+        'status': 'DISABLED',
+        'reason': 'DatabaseVersionTracker removed',
+      };
       final idSystemStats = _unifiedIdSystem.getCacheStats();
 
       return {

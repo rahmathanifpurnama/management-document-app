@@ -108,7 +108,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Upload statistics collection for real-time file count tracking
+    // Backend Firebase Cloud Functions collections
+    // These collections are used by Firebase Cloud Functions for backend operations
+
+    // Upload statistics collection for real-time file count tracking (Backend)
     match /upload-statistics/{statId} {
       // Allow read for authenticated users
       allow read: if isAuthenticated();
@@ -120,7 +123,7 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // File validation logs collection (for security monitoring)
+    // File validation logs collection for security monitoring (Backend)
     match /file-validation-logs/{logId} {
       // Allow read for admin only
       allow read: if isAdmin();
@@ -132,22 +135,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Duplicate file detection cache
+    // Duplicate file detection cache (Backend)
     match /duplicate-cache/{cacheId} {
       // Allow read/write for authenticated users (for duplicate detection)
       allow read, write: if isAuthenticated();
 
       // Allow admin full access
       allow read, write, delete: if isAdmin();
-    }
-
-    // Database version tracking collection
-    match /database-version/{versionId} {
-      // Allow read for authenticated users (for version checking)
-      allow read: if isAuthenticated();
-
-      // Allow write for admin only (for version updates)
-      allow write: if isAdmin();
     }
   }
 }

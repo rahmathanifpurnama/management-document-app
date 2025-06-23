@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'core/services/firebase_service.dart';
 import 'core/services/memory_management_service.dart';
 import 'core/services/optimized_network_service.dart';
-import 'core/services/architectural_initialization_service.dart';
+
 import 'core/config/anr_config.dart';
 import 'core/utils/debug_log_controller.dart';
 import 'core/utils/empty_storage_state_manager.dart';
@@ -87,30 +87,12 @@ void main() async {
     // Continue app launch even if Firebase fails
   }
 
-  // UNIFIED ID SYSTEM: Initialize architectural services
-  try {
-    debugPrint('🏗️ Initializing architectural services...');
-    final archService = ArchitecturalInitializationService.instance;
-    final initResult = await archService.initializeArchitecturalServices(
-      forceReconciliation:
-          false, // Set to true if you want to force reconciliation on startup
-      performDeepValidation: false, // Set to true for thorough validation
-    );
-
-    if (initResult.success) {
-      debugPrint('✅ Architectural services initialized successfully');
-      debugPrint(
-        '📊 Initialization completed in ${initResult.duration?.inMilliseconds}ms',
-      );
-    } else {
-      debugPrint(
-        '⚠️ Architectural services initialization had issues: ${initResult.message}',
-      );
-    }
-  } catch (e) {
-    debugPrint('❌ Architectural services initialization failed: $e');
-    // Continue app launch even if architectural services fail
-  }
+  // REMOVED: Architectural services initialization (DatabaseVersionTracker removed)
+  // The architectural services were designed for enterprise-scale version tracking
+  // which is not implemented in the current database structure (4 collections only)
+  debugPrint(
+    '⚠️ Architectural services disabled - using simplified initialization',
+  );
 
   // CRITICAL FIX: Disable ANR monitoring to prevent excessive debug logging
   debugPrint('⚠️ ANR Detector disabled to prevent excessive debug logging');

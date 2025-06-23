@@ -21,7 +21,6 @@ import '../services/enhanced_auth_service.dart';
 
 // UNIFIED ID SYSTEM: Import new architectural services
 import '../core/services/unified_id_system.dart';
-import '../core/services/database_version_tracker.dart';
 import '../core/services/smart_cache_invalidation.dart';
 import '../core/services/id_reconciliation_service.dart';
 import '../services/document_state_manager.dart';
@@ -105,8 +104,6 @@ class DocumentProvider extends ChangeNotifier {
 
   // UNIFIED ID SYSTEM: New architectural services
   final UnifiedIdSystem _unifiedIdSystem = UnifiedIdSystem.instance;
-  final DatabaseVersionTracker _versionTracker =
-      DatabaseVersionTracker.instance;
   final SmartCacheInvalidation _cacheInvalidation =
       SmartCacheInvalidation.instance;
   final IdReconciliationService _reconciliationService =
@@ -365,23 +362,12 @@ class DocumentProvider extends ChangeNotifier {
     _errorMessage = null;
   }
 
-  // ENHANCED: Load documents with Firebase Storage priority and smart cache invalidation
+  // ENHANCED: Load documents with Firebase Storage priority
   Future<void> loadDocuments({bool forceRefresh = false}) async {
     final emptyStateManager = EmptyStorageStateManager.instance;
 
-    // UNIFIED ID SYSTEM: Initialize version tracking
-    await _versionTracker.initialize();
-
-    // SMART CACHE INVALIDATION: Check if cache should be refreshed
-    if (!forceRefresh) {
-      final shouldRefresh = await _versionTracker.shouldRefreshCache(
-        maxCacheAge: const Duration(hours: 1),
-      );
-      if (shouldRefresh) {
-        debugPrint('🔄 Smart cache invalidation triggered refresh');
-        forceRefresh = true;
-      }
-    }
+    // REMOVED: Database version tracking (not implemented in current database structure)
+    // Only 4 collections exist: users, document-metadata, categories, activities
 
     // Check if we should skip loading due to confirmed empty state
     if (!forceRefresh && emptyStateManager.shouldSkipLoading()) {
