@@ -246,10 +246,46 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
               tween: Tween<double>(begin: 0.0, end: 1.0),
               curve: Curves.easeOutCubic,
               builder: (context, value, child) {
+                // Ensure animation value is valid and not NaN
+                if (value.isNaN || value.isInfinite) {
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Recent Files',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      if (widget.onFilterTap != null)
+                        IconButton(
+                          onPressed: widget.onFilterTap,
+                          icon: const Icon(
+                            Icons.filter_list,
+                            color: AppColors.textSecondary,
+                            size: 20,
+                          ),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 24,
+                            minHeight: 24,
+                          ),
+                          tooltip: 'Filter Files',
+                        ),
+                    ],
+                  );
+                }
+
+                // Ensure opacity value is valid (between 0.0 and 1.0)
+                final safeOpacity = value.clamp(0.0, 1.0);
+                final safeTranslateValue = (1 - value).clamp(0.0, 1.0);
+
                 return Transform.translate(
-                  offset: Offset(-30 * (1 - value), 0),
+                  offset: Offset(-30 * safeTranslateValue, 0),
                   child: Opacity(
-                    opacity: value,
+                    opacity: safeOpacity,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -271,8 +307,30 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                                 tween: Tween<double>(begin: 0.0, end: 1.0),
                                 curve: Curves.elasticOut,
                                 builder: (context, buttonValue, child) {
+                                  // Ensure animation value is valid and not NaN
+                                  if (buttonValue.isNaN ||
+                                      buttonValue.isInfinite) {
+                                    return IconButton(
+                                      onPressed: widget.onFilterTap,
+                                      icon: const Icon(
+                                        Icons.filter_list,
+                                        color: AppColors.textSecondary,
+                                        size: 20,
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 24,
+                                        minHeight: 24,
+                                      ),
+                                      tooltip: 'Filter Files',
+                                    );
+                                  }
+
+                                  // Ensure scale value is valid (prevent negative or extreme values)
+                                  final safeScale = buttonValue.clamp(0.0, 1.0);
+
                                   return Transform.scale(
-                                    scale: buttonValue,
+                                    scale: safeScale,
                                     child: IconButton(
                                       onPressed: widget.onFilterTap,
                                       icon: const Icon(
@@ -302,18 +360,32 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
             const SizedBox(height: 16),
 
             // Files List with enhanced animations
-            SlideTransition(
-              position: _slideAnimation,
-              child: ScaleTransition(
-                scale: _scaleAnimation,
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: _buildFilesList(
-                    currentPageDocuments,
-                    selectionProvider,
+            AnimatedBuilder(
+              animation: Listenable.merge([
+                _slideController,
+                _staggerController,
+                _fadeController,
+              ]),
+              builder: (context, child) {
+                // Ensure animation values are valid
+                final slideValue = _slideAnimation.value;
+                final scaleValue = _scaleAnimation.value.clamp(0.0, 2.0);
+                final fadeValue = _fadeAnimation.value.clamp(0.0, 1.0);
+
+                return Transform.translate(
+                  offset: slideValue,
+                  child: Transform.scale(
+                    scale: scaleValue,
+                    child: Opacity(
+                      opacity: fadeValue,
+                      child: _buildFilesList(
+                        currentPageDocuments,
+                        selectionProvider,
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
 
             // Pagination Controls
@@ -440,14 +512,25 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
 
           // Add staggered animation for each file item
           return TweenAnimationBuilder<double>(
-            duration: Duration(milliseconds: 300 + (index * 100)),
+            duration: Duration(
+              milliseconds: (300 + (index * 100)).clamp(300, 2000),
+            ),
             tween: Tween<double>(begin: 0.0, end: 1.0),
             curve: Curves.easeOutBack,
             builder: (context, value, child) {
+              // Ensure animation value is valid and not NaN
+              if (value.isNaN || value.isInfinite) {
+                return _buildFileListItem(document, isLast, selectionProvider);
+              }
+
+              // Ensure opacity value is valid (between 0.0 and 1.0)
+              final safeOpacity = value.clamp(0.0, 1.0);
+              final safeTranslateValue = (1 - value).clamp(0.0, 1.0);
+
               return Transform.translate(
-                offset: Offset(0, 20 * (1 - value)),
+                offset: Offset(0, 20 * safeTranslateValue),
                 child: Opacity(
-                  opacity: value,
+                  opacity: safeOpacity,
                   child: _buildFileListItem(
                     document,
                     isLast,
@@ -851,10 +934,49 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
       tween: Tween<double>(begin: 0.0, end: 1.0),
       curve: Curves.easeOutCubic,
       builder: (context, value, child) {
+        // Ensure animation value is valid and not NaN
+        if (value.isNaN || value.isInfinite) {
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.border.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.folder_open,
+                    size: 48,
+                    color: AppColors.textSecondary.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No files found',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Ensure opacity value is valid (between 0.0 and 1.0)
+        final safeOpacity = value.clamp(0.0, 1.0);
+        final safeTranslateValue = (1 - value).clamp(0.0, 1.0);
+
         return Transform.translate(
-          offset: Offset(0, 20 * (1 - value)),
+          offset: Offset(0, 20 * safeTranslateValue),
           child: Opacity(
-            opacity: value,
+            opacity: safeOpacity,
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
               decoration: BoxDecoration(
