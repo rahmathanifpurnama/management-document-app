@@ -21,8 +21,9 @@ class FileIconHelper {
       // Spreadsheet files
       case 'xls':
       case 'xlsx':
+        return Icons.table_chart; // Excel icon
       case 'csv':
-        return Icons.table_chart;
+        return Icons.grid_on; // CSV icon - distinct from Excel
 
       // Presentation files
       case 'ppt':
@@ -98,8 +99,10 @@ class FileIconHelper {
 
     if (['pdf', 'doc', 'docx', 'txt', 'rtf'].contains(extension)) {
       return 'Document';
-    } else if (['xls', 'xlsx', 'csv'].contains(extension)) {
-      return 'Spreadsheet';
+    } else if (['xls', 'xlsx'].contains(extension)) {
+      return 'Excel Spreadsheet';
+    } else if (['csv'].contains(extension)) {
+      return 'CSV Spreadsheet';
     } else if (['ppt', 'pptx'].contains(extension)) {
       return 'Presentation';
     } else if ([
@@ -186,7 +189,9 @@ class FileIconHelper {
         return const Color(0xFF1976D2); // Blue
       case 'xls':
       case 'xlsx':
-        return const Color(0xFF388E3C); // Green
+        return const Color(0xFF217346); // Excel Green
+      case 'csv':
+        return const Color(0xFF0F7B0F); // CSV Green (darker)
       case 'ppt':
       case 'pptx':
         return const Color(0xFFD84315); // Orange

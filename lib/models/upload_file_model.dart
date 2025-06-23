@@ -117,6 +117,8 @@ class UploadFileModel {
       case 'xlsx':
       case 'xls':
         return 'XLS';
+      case 'csv':
+        return 'CSV';
       default:
         return 'FILE';
     }

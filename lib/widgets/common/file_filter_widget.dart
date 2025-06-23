@@ -175,6 +175,7 @@ class FileFilterWidget extends StatelessWidget {
       {'key': 'PDF', 'label': 'PDF', 'icon': Icons.picture_as_pdf},
       {'key': 'DOC', 'label': 'Word', 'icon': Icons.description},
       {'key': 'Excel', 'label': 'Excel', 'icon': Icons.table_chart},
+      {'key': 'CSV', 'label': 'CSV', 'icon': Icons.grid_on},
       {'key': 'Image', 'label': 'Images', 'icon': Icons.image},
       {'key': 'PPT', 'label': 'PowerPoint', 'icon': Icons.slideshow},
       {'key': 'TXT', 'label': 'Text', 'icon': Icons.text_snippet},

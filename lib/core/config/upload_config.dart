@@ -46,6 +46,7 @@ class UploadConfig {
     'png',
     'xlsx',
     'xls',
+    'csv',
   ];
 
   // Cloud Functions settings

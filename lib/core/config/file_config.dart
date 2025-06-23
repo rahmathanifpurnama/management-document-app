@@ -12,6 +12,7 @@ class FileConfig {
     'png',
     'xlsx',
     'xls',
+    'csv',
   ];
 
   // Maximum file size (15MB)
@@ -21,11 +22,14 @@ class FileConfig {
   static const Map<String, String> mimeTypeMap = {
     'pdf': 'application/pdf',
     'doc': 'application/msword',
-    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'docx':
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'xls': 'application/vnd.ms-excel',
     'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'csv': 'text/csv',
     'ppt': 'application/vnd.ms-powerpoint',
-    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'pptx':
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     'jpg': 'image/jpeg',
     'jpeg': 'image/jpeg',
     'png': 'image/png',
@@ -36,7 +40,7 @@ class FileConfig {
   // File type groups for display
   static const Map<String, List<String>> fileTypeGroups = {
     'document': ['pdf', 'doc', 'docx', 'txt'],
-    'spreadsheet': ['xls', 'xlsx'],
+    'spreadsheet': ['xls', 'xlsx', 'csv'],
     'presentation': ['ppt', 'pptx'],
     'image': ['jpg', 'jpeg', 'png', 'gif'],
   };
@@ -48,6 +52,7 @@ class FileConfig {
     'docx': 'Word Document',
     'xls': 'Excel Spreadsheet',
     'xlsx': 'Excel Spreadsheet',
+    'csv': 'CSV Spreadsheet',
     'ppt': 'PowerPoint Presentation',
     'pptx': 'PowerPoint Presentation',
     'jpg': 'Image',
@@ -82,13 +87,13 @@ class FileConfig {
   /// Get file type category
   static String getFileTypeCategory(String fileName) {
     final extension = getFileExtension(fileName);
-    
+
     for (final entry in fileTypeGroups.entries) {
       if (entry.value.contains(extension)) {
         return entry.key;
       }
     }
-    
+
     return 'other';
   }
 

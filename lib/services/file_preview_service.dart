@@ -74,9 +74,10 @@ class FilePreviewService {
     return getPreviewType(document) != FilePreviewType.unsupported;
   }
 
-  /// Get appropriate viewer URL for document files (Word, Excel, PowerPoint)
+  /// Get appropriate viewer URL for document files (Word, Excel, PowerPoint, CSV)
   String getDocumentViewerUrl(String downloadUrl, FilePreviewType type) {
     // Use Google Docs Viewer for document files
+    // This supports Word, Excel, PowerPoint, and CSV files
     final encodedUrl = Uri.encodeComponent(downloadUrl);
     return 'https://docs.google.com/gview?embedded=true&url=$encodedUrl';
   }
@@ -122,16 +123,25 @@ class FilePreviewService {
   }
 
   bool _isTextFile(String extension, String fileType) {
-    return ['txt', 'md', 'json', 'xml', 'csv'].contains(extension) ||
+    return ['txt', 'md', 'json', 'xml'].contains(extension) ||
         fileType.contains('text');
   }
 
   bool _isDocumentFile(String extension, String fileType) {
-    return ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].contains(extension) ||
+    return [
+          'doc',
+          'docx',
+          'xls',
+          'xlsx',
+          'csv',
+          'ppt',
+          'pptx',
+        ].contains(extension) ||
         fileType.contains('word') ||
         fileType.contains('excel') ||
         fileType.contains('powerpoint') ||
         fileType.contains('sheet') ||
-        fileType.contains('presentation');
+        fileType.contains('presentation') ||
+        fileType.contains('csv');
   }
 }

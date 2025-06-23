@@ -1085,8 +1085,14 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     } else if (lowerFileType == 'xls' ||
         lowerFileType == 'xlsx' ||
         lowerFileType.contains('excel') ||
-        lowerFileType.contains('sheet')) {
-      return Colors.green;
+        lowerFileType.contains('sheet') ||
+        fileExtension == 'xls' ||
+        fileExtension == 'xlsx') {
+      return const Color(0xFF217346); // Excel Green
+    } else if (lowerFileType == 'csv' ||
+        lowerFileType.contains('csv') ||
+        fileExtension == 'csv') {
+      return const Color(0xFF0F7B0F); // CSV Green (darker)
     } else if (lowerFileType == 'ppt' ||
         lowerFileType == 'pptx' ||
         lowerFileType.contains('powerpoint') ||
@@ -1145,8 +1151,14 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     } else if (lowerFileType == 'xls' ||
         lowerFileType == 'xlsx' ||
         lowerFileType.contains('excel') ||
-        lowerFileType.contains('sheet')) {
-      return Icons.table_chart;
+        lowerFileType.contains('sheet') ||
+        fileExtension == 'xls' ||
+        fileExtension == 'xlsx') {
+      return Icons.table_chart; // Excel icon
+    } else if (lowerFileType == 'csv' ||
+        lowerFileType.contains('csv') ||
+        fileExtension == 'csv') {
+      return Icons.grid_on; // CSV icon - distinct from Excel
     } else if (lowerFileType == 'ppt' ||
         lowerFileType == 'pptx' ||
         lowerFileType.contains('powerpoint') ||

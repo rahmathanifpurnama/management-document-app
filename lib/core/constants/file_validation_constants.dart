@@ -17,6 +17,7 @@ class FileValidationConstants {
     'png',
     'xlsx',
     'xls',
+    'csv',
   ];
 
   // Allowed MIME types
@@ -37,6 +38,7 @@ class FileValidationConstants {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     ],
     'xls': ['application/vnd.ms-excel'],
+    'csv': ['text/csv', 'application/csv', 'text/comma-separated-values'],
   };
 
   // File magic numbers (first few bytes) for validation

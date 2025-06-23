@@ -1322,6 +1322,11 @@ class _FileTableWidgetState extends State<FileTableWidget> {
       return Icons.table_chart;
     }
 
+    // CSV files
+    if (lowerFileType.contains('csv')) {
+      return Icons.grid_on;
+    }
+
     // PowerPoint files (ppt, pptx)
     if (lowerFileType.contains('ppt') ||
         lowerFileType.contains('powerpoint') ||
@@ -1373,7 +1378,12 @@ class _FileTableWidgetState extends State<FileTableWidget> {
         lowerFileType.contains('excel') ||
         lowerFileType.contains('sheet') ||
         lowerFileType.contains('spreadsheet')) {
-      return Colors.green;
+      return const Color(0xFF217346); // Excel Green
+    }
+
+    // CSV files
+    if (lowerFileType.contains('csv')) {
+      return const Color(0xFF0F7B0F); // CSV Green (darker)
     }
 
     // PowerPoint files (ppt, pptx)
@@ -1428,6 +1438,11 @@ class _FileTableWidgetState extends State<FileTableWidget> {
         lowerFileType.contains('sheet') ||
         lowerFileType.contains('spreadsheet')) {
       return 'XLS';
+    }
+
+    // CSV files
+    if (lowerFileType.contains('csv')) {
+      return 'CSV';
     }
 
     // PowerPoint files (ppt, pptx)
