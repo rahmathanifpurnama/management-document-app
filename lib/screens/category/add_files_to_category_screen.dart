@@ -187,6 +187,13 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
         return false;
       }
 
+      // SURGICAL FIX: Filter out recently assigned files to prevent race condition reappearance
+      // This prevents files from showing up again during Firebase sync delays
+      if (documentProvider.isRecentlyAssigned(doc.id)) {
+        debugPrint('🔒 Filtering out recently assigned file: ${doc.fileName}');
+        return false;
+      }
+
       // FIXED: Updated filter logic for consistent category assignment
       // Show files that are available to be categorized (not already in a specific category)
       final category = doc.category.trim().toLowerCase();

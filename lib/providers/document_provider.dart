@@ -54,6 +54,13 @@ class DocumentProvider extends ChangeNotifier {
   // RACE CONDITION FIX: Track last load time to prevent unnecessary force refreshes
   DateTime? _lastLoadTime;
 
+  // SURGICAL FIX: Track recently assigned files to prevent race condition reappearance
+  // This prevents files from reappearing in "Add Files to Category" screen during Firebase sync delays
+  final Map<String, String> _recentlyAssignedFiles =
+      {}; // documentId -> categoryId
+  final Map<String, DateTime> _assignmentTimestamps =
+      {}; // documentId -> timestamp
+
   // Enhanced services
   final EnhancedDocumentService _enhancedDocumentService =
       EnhancedDocumentService.instance;
@@ -602,8 +609,20 @@ class DocumentProvider extends ChangeNotifier {
           .map((doc) => DocumentModel.fromFirestore(doc as DocumentSnapshot))
           .toList();
 
+      // SURGICAL FIX: Preserve recent assignments during Firebase listener updates
+      final updatedFirebaseDocuments = firebaseDocuments.map((doc) {
+        if (_recentlyAssignedFiles.containsKey(doc.id)) {
+          final recentCategory = _recentlyAssignedFiles[doc.id]!;
+          debugPrint(
+            '🔒 Preserving recent assignment from listener for ${doc.fileName}: $recentCategory',
+          );
+          return doc.copyWith(category: recentCategory);
+        }
+        return doc;
+      }).toList();
+
       // Merge Firebase documents with local documents
-      _mergeFirebaseDocuments(firebaseDocuments, isFromListener: true);
+      _mergeFirebaseDocuments(updatedFirebaseDocuments, isFromListener: true);
 
       // Apply filters and notify listeners
       _applyFiltersAndSort();
@@ -621,12 +640,31 @@ class DocumentProvider extends ChangeNotifier {
         '📥 Loading ${firebaseDocuments.length} documents from Firebase service',
       );
 
+      // SURGICAL FIX: Preserve recent assignments during Firebase updates
+      // This prevents race condition where Firebase data overwrites local changes
+      final preservedAssignments = <String, DocumentModel>{};
+      for (final doc in firebaseDocuments) {
+        if (_recentlyAssignedFiles.containsKey(doc.id)) {
+          final recentCategory = _recentlyAssignedFiles[doc.id]!;
+          // Override Firebase data with recent local assignment
+          preservedAssignments[doc.id] = doc.copyWith(category: recentCategory);
+          debugPrint(
+            '🔒 Preserving recent assignment for ${doc.fileName}: $recentCategory',
+          );
+        }
+      }
+
       // Clear existing category documents to rebuild from Firebase data
       _categoryDocuments.clear();
       _documents.clear();
 
+      // Apply preserved assignments to Firebase documents
+      final updatedFirebaseDocuments = firebaseDocuments.map((doc) {
+        return preservedAssignments[doc.id] ?? doc;
+      }).toList();
+
       // Use the same merge logic to prevent duplicates
-      _mergeFirebaseDocuments(firebaseDocuments, isFromListener: false);
+      _mergeFirebaseDocuments(updatedFirebaseDocuments, isFromListener: false);
 
       debugPrint(
         '✅ Rebuilt category documents: ${_categoryDocuments.keys.length} categories with ${_documents.length} total documents',
@@ -1029,6 +1067,9 @@ class DocumentProvider extends ChangeNotifier {
       // RACE CONDITION FIX: Mark this as a recent category assignment to prevent override
       _lastLoadTime = DateTime.now();
 
+      // SURGICAL FIX: Track this assignment to prevent race condition reappearance
+      _trackRecentAssignment(documentId, categoryId);
+
       // Notify listeners immediately for UI update
       notifyListeners();
 
@@ -1191,6 +1232,10 @@ class DocumentProvider extends ChangeNotifier {
         }
 
         // Don't add to any category - file becomes uncategorized but available for categorization
+
+        // SURGICAL FIX: Clear recent assignment tracking when file is removed from category
+        _recentlyAssignedFiles.remove(documentId);
+        _assignmentTimestamps.remove(documentId);
 
         debugPrint('✅ File $documentId removed from category $categoryId');
 
@@ -1431,6 +1476,10 @@ class DocumentProvider extends ChangeNotifier {
       } catch (e) {
         debugPrint('⚠️ Failed to remove from state manager: $e');
       }
+
+      // SURGICAL FIX: Clear recent assignment tracking when document is permanently removed
+      _recentlyAssignedFiles.remove(documentId);
+      _assignmentTimestamps.remove(documentId);
 
       // Update UI and persistence if any local changes were made
       if (localChanges) {
@@ -2766,4 +2815,83 @@ class DocumentProvider extends ChangeNotifier {
 
   // REMOVED: _loadFromStorage method to prevent cache loading
   // This ensures statistics show 0 until Firebase Storage loads
+
+  // SURGICAL FIX: Helper methods for tracking recent assignments to prevent race condition
+
+  /// Track a recent file assignment to prevent reappearance during Firebase sync delays
+  void _trackRecentAssignment(String documentId, String categoryId) {
+    _recentlyAssignedFiles[documentId] = categoryId;
+    _assignmentTimestamps[documentId] = DateTime.now();
+
+    // Clean up old assignments (older than 2 minutes) to prevent memory leaks
+    _cleanupOldAssignments();
+
+    debugPrint('🔒 Tracking recent assignment: $documentId -> $categoryId');
+  }
+
+  /// Check if a document was recently assigned to a specific category
+  bool isRecentlyAssignedToCategory(String documentId, String categoryId) {
+    final assignedCategory = _recentlyAssignedFiles[documentId];
+    final timestamp = _assignmentTimestamps[documentId];
+
+    if (assignedCategory == null || timestamp == null) {
+      return false;
+    }
+
+    // Consider assignment recent if it happened within the last 2 minutes
+    final isRecent = DateTime.now().difference(timestamp).inMinutes < 2;
+
+    if (!isRecent) {
+      // Clean up expired assignment
+      _recentlyAssignedFiles.remove(documentId);
+      _assignmentTimestamps.remove(documentId);
+      return false;
+    }
+
+    return assignedCategory == categoryId;
+  }
+
+  /// Check if a document was recently assigned to any category (for filtering available files)
+  bool isRecentlyAssigned(String documentId) {
+    final timestamp = _assignmentTimestamps[documentId];
+
+    if (timestamp == null) {
+      return false;
+    }
+
+    // Consider assignment recent if it happened within the last 2 minutes
+    final isRecent = DateTime.now().difference(timestamp).inMinutes < 2;
+
+    if (!isRecent) {
+      // Clean up expired assignment
+      _recentlyAssignedFiles.remove(documentId);
+      _assignmentTimestamps.remove(documentId);
+      return false;
+    }
+
+    return true;
+  }
+
+  /// Clean up old assignment tracking to prevent memory leaks
+  void _cleanupOldAssignments() {
+    final now = DateTime.now();
+    final expiredIds = <String>[];
+
+    _assignmentTimestamps.forEach((documentId, timestamp) {
+      if (now.difference(timestamp).inMinutes >= 2) {
+        expiredIds.add(documentId);
+      }
+    });
+
+    for (final id in expiredIds) {
+      _recentlyAssignedFiles.remove(id);
+      _assignmentTimestamps.remove(id);
+    }
+
+    if (expiredIds.isNotEmpty) {
+      debugPrint(
+        '🧹 Cleaned up ${expiredIds.length} expired assignment trackings',
+      );
+    }
+  }
 }
