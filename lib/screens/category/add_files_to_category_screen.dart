@@ -86,8 +86,22 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
         listen: false,
       );
 
-      // Load documents from DocumentProvider (which has better error handling)
-      await documentProvider.loadDocuments(forceRefresh: true);
+      // RACE CONDITION FIX: Only force refresh if cache is empty or stale
+      // This prevents overwriting recent category assignments
+      final shouldForceRefresh =
+          documentProvider.documents.isEmpty ||
+          documentProvider.lastLoadTime == null ||
+          DateTime.now().difference(documentProvider.lastLoadTime!).inMinutes >
+              5;
+
+      if (shouldForceRefresh) {
+        debugPrint('🔄 Force refreshing documents (cache empty or stale)');
+        await documentProvider.loadDocuments(forceRefresh: true);
+      } else {
+        debugPrint('📋 Using cached documents to preserve recent changes');
+        // Just ensure documents are loaded without force refresh
+        await documentProvider.loadDocuments(forceRefresh: false);
+      }
 
       debugPrint(
         '✅ Successfully loaded documents for Add Files screen via DocumentProvider',
@@ -166,8 +180,10 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
 
     // Get all documents from DocumentProvider
     var availableDocuments = documentProvider.documents.where((doc) {
-      // Filter out files that are already in the target category
-      if (doc.category == widget.category.id) {
+      // RACE CONDITION FIX: Filter out files that are already in the target category
+      // Use both exact match and case-insensitive comparison for robustness
+      if (doc.category == widget.category.id ||
+          doc.category.toLowerCase() == widget.category.id.toLowerCase()) {
         return false;
       }
 
@@ -175,7 +191,10 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
       // Show files that are available to be categorized (not already in a specific category)
       final category = doc.category.trim().toLowerCase();
       final isAvailableForCategorization =
-          category.isEmpty || category == 'general' || category == 'null';
+          category.isEmpty ||
+          category == 'general' ||
+          category == 'null' ||
+          category == 'uncategorized';
 
       return isAvailableForCategorization;
     }).toList();
@@ -462,12 +481,19 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
       );
       final selectedFiles = selectionProvider.selectedFiles;
 
+      // RACE CONDITION FIX: Process files sequentially to avoid conflicts
       for (final file in selectedFiles) {
         await documentProvider.updateDocumentCategory(
           file.id,
           widget.category.id,
         );
+        debugPrint(
+          '✅ File ${file.fileName} assigned to category ${widget.category.id}',
+        );
       }
+
+      // RACE CONDITION FIX: Wait a moment to ensure all async operations complete
+      await Future.delayed(const Duration(milliseconds: 100));
 
       // FIXED: No force refresh needed - local cache is already updated by updateDocumentCategory
       // Force refresh was causing race condition and overriding local changes

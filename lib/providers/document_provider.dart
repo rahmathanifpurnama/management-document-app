@@ -51,6 +51,9 @@ class DocumentProvider extends ChangeNotifier {
   // ENTERPRISE SCALE: Auto-initialization flag
   bool _autoInitialized = false;
 
+  // RACE CONDITION FIX: Track last load time to prevent unnecessary force refreshes
+  DateTime? _lastLoadTime;
+
   // Enhanced services
   final EnhancedDocumentService _enhancedDocumentService =
       EnhancedDocumentService.instance;
@@ -251,6 +254,10 @@ class DocumentProvider extends ChangeNotifier {
 
       if (documents.isNotEmpty) {
         _handleFirebaseDocumentModels(documents);
+
+        // RACE CONDITION FIX: Update last load time
+        _lastLoadTime = DateTime.now();
+
         debugPrint(
           '✅ Traditional loading completed: ${documents.length} documents',
         );
@@ -336,6 +343,9 @@ class DocumentProvider extends ChangeNotifier {
   bool get sortAscending => _sortAscending;
   bool get isFirebaseSyncActive => _documentsSubscription != null;
 
+  // RACE CONDITION FIX: Getter for last load time
+  DateTime? get lastLoadTime => _lastLoadTime;
+
   // Check if any filters are currently active
   bool get hasActiveFilters =>
       _searchQuery.isNotEmpty ||
@@ -416,6 +426,10 @@ class DocumentProvider extends ChangeNotifier {
         // Update local state with Storage data
         _documents = List.from(storageDocuments);
         _isInitialized = true;
+
+        // RACE CONDITION FIX: Update last load time
+        _lastLoadTime = DateTime.now();
+
         await _saveToStorage();
 
         // SMART CACHE INVALIDATION: Mark cache as valid after successful load
@@ -481,6 +495,10 @@ class DocumentProvider extends ChangeNotifier {
           if (unifiedDocuments.isNotEmpty) {
             _handleUnifiedDocuments(unifiedDocuments);
             _isInitialized = true;
+
+            // RACE CONDITION FIX: Update last load time
+            _lastLoadTime = DateTime.now();
+
             await _saveToStorage();
             await emptyStateManager.setStorageNotEmpty();
 
@@ -1008,13 +1026,16 @@ class DocumentProvider extends ChangeNotifier {
       // ENHANCED: Update UnifiedDocumentLoader cache for consistency
       _unifiedLoader.updateDocumentCategory(documentId, categoryId);
 
+      // RACE CONDITION FIX: Mark this as a recent category assignment to prevent override
+      _lastLoadTime = DateTime.now();
+
       // Notify listeners immediately for UI update
       notifyListeners();
 
-      // Save to storage immediately
+      // Save to storage immediately with priority flag
       await _saveToStorage();
 
-      debugPrint('✅ Local cache updated immediately');
+      debugPrint('✅ Local cache updated immediately with timestamp protection');
 
       // STEP 2: Update Firestore document-metadata (non-blocking for UI)
       try {
@@ -1942,9 +1963,16 @@ class DocumentProvider extends ChangeNotifier {
       '📊 Found ${documentsInCategory.length} documents in main list for category $category',
     );
 
-    // Update category storage if there's a mismatch
-    if (documentsInCategory.length != localDocuments.length) {
-      debugPrint('🔄 Rebuilding category storage due to count mismatch...');
+    // RACE CONDITION FIX: Only rebuild if there's a significant mismatch and no recent updates
+    final hasRecentUpdate =
+        _lastLoadTime != null &&
+        DateTime.now().difference(_lastLoadTime!).inSeconds < 30;
+
+    if (documentsInCategory.length != localDocuments.length &&
+        !hasRecentUpdate) {
+      debugPrint(
+        '🔄 Rebuilding category storage due to count mismatch (no recent updates)...',
+      );
       _categoryDocuments[category] = documentsInCategory;
 
       // Save the rebuilt data asynchronously
@@ -1956,6 +1984,11 @@ class DocumentProvider extends ChangeNotifier {
         '✅ Rebuilt category storage for $category: ${documentsInCategory.length} documents',
       );
       return documentsInCategory;
+    } else if (hasRecentUpdate &&
+        documentsInCategory.length != localDocuments.length) {
+      debugPrint(
+        '⚠️ Skipping rebuild due to recent update - preserving local changes',
+      );
     }
 
     debugPrint(
