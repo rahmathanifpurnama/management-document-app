@@ -61,6 +61,9 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   bool _isFirstTimeLoading = true;
   bool _hasDataCheckCompleted = false;
 
+  // Pull to refresh loading state
+  bool _isPullToRefreshLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -184,6 +187,51 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     }
   }
 
+  /// Handle pull to refresh with loading animation
+  Future<void> handlePullToRefresh() async {
+    if (!mounted || _isPullToRefreshLoading) return;
+
+    setState(() {
+      _isPullToRefreshLoading = true;
+    });
+
+    try {
+      debugPrint('🔄 HomeFileListSection: Pull to refresh started...');
+
+      // Show loading animation for minimum duration
+      final minimumLoadingTime = Future.delayed(
+        const Duration(milliseconds: 800),
+      );
+
+      // Get document provider
+      final documentProvider = Provider.of<DocumentProvider>(
+        context,
+        listen: false,
+      );
+
+      // Refresh documents from database
+      final refreshFuture = documentProvider.refreshDocuments();
+
+      // Wait for both minimum loading time and refresh
+      await Future.wait([minimumLoadingTime, refreshFuture]);
+
+      if (mounted) {
+        final documentCount = documentProvider.allDocuments.length;
+        debugPrint(
+          '✅ HomeFileListSection: Pull to refresh completed - Found $documentCount files',
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ HomeFileListSection: Pull to refresh failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPullToRefreshLoading = false;
+        });
+      }
+    }
+  }
+
   @override
   void didUpdateWidget(HomeFileListSection oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -224,7 +272,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     );
   }
 
-  /// Build recent files section with pagination
+  /// Build recent files section with pagination and pull to refresh
   Widget _buildRecentFilesSection(
     List<DocumentModel> documents,
     FileSelectionProvider selectionProvider,
@@ -234,80 +282,144 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     final endIndex = (startIndex + _filesPerPage).clamp(0, documents.length);
     final currentPageDocuments = documents.sublist(startIndex, endIndex);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with title and filter - animated
-          TweenAnimationBuilder<double>(
-            duration: const Duration(milliseconds: 600),
-            tween: Tween<double>(begin: 0.0, end: 1.0),
-            curve: Curves.easeOutCubic,
-            builder: (context, value, child) {
-              return Transform.translate(
-                offset: Offset(-30 * (1 - value), 0),
-                child: Opacity(
-                  opacity: value,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Recent Files',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
+    return RefreshIndicator(
+      onRefresh: handlePullToRefresh,
+      color: AppColors.primary,
+      backgroundColor: AppColors.surface,
+      strokeWidth: 3.0,
+      displacement: 60.0,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with title and filter - animated
+              TweenAnimationBuilder<double>(
+                duration: const Duration(milliseconds: 600),
+                tween: Tween<double>(begin: 0.0, end: 1.0),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) {
+                  return Transform.translate(
+                    offset: Offset(-30 * (1 - value), 0),
+                    child: Opacity(
+                      opacity: value,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Recent Files',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          // Filter button and pull-to-refresh hint
+                          Row(
+                            children: [
+                              // Pull to refresh hint (only show when not loading)
+                              if (!_isPullToRefreshLoading &&
+                                  !_isFirstTimeLoading)
+                                TweenAnimationBuilder<double>(
+                                  duration: const Duration(milliseconds: 1000),
+                                  tween: Tween<double>(begin: 0.0, end: 1.0),
+                                  curve: Curves.easeInOut,
+                                  builder: (context, hintValue, child) {
+                                    return Opacity(
+                                      opacity: hintValue * 0.6,
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.refresh,
+                                            size: 14,
+                                            color: AppColors.textSecondary
+                                                .withValues(alpha: 0.5),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Pull to refresh',
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w400,
+                                              color: AppColors.textSecondary
+                                                  .withValues(alpha: 0.5),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+
+                              if (!_isPullToRefreshLoading &&
+                                  !_isFirstTimeLoading)
+                                const SizedBox(width: 12),
+
+                              // Filter button
+                              if (widget.onFilterTap != null)
+                                TweenAnimationBuilder<double>(
+                                  duration: const Duration(milliseconds: 800),
+                                  tween: Tween<double>(begin: 0.0, end: 1.0),
+                                  curve: Curves.elasticOut,
+                                  builder: (context, buttonValue, child) {
+                                    return Transform.scale(
+                                      scale: buttonValue,
+                                      child: IconButton(
+                                        onPressed: widget.onFilterTap,
+                                        icon: const Icon(
+                                          Icons.filter_list,
+                                          color: AppColors.textSecondary,
+                                          size: 20,
+                                        ),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 24,
+                                          minHeight: 24,
+                                        ),
+                                        tooltip: 'Filter Files',
+                                      ),
+                                    );
+                                  },
+                                ),
+                            ],
+                          ),
+                        ],
                       ),
-                      // Filter button only (manual refresh button removed - using pull-to-refresh instead)
-                      if (widget.onFilterTap != null)
-                        TweenAnimationBuilder<double>(
-                          duration: const Duration(milliseconds: 800),
-                          tween: Tween<double>(begin: 0.0, end: 1.0),
-                          curve: Curves.elasticOut,
-                          builder: (context, buttonValue, child) {
-                            return Transform.scale(
-                              scale: buttonValue,
-                              child: IconButton(
-                                onPressed: widget.onFilterTap,
-                                icon: const Icon(
-                                  Icons.filter_list,
-                                  color: AppColors.textSecondary,
-                                  size: 20,
-                                ),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(
-                                  minWidth: 24,
-                                  minHeight: 24,
-                                ),
-                                tooltip: 'Filter Files',
-                              ),
-                            );
-                          },
-                        ),
-                    ],
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 16),
+
+              // Files List with enhanced animations
+              SlideTransition(
+                position: _slideAnimation,
+                child: ScaleTransition(
+                  scale: _scaleAnimation,
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: _buildFilesList(
+                      currentPageDocuments,
+                      selectionProvider,
+                    ),
                   ),
                 ),
-              );
-            },
-          ),
-
-          // Files List with enhanced animations
-          SlideTransition(
-            position: _slideAnimation,
-            child: ScaleTransition(
-              scale: _scaleAnimation,
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: _buildFilesList(currentPageDocuments, selectionProvider),
               ),
-            ),
-          ),
 
-          // Pagination Controls
-          if (totalPages > 1) ...[_buildPaginationControls(totalPages)],
-        ],
+              // Pagination Controls
+              if (totalPages > 1) ...[
+                const SizedBox(height: 16),
+                _buildPaginationControls(totalPages),
+              ],
+
+              // Add some bottom padding for better pull-to-refresh experience
+              const SizedBox(height: 100),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -321,35 +433,26 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
       builder: (context, documentProvider, child) {
         // PRIORITY 1: Show first-time loading state for login users
         if (_isFirstTimeLoading || !_hasDataCheckCompleted) {
-          return _buildFirstTimeLoadingState();
-        }
-
-        // PRIORITY 2: Show transition loading state (for page changes, etc.)
-        if (_isTransitioning) {
-          return Container(
-            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppColors.border.withValues(alpha: 0.3),
-                width: 1,
-              ),
-            ),
-            child: const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                ),
-              ),
-            ),
+          return FileListLoadingWidget.forFileList(
+            customText: 'Loading your files...',
+            subText: 'Checking database for your documents',
           );
         }
 
-        // PRIORITY 3: Show empty state after data check is complete
+        // PRIORITY 2: Show pull to refresh loading state
+        if (_isPullToRefreshLoading) {
+          return FileListLoadingWidget.pullToRefresh(
+            customText: 'Refreshing files...',
+            subText: 'Getting latest updates from database',
+          );
+        }
+
+        // PRIORITY 3: Show transition loading state (for page changes, etc.)
+        if (_isTransitioning) {
+          return FileListLoadingWidget.simple(text: 'Loading...');
+        }
+
+        // PRIORITY 4: Show empty state after data check is complete
         if (documents.isEmpty &&
             !documentProvider.isLoading &&
             _hasDataCheckCompleted) {
@@ -776,169 +879,6 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     setState(() {
       _currentPage = page;
     });
-  }
-
-  /// Build first-time loading state for login users with enhanced animations
-  Widget _buildFirstTimeLoadingState() {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.border.withValues(alpha: 0.3),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Animated loading container with ripple effect
-            TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 2000),
-              tween: Tween<double>(begin: 0.0, end: 1.0),
-              builder: (context, value, child) {
-                return Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Outer ripple
-                    Transform.scale(
-                      scale: 1.0 + (0.3 * value),
-                      child: Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.primary.withValues(
-                            alpha: 0.1 * (1 - value),
-                          ),
-                        ),
-                      ),
-                    ),
-                    // Inner container
-                    Transform.scale(
-                      scale: 0.9 + (0.1 * value),
-                      child: Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: AppColors.primary.withValues(alpha: 0.15),
-                          border: Border.all(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            width: 2,
-                          ),
-                        ),
-                        child: const Center(
-                          child: SizedBox(
-                            width: 32,
-                            height: 32,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 3,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                AppColors.primary,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 32),
-            // Main loading text with slide animation
-            TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 1200),
-              tween: Tween<double>(begin: 0.0, end: 1.0),
-              builder: (context, value, child) {
-                return Transform.translate(
-                  offset: Offset(0, 20 * (1 - value)),
-                  child: Opacity(
-                    opacity: value,
-                    child: Text(
-                      'Loading your files...',
-                      style: GoogleFonts.poppins(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            // Subtitle with delayed slide animation
-            TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 1600),
-              tween: Tween<double>(begin: 0.0, end: 1.0),
-              builder: (context, value, child) {
-                return Transform.translate(
-                  offset: Offset(0, 15 * (1 - value)),
-                  child: Opacity(
-                    opacity: value,
-                    child: Text(
-                      'Checking database for your documents',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            // Progress dots animation
-            TweenAnimationBuilder<double>(
-              duration: const Duration(milliseconds: 2000),
-              tween: Tween<double>(begin: 0.0, end: 1.0),
-              builder: (context, value, child) {
-                return Opacity(
-                  opacity: value,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(3, (index) {
-                      final delay = index * 0.3;
-                      final animValue = (value - delay).clamp(0.0, 1.0);
-                      return Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Transform.scale(
-                          scale: 0.5 + (0.5 * animValue),
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.primary.withValues(
-                                alpha: 0.3 + (0.7 * animValue),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 
   /// Build empty state with animation
