@@ -31,11 +31,11 @@ class FirebaseConfig {
       false; // Disabled to reduce Firebase calls
   static const Duration uiRefreshDelay = Duration(milliseconds: 500);
 
-  // App Check settings - ENHANCED: Enable with proper network security configuration
+  // App Check settings - TEMPORARY FIX: Disable App Check in production to resolve login issues
   static const bool enableAppCheckInDebug =
       true; // ENHANCED: Enable App Check in debug mode with network security fixes
   static const bool enableAppCheckInProduction =
-      true; // Enable App Check in production mode
+      false; // TEMPORARY: Disable App Check in production mode to fix login issues
   static const Duration appCheckTokenRefreshCooldown = Duration(minutes: 2);
 
   // Network security configuration settings
