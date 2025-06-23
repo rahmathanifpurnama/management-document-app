@@ -184,24 +184,44 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
           Expanded(
             child: Consumer<DocumentProvider>(
               builder: (context, documentProvider, child) {
-                // FIXED: Use single consistent data source to prevent UI inconsistencies
-                final allCategoryDocuments = documentProvider.documents
-                    .where((doc) => doc.category == widget.category.id)
-                    .toList();
+                // IMPROVED: Use provider method for better category filtering
+                final allCategoryDocuments = documentProvider
+                    .getDocumentsByCategory(widget.category.id);
                 final filteredDocuments = _filterDocuments(
                   allCategoryDocuments,
                 );
 
+                // IMPROVED: Better loading and empty state logic
+                final isInitialLoading =
+                    documentProvider.isLoading && allCategoryDocuments.isEmpty;
+                final isCategoryLoading = _isRefreshing;
+
+                debugPrint('🔍 CategoryFilesScreen Consumer rebuild:');
+                debugPrint('   Category ID: ${widget.category.id}');
+                debugPrint(
+                  '   Documents found: ${allCategoryDocuments.length}',
+                );
+                debugPrint(
+                  '   Provider loading: ${documentProvider.isLoading}',
+                );
+                debugPrint('   Is refreshing: $_isRefreshing');
+                debugPrint('   Initial loading: $isInitialLoading');
+
                 // Show empty state only if no documents exist and not loading
                 if (allCategoryDocuments.isEmpty &&
-                    !documentProvider.isLoading &&
-                    !_isRefreshing) {
+                    !isInitialLoading &&
+                    !isCategoryLoading) {
+                  debugPrint('📭 Showing empty state widget');
                   return CategoryEmptyStateWidget(
                     categoryName: widget.category.name,
                     onAddExisting: () => _navigateToAddFiles(),
                     onUploadNew: () => _navigateToUpload(),
                   );
                 }
+
+                debugPrint(
+                  '📋 Showing file list with ${allCategoryDocuments.length} documents',
+                );
 
                 return RefreshIndicator(
                   onRefresh: () async {
@@ -281,24 +301,33 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
     List<DocumentModel> filteredDocuments,
     DocumentProvider documentProvider,
   ) {
+    // IMPROVED: Better loading state logic
+    final isInitialLoading =
+        documentProvider.isLoading && allCategoryDocuments.isEmpty;
+    final isCategoryLoading = _isRefreshing;
+
     // Show loading state during refresh or initial loading
-    if (_isRefreshing ||
-        (documentProvider.isLoading && allCategoryDocuments.isEmpty)) {
+    if (isCategoryLoading || isInitialLoading) {
+      debugPrint('📱 FileListSection: Showing loading widget');
       return _buildLoadingWidget();
     }
 
     // Show search results or file list
     if (filteredDocuments.isEmpty && _searchQuery.isNotEmpty) {
+      debugPrint('🔍 FileListSection: Showing no search results');
       return NoSearchResultsWidget(searchQuery: _searchQuery);
     }
 
     if (filteredDocuments.isEmpty) {
+      debugPrint('📭 FileListSection: Showing empty state');
       return CategoryEmptyStateWidget(
         categoryName: widget.category.name,
         onAddExisting: () => _navigateToAddFiles(),
         onUploadNew: () => _navigateToUpload(),
       );
     }
+
+    debugPrint('📋 FileListSection: Showing ${filteredDocuments.length} files');
 
     // Show files in selected view mode
     return _currentViewMode == ViewMode.list
@@ -464,10 +493,10 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
         listen: false,
       );
 
-      // Remove document from this category (move to uncategorized)
+      // Remove document from this category (make it available for categorization)
       await documentProvider.updateDocumentCategory(
         document.id,
-        'uncategorized',
+        '', // Empty string makes file available for categorization
       );
 
       if (mounted) {

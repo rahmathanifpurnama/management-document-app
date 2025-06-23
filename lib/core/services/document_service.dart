@@ -865,8 +865,8 @@ class DocumentService {
       return pathParts[2];
     }
 
-    // Files directly in documents/ folder are general
-    return 'general';
+    // Files directly in documents/ folder are uncategorized (empty string)
+    return '';
   }
 
   // ENHANCED DELETE FIX: Comprehensive Firebase Storage deletion

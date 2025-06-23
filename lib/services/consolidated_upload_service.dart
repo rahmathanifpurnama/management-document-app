@@ -394,7 +394,7 @@ class ConsolidatedUploadService {
         fileName: _getDisplayFileName(file.fileName),
         filePath: _getStoragePath(file.fileName, userId, categoryId),
         uploadedBy: userId,
-        category: categoryId ?? 'uncategorized',
+        category: categoryId ?? '', // Empty string for uncategorized files
         fileSize: await file.file.length(),
         fileType: _getFileType(file.fileName),
         additionalMetadata: {

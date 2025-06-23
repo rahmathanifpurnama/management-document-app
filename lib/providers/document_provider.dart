@@ -963,10 +963,11 @@ class DocumentProvider extends ChangeNotifier {
       debugPrint('   Document ID: $documentId');
       debugPrint('   Target Category: $categoryId');
 
-      // Use the file category management service for proper file organization
-      final fileCategoryService = FileCategoryManagementService();
+      // STEP 1: Update Firestore document-metadata first
+      await _updateFirestoreDocumentCategory(documentId, categoryId);
 
-      // This will now provide detailed error logging
+      // STEP 2: Use the file category management service for Firebase Storage organization
+      final fileCategoryService = FileCategoryManagementService();
       await fileCategoryService.moveFileToCategory(documentId, categoryId);
 
       final documentIndex = _documents.indexWhere(
@@ -1017,6 +1018,9 @@ class DocumentProvider extends ChangeNotifier {
         // Save to storage
         await _saveToStorage();
 
+        // STEP 4: Update category document count
+        await _updateCategoryDocumentCount(categoryId);
+
         debugPrint(
           '✅ DocumentProvider: Category update completed successfully',
         );
@@ -1027,6 +1031,54 @@ class DocumentProvider extends ChangeNotifier {
       debugPrint('❌ DocumentProvider: Failed to update document category: $e');
       _setError('Failed to update document category: $e');
       rethrow;
+    }
+  }
+
+  /// Update Firestore document-metadata with new category
+  Future<void> _updateFirestoreDocumentCategory(
+    String documentId,
+    String categoryId,
+  ) async {
+    try {
+      debugPrint('🔄 Updating Firestore document-metadata for: $documentId');
+
+      await FirebaseFirestore.instance
+          .collection('document-metadata')
+          .doc(documentId)
+          .update({
+            'category': categoryId,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+      debugPrint('✅ Firestore document-metadata updated successfully');
+    } catch (e) {
+      debugPrint('❌ Failed to update Firestore document-metadata: $e');
+      // Don't throw error as this is not critical for the operation
+    }
+  }
+
+  /// Update category document count in Firestore
+  Future<void> _updateCategoryDocumentCount(String categoryId) async {
+    try {
+      debugPrint('🔄 Updating category document count for: $categoryId');
+
+      // Count documents in this category
+      final documentsInCategory = _documents
+          .where((doc) => doc.category == categoryId)
+          .length;
+
+      await FirebaseFirestore.instance
+          .collection('categories')
+          .doc(categoryId)
+          .update({
+            'documentCount': documentsInCategory,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+      debugPrint('✅ Category document count updated: $documentsInCategory');
+    } catch (e) {
+      debugPrint('❌ Failed to update category document count: $e');
+      // Don't throw error as this is not critical for the operation
     }
   }
 
@@ -1806,25 +1858,47 @@ class DocumentProvider extends ChangeNotifier {
 
   // Get documents by category with Firebase fallback
   List<DocumentModel> getDocumentsByCategory(String category) {
+    debugPrint('🔍 Getting documents for category: $category');
+
+    // Handle empty category
+    if (category.isEmpty) {
+      debugPrint('⚠️ Empty category provided, returning empty list');
+      return [];
+    }
+
     // First try to get from local storage
     final localDocuments = _categoryDocuments[category] ?? [];
+    debugPrint(
+      '📁 Local storage has ${localDocuments.length} documents for category $category',
+    );
 
     // If local storage is empty but we have documents in main list, rebuild category storage
     if (localDocuments.isEmpty && _documents.isNotEmpty) {
+      debugPrint('🔄 Rebuilding category storage from main documents list...');
       final documentsInCategory = _documents
           .where((doc) => doc.category == category)
           .toList();
+
+      debugPrint(
+        '📊 Found ${documentsInCategory.length} documents in main list for category $category',
+      );
+
       if (documentsInCategory.isNotEmpty) {
         _categoryDocuments[category] = documentsInCategory;
         debugPrint(
-          '🔄 Rebuilt category storage for $category: ${documentsInCategory.length} documents',
+          '✅ Rebuilt category storage for $category: ${documentsInCategory.length} documents',
         );
         // Save the rebuilt data
         _saveToStorage();
         return documentsInCategory;
+      } else {
+        debugPrint('📭 No documents found for category $category in main list');
       }
     }
 
+    debugPrint(
+      '📋 Returning ${localDocuments.length} documents for category $category',
+    );
     return localDocuments;
   }
 
@@ -1906,9 +1980,9 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  // Get uncategorized files
+  // Get uncategorized files (files with empty category)
   List<DocumentModel> getUncategorizedFiles() {
-    return getDocumentsByCategory('uncategorized');
+    return getDocumentsByCategory(''); // Empty string for uncategorized files
   }
 
   /// Verify that the user has admin privileges

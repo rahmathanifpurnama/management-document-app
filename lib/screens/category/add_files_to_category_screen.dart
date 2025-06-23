@@ -171,14 +171,11 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
         return false;
       }
 
-      // FIXED: Updated filter logic after uncategorized folder deletion
+      // FIXED: Updated filter logic for consistent category assignment
       // Show files that are available to be categorized (not already in a specific category)
       final category = doc.category.trim().toLowerCase();
       final isAvailableForCategorization =
-          category.isEmpty ||
-          category == 'uncategorized' ||
-          category == 'general' ||
-          category == 'null';
+          category.isEmpty || category == 'general' || category == 'null';
 
       return isAvailableForCategorization;
     }).toList();

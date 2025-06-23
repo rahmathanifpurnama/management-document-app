@@ -253,10 +253,11 @@ class UploadFileModel {
         fileSize: fileSize,
         fileType: _getSimpleFileType(fileName),
         filePath:
-            filePath ?? 'documents/${categoryId ?? 'uncategorized'}/$fileName',
+            filePath ??
+            'documents/$fileName', // Simple path without category folder
         uploadedBy: uploadedBy,
         uploadedAt: uploadEndTime ?? DateTime.now(),
-        category: categoryId ?? 'uncategorized',
+        category: categoryId ?? '', // Empty string for uncategorized files
         permissions: [uploadedBy],
         metadata: DocumentMetadata(
           description: 'Uploaded via Flutter app',

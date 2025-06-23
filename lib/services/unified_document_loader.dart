@@ -149,8 +149,7 @@ class UnifiedDocumentLoader {
     // FIXED: Include files with null category and improve filtering logic
     var availableDocuments = _cachedDocuments.where((doc) {
       final category = doc.category.trim();
-      final isUncategorized =
-          category.isEmpty || category == 'uncategorized' || category == 'null';
+      final isUncategorized = category.isEmpty || category == 'null';
 
       // If excluding a specific category, also include files from that category
       if (excludeCategoryId != null && category == excludeCategoryId) {

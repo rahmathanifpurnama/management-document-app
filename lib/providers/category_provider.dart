@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/category_model.dart';
 import '../core/services/category_service.dart';
 import '../core/services/cloud_functions_service.dart';
@@ -38,8 +39,8 @@ class CategoryProvider extends ChangeNotifier {
     }
   }
 
-  // Add category using Cloud Functions
-  // ENHANCED: Support unlimited category creation with universal visibility
+  // Add category using Cloud Functions with auto-query system
+  // ENHANCED: Support unlimited category creation with universal visibility and auto-document discovery
   Future<void> addCategory(CategoryModel category) async {
     try {
       debugPrint(
@@ -50,33 +51,50 @@ class CategoryProvider extends ChangeNotifier {
       final enhancedCategory = category.copyWith(
         permissions: [], // Empty permissions for universal access
         isActive: true, // Ensure category is active
+        documentCount: 0, // Initialize with 0 documents
       );
 
-      // Use Cloud Functions to create category
-      final result = await _cloudFunctions.createCategory(
-        name: enhancedCategory.name,
-        description: enhancedCategory.description,
-        permissions: enhancedCategory.permissions, // Empty for universal access
-        isActive: enhancedCategory.isActive,
-      );
+      // STEP 1: Create category in Firestore first
+      final categoryRef = FirebaseFirestore.instance
+          .collection('categories')
+          .doc(enhancedCategory.id);
+      await categoryRef.set(enhancedCategory.toMap());
 
-      if (result['success'] == true) {
-        final categoryId = result['categoryId'] as String;
+      debugPrint('✅ Category created in Firestore: ${enhancedCategory.id}');
 
-        // Update local list with the new ID from Cloud Functions
-        final updatedCategory = enhancedCategory.copyWith(id: categoryId);
-        _categories.insert(0, updatedCategory);
+      // STEP 2: Query available documents for potential assignment
+      await _queryAvailableDocumentsForCategory(enhancedCategory.id);
 
-        // Initialize empty category in DocumentProvider
-        _initializeEmptyCategory(categoryId);
+      // STEP 3: Add to local list immediately (Firestore creation was successful)
+      _categories.insert(0, enhancedCategory);
+      _initializeEmptyCategory(enhancedCategory.id);
 
-        debugPrint(
-          '✅ Unlimited category added successfully via Cloud Functions: $categoryId',
+      debugPrint('✅ Category added successfully: ${enhancedCategory.name}');
+      notifyListeners();
+
+      // STEP 4: Use Cloud Functions for additional processing if needed (optional)
+      try {
+        final result = await _cloudFunctions.createCategory(
+          name: enhancedCategory.name,
+          description: enhancedCategory.description,
+          permissions: enhancedCategory.permissions,
+          isActive: enhancedCategory.isActive,
         );
-        notifyListeners();
-      } else {
-        throw Exception('Failed to create category: ${result['message']}');
+
+        if (result['success'] == true) {
+          debugPrint(
+            '✅ Category also processed via Cloud Functions successfully',
+          );
+        }
+      } catch (cloudError) {
+        debugPrint(
+          '⚠️ Cloud Functions processing failed, but category creation succeeded: $cloudError',
+        );
+        // Continue execution as main creation was successful
       }
+
+      // Return early since we've successfully created the category
+      return;
     } catch (e) {
       debugPrint('❌ Failed to add category via Cloud Functions: $e');
 
@@ -117,6 +135,58 @@ class CategoryProvider extends ChangeNotifier {
   void _initializeEmptyCategory(String categoryId) {
     // This will be called by DocumentProvider when needed
     // We don't need to import DocumentProvider here to avoid circular dependency
+  }
+
+  // Query available documents for potential assignment to new category
+  Future<void> _queryAvailableDocumentsForCategory(String categoryId) async {
+    try {
+      debugPrint('🔍 Querying available documents for category: $categoryId');
+
+      // Query documents that are available for categorization
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('document-metadata')
+          .where('isActive', isEqualTo: true)
+          .where('category', whereIn: ['', 'general', 'null'])
+          .limit(100) // Limit to prevent performance issues
+          .get();
+
+      final availableDocuments = querySnapshot.docs;
+
+      debugPrint(
+        '📊 Found ${availableDocuments.length} documents available for categorization',
+      );
+
+      // Store document IDs for potential assignment
+      final documentIds = availableDocuments.map((doc) => doc.id).toList();
+
+      // Log available documents for category assignment
+      if (documentIds.isNotEmpty) {
+        debugPrint(
+          '📋 Documents available for category "$categoryId": ${documentIds.take(5).join(", ")}${documentIds.length > 5 ? "..." : ""}',
+        );
+      } else {
+        debugPrint('📭 No documents available for categorization');
+      }
+
+      // Store the available document IDs in category metadata for reference
+      if (documentIds.isNotEmpty) {
+        await FirebaseFirestore.instance
+            .collection('categories')
+            .doc(categoryId)
+            .update({
+              'availableDocumentIds': documentIds,
+              'availableDocumentCount': documentIds.length,
+              'lastQueryAt': FieldValue.serverTimestamp(),
+            });
+
+        debugPrint(
+          '✅ Stored ${documentIds.length} available document IDs in category metadata',
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to query available documents for category: $e');
+      // Don't throw error as this is not critical for category creation
+    }
   }
 
   // Update category using Cloud Functions

@@ -230,7 +230,7 @@ class FirebaseStorageDirectService {
     }
   }
 
-  /// Extract category from file path
+  /// Extract category from file path with Firestore metadata check
   String _extractCategoryFromPath(String filePath) {
     // FIXED: Updated after uncategorized folder deletion
     final pathParts = filePath.split('/');
@@ -244,17 +244,20 @@ class FirebaseStorageDirectService {
       return categoryFromPath;
     }
 
-    // Files directly in documents/ folder are uncategorized (available for adding to categories)
+    // Files directly in documents/ folder should have category checked from Firestore
     if (pathParts.length >= 2 && pathParts[0] == 'documents') {
       debugPrint(
-        '📁 File in main documents folder, marking as general: $filePath',
+        '📁 File in main documents folder, category will be resolved from Firestore: $filePath',
       );
-      return 'general'; // Use 'general' for files available to be categorized
+      // Return empty string to indicate category needs to be resolved from Firestore
+      return '';
     }
 
     // Default fallback
-    debugPrint('📁 No specific category detected, using general: $filePath');
-    return 'general';
+    debugPrint(
+      '📁 No specific category detected, using empty category: $filePath',
+    );
+    return '';
   }
 
   /// Get storage statistics

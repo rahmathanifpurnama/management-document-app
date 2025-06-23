@@ -290,7 +290,7 @@ class EnhancedFirebaseStorageService {
     }
   }
 
-  /// Extract category from file path
+  /// Extract category from file path with improved logic
   String _extractCategoryFromPath(String fullPath) {
     final pathParts = fullPath.split('/');
 
@@ -303,12 +303,13 @@ class EnhancedFirebaseStorageService {
       return categoryFromPath;
     }
 
-    // Files directly in documents/ folder are available for categorization
+    // Files directly in documents/ folder should check Firestore for existing category assignment
     if (pathParts.length >= 2 && pathParts[0] == 'documents') {
       debugPrint(
-        '📁 Enhanced: File in main documents folder, marking as general: $fullPath',
+        '📁 Enhanced: File in main documents folder, will check Firestore for category: $fullPath',
       );
-      return 'general';
+      // Return empty string to indicate category should be checked from Firestore
+      return '';
     }
 
     // Default fallback
