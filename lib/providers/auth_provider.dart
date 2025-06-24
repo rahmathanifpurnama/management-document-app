@@ -3,34 +3,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../core/services/auth_service.dart';
-import '../core/services/hybrid_auth_service.dart';
-import '../core/services/biometric_auth_service.dart';
-import '../core/services/connectivity_service.dart';
 
 import '../services/enhanced_auth_service.dart';
 import '../models/user_model.dart';
-import '../models/offline_auth_models.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService.instance;
-  final HybridAuthService _hybridAuthService = HybridAuthService.instance;
-  final BiometricAuthService _biometricAuthService =
-      BiometricAuthService.instance;
-  final ConnectivityService _connectivityService = ConnectivityService.instance;
   final EnhancedAuthService _enhancedAuthService = EnhancedAuthService.instance;
 
   UserModel? _currentUser;
   bool _isLoading = false;
   String? _errorMessage;
   bool _isLoggedIn = false;
-  AuthenticationState? _authState;
-  bool _isOnline = false;
-  bool _biometricEnabled = false;
-
-  // Stream subscriptions
-  StreamSubscription<AuthenticationState>? _authStateSubscription;
-  StreamSubscription<UserModel?>? _userSubscription;
-  StreamSubscription<bool>? _connectivitySubscription;
 
   // Getters
   UserModel? get currentUser => _currentUser;
@@ -38,12 +22,6 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isLoggedIn => _isLoggedIn;
   bool get isAdmin => _currentUser?.isAdmin ?? false;
-  bool get isOnline => _isOnline;
-  bool get isOffline => !_isOnline;
-  AuthMode get authMode => _authState?.authMode ?? AuthMode.none;
-  bool get biometricEnabled => _biometricEnabled;
-  bool get canUseBiometric =>
-      _biometricEnabled && _authState?.biometricEnabled == true;
 
   // Initialize auth state
   Future<void> initializeAuth() async {
@@ -51,50 +29,17 @@ class AuthProvider extends ChangeNotifier {
       // Don't call _setLoading during initialization to avoid setState during build
       _isLoading = true;
 
-      // Initialize hybrid auth service
-      await _hybridAuthService.initialize();
-      await _biometricAuthService.initialize();
-
-      // Listen to hybrid auth state changes
-      _authStateSubscription = _hybridAuthService.authStateStream.listen((
-        authState,
-      ) {
-        _authState = authState;
-        _isLoggedIn = authState.isAuthenticated;
-        _isOnline = authState.isOnline;
-        notifyListeners();
-      });
-
-      // Listen to user changes
-      _userSubscription = _hybridAuthService.userStream.listen((user) {
-        _currentUser = user;
-        notifyListeners();
-      });
-
-      // Listen to connectivity changes
-      _connectivitySubscription = _connectivityService.internetStream.listen((
-        isOnline,
-      ) {
-        _isOnline = isOnline;
-        notifyListeners();
-      });
-
-      // Check biometric availability
-      _biometricEnabled = await _biometricAuthService.isBiometricAvailable();
-
-      // Fallback: Listen to Firebase auth state changes for compatibility
+      // Listen to auth state changes with timeout
       _authService.authStateChanges.listen((User? user) async {
         try {
-          if (user != null && !_isLoggedIn) {
-            // Only handle if hybrid auth hasn't already handled it
+          if (user != null) {
             await Future.any([
               _loadCurrentUser(),
               Future.delayed(
                 const Duration(seconds: 10),
               ), // Timeout after 10 seconds
             ]);
-          } else if (user == null && _authState?.authMode == AuthMode.online) {
-            // Handle Firebase logout
+          } else {
             _currentUser = null;
             _isLoggedIn = false;
             notifyListeners();
@@ -104,6 +49,14 @@ class AuthProvider extends ChangeNotifier {
           notifyListeners();
         }
       });
+
+      // Check if user is already logged in with timeout
+      if (_authService.isLoggedIn) {
+        await Future.any([
+          _loadCurrentUser(),
+          Future.delayed(const Duration(seconds: 5)), // Timeout after 5 seconds
+        ]);
+      }
     } catch (e) {
       _errorMessage = 'Gagal menginisialisasi autentikasi: ${e.toString()}';
     } finally {
@@ -113,7 +66,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Login with hybrid authentication (online/offline)
+  // Login with ANR prevention
   Future<bool> login(
     String email,
     String password, {
@@ -123,8 +76,8 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      // Use hybrid auth service for login
-      UserModel? user = await _hybridAuthService.login(
+      // Execute login - AuthService already has timeout, no need for double timeout
+      UserModel? user = await _authService.login(
         email,
         password,
         rememberMe: rememberMe,
@@ -141,19 +94,13 @@ class AuthProvider extends ChangeNotifier {
       return false;
     } catch (e) {
       // Debug: Print detailed error information
-      debugPrint('Hybrid login error: ${e.toString()}');
+      debugPrint('Login error: ${e.toString()}');
       debugPrint('Error type: ${e.runtimeType}');
 
-      // Handle specific error types
+      // Handle timeout specifically
       if (e is TimeoutException) {
         _setError(
           'Login timeout. Periksa koneksi internet Anda dan coba lagi.',
-        );
-      } else if (e.toString().contains('locked')) {
-        _setError('Akun terkunci sementara. Silakan coba lagi nanti.');
-      } else if (e.toString().contains('offline credentials')) {
-        _setError(
-          'Tidak ada kredensial offline. Silakan login online terlebih dahulu.',
         );
       } else {
         _setError(e.toString());
@@ -164,77 +111,18 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Login with biometric authentication
-  Future<bool> loginWithBiometric() async {
-    if (!_biometricEnabled) {
-      _setError('Autentikasi biometrik tidak tersedia.');
-      return false;
-    }
-
-    _setLoading(true);
-    _clearError();
-
-    try {
-      // Authenticate with biometrics
-      final isAuthenticated = await _biometricAuthService
-          .authenticateWithBiometrics();
-
-      if (!isAuthenticated) {
-        _setError('Autentikasi biometrik gagal.');
-        return false;
-      }
-
-      // Check if we have stored credentials for offline login
-      final hasCredentials =
-          _hybridAuthService.currentAuthState.isAuthenticated;
-      if (!hasCredentials) {
-        _setError(
-          'Tidak ada sesi tersimpan. Silakan login dengan email dan password.',
-        );
-        return false;
-      }
-
-      // User is already authenticated through hybrid service
-      return true;
-    } catch (e) {
-      debugPrint('Biometric login error: ${e.toString()}');
-      _setError('Gagal melakukan autentikasi biometrik: ${e.toString()}');
-      return false;
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  // Logout from both online and offline sessions
+  // Logout
   Future<void> logout() async {
     _setLoading(true);
 
     try {
-      // Use hybrid auth service for logout
-      await _hybridAuthService.logout();
-
+      await _authService.logout();
       _currentUser = null;
       _isLoggedIn = false;
-      _authState = null;
       _clearError();
       notifyListeners();
     } catch (e) {
       _setError(e.toString());
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  // Clear all offline data
-  Future<void> clearOfflineData() async {
-    _setLoading(true);
-    _clearError();
-
-    try {
-      await _hybridAuthService.clearOfflineData();
-      debugPrint('✅ Offline data cleared');
-    } catch (e) {
-      _setError('Gagal menghapus data offline: ${e.toString()}');
     } finally {
       _setLoading(false);
     }
@@ -420,75 +308,5 @@ class AuthProvider extends ChangeNotifier {
   /// Check if user has access to specific document
   Future<bool> hasDocumentAccess(String documentId, String action) async {
     return await _enhancedAuthService.hasDocumentAccess(documentId, action);
-  }
-
-  // Biometric authentication methods
-
-  /// Enable biometric authentication
-  Future<bool> enableBiometricAuth() async {
-    _setLoading(true);
-    _clearError();
-
-    try {
-      final success = await _biometricAuthService.enableBiometricAuth();
-      if (success) {
-        _biometricEnabled = true;
-        notifyListeners();
-      }
-      return success;
-    } catch (e) {
-      _setError('Gagal mengaktifkan autentikasi biometrik: ${e.toString()}');
-      return false;
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  /// Disable biometric authentication
-  Future<void> disableBiometricAuth() async {
-    _setLoading(true);
-    _clearError();
-
-    try {
-      await _biometricAuthService.disableBiometricAuth();
-      _biometricEnabled = false;
-      notifyListeners();
-    } catch (e) {
-      _setError('Gagal menonaktifkan autentikasi biometrik: ${e.toString()}');
-    } finally {
-      _setLoading(false);
-    }
-  }
-
-  /// Get biometric status
-  Future<BiometricStatus> getBiometricStatus() async {
-    return await _biometricAuthService.getBiometricStatus();
-  }
-
-  /// Get available biometric types
-  Future<List<String>> getAvailableBiometricNames() async {
-    return await _biometricAuthService.getAvailableBiometricNames();
-  }
-
-  // Connectivity and sync methods
-
-  /// Force refresh connectivity status
-  Future<void> refreshConnectivity() async {
-    await _connectivityService.refreshConnectivity();
-  }
-
-  /// Get connectivity information
-  Future<ConnectivityInfo> getConnectivityInfo() async {
-    return await _connectivityService.getConnectivityInfo();
-  }
-
-  // Dispose method to clean up resources
-  @override
-  void dispose() {
-    _authStateSubscription?.cancel();
-    _userSubscription?.cancel();
-    _connectivitySubscription?.cancel();
-    _hybridAuthService.dispose();
-    super.dispose();
   }
 }
