@@ -54,12 +54,17 @@ class DocumentProvider extends ChangeNotifier {
   // RACE CONDITION FIX: Track last load time to prevent unnecessary force refreshes
   DateTime? _lastLoadTime;
 
-  // SURGICAL FIX: Track recently assigned files to prevent race condition reappearance
+  // ENHANCED SURGICAL FIX: Track recently assigned files with persistent storage
   // This prevents files from reappearing in "Add Files to Category" screen during Firebase sync delays
   final Map<String, String> _recentlyAssignedFiles =
       {}; // documentId -> categoryId
   final Map<String, DateTime> _assignmentTimestamps =
       {}; // documentId -> timestamp
+
+  // PERSISTENT FIX: Track assignments that persist across app sessions
+  final Map<String, String> _persistentAssignments =
+      {}; // documentId -> categoryId
+  bool _persistentTrackingLoaded = false;
 
   // Enhanced services
   final EnhancedDocumentService _enhancedDocumentService =
@@ -1237,6 +1242,14 @@ class DocumentProvider extends ChangeNotifier {
         _recentlyAssignedFiles.remove(documentId);
         _assignmentTimestamps.remove(documentId);
 
+        // PERSISTENT FIX: Also clear persistent assignment tracking
+        if (_persistentAssignments.remove(documentId) != null) {
+          _savePersistentAssignments();
+          debugPrint(
+            '🧹 Cleared persistent assignment for removed file: $documentId',
+          );
+        }
+
         debugPrint('✅ File $documentId removed from category $categoryId');
 
         // Notify listeners and save
@@ -1480,6 +1493,14 @@ class DocumentProvider extends ChangeNotifier {
       // SURGICAL FIX: Clear recent assignment tracking when document is permanently removed
       _recentlyAssignedFiles.remove(documentId);
       _assignmentTimestamps.remove(documentId);
+
+      // PERSISTENT FIX: Also clear persistent assignment tracking
+      if (_persistentAssignments.remove(documentId) != null) {
+        _savePersistentAssignments();
+        debugPrint(
+          '🧹 Cleared persistent assignment for deleted document: $documentId',
+        );
+      }
 
       // Update UI and persistence if any local changes were made
       if (localChanges) {
@@ -2823,10 +2844,16 @@ class DocumentProvider extends ChangeNotifier {
     _recentlyAssignedFiles[documentId] = categoryId;
     _assignmentTimestamps[documentId] = DateTime.now();
 
+    // PERSISTENT FIX: Also track in persistent storage for cross-session protection
+    _persistentAssignments[documentId] = categoryId;
+    _savePersistentAssignments();
+
     // Clean up old assignments (older than 2 minutes) to prevent memory leaks
     _cleanupOldAssignments();
 
-    debugPrint('🔒 Tracking recent assignment: $documentId -> $categoryId');
+    debugPrint(
+      '🔒 Tracking recent assignment: $documentId -> $categoryId (persistent: true)',
+    );
   }
 
   /// Check if a document was recently assigned to a specific category
@@ -2853,23 +2880,63 @@ class DocumentProvider extends ChangeNotifier {
 
   /// Check if a document was recently assigned to any category (for filtering available files)
   bool isRecentlyAssigned(String documentId) {
+    // ENHANCED FIX: Load persistent tracking on first use
+    if (!_persistentTrackingLoaded) {
+      _loadPersistentAssignments();
+    }
+
+    // Check temporary tracking first (for current session)
     final timestamp = _assignmentTimestamps[documentId];
+    if (timestamp != null) {
+      // Consider assignment recent if it happened within the last 2 minutes
+      final isRecent = DateTime.now().difference(timestamp).inMinutes < 2;
 
-    if (timestamp == null) {
-      return false;
+      if (isRecent) {
+        return true;
+      } else {
+        // Clean up expired assignment
+        _recentlyAssignedFiles.remove(documentId);
+        _assignmentTimestamps.remove(documentId);
+      }
     }
 
-    // Consider assignment recent if it happened within the last 2 minutes
-    final isRecent = DateTime.now().difference(timestamp).inMinutes < 2;
+    // PERSISTENT FIX: Check if document has a persistent assignment that conflicts with current category filtering
+    if (_persistentAssignments.containsKey(documentId)) {
+      final persistentCategory = _persistentAssignments[documentId]!;
 
-    if (!isRecent) {
-      // Clean up expired assignment
-      _recentlyAssignedFiles.remove(documentId);
-      _assignmentTimestamps.remove(documentId);
-      return false;
+      // Verify the assignment is still valid by checking if the document actually has this category
+      final document = _documents.firstWhere(
+        (doc) => doc.id == documentId,
+        orElse: () => DocumentModel(
+          id: '',
+          fileName: '',
+          fileSize: 0,
+          fileType: '',
+          filePath: '',
+          uploadedBy: '',
+          uploadedAt: DateTime.now(),
+          category: '',
+          permissions: [],
+          metadata: DocumentMetadata(description: '', tags: []),
+        ),
+      );
+
+      if (document.id.isNotEmpty && document.category == persistentCategory) {
+        debugPrint(
+          '🔒 Persistent assignment confirmed for ${document.fileName}: $persistentCategory',
+        );
+        return true;
+      } else {
+        // Clean up invalid persistent assignment
+        _persistentAssignments.remove(documentId);
+        _savePersistentAssignments();
+        debugPrint(
+          '🧹 Cleaned up invalid persistent assignment for: $documentId',
+        );
+      }
     }
 
-    return true;
+    return false;
   }
 
   /// Clean up old assignment tracking to prevent memory leaks
@@ -2893,5 +2960,72 @@ class DocumentProvider extends ChangeNotifier {
         '🧹 Cleaned up ${expiredIds.length} expired assignment trackings',
       );
     }
+  }
+
+  // PERSISTENT FIX: Methods for persistent assignment tracking across app sessions
+
+  /// Save persistent assignments to local storage
+  void _savePersistentAssignments() {
+    try {
+      SharedPreferences.getInstance()
+          .then((prefs) {
+            final assignmentsJson = jsonEncode(_persistentAssignments);
+            prefs.setString('persistent_assignments', assignmentsJson);
+            debugPrint(
+              '💾 Saved ${_persistentAssignments.length} persistent assignments',
+            );
+          })
+          .catchError((e) {
+            debugPrint('❌ Failed to save persistent assignments: $e');
+          });
+    } catch (e) {
+      debugPrint('❌ Error saving persistent assignments: $e');
+    }
+  }
+
+  /// Load persistent assignments from local storage
+  void _loadPersistentAssignments() {
+    if (_persistentTrackingLoaded) return;
+
+    try {
+      SharedPreferences.getInstance()
+          .then((prefs) {
+            final assignmentsJson = prefs.getString('persistent_assignments');
+            if (assignmentsJson != null) {
+              final Map<String, dynamic> decoded = jsonDecode(assignmentsJson);
+              _persistentAssignments.clear();
+              decoded.forEach((key, value) {
+                _persistentAssignments[key] = value.toString();
+              });
+              debugPrint(
+                '📂 Loaded ${_persistentAssignments.length} persistent assignments',
+              );
+            } else {
+              debugPrint('📂 No persistent assignments found in storage');
+            }
+            _persistentTrackingLoaded = true;
+          })
+          .catchError((e) {
+            debugPrint('❌ Failed to load persistent assignments: $e');
+            _persistentTrackingLoaded =
+                true; // Mark as loaded to prevent retry loops
+          });
+    } catch (e) {
+      debugPrint('❌ Error loading persistent assignments: $e');
+      _persistentTrackingLoaded = true; // Mark as loaded to prevent retry loops
+    }
+  }
+
+  /// Clear persistent assignments (for cleanup or reset)
+  void _clearPersistentAssignments() {
+    _persistentAssignments.clear();
+    SharedPreferences.getInstance()
+        .then((prefs) {
+          prefs.remove('persistent_assignments');
+          debugPrint('🧹 Cleared all persistent assignments');
+        })
+        .catchError((e) {
+          debugPrint('❌ Failed to clear persistent assignments: $e');
+        });
   }
 }
