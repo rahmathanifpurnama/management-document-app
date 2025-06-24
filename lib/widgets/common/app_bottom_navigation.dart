@@ -148,40 +148,40 @@ class _CustomBottomNavigationBar extends StatelessWidget {
   /// Get responsive configuration based on screen width
   _ResponsiveNavConfig _getResponsiveConfig(double screenWidth) {
     if (screenWidth >= 1200) {
-      // Desktop/Large screens
+      // Desktop/Large screens - Reduced size
       return const _ResponsiveNavConfig(
         containerHeight: 60,
         horizontalPadding: 16,
         verticalPadding: 8,
         regularIconSize: 22,
-        plusButtonSize: 48,
-        plusIconSize: 24,
+        plusButtonSize: 40, // Reduced from 48px to 40px
+        plusIconSize: 20, // Reduced from 24px to 20px
         fontSize: 11,
-        plusButtonMargin: 12,
+        plusButtonMargin: 14, // Increased margin for better spacing
       );
     } else if (screenWidth >= 768) {
-      // Tablet screens
+      // Tablet screens - Reduced size
       return const _ResponsiveNavConfig(
         containerHeight: 64,
         horizontalPadding: 12,
         verticalPadding: 8,
         regularIconSize: 23,
-        plusButtonSize: 52,
-        plusIconSize: 26,
+        plusButtonSize: 42, // Reduced from 52px to 42px
+        plusIconSize: 21, // Reduced from 26px to 21px
         fontSize: 11.5,
-        plusButtonMargin: 10,
+        plusButtonMargin: 13, // Increased margin for better spacing
       );
     } else {
-      // Mobile screens - compact design
+      // Mobile screens - compact design (UKURAN DIKECILKAN)
       return const _ResponsiveNavConfig(
         containerHeight: 60, // Reduced from 70px
         horizontalPadding: 8,
         verticalPadding: 6, // Reduced from 8px
         regularIconSize: 24,
-        plusButtonSize: 56,
-        plusIconSize: 28,
+        plusButtonSize: 44, // Dikecilkan dari 56px ke 44px
+        plusIconSize: 22, // Dikecilkan dari 28px ke 22px
         fontSize: 12,
-        plusButtonMargin: 8,
+        plusButtonMargin: 12, // Diperbesar dari 8px ke 12px untuk spacing
       );
     }
   }
