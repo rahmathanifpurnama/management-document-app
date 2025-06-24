@@ -52,57 +52,16 @@ class AppBottomNavigation extends StatelessWidget {
             label: 'Category',
           ),
           BottomNavigationBarItem(
-            icon: Transform.translate(
-              offset: const Offset(
-                0,
-                -6,
-              ), // Slightly more elevation like YouTube
-              child: Container(
-                width: 50, // Slightly larger width for better prominence
-                height: 36, // Slightly taller for better proportion
-                decoration: BoxDecoration(
-                  color: currentIndex == 2
-                      ? AppColors.primary
-                      : Colors.white, // White background like YouTube
-                  border: Border.all(
-                    color: currentIndex == 2
-                        ? AppColors.primary
-                        : Colors.grey.withValues(
-                            alpha: 0.3,
-                          ), // Slightly more visible border
-                    width: 1.2, // Slightly thicker border for definition
-                  ),
-                  borderRadius: BorderRadius.circular(
-                    10,
-                  ), // Slightly more rounded like YouTube
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.15),
-                      blurRadius: 6,
-                      offset: const Offset(0, 3), // More prominent shadow
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 2,
-                      offset: const Offset(0, 1), // Additional subtle shadow
-                    ),
-                  ],
-                ),
-                child: SvgPicture.asset(
-                  'assets/icon/plus.svg', // Menggunakan SVG icon yang tersedia
-                  width: 22, // Slightly larger icon
-                  height: 22,
-                  colorFilter: ColorFilter.mode(
-                    currentIndex == 2
-                        ? Colors
-                              .white // White icon when active
-                        : Colors.black87, // Darker black for better contrast
-                    BlendMode.srcIn,
-                  ),
-                ),
+            icon: SvgPicture.asset(
+              'assets/icon/plus.svg',
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(
+                currentIndex == 2 ? AppColors.primary : AppColors.textSecondary,
+                BlendMode.srcIn,
               ),
             ),
-            label: '',
+            label: 'Add',
           ),
         ];
 
