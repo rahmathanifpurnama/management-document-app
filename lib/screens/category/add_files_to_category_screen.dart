@@ -180,10 +180,25 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
 
     // Get all documents from DocumentProvider
     var availableDocuments = documentProvider.documents.where((doc) {
-      // RACE CONDITION FIX: Filter out files that are already in the target category
-      // Use both exact match and case-insensitive comparison for robustness
+      // PRIMARY FILTER: Exclude files already in the target category
       if (doc.category == widget.category.id ||
           doc.category.toLowerCase() == widget.category.id.toLowerCase()) {
+        debugPrint(
+          '🚫 Excluding file already in target category: ${doc.fileName} (category: ${doc.category})',
+        );
+        return false;
+      }
+
+      // ENHANCED FILTER: Exclude files that are in ANY specific category (not just target)
+      // This is the key fix - files with any non-empty category should not appear in "Add Files"
+      final category = doc.category.trim();
+      if (category.isNotEmpty &&
+          category.toLowerCase() != 'general' &&
+          category.toLowerCase() != 'null' &&
+          category.toLowerCase() != 'uncategorized') {
+        debugPrint(
+          '🚫 Excluding file already categorized: ${doc.fileName} (category: ${doc.category})',
+        );
         return false;
       }
 
@@ -194,14 +209,19 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
         return false;
       }
 
-      // FIXED: Updated filter logic for consistent category assignment
-      // Show files that are available to be categorized (not already in a specific category)
-      final category = doc.category.trim().toLowerCase();
+      // FINAL FILTER: Show only truly uncategorized files
+      final normalizedCategory = category.toLowerCase();
       final isAvailableForCategorization =
           category.isEmpty ||
-          category == 'general' ||
-          category == 'null' ||
-          category == 'uncategorized';
+          normalizedCategory == 'general' ||
+          normalizedCategory == 'null' ||
+          normalizedCategory == 'uncategorized';
+
+      if (isAvailableForCategorization) {
+        debugPrint(
+          '✅ Including available file: ${doc.fileName} (category: "${doc.category}")',
+        );
+      }
 
       return isAvailableForCategorization;
     }).toList();
@@ -222,21 +242,47 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     // Sort by upload date (newest first) for better UX
     availableDocuments.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
 
-    // ENHANCED DEBUG: Show category breakdown for troubleshooting
+    // ENHANCED DEBUG: Show detailed category breakdown for troubleshooting
     final categoryBreakdown = <String, int>{};
+    final targetCategoryFiles = <String>[];
+    final categorizedFiles = <String>[];
+    final uncategorizedFiles = <String>[];
+
     for (final doc in documentProvider.documents) {
-      final category = doc.category.trim().toLowerCase();
+      final category = doc.category.trim();
       final displayCategory = category.isEmpty ? 'empty' : category;
       categoryBreakdown[displayCategory] =
           (categoryBreakdown[displayCategory] ?? 0) + 1;
+
+      // Track files by category type for detailed debugging
+      if (category == widget.category.id) {
+        targetCategoryFiles.add(doc.fileName);
+      } else if (category.isNotEmpty &&
+          category.toLowerCase() != 'general' &&
+          category.toLowerCase() != 'null' &&
+          category.toLowerCase() != 'uncategorized') {
+        categorizedFiles.add('${doc.fileName} (${category})');
+      } else {
+        uncategorizedFiles.add(doc.fileName);
+      }
     }
 
+    debugPrint('🔍 AddFilesToCategory DEBUG REPORT:');
+    debugPrint('   Target Category: ${widget.category.id}');
+    debugPrint('   Available documents: ${availableDocuments.length}');
     debugPrint(
-      'AddFilesToCategory: Available documents: ${availableDocuments.length} (search: "$searchQuery", target: ${widget.category.id})',
+      '   Total documents in provider: ${documentProvider.documents.length}',
     );
+    debugPrint('   Search query: "$searchQuery"');
     debugPrint('📊 Category breakdown: $categoryBreakdown');
     debugPrint(
-      '📋 Total documents in provider: ${documentProvider.documents.length}',
+      '🎯 Files in target category (${targetCategoryFiles.length}): ${targetCategoryFiles.take(3).join(", ")}${targetCategoryFiles.length > 3 ? "..." : ""}',
+    );
+    debugPrint(
+      '📁 Files in other categories (${categorizedFiles.length}): ${categorizedFiles.take(3).join(", ")}${categorizedFiles.length > 3 ? "..." : ""}',
+    );
+    debugPrint(
+      '📂 Uncategorized files (${uncategorizedFiles.length}): ${uncategorizedFiles.take(3).join(", ")}${uncategorizedFiles.length > 3 ? "..." : ""}',
     );
 
     return availableDocuments;

@@ -2033,6 +2033,17 @@ class DocumentProvider extends ChangeNotifier {
       '📊 Found ${documentsInCategory.length} documents in main list for category $category',
     );
 
+    // ENHANCED DEBUG: Show sample documents for troubleshooting
+    if (documentsInCategory.isNotEmpty) {
+      final sampleDocs = documentsInCategory
+          .take(3)
+          .map((doc) => '${doc.fileName} (${doc.category})')
+          .join(', ');
+      debugPrint(
+        '📄 Sample documents in category: $sampleDocs${documentsInCategory.length > 3 ? "..." : ""}',
+      );
+    }
+
     // RACE CONDITION FIX: Only rebuild if there's a significant mismatch and no recent updates
     final hasRecentUpdate =
         _lastLoadTime != null &&
