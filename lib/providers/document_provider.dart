@@ -37,14 +37,12 @@ class DocumentProvider extends ChangeNotifier {
 
   String? _errorMessage;
   bool _isLoading = false;
-
-  // REMOVED: Global filter state variables - now handled by screen-specific filter states
-  // String _searchQuery = '';
-  // String _selectedCategory = 'all';
-  // String _selectedStatus = 'all';
-  // String _selectedFileType = 'all';
-  // String _sortBy = 'uploadedAt';
-  // bool _sortAscending = false;
+  String _searchQuery = '';
+  String _selectedCategory = 'all';
+  String _selectedStatus = 'all';
+  String _selectedFileType = 'all';
+  String _sortBy = 'uploadedAt';
+  bool _sortAscending = false;
 
   // ARCHITECTURAL FIX: State management for atomic operations
   bool _isRefreshingRecentFiles = false;
@@ -148,8 +146,8 @@ class DocumentProvider extends ChangeNotifier {
       // Add unified documents
       documents.addAll(unifiedDocuments);
 
-      // Notify listeners - filtering now handled by screen-specific states
-      notifyListeners();
+      // Apply filters and sorting
+      _applyFiltersAndSort();
 
       debugPrint('✅ Unified documents processed successfully');
     } finally {
@@ -213,7 +211,8 @@ class DocumentProvider extends ChangeNotifier {
       final stateManagerDocs = _stateManager.documents;
       if (stateManagerDocs.isNotEmpty) {
         _documents = List.from(stateManagerDocs);
-        notifyListeners(); // Filtering now handled by screen-specific states
+        _applyFiltersAndSort();
+        notifyListeners();
 
         // Mark storage as not empty
         await emptyStateManager.setStorageNotEmpty();
@@ -309,8 +308,8 @@ class DocumentProvider extends ChangeNotifier {
             _addDocumentToLocal(doc);
           }
 
+          _applyFiltersAndSort();
           await _saveToStorage();
-          notifyListeners(); // Filtering now handled by screen-specific states
 
           debugPrint('✅ Firebase Storage fallback completed successfully');
           return true;
@@ -342,29 +341,29 @@ class DocumentProvider extends ChangeNotifier {
   bool _isLoadingDocuments = false; // Prevent concurrent document loading
 
   // Getters
-  List<DocumentModel> get documents =>
-      _documents; // Return all documents instead of filtered
+  List<DocumentModel> get documents => _filteredDocuments;
   List<DocumentModel> get allDocuments => _documents;
-  List<DocumentModel> get filteredDocuments =>
-      _documents; // Return all documents - filtering now handled by screen-specific states
+  List<DocumentModel> get filteredDocuments => _filteredDocuments;
 
   String? get errorMessage => _errorMessage;
   bool get isLoading => _isLoading;
+  String get searchQuery => _searchQuery;
+  String get selectedFileType => _selectedFileType;
+  String get selectedCategory => _selectedCategory;
+  String get selectedStatus => _selectedStatus;
+  String get sortBy => _sortBy;
+  bool get sortAscending => _sortAscending;
   bool get isFirebaseSyncActive => _documentsSubscription != null;
-
-  // REMOVED: Filter state getters - now handled by screen-specific filter states
-  // String get searchQuery => _searchQuery;
-  // String get selectedFileType => _selectedFileType;
-  // String get selectedCategory => _selectedCategory;
-  // String get selectedStatus => _selectedStatus;
-  // String get sortBy => _sortBy;
-  // bool get sortAscending => _sortAscending;
 
   // RACE CONDITION FIX: Getter for last load time
   DateTime? get lastLoadTime => _lastLoadTime;
 
-  // REMOVED: hasActiveFilters getter - now handled by screen-specific filter states
-  // bool get hasActiveFilters => ...
+  // Check if any filters are currently active
+  bool get hasActiveFilters =>
+      _searchQuery.isNotEmpty ||
+      _selectedCategory != 'all' ||
+      _selectedStatus != 'all' ||
+      _selectedFileType != 'all';
 
   // Helper methods for state management
   void _setLoading(bool loading, {bool notify = true}) {
@@ -526,7 +525,7 @@ class DocumentProvider extends ChangeNotifier {
         }
       }
 
-      // Filtering now handled by screen-specific states
+      _applyFiltersAndSort();
     } catch (e) {
       _setError(e.toString());
     } finally {
@@ -630,8 +629,8 @@ class DocumentProvider extends ChangeNotifier {
       // Merge Firebase documents with local documents
       _mergeFirebaseDocuments(updatedFirebaseDocuments, isFromListener: true);
 
-      // Notify listeners - filtering now handled by screen-specific states
-      notifyListeners();
+      // Apply filters and notify listeners
+      _applyFiltersAndSort();
     } catch (e) {
       debugPrint('Error handling Firebase updates: $e');
     } finally {
@@ -676,8 +675,8 @@ class DocumentProvider extends ChangeNotifier {
         '✅ Rebuilt category documents: ${_categoryDocuments.keys.length} categories with ${_documents.length} total documents',
       );
 
-      // Notify listeners - filtering now handled by screen-specific states
-      notifyListeners();
+      // Apply filters and notify listeners
+      _applyFiltersAndSort();
     } catch (e) {
       debugPrint('Error handling Firebase updates: $e');
     }
@@ -881,12 +880,10 @@ class DocumentProvider extends ChangeNotifier {
     debugPrint(
       '✅ Document ${document.fileName} added successfully (ID: ${document.id})',
     );
+    _applyFiltersAndSort();
 
     // Save to storage for persistence
     _saveToStorage();
-
-    // Notify listeners - filtering now handled by screen-specific states
-    notifyListeners();
   }
 
   // Add document to specific category (for uploads)
@@ -923,12 +920,10 @@ class DocumentProvider extends ChangeNotifier {
     debugPrint(
       '✅ Document ${updatedDocument.fileName} added to category $categoryId successfully (ID: ${updatedDocument.id})',
     );
+    _applyFiltersAndSort();
 
     // Save to storage for persistence
     _saveToStorage();
-
-    // Notify listeners - filtering now handled by screen-specific states
-    notifyListeners();
   }
 
   // Batch update multiple documents to category (more efficient)
@@ -1300,8 +1295,7 @@ class DocumentProvider extends ChangeNotifier {
         }
       }
 
-      // Notify listeners - filtering now handled by screen-specific states
-      notifyListeners();
+      _applyFiltersAndSort();
     }
   }
 
@@ -1510,6 +1504,8 @@ class DocumentProvider extends ChangeNotifier {
 
       // Update UI and persistence if any local changes were made
       if (localChanges) {
+        _applyFiltersAndSort();
+
         // Save to storage for persistence
         try {
           await _saveToStorage();
@@ -1594,7 +1590,8 @@ class DocumentProvider extends ChangeNotifier {
 
       // Update UI if any changes were made
       if (localChanges) {
-        notifyListeners(); // Filtering now handled by screen-specific states
+        _applyFiltersAndSort();
+        notifyListeners();
         debugPrint('✅ Local UI updated');
 
         // Save to storage asynchronously
@@ -1698,7 +1695,8 @@ class DocumentProvider extends ChangeNotifier {
 
         // Update UI if any changes were made
         if (localChanges) {
-          notifyListeners(); // Filtering now handled by screen-specific states
+          _applyFiltersAndSort();
+          notifyListeners();
           debugPrint('✅ Local UI updated after cloud function deletion');
 
           // Save to storage asynchronously
@@ -1825,8 +1823,8 @@ class DocumentProvider extends ChangeNotifier {
         _categoryDocuments[category]!.add(doc);
       }
 
-      // Notify listeners - filtering now handled by screen-specific states
-      notifyListeners();
+      // Apply filters and notify listeners
+      _applyFiltersAndSort();
 
       debugPrint(
         '✅ Refreshed ${freshDocuments.length} documents from Firestore',
@@ -1852,20 +1850,119 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  // REMOVED: Filter and sort methods - now handled by screen-specific filter states
-  // void searchDocuments(String query) { ... }
-  // void filterByCategory(String category) { ... }
-  // void filterByStatus(String status) { ... }
-  // void filterByFileType(String fileType) { ... }
-  // void sortDocuments(String sortBy, {bool ascending = false}) { ... }
+  // Search documents
+  void searchDocuments(String query) {
+    _searchQuery = query;
+    _applyFiltersAndSort();
+    // Note: _applyFiltersAndSort() already calls notifyListeners() to prevent double notifications
+  }
 
-  // REMOVED: _applyFiltersAndSort method - filtering now handled by screen-specific filter states
-  // void _applyFiltersAndSort() { ... }
+  // Filter by category
+  void filterByCategory(String category) {
+    _selectedCategory = category;
+    _applyFiltersAndSort();
+    // Note: _applyFiltersAndSort() already calls notifyListeners() to prevent double notifications
+  }
 
-  // REMOVED: clearFilters method - now handled by screen-specific filter states
-  // void clearFilters() { ... }
+  // Filter by status
+  void filterByStatus(String status) {
+    _selectedStatus = status;
+    _applyFiltersAndSort();
+    // Note: _applyFiltersAndSort() already calls notifyListeners() to prevent double notifications
+  }
 
-  // Get file type category for filtering (CSV consolidated with Excel)
+  // Filter by file type
+  void filterByFileType(String fileType) {
+    _selectedFileType = fileType;
+    _applyFiltersAndSort();
+    // Note: _applyFiltersAndSort() already calls notifyListeners() to prevent double notifications
+  }
+
+  // Sort documents
+  void sortDocuments(String sortBy, {bool ascending = false}) {
+    _sortBy = sortBy;
+    _sortAscending = ascending;
+    _applyFiltersAndSort();
+  }
+
+  // Apply filters and sorting
+  void _applyFiltersAndSort() {
+    _filteredDocuments = _documents.where((document) {
+      // Search filter
+      bool matchesSearch =
+          _searchQuery.isEmpty ||
+          document.fileName.toLowerCase().contains(
+            _searchQuery.toLowerCase(),
+          ) ||
+          document.metadata.description.toLowerCase().contains(
+            _searchQuery.toLowerCase(),
+          ) ||
+          document.metadata.tags.any(
+            (tag) => tag.toLowerCase().contains(_searchQuery.toLowerCase()),
+          );
+
+      // Category filter
+      bool matchesCategory =
+          _selectedCategory == 'all' || document.category == _selectedCategory;
+
+      // Status filter removed - all files are active by default
+      bool matchesStatus = true;
+
+      // File type filter
+      bool matchesFileType =
+          _selectedFileType == 'all' ||
+          _getFileTypeCategory(document.fileType) == _selectedFileType;
+
+      return matchesSearch &&
+          matchesCategory &&
+          matchesStatus &&
+          matchesFileType;
+    }).toList();
+
+    // Apply sorting
+    _filteredDocuments.sort((a, b) {
+      int comparison = 0;
+
+      switch (_sortBy) {
+        case 'fileName':
+          comparison = a.fileName.compareTo(b.fileName);
+          break;
+        case 'fileSize':
+          comparison = a.fileSize.compareTo(b.fileSize);
+          break;
+        case 'uploadedAt':
+          comparison = a.uploadedAt.compareTo(b.uploadedAt);
+          break;
+        case 'category':
+          comparison = a.category.compareTo(b.category);
+          break;
+        case 'status':
+          // Status sorting removed - all files are active
+          comparison = 0;
+          break;
+        default:
+          comparison = a.uploadedAt.compareTo(b.uploadedAt);
+      }
+
+      return _sortAscending ? comparison : -comparison;
+    });
+
+    // Always notify listeners after applying filters and sorting
+    notifyListeners();
+  }
+
+  // Clear filters
+  void clearFilters() {
+    _searchQuery = '';
+    _selectedCategory = 'all';
+    _selectedStatus = 'all';
+    _selectedFileType = 'all';
+    _sortBy = 'uploadedAt';
+    _sortAscending = false;
+    _applyFiltersAndSort();
+  }
+
+  // Get file type category for filtering
   String _getFileTypeCategory(String fileType) {
     final lowerFileType = fileType.toLowerCase();
 
@@ -1877,9 +1974,7 @@ class DocumentProvider extends ChangeNotifier {
     } else if (lowerFileType.contains('excel') ||
         lowerFileType.contains('sheet') ||
         lowerFileType.contains('xlsx') ||
-        lowerFileType.contains('xls') ||
-        lowerFileType.contains('csv')) {
-      // ← CSV consolidated with Excel
+        lowerFileType.contains('xls')) {
       return 'Excel';
     } else if (lowerFileType.contains('image') ||
         lowerFileType.contains('jpg') ||
@@ -2014,7 +2109,7 @@ class DocumentProvider extends ChangeNotifier {
         }
 
         await _saveToStorage();
-        notifyListeners(); // Filtering now handled by screen-specific states
+        _applyFiltersAndSort();
 
         debugPrint(
           '✅ Retrieved ${firebaseDocuments.length} documents for category $category from Firebase',
@@ -2151,7 +2246,7 @@ class DocumentProvider extends ChangeNotifier {
 
           // Save to storage and notify listeners
           await _saveToStorage();
-          notifyListeners(); // Filtering now handled by screen-specific states
+          _applyFiltersAndSort();
           return;
         }
       } catch (cloudError) {
@@ -2188,7 +2283,7 @@ class DocumentProvider extends ChangeNotifier {
 
         // Save to storage and notify listeners
         await _saveToStorage();
-        notifyListeners(); // Filtering now handled by screen-specific states
+        _applyFiltersAndSort();
       } else {
         debugPrint('⚠️ No documents found in Firebase during refresh');
       }
@@ -2230,7 +2325,7 @@ class DocumentProvider extends ChangeNotifier {
   void removeCategory(String categoryId) {
     _categoryDocuments.remove(categoryId);
     _documents.removeWhere((doc) => doc.category == categoryId);
-    notifyListeners(); // Filtering now handled by screen-specific states
+    _applyFiltersAndSort();
   }
 
   // Get all documents (status filtering removed)
@@ -2264,7 +2359,7 @@ class DocumentProvider extends ChangeNotifier {
       if (_documents.length != _stateManager.documents.length) {
         debugPrint('🔄 Syncing local state with Firebase Storage data...');
         _documents = List.from(_stateManager.documents);
-        notifyListeners(); // Filtering now handled by screen-specific states
+        _applyFiltersAndSort();
       }
 
       // Return Storage-based data for consistency
@@ -2379,6 +2474,9 @@ class DocumentProvider extends ChangeNotifier {
           _categoryDocuments.putIfAbsent(category, () => []).add(doc);
         }
 
+        // Apply filters and sort
+        _applyFiltersAndSort();
+
         // Save to local storage
         await _saveToStorage();
 
@@ -2395,7 +2493,7 @@ class DocumentProvider extends ChangeNotifier {
         _categoryDocuments.clear();
         _categoryDocuments.addAll(previousCategoryDocuments);
 
-        notifyListeners(); // Filtering now handled by screen-specific states
+        _applyFiltersAndSort();
         rethrow;
       }
     } finally {
@@ -2435,7 +2533,7 @@ class DocumentProvider extends ChangeNotifier {
       );
 
       _documents = documents;
-      notifyListeners(); // Filtering now handled by screen-specific states
+      _applyFiltersAndSort();
 
       debugPrint('✅ Loaded ${documents.length} documents with unlimited query');
     } catch (e) {
@@ -2469,7 +2567,7 @@ class DocumentProvider extends ChangeNotifier {
           .toList();
 
       _documents.addAll(newDocuments);
-      notifyListeners(); // Filtering now handled by screen-specific states
+      _applyFiltersAndSort();
 
       debugPrint('✅ Added ${newDocuments.length} documents from Storage');
     } catch (e) {
@@ -2618,7 +2716,8 @@ class DocumentProvider extends ChangeNotifier {
 
   // Force UI refresh (for immediate updates after uploads)
   void forceRefresh() {
-    notifyListeners(); // Filtering now handled by screen-specific states
+    _applyFiltersAndSort();
+    notifyListeners();
   }
 
   // Clean up existing duplicate documents
@@ -2672,7 +2771,7 @@ class DocumentProvider extends ChangeNotifier {
 
         // Save cleaned data
         await _saveToStorage();
-        notifyListeners(); // Filtering now handled by screen-specific states
+        _applyFiltersAndSort();
 
         debugPrint(
           '✅ Cleanup complete: Removed ${duplicatesToRemove.length} duplicates, ${_documents.length} unique documents remain',

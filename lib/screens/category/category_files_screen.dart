@@ -7,7 +7,6 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 import '../../providers/document_provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/filter_states/category_files_filter_state.dart';
 import '../../models/category_model.dart';
 import '../../models/document_model.dart';
 import '../../widgets/common/custom_app_bar.dart';
@@ -17,7 +16,7 @@ import '../../services/share_service.dart';
 import '../../widgets/common/ios_back_button.dart';
 import '../../widgets/common/reusable_file_list_widget.dart';
 import '../../widgets/common/reusable_file_grid_widget.dart';
-import '../../widgets/filters/category_files_filter_widget.dart';
+import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/file_selection_bar.dart';
 import '../../widgets/category/category_info_header_widget.dart';
 import '../../widgets/category/category_empty_state_widget.dart';
@@ -116,17 +115,13 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
             topRight: Radius.circular(20),
           ),
         ),
-        child: ChangeNotifierProvider(
-          create: (_) =>
-              CategoryFilesFilterState(categoryId: widget.category.id),
-          child: CategoryFilesFilterWidget(
-            onFilterApplied: () {
-              Navigator.pop(context);
-              setState(() {
-                // Trigger rebuild to apply filters
-              });
-            },
-          ),
+        child: FileFilterWidget(
+          onFilterApplied: () {
+            Navigator.pop(context);
+            setState(() {
+              // Trigger rebuild to apply filters
+            });
+          },
         ),
       ),
     );

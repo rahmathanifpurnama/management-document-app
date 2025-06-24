@@ -11,10 +11,9 @@ import '../../providers/user_provider.dart';
 import '../../providers/document_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/file_selection_provider.dart';
-import '../../providers/filter_states/home_screen_filter_state.dart';
 import '../../widgets/common/app_bottom_navigation.dart';
 import '../../widgets/common/loading_widget.dart';
-import '../../widgets/filters/home_screen_filter_widget.dart';
+import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/file_selection_bar.dart';
 import '../../models/document_model.dart';
 
@@ -58,8 +57,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _startAutoRefresh();
     _generateNewGreeting();
 
-    // Search controller initialization - no longer synced with DocumentProvider
-    // Filtering is now handled by screen-specific filter states
+    // Sync search controller with DocumentProvider on init
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final documentProvider = Provider.of<DocumentProvider>(
+        context,
+        listen: false,
+      );
+      _searchController.text = documentProvider.searchQuery;
+    });
 
     // CRITICAL FIX: Disable real-time sync service to prevent duplicate listeners
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -187,9 +192,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // This eliminates duplicate listener registration and conflicting debounce timers
 
   void _performSearch() {
-    // Search is now handled by screen-specific filter states
-    // This method can be used to trigger UI updates if needed
-    setState(() {});
+    final documentProvider = Provider.of<DocumentProvider>(
+      context,
+      listen: false,
+    );
+    documentProvider.searchDocuments(_searchController.text.trim());
   }
 
   // Update session activity when user is active
@@ -386,14 +393,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => ChangeNotifierProvider(
-        create: (_) => HomeScreenFilterState(),
-        child: HomeScreenFilterWidget(
-          onFilterApplied: () {
-            // Trigger UI rebuild to apply filters
-            setState(() {});
-          },
-        ),
+      builder: (context) => FileFilterWidget(
+        onFilterApplied: () {
+          // Sync search controller with DocumentProvider after filter changes
+          final documentProvider = Provider.of<DocumentProvider>(
+            context,
+            listen: false,
+          );
+          if (_searchController.text != documentProvider.searchQuery) {
+            _searchController.text = documentProvider.searchQuery;
+          }
+        },
       ),
     );
   }
