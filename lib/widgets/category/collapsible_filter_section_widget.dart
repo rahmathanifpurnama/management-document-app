@@ -23,11 +23,11 @@ class CollapsibleFilterSectionWidget extends StatefulWidget {
   });
 
   @override
-  State<CollapsibleFilterSectionWidget> createState() => 
-    _CollapsibleFilterSectionWidgetState();
+  State<CollapsibleFilterSectionWidget> createState() =>
+      _CollapsibleFilterSectionWidgetState();
 }
 
-class _CollapsibleFilterSectionWidgetState 
+class _CollapsibleFilterSectionWidgetState
     extends State<CollapsibleFilterSectionWidget> {
   late bool _isExpanded;
 
@@ -48,10 +48,12 @@ class _CollapsibleFilterSectionWidgetState
         final hasActiveFilters = _hasActiveFilters(documentProvider);
 
         return Container(
-          margin: widget.margin ?? EdgeInsets.symmetric(
-            horizontal: isSmallScreen ? 12 : 16,
-            vertical: 8,
-          ),
+          margin:
+              widget.margin ??
+              EdgeInsets.symmetric(
+                horizontal: isSmallScreen ? 12 : 16,
+                vertical: 8,
+              ),
           child: Column(
             children: [
               _buildHeader(hasActiveFilters, isSmallScreen, isTablet),
@@ -63,7 +65,11 @@ class _CollapsibleFilterSectionWidgetState
     );
   }
 
-  Widget _buildHeader(bool hasActiveFilters, bool isSmallScreen, bool isTablet) {
+  Widget _buildHeader(
+    bool hasActiveFilters,
+    bool isSmallScreen,
+    bool isTablet,
+  ) {
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: isSmallScreen ? 12 : 16,
@@ -116,8 +122,8 @@ class _CollapsibleFilterSectionWidgetState
                 icon: Icon(
                   _isExpanded ? Icons.expand_less : Icons.filter_list,
                   color: hasActiveFilters
-                    ? AppColors.primary
-                    : AppColors.textSecondary,
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
                   size: isSmallScreen ? 18 : 20,
                 ),
                 padding: EdgeInsets.zero,
@@ -138,17 +144,15 @@ class _CollapsibleFilterSectionWidgetState
     return AnimatedCrossFade(
       duration: const Duration(milliseconds: 300),
       crossFadeState: _isExpanded
-        ? CrossFadeState.showSecond
-        : CrossFadeState.showFirst,
+          ? CrossFadeState.showSecond
+          : CrossFadeState.showFirst,
       firstChild: const SizedBox.shrink(),
       secondChild: Container(
         margin: EdgeInsets.only(top: isSmallScreen ? 6 : 8),
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: AppColors.border.withValues(alpha: 0.3),
-          ),
+          border: Border.all(color: AppColors.border.withValues(alpha: 0.3)),
         ),
         child: EmbeddedFileFilterWidget(
           onFilterApplied: () {
@@ -170,12 +174,7 @@ class _CollapsibleFilterSectionWidgetState
 
   bool _hasActiveFilters(DocumentProvider documentProvider) {
     return documentProvider.selectedFileType != 'all' ||
-<<<<<<< HEAD
         documentProvider.sortBy != 'uploadedAt' ||
         documentProvider.sortAscending != false;
-=======
-           documentProvider.sortBy != 'uploadedAt' ||
-           documentProvider.sortAscending != false;
->>>>>>> 8ff65934565a2537ce29afec4698495f8a5c35ae
   }
 }
