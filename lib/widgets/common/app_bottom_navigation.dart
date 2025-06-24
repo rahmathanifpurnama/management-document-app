@@ -31,8 +31,8 @@ class AppBottomNavigation extends StatelessWidget {
                   currentIndex == 0
                       ? 'assets/icon/home-filled.svg'
                       : 'assets/icon/home.svg',
-                  width: 24,
-                  height: 24,
+                  width: 26, // Increased to match Add button
+                  height: 26, // Increased to match Add button
                   colorFilter: ColorFilter.mode(
                     currentIndex == 0
                         ? AppColors.primary
@@ -52,8 +52,8 @@ class AppBottomNavigation extends StatelessWidget {
                   currentIndex == 1
                       ? 'assets/icon/folder-filled.svg'
                       : 'assets/icon/folder.svg',
-                  width: 24,
-                  height: 24,
+                  width: 26, // Increased to match Add button
+                  height: 26, // Increased to match Add button
                   colorFilter: ColorFilter.mode(
                     currentIndex == 1
                         ? AppColors.primary
@@ -70,7 +70,11 @@ class AppBottomNavigation extends StatelessWidget {
               height: 32, // Fixed height for all icons
               child: Center(
                 child: Container(
-                  padding: const EdgeInsets.all(4), // Minimal padding
+                  width: 40, // Fixed width for consistent touch target
+                  height: 40, // Fixed height for consistent touch target
+                  padding: const EdgeInsets.all(
+                    7,
+                  ), // Adjusted padding for 26px icon
                   decoration: BoxDecoration(
                     color: currentIndex == 2
                         ? AppColors.primary.withValues(alpha: 0.1)
@@ -79,14 +83,17 @@ class AppBottomNavigation extends StatelessWidget {
                       color: currentIndex == 2
                           ? AppColors.primary
                           : AppColors.textSecondary.withValues(alpha: 0.5),
-                      width: 1.2, // Thin border
+                      width:
+                          1.5, // Slightly thicker border for better visibility
                     ),
-                    borderRadius: BorderRadius.circular(16), // Smaller radius
+                    borderRadius: BorderRadius.circular(
+                      20,
+                    ), // Radius adjusted for container size
                   ),
                   child: SvgPicture.asset(
                     'assets/icon/plus.svg',
-                    width: 18, // Smaller icon to fit within container
-                    height: 18,
+                    width: 26, // Increased to match other navigation icons
+                    height: 26, // Increased to match other navigation icons
                     colorFilter: ColorFilter.mode(
                       currentIndex == 2
                           ? AppColors.primary
@@ -111,8 +118,8 @@ class AppBottomNavigation extends StatelessWidget {
                     currentIndex == 3
                         ? 'assets/icon/add-user-filled.svg'
                         : 'assets/icon/add-user.svg',
-                    width: 24,
-                    height: 24,
+                    width: 26, // Increased for consistency
+                    height: 26, // Increased for consistency
                     colorFilter: ColorFilter.mode(
                       currentIndex == 3
                           ? AppColors.primary
@@ -132,8 +139,8 @@ class AppBottomNavigation extends StatelessWidget {
                     currentIndex == 4
                         ? 'assets/icon/user-filled.svg'
                         : 'assets/icon/user.svg',
-                    width: 24,
-                    height: 24,
+                    width: 26, // Increased for consistency
+                    height: 26, // Increased for consistency
                     colorFilter: ColorFilter.mode(
                       currentIndex == 4
                           ? AppColors.primary
@@ -157,8 +164,8 @@ class AppBottomNavigation extends StatelessWidget {
                     currentIndex == 3
                         ? 'assets/icon/user-filled.svg'
                         : 'assets/icon/user.svg',
-                    width: 24,
-                    height: 24,
+                    width: 26, // Increased for consistency
+                    height: 26, // Increased for consistency
                     colorFilter: ColorFilter.mode(
                       currentIndex == 3
                           ? AppColors.primary
@@ -204,7 +211,7 @@ class AppBottomNavigation extends StatelessWidget {
                   fontSize: 10, // Reduced font size to prevent overflow
                   fontWeight: FontWeight.w400,
                 ),
-                iconSize: 24, // Reduced icon size to prevent overflow
+                iconSize: 26, // Updated to match our custom icon sizes
                 elevation: 0,
                 backgroundColor: Colors.transparent,
                 items: items,
