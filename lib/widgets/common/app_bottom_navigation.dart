@@ -24,82 +24,56 @@ class AppBottomNavigation extends StatelessWidget {
       builder: (context, authProvider, child) {
         List<BottomNavigationBarItem> items = [
           BottomNavigationBarItem(
-            icon: SizedBox(
-              height: 32, // Fixed height for all icons
-              child: Center(
-                child: SvgPicture.asset(
-                  currentIndex == 0
-                      ? 'assets/icon/home-filled.svg'
-                      : 'assets/icon/home.svg',
-                  width: 26, // Increased to match Add button
-                  height: 26, // Increased to match Add button
-                  colorFilter: ColorFilter.mode(
-                    currentIndex == 0
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                    BlendMode.srcIn,
-                  ),
-                ),
+            icon: SvgPicture.asset(
+              'assets/icon/Home.svg',
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(
+                currentIndex == 0 ? AppColors.primary : AppColors.textSecondary,
+                BlendMode.srcIn,
               ),
             ),
             label: AppStrings.home,
           ),
           BottomNavigationBarItem(
-            icon: SizedBox(
-              height: 32, // Fixed height for all icons
-              child: Center(
-                child: SvgPicture.asset(
-                  currentIndex == 1
-                      ? 'assets/icon/folder-filled.svg'
-                      : 'assets/icon/folder.svg',
-                  width: 26, // Increased to match Add button
-                  height: 26, // Increased to match Add button
-                  colorFilter: ColorFilter.mode(
-                    currentIndex == 1
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                    BlendMode.srcIn,
-                  ),
-                ),
+            icon: SvgPicture.asset(
+              'assets/icon/Category.svg',
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(
+                currentIndex == 1 ? AppColors.primary : AppColors.textSecondary,
+                BlendMode.srcIn,
               ),
             ),
             label: 'Category',
           ),
           BottomNavigationBarItem(
-            icon: SizedBox(
-              height: 32, // Fixed height for all icons
-              child: Center(
-                child: Container(
-                  width: 40, // Fixed width for consistent touch target
-                  height: 40, // Fixed height for consistent touch target
-                  padding: const EdgeInsets.all(
-                    7,
-                  ), // Adjusted padding for 26px icon
-                  decoration: BoxDecoration(
+            icon: Transform.translate(
+              offset: const Offset(
+                0,
+                8,
+              ), // Move up 8px without changing container size
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  border: Border.all(
                     color: currentIndex == 2
-                        ? AppColors.primary.withValues(alpha: 0.1)
-                        : Colors.transparent,
-                    border: Border.all(
-                      color: currentIndex == 2
-                          ? AppColors.primary
-                          : AppColors.textSecondary.withValues(alpha: 0.5),
-                      width:
-                          1.5, // Slightly thicker border for better visibility
-                    ),
-                    borderRadius: BorderRadius.circular(
-                      20,
-                    ), // Radius adjusted for container size
+                        ? AppColors.primary
+                        : AppColors.textSecondary.withValues(alpha: 0.5),
+                    width: 2,
                   ),
-                  child: SvgPicture.asset(
-                    'assets/icon/plus.svg',
-                    width: 26, // Increased to match other navigation icons
-                    height: 26, // Increased to match other navigation icons
-                    colorFilter: ColorFilter.mode(
-                      currentIndex == 2
-                          ? AppColors.primary
-                          : AppColors.textSecondary,
-                      BlendMode.srcIn,
-                    ),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: SvgPicture.asset(
+                  'assets/icon/Adding.svg',
+                  width: 24,
+                  height: 24,
+                  colorFilter: ColorFilter.mode(
+                    currentIndex == 2
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
+                    BlendMode.srcIn,
                   ),
                 ),
               ),
@@ -111,43 +85,25 @@ class AppBottomNavigation extends StatelessWidget {
         if (authProvider.isAdmin) {
           items.addAll([
             BottomNavigationBarItem(
-              icon: SizedBox(
-                height: 32, // Fixed height for all icons
-                child: Center(
-                  child: SvgPicture.asset(
-                    currentIndex == 3
-                        ? 'assets/icon/add-user-filled.svg'
-                        : 'assets/icon/add-user.svg',
-                    width: 26, // Increased for consistency
-                    height: 26, // Increased for consistency
-                    colorFilter: ColorFilter.mode(
-                      currentIndex == 3
-                          ? AppColors.primary
-                          : AppColors.textSecondary,
-                      BlendMode.srcIn,
-                    ),
-                  ),
-                ),
+              icon: Icon(
+                Icons.person_add,
+                size: 24,
+                color: currentIndex == 3
+                    ? AppColors.primary
+                    : AppColors.textSecondary,
               ),
               label: 'Add User',
             ),
             BottomNavigationBarItem(
-              icon: SizedBox(
-                height: 32, // Fixed height for all icons
-                child: Center(
-                  child: SvgPicture.asset(
-                    currentIndex == 4
-                        ? 'assets/icon/user-filled.svg'
-                        : 'assets/icon/user.svg',
-                    width: 26, // Increased for consistency
-                    height: 26, // Increased for consistency
-                    colorFilter: ColorFilter.mode(
-                      currentIndex == 4
-                          ? AppColors.primary
-                          : AppColors.textSecondary,
-                      BlendMode.srcIn,
-                    ),
-                  ),
+              icon: SvgPicture.asset(
+                'assets/icon/Profile.svg',
+                width: 24,
+                height: 24,
+                colorFilter: ColorFilter.mode(
+                  currentIndex == 4
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
+                  BlendMode.srcIn,
                 ),
               ),
               label: 'Profile',
@@ -157,22 +113,15 @@ class AppBottomNavigation extends StatelessWidget {
           // For non-admin users, add only Profile tab
           items.add(
             BottomNavigationBarItem(
-              icon: SizedBox(
-                height: 32, // Fixed height for all icons
-                child: Center(
-                  child: SvgPicture.asset(
-                    currentIndex == 3
-                        ? 'assets/icon/user-filled.svg'
-                        : 'assets/icon/user.svg',
-                    width: 26, // Increased for consistency
-                    height: 26, // Increased for consistency
-                    colorFilter: ColorFilter.mode(
-                      currentIndex == 3
-                          ? AppColors.primary
-                          : AppColors.textSecondary,
-                      BlendMode.srcIn,
-                    ),
-                  ),
+              icon: SvgPicture.asset(
+                'assets/icon/Profile.svg',
+                width: 24,
+                height: 24,
+                colorFilter: ColorFilter.mode(
+                  currentIndex == 3
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
+                  BlendMode.srcIn,
                 ),
               ),
               label: 'Profile',
@@ -185,38 +134,26 @@ class AppBottomNavigation extends StatelessWidget {
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 12,
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 10,
                 offset: const Offset(0, -2),
               ),
             ],
           ),
-          child: SafeArea(
-            child: SizedBox(
-              height: 80, // Increased height to accommodate fixed icon heights
-              child: BottomNavigationBar(
-                currentIndex: currentIndex,
-                onTap: (index) =>
-                    _handleNavigation(context, index, authProvider),
-                type: BottomNavigationBarType.fixed,
-                selectedItemColor: AppColors.primary,
-                unselectedItemColor: AppColors.textSecondary,
-                showSelectedLabels: true,
-                showUnselectedLabels: true,
-                selectedLabelStyle: GoogleFonts.poppins(
-                  fontSize: 10, // Reduced font size to prevent overflow
-                  fontWeight: FontWeight.w600,
-                ),
-                unselectedLabelStyle: GoogleFonts.poppins(
-                  fontSize: 10, // Reduced font size to prevent overflow
-                  fontWeight: FontWeight.w400,
-                ),
-                iconSize: 26, // Updated to match our custom icon sizes
-                elevation: 0,
-                backgroundColor: Colors.transparent,
-                items: items,
-              ),
-            ),
+          child: BottomNavigationBar(
+            currentIndex: currentIndex,
+            onTap: (index) => _handleNavigation(context, index, authProvider),
+            type: BottomNavigationBarType.fixed,
+            selectedItemColor: AppColors.primary,
+            unselectedItemColor: AppColors.textSecondary,
+            showSelectedLabels: true,
+            showUnselectedLabels: true,
+            selectedLabelStyle: GoogleFonts.poppins(fontSize: 12),
+            unselectedLabelStyle: GoogleFonts.poppins(fontSize: 12),
+            iconSize: 24,
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+            items: items,
           ),
         );
       },

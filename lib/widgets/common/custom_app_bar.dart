@@ -497,7 +497,7 @@ class SimpleUploadAppBar extends StatelessWidget
       onBackPressed: onBackPressed,
       rightActions: [
         AssetIconAction(
-          assetPath: 'assets/icon/home.svg',
+          assetPath: 'assets/icon/Home.svg',
           onPressed: () {
             Navigator.of(
               context,

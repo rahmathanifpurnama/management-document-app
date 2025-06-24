@@ -1,47 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Firebase App Check and Core Services Configuration -->
-    <domain-config cleartextTrafficPermitted="false">
-        <!-- Firebase App Check specific domains -->
-        <domain includeSubdomains="true">firebaseappcheck.googleapis.com</domain>
-        <domain includeSubdomains="true">firebaseappcheck-pa.googleapis.com</domain>
-        <domain includeSubdomains="true">firebaseappcheck-pa.clients6.google.com</domain>
-
-        <!-- Firebase Core Services -->
-        <domain includeSubdomains="true">firebasestorage.googleapis.com</domain>
-        <domain includeSubdomains="true">firebase.googleapis.com</domain>
-        <domain includeSubdomains="true">firestore.googleapis.com</domain>
-        <domain includeSubdomains="true">identitytoolkit.googleapis.com</domain>
-        <domain includeSubdomains="true">securetoken.googleapis.com</domain>
-
-        <!-- Google Play Integrity API (for App Check in production) -->
-        <domain includeSubdomains="true">playintegrity.googleapis.com</domain>
-        <domain includeSubdomains="true">androidcheck-pa.googleapis.com</domain>
-
-        <!-- Google APIs and CDN -->
-        <domain includeSubdomains="true">googleapis.com</domain>
-        <domain includeSubdomains="true">google.com</domain>
-        <domain includeSubdomains="true">gstatic.com</domain>
-        <domain includeSubdomains="true">googleusercontent.com</domain>
-
-        <!-- Enhanced trust anchors for Firebase services -->
+    <!-- Simplified configuration for release build compatibility -->
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <!-- Include system certificates -->
             <certificates src="system"/>
             <!-- Include user-added certificates for development -->
             <certificates src="user"/>
         </trust-anchors>
-
-        <!-- Pin certificates for critical Firebase services (optional but recommended) -->
-        <pin-set expiration="2025-12-31">
-            <!-- Google Trust Services LLC certificate pin -->
-            <pin digest="SHA-256">KwccWaCgrnaw6tsrrSO61FgLacNgG2MMLq8GE6+oP5I=</pin>
-            <!-- GlobalSign Root CA certificate pin -->
-            <pin digest="SHA-256">K87oWBWM9UZfyddvDfoxL+8lpNyoUB2ptGtn0fv6G2Q=</pin>
-            <!-- Backup pin -->
-            <pin digest="SHA-256">YLh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg=</pin>
-        </pin-set>
-    </domain-config>
+    </base-config>
 
     <!-- Development and debugging configuration -->
     <domain-config cleartextTrafficPermitted="true">
@@ -58,22 +25,4 @@
             <certificates src="user"/>
         </trust-anchors>
     </domain-config>
-
-    <!-- Base configuration for all other domains -->
-    <base-config cleartextTrafficPermitted="false">
-        <trust-anchors>
-            <!-- Include system certificates -->
-            <certificates src="system"/>
-            <!-- Include user-added certificates for development/testing -->
-            <certificates src="user"/>
-        </trust-anchors>
-    </base-config>
-
-    <!-- Debug configuration for App Check token debugging -->
-    <debug-overrides>
-        <trust-anchors>
-            <certificates src="system"/>
-            <certificates src="user"/>
-        </trust-anchors>
-    </debug-overrides>
 </network-security-config>
