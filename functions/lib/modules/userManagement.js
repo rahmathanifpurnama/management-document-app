@@ -417,81 +417,9 @@ const setAdminClaims = functions.https.onCall(async (data, context) => {
     }
 });
 /**
- * Get Firebase Auth users for admin management
+ * Auto-sync all Firebase Auth users to Firestore (Admin only)
  */
-const getFirebaseAuthUsers = functions.https.onCall(async (data, context) => {
-    var _a;
-    // Verify authentication and admin privileges
-    if (!context.auth) {
-        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
-    }
-    try {
-        // Check if user is admin
-        const adminDoc = await admin
-            .firestore()
-            .collection("users")
-            .doc(context.auth.uid)
-            .get();
-        if (!adminDoc.exists || ((_a = adminDoc.data()) === null || _a === void 0 ? void 0 : _a.role) !== "admin") {
-            throw new functions.https.HttpsError("permission-denied", "Only admins can fetch Firebase Auth users");
-        }
-        const { maxResults = 1000, pageToken } = data || {};
-        // List users from Firebase Auth
-        const listUsersResult = await admin.auth().listUsers(maxResults, pageToken);
-        // Transform Firebase Auth users to our format
-        const firebaseAuthUsers = listUsersResult.users.map(user => ({
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            emailVerified: user.emailVerified,
-            disabled: user.disabled,
-            metadata: {
-                creationTime: user.metadata.creationTime,
-                lastSignInTime: user.metadata.lastSignInTime,
-            },
-        }));
-        // Get corresponding Firestore user documents
-        const firestoreUserPromises = firebaseAuthUsers.map(async (authUser) => {
-            try {
-                const userDoc = await admin
-                    .firestore()
-                    .collection("users")
-                    .doc(authUser.uid)
-                    .get();
-                return {
-                    authUser,
-                    firestoreUser: userDoc.exists ? userDoc.data() : null,
-                };
-            }
-            catch (error) {
-                console.warn(`Error fetching Firestore user ${authUser.uid}:`, error);
-                return {
-                    authUser,
-                    firestoreUser: null,
-                };
-            }
-        });
-        const usersWithFirestore = await Promise.all(firestoreUserPromises);
-        console.log(`Retrieved ${firebaseAuthUsers.length} Firebase Auth users`);
-        return {
-            success: true,
-            users: usersWithFirestore,
-            nextPageToken: listUsersResult.pageToken,
-            totalUsers: firebaseAuthUsers.length,
-        };
-    }
-    catch (error) {
-        console.error("Error fetching Firebase Auth users:", error);
-        if (error instanceof functions.https.HttpsError) {
-            throw error;
-        }
-        throw new functions.https.HttpsError("internal", `Failed to fetch Firebase Auth users: ${error}`);
-    }
-});
-/**
- * Sync Firebase Auth user with Firestore
- */
-const syncFirebaseAuthUser = functions.https.onCall(async (data, context) => {
+const autoSyncFirebaseAuthUsers = functions.https.onCall(async (data, context) => {
     var _a, _b;
     // Verify authentication and admin privileges
     if (!context.auth) {
@@ -505,75 +433,87 @@ const syncFirebaseAuthUser = functions.https.onCall(async (data, context) => {
             .doc(context.auth.uid)
             .get();
         if (!adminDoc.exists || ((_a = adminDoc.data()) === null || _a === void 0 ? void 0 : _a.role) !== "admin") {
-            throw new functions.https.HttpsError("permission-denied", "Only admins can sync Firebase Auth users");
+            throw new functions.https.HttpsError("permission-denied", "Only admins can auto-sync Firebase Auth users");
         }
-        const { userId } = data;
-        if (!userId) {
-            throw new functions.https.HttpsError("invalid-argument", "User ID is required");
-        }
-        // Get user from Firebase Auth
-        const authUser = await admin.auth().getUser(userId);
-        // Check if user already exists in Firestore
-        const userDoc = await admin
+        // Get all Firebase Auth users
+        const listUsersResult = await admin.auth().listUsers(1000);
+        const authUsers = listUsersResult.users;
+        // Get existing Firestore users
+        const firestoreUsersSnapshot = await admin
             .firestore()
             .collection("users")
-            .doc(userId)
             .get();
-        if (userDoc.exists) {
-            throw new functions.https.HttpsError("already-exists", "User already exists in Firestore");
+        const existingUserIds = new Set(firestoreUsersSnapshot.docs.map(doc => doc.id));
+        // Find users that exist in Firebase Auth but not in Firestore
+        const usersToSync = authUsers.filter(user => !existingUserIds.has(user.uid));
+        let syncedCount = 0;
+        const errors = [];
+        // Sync each missing user
+        for (const authUser of usersToSync) {
+            try {
+                const userData = {
+                    id: authUser.uid,
+                    fullName: authUser.displayName || ((_b = authUser.email) === null || _b === void 0 ? void 0 : _b.split('@')[0]) || 'Unknown User',
+                    email: authUser.email || '',
+                    role: "user", // Default role
+                    status: "active",
+                    isActive: !authUser.disabled,
+                    createdBy: context.auth.uid,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    permissions: {
+                        canViewFiles: true,
+                        canUploadFiles: true,
+                        canDeleteFiles: false,
+                        canManageUsers: false,
+                        canManageCategories: false,
+                        canViewAnalytics: false,
+                    },
+                    lastLogin: authUser.metadata.lastSignInTime ?
+                        admin.firestore.Timestamp.fromDate(new Date(authUser.metadata.lastSignInTime)) : null,
+                    profileImageUrl: null,
+                };
+                await admin
+                    .firestore()
+                    .collection("users")
+                    .doc(authUser.uid)
+                    .set(userData);
+                syncedCount++;
+                console.log(`Auto-synced user: ${authUser.email || authUser.uid}`);
+            }
+            catch (error) {
+                const errorMsg = `Failed to sync user ${authUser.email || authUser.uid}: ${error}`;
+                errors.push(errorMsg);
+                console.error(errorMsg);
+            }
         }
-        // Create user document in Firestore with default values
-        const userData = {
-            id: authUser.uid,
-            fullName: authUser.displayName || ((_b = authUser.email) === null || _b === void 0 ? void 0 : _b.split('@')[0]) || 'Unknown User',
-            email: authUser.email || '',
-            role: "user", // Default role
-            status: "active",
-            isActive: !authUser.disabled,
-            createdBy: context.auth.uid,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            permissions: {
-                canViewFiles: true,
-                canUploadFiles: true,
-                canDeleteFiles: false,
-                canManageUsers: false,
-                canManageCategories: false,
-                canViewAnalytics: false,
-            },
-            lastLogin: authUser.metadata.lastSignInTime ?
-                admin.firestore.Timestamp.fromDate(new Date(authUser.metadata.lastSignInTime)) : null,
-            profileImageUrl: null,
-        };
-        await admin
-            .firestore()
-            .collection("users")
-            .doc(authUser.uid)
-            .set(userData);
         // Log activity
         await admin
             .firestore()
             .collection("activities")
             .add({
-            type: "user_synced",
-            userId: authUser.uid,
+            type: "auto_sync_completed",
+            userId: context.auth.uid,
             createdBy: context.auth.uid,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: `Firebase Auth user ${authUser.email} synced to Firestore`,
+            details: `Auto-sync completed: ${syncedCount} users synced, ${errors.length} errors`,
         });
-        console.log(`User synced successfully: ${authUser.uid}`);
+        console.log(`Auto-sync completed: ${syncedCount} users synced, ${errors.length} errors`);
         return {
             success: true,
-            userId: authUser.uid,
-            message: "User synced successfully",
+            syncedCount,
+            totalAuthUsers: authUsers.length,
+            totalFirestoreUsers: firestoreUsersSnapshot.docs.length,
+            errors: errors.length > 0 ? errors : undefined,
+            message: `Auto-sync completed: ${syncedCount} users synced`,
         };
     }
     catch (error) {
-        console.error("Error syncing Firebase Auth user:", error);
+        console.error("Error in auto-sync Firebase Auth users:", error);
         if (error instanceof functions.https.HttpsError) {
             throw error;
         }
-        throw new functions.https.HttpsError("internal", `Failed to sync Firebase Auth user: ${error}`);
+        throw new functions.https.HttpsError("internal", `Failed to auto-sync Firebase Auth users: ${error}`);
     }
 });
 /**
@@ -608,8 +548,7 @@ exports.userFunctions = {
     deleteUser,
     bulkUserOperations,
     setAdminClaims,
-    getFirebaseAuthUsers,
-    syncFirebaseAuthUser,
+    autoSyncFirebaseAuthUsers,
     initializeAdmin,
 };
 //# sourceMappingURL=userManagement.js.map
