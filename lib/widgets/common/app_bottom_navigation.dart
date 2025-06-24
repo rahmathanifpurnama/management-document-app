@@ -30,8 +30,8 @@ class AppBottomNavigation extends StatelessWidget {
                 currentIndex == 0
                     ? 'assets/icon/home-filled.svg'
                     : 'assets/icon/home.svg',
-                width: 26,
-                height: 26,
+                width: 24,
+                height: 24,
                 colorFilter: ColorFilter.mode(
                   currentIndex == 0
                       ? AppColors.primary
@@ -49,8 +49,8 @@ class AppBottomNavigation extends StatelessWidget {
                 currentIndex == 1
                     ? 'assets/icon/folder-filled.svg'
                     : 'assets/icon/folder.svg',
-                width: 26,
-                height: 26,
+                width: 24,
+                height: 24,
                 colorFilter: ColorFilter.mode(
                   currentIndex == 1
                       ? AppColors.primary
@@ -62,32 +62,31 @@ class AppBottomNavigation extends StatelessWidget {
             label: 'Category',
           ),
           BottomNavigationBarItem(
-            icon: Transform.translate(
-              offset: const Offset(0, 6), // Adjusted offset for larger design
-              child: Container(
-                padding: const EdgeInsets.all(8), // Increased padding
-                decoration: BoxDecoration(
+            icon: Container(
+              padding: const EdgeInsets.all(
+                6,
+              ), // Reduced padding to prevent overflow
+              decoration: BoxDecoration(
+                color: currentIndex == 2
+                    ? AppColors.primary.withValues(alpha: 0.1)
+                    : Colors.transparent,
+                border: Border.all(
                   color: currentIndex == 2
-                      ? AppColors.primary.withValues(alpha: 0.1)
-                      : Colors.transparent,
-                  border: Border.all(
-                    color: currentIndex == 2
-                        ? AppColors.primary
-                        : AppColors.textSecondary.withValues(alpha: 0.5),
-                    width: 2, // Slightly thicker border for larger design
-                  ),
-                  borderRadius: BorderRadius.circular(22), // Larger radius
+                      ? AppColors.primary
+                      : AppColors.textSecondary.withValues(alpha: 0.5),
+                  width: 1.5, // Reduced border width
                 ),
-                child: SvgPicture.asset(
-                  'assets/icon/plus.svg',
-                  width: 24,
-                  height: 24,
-                  colorFilter: ColorFilter.mode(
-                    currentIndex == 2
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                    BlendMode.srcIn,
-                  ),
+                borderRadius: BorderRadius.circular(18), // Reduced radius
+              ),
+              child: SvgPicture.asset(
+                'assets/icon/plus.svg',
+                width: 20, // Reduced icon size to fit better
+                height: 20,
+                colorFilter: ColorFilter.mode(
+                  currentIndex == 2
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
+                  BlendMode.srcIn,
                 ),
               ),
             ),
@@ -104,8 +103,8 @@ class AppBottomNavigation extends StatelessWidget {
                   currentIndex == 3
                       ? 'assets/icon/add-user-filled.svg'
                       : 'assets/icon/add-user.svg',
-                  width: 26,
-                  height: 26,
+                  width: 24,
+                  height: 24,
                   colorFilter: ColorFilter.mode(
                     currentIndex == 3
                         ? AppColors.primary
@@ -123,8 +122,8 @@ class AppBottomNavigation extends StatelessWidget {
                   currentIndex == 4
                       ? 'assets/icon/user-filled.svg'
                       : 'assets/icon/user.svg',
-                  width: 26,
-                  height: 26,
+                  width: 24,
+                  height: 24,
                   colorFilter: ColorFilter.mode(
                     currentIndex == 4
                         ? AppColors.primary
@@ -146,8 +145,8 @@ class AppBottomNavigation extends StatelessWidget {
                   currentIndex == 3
                       ? 'assets/icon/user-filled.svg'
                       : 'assets/icon/user.svg',
-                  width: 26,
-                  height: 26,
+                  width: 24,
+                  height: 24,
                   colorFilter: ColorFilter.mode(
                     currentIndex == 3
                         ? AppColors.primary
@@ -162,7 +161,6 @@ class AppBottomNavigation extends StatelessWidget {
         }
 
         return Container(
-          height: 72, // Increased height to match Shopee design
           decoration: BoxDecoration(
             color: Colors.white,
             boxShadow: [
@@ -173,26 +171,32 @@ class AppBottomNavigation extends StatelessWidget {
               ),
             ],
           ),
-          child: BottomNavigationBar(
-            currentIndex: currentIndex,
-            onTap: (index) => _handleNavigation(context, index, authProvider),
-            type: BottomNavigationBarType.fixed,
-            selectedItemColor: AppColors.primary,
-            unselectedItemColor: AppColors.textSecondary,
-            showSelectedLabels: true,
-            showUnselectedLabels: true,
-            selectedLabelStyle: GoogleFonts.poppins(
-              fontSize: 11, // Increased font size for better balance
-              fontWeight: FontWeight.w600,
+          child: SafeArea(
+            child: SizedBox(
+              height: 75, // Slightly increased height for better spacing
+              child: BottomNavigationBar(
+                currentIndex: currentIndex,
+                onTap: (index) =>
+                    _handleNavigation(context, index, authProvider),
+                type: BottomNavigationBarType.fixed,
+                selectedItemColor: AppColors.primary,
+                unselectedItemColor: AppColors.textSecondary,
+                showSelectedLabels: true,
+                showUnselectedLabels: true,
+                selectedLabelStyle: GoogleFonts.poppins(
+                  fontSize: 10, // Reduced font size to prevent overflow
+                  fontWeight: FontWeight.w600,
+                ),
+                unselectedLabelStyle: GoogleFonts.poppins(
+                  fontSize: 10, // Reduced font size to prevent overflow
+                  fontWeight: FontWeight.w400,
+                ),
+                iconSize: 24, // Reduced icon size to prevent overflow
+                elevation: 0,
+                backgroundColor: Colors.transparent,
+                items: items,
+              ),
             ),
-            unselectedLabelStyle: GoogleFonts.poppins(
-              fontSize: 11, // Increased font size for better balance
-              fontWeight: FontWeight.w400,
-            ),
-            iconSize: 26, // Increased icon size to match Shopee
-            elevation: 0,
-            backgroundColor: Colors.transparent,
-            items: items,
           ),
         );
       },
