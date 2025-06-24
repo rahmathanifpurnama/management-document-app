@@ -24,69 +24,76 @@ class AppBottomNavigation extends StatelessWidget {
       builder: (context, authProvider, child) {
         List<BottomNavigationBarItem> items = [
           BottomNavigationBarItem(
-            icon: Container(
-              padding: const EdgeInsets.all(2),
-              child: SvgPicture.asset(
-                currentIndex == 0
-                    ? 'assets/icon/home-filled.svg'
-                    : 'assets/icon/home.svg',
-                width: 24,
-                height: 24,
-                colorFilter: ColorFilter.mode(
+            icon: SizedBox(
+              height: 32, // Fixed height for all icons
+              child: Center(
+                child: SvgPicture.asset(
                   currentIndex == 0
-                      ? AppColors.primary
-                      : AppColors.textSecondary,
-                  BlendMode.srcIn,
+                      ? 'assets/icon/home-filled.svg'
+                      : 'assets/icon/home.svg',
+                  width: 24,
+                  height: 24,
+                  colorFilter: ColorFilter.mode(
+                    currentIndex == 0
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
+                    BlendMode.srcIn,
+                  ),
                 ),
               ),
             ),
             label: AppStrings.home,
           ),
           BottomNavigationBarItem(
-            icon: Container(
-              padding: const EdgeInsets.all(2),
-              child: SvgPicture.asset(
-                currentIndex == 1
-                    ? 'assets/icon/folder-filled.svg'
-                    : 'assets/icon/folder.svg',
-                width: 24,
-                height: 24,
-                colorFilter: ColorFilter.mode(
+            icon: SizedBox(
+              height: 32, // Fixed height for all icons
+              child: Center(
+                child: SvgPicture.asset(
                   currentIndex == 1
-                      ? AppColors.primary
-                      : AppColors.textSecondary,
-                  BlendMode.srcIn,
+                      ? 'assets/icon/folder-filled.svg'
+                      : 'assets/icon/folder.svg',
+                  width: 24,
+                  height: 24,
+                  colorFilter: ColorFilter.mode(
+                    currentIndex == 1
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
+                    BlendMode.srcIn,
+                  ),
                 ),
               ),
             ),
             label: 'Category',
           ),
           BottomNavigationBarItem(
-            icon: Container(
-              padding: const EdgeInsets.all(
-                6,
-              ), // Reduced padding to prevent overflow
-              decoration: BoxDecoration(
-                color: currentIndex == 2
-                    ? AppColors.primary.withValues(alpha: 0.1)
-                    : Colors.transparent,
-                border: Border.all(
-                  color: currentIndex == 2
-                      ? AppColors.primary
-                      : AppColors.textSecondary.withValues(alpha: 0.5),
-                  width: 1.5, // Reduced border width
-                ),
-                borderRadius: BorderRadius.circular(18), // Reduced radius
-              ),
-              child: SvgPicture.asset(
-                'assets/icon/plus.svg',
-                width: 20, // Reduced icon size to fit better
-                height: 20,
-                colorFilter: ColorFilter.mode(
-                  currentIndex == 2
-                      ? AppColors.primary
-                      : AppColors.textSecondary,
-                  BlendMode.srcIn,
+            icon: SizedBox(
+              height: 32, // Fixed height for all icons
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(4), // Minimal padding
+                  decoration: BoxDecoration(
+                    color: currentIndex == 2
+                        ? AppColors.primary.withValues(alpha: 0.1)
+                        : Colors.transparent,
+                    border: Border.all(
+                      color: currentIndex == 2
+                          ? AppColors.primary
+                          : AppColors.textSecondary.withValues(alpha: 0.5),
+                      width: 1.2, // Thin border
+                    ),
+                    borderRadius: BorderRadius.circular(16), // Smaller radius
+                  ),
+                  child: SvgPicture.asset(
+                    'assets/icon/plus.svg',
+                    width: 18, // Smaller icon to fit within container
+                    height: 18,
+                    colorFilter: ColorFilter.mode(
+                      currentIndex == 2
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      BlendMode.srcIn,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -97,38 +104,42 @@ class AppBottomNavigation extends StatelessWidget {
         if (authProvider.isAdmin) {
           items.addAll([
             BottomNavigationBarItem(
-              icon: Container(
-                padding: const EdgeInsets.all(2),
-                child: SvgPicture.asset(
-                  currentIndex == 3
-                      ? 'assets/icon/add-user-filled.svg'
-                      : 'assets/icon/add-user.svg',
-                  width: 24,
-                  height: 24,
-                  colorFilter: ColorFilter.mode(
+              icon: SizedBox(
+                height: 32, // Fixed height for all icons
+                child: Center(
+                  child: SvgPicture.asset(
                     currentIndex == 3
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                    BlendMode.srcIn,
+                        ? 'assets/icon/add-user-filled.svg'
+                        : 'assets/icon/add-user.svg',
+                    width: 24,
+                    height: 24,
+                    colorFilter: ColorFilter.mode(
+                      currentIndex == 3
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      BlendMode.srcIn,
+                    ),
                   ),
                 ),
               ),
               label: 'Add User',
             ),
             BottomNavigationBarItem(
-              icon: Container(
-                padding: const EdgeInsets.all(2),
-                child: SvgPicture.asset(
-                  currentIndex == 4
-                      ? 'assets/icon/user-filled.svg'
-                      : 'assets/icon/user.svg',
-                  width: 24,
-                  height: 24,
-                  colorFilter: ColorFilter.mode(
+              icon: SizedBox(
+                height: 32, // Fixed height for all icons
+                child: Center(
+                  child: SvgPicture.asset(
                     currentIndex == 4
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                    BlendMode.srcIn,
+                        ? 'assets/icon/user-filled.svg'
+                        : 'assets/icon/user.svg',
+                    width: 24,
+                    height: 24,
+                    colorFilter: ColorFilter.mode(
+                      currentIndex == 4
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      BlendMode.srcIn,
+                    ),
                   ),
                 ),
               ),
@@ -139,19 +150,21 @@ class AppBottomNavigation extends StatelessWidget {
           // For non-admin users, add only Profile tab
           items.add(
             BottomNavigationBarItem(
-              icon: Container(
-                padding: const EdgeInsets.all(2),
-                child: SvgPicture.asset(
-                  currentIndex == 3
-                      ? 'assets/icon/user-filled.svg'
-                      : 'assets/icon/user.svg',
-                  width: 24,
-                  height: 24,
-                  colorFilter: ColorFilter.mode(
+              icon: SizedBox(
+                height: 32, // Fixed height for all icons
+                child: Center(
+                  child: SvgPicture.asset(
                     currentIndex == 3
-                        ? AppColors.primary
-                        : AppColors.textSecondary,
-                    BlendMode.srcIn,
+                        ? 'assets/icon/user-filled.svg'
+                        : 'assets/icon/user.svg',
+                    width: 24,
+                    height: 24,
+                    colorFilter: ColorFilter.mode(
+                      currentIndex == 3
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                      BlendMode.srcIn,
+                    ),
                   ),
                 ),
               ),
@@ -173,7 +186,7 @@ class AppBottomNavigation extends StatelessWidget {
           ),
           child: SafeArea(
             child: SizedBox(
-              height: 75, // Slightly increased height for better spacing
+              height: 80, // Increased height to accommodate fixed icon heights
               child: BottomNavigationBar(
                 currentIndex: currentIndex,
                 onTap: (index) =>
