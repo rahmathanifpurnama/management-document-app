@@ -5,6 +5,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'core/services/firebase_service.dart';
 import 'core/services/memory_management_service.dart';
 import 'core/services/optimized_network_service.dart';
+import 'core/services/hybrid_auth_service.dart';
+import 'core/services/connectivity_service.dart';
+import 'core/services/biometric_auth_service.dart';
+import 'core/services/offline_sync_service.dart';
 
 import 'core/config/anr_config.dart';
 import 'core/utils/debug_log_controller.dart';
@@ -85,6 +89,44 @@ void main() async {
   } catch (e) {
     debugPrint('⚠️ Firebase initialization failed, continuing: $e');
     // Continue app launch even if Firebase fails
+  }
+
+  // Initialize hybrid authentication services
+  try {
+    debugPrint('🔐 Initializing hybrid authentication services...');
+
+    // Initialize connectivity service first
+    await ANRPrevention.executeWithTimeout(
+      ConnectivityService.instance.initialize(),
+      timeout: ANRConfig.defaultTimeout,
+      operationName: 'Connectivity Service Initialization',
+    );
+
+    // Initialize hybrid auth service
+    await ANRPrevention.executeWithTimeout(
+      HybridAuthService.instance.initialize(),
+      timeout: ANRConfig.defaultTimeout,
+      operationName: 'Hybrid Auth Service Initialization',
+    );
+
+    // Initialize biometric auth service
+    await ANRPrevention.executeWithTimeout(
+      BiometricAuthService.instance.initialize(),
+      timeout: ANRConfig.defaultTimeout,
+      operationName: 'Biometric Auth Service Initialization',
+    );
+
+    // Initialize offline sync service
+    await ANRPrevention.executeWithTimeout(
+      OfflineSyncService.instance.initialize(),
+      timeout: ANRConfig.defaultTimeout,
+      operationName: 'Offline Sync Service Initialization',
+    );
+
+    debugPrint('✅ Hybrid authentication services initialized successfully');
+  } catch (e) {
+    debugPrint('⚠️ Hybrid authentication services initialization failed: $e');
+    // Continue app launch even if hybrid auth fails - fallback to basic auth
   }
 
   // REMOVED: Architectural services initialization (DatabaseVersionTracker removed)
