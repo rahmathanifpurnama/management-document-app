@@ -180,50 +180,47 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
 
     // Get all documents from DocumentProvider
     var availableDocuments = documentProvider.documents.where((doc) {
+      // DEFINITIVE FIX: Simple and robust filtering logic
+      // Since DocumentProvider now loads documents with correct categories from Firestore,
+      // we can rely on the category data being accurate
+
       // PRIMARY FILTER: Exclude files already in the target category
       if (doc.category == widget.category.id ||
           doc.category.toLowerCase() == widget.category.id.toLowerCase()) {
         debugPrint(
-          '🚫 Excluding file already in target category: ${doc.fileName} (category: ${doc.category})',
+          '🚫 DEFINITIVE: Excluding file in target category: ${doc.fileName} (${doc.category})',
         );
         return false;
       }
 
-      // ENHANCED FILTER: Exclude files that are in ANY specific category (not just target)
-      // This is the key fix - files with any non-empty category should not appear in "Add Files"
+      // DEFINITIVE FILTER: Exclude files that are in ANY specific category
+      // With the Storage-Firestore merge, category data is now reliable
       final category = doc.category.trim();
       if (category.isNotEmpty &&
           category.toLowerCase() != 'general' &&
           category.toLowerCase() != 'null' &&
           category.toLowerCase() != 'uncategorized') {
         debugPrint(
-          '🚫 Excluding file already categorized: ${doc.fileName} (category: ${doc.category})',
+          '🚫 DEFINITIVE: Excluding categorized file: ${doc.fileName} (${doc.category})',
         );
         return false;
       }
 
-      // SURGICAL FIX: Filter out recently assigned files to prevent race condition reappearance
-      // This prevents files from showing up again during Firebase sync delays
-      if (documentProvider.isRecentlyAssigned(doc.id)) {
-        debugPrint('🔒 Filtering out recently assigned file: ${doc.fileName}');
-        return false;
-      }
-
-      // FINAL FILTER: Show only truly uncategorized files
+      // Show only truly uncategorized files
       final normalizedCategory = category.toLowerCase();
-      final isAvailableForCategorization =
+      final isAvailable =
           category.isEmpty ||
           normalizedCategory == 'general' ||
           normalizedCategory == 'null' ||
           normalizedCategory == 'uncategorized';
 
-      if (isAvailableForCategorization) {
+      if (isAvailable) {
         debugPrint(
-          '✅ Including available file: ${doc.fileName} (category: "${doc.category}")',
+          '✅ DEFINITIVE: Including available file: ${doc.fileName} (category: "${doc.category}")',
         );
       }
 
-      return isAvailableForCategorization;
+      return isAvailable;
     }).toList();
 
     // Apply search filter if provided

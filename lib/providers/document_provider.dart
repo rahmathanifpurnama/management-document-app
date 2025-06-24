@@ -265,13 +265,19 @@ class DocumentProvider extends ChangeNotifier {
       final documents = await _documentService.getAllDocuments(limit: limit);
 
       if (documents.isNotEmpty) {
-        _handleFirebaseDocumentModels(documents);
+        // DEFINITIVE FIX: Merge traditional documents with Firestore categories
+        final documentsWithCategories =
+            await _mergeStorageWithFirestoreCategories(documents);
+        _handleFirebaseDocumentModels(documentsWithCategories);
 
         // RACE CONDITION FIX: Update last load time
         _lastLoadTime = DateTime.now();
 
         debugPrint(
           '✅ Traditional loading completed: ${documents.length} documents',
+        );
+        debugPrint(
+          '🔗 DEFINITIVE FIX: Traditional documents merged with Firestore categories',
         );
       } else {
         debugPrint('📱 Traditional loading: No documents found');
@@ -435,8 +441,12 @@ class DocumentProvider extends ChangeNotifier {
           '✅ Loaded ${storageDocuments.length} documents from Firebase Storage',
         );
 
-        // Update local state with Storage data
-        _documents = List.from(storageDocuments);
+        // DEFINITIVE FIX: Merge Storage data with Firestore category metadata
+        final documentsWithCategories =
+            await _mergeStorageWithFirestoreCategories(storageDocuments);
+
+        // Update local state with merged data
+        _documents = List.from(documentsWithCategories);
         _isInitialized = true;
 
         // RACE CONDITION FIX: Update last load time
@@ -459,6 +469,9 @@ class DocumentProvider extends ChangeNotifier {
 
         debugPrint(
           '📊 File count matches Firebase Storage exactly: ${_documents.length} files',
+        );
+        debugPrint(
+          '🔗 DEFINITIVE FIX: Storage data merged with Firestore categories',
         );
       } else {
         // EMPTY STATE FIX: Use EmptyStorageStateManager for proper empty state handling
@@ -505,7 +518,10 @@ class DocumentProvider extends ChangeNotifier {
           );
 
           if (unifiedDocuments.isNotEmpty) {
-            _handleUnifiedDocuments(unifiedDocuments);
+            // DEFINITIVE FIX: Merge unified documents with Firestore categories
+            final documentsWithCategories =
+                await _mergeStorageWithFirestoreCategories(unifiedDocuments);
+            _handleUnifiedDocuments(documentsWithCategories);
             _isInitialized = true;
 
             // RACE CONDITION FIX: Update last load time
@@ -517,6 +533,10 @@ class DocumentProvider extends ChangeNotifier {
             if (_useFirebaseSync) {
               _startFirebaseListener();
             }
+
+            debugPrint(
+              '🔗 DEFINITIVE FIX: Unified documents merged with Firestore categories',
+            );
           } else {
             // FINAL FALLBACK: Traditional loading
             debugPrint('⚠️ Trying traditional loading as final fallback...');
@@ -2847,6 +2867,74 @@ class DocumentProvider extends ChangeNotifier {
 
   // REMOVED: _loadFromStorage method to prevent cache loading
   // This ensures statistics show 0 until Firebase Storage loads
+
+  // DEFINITIVE FIX: Merge Firebase Storage data with Firestore category metadata
+  Future<List<DocumentModel>> _mergeStorageWithFirestoreCategories(
+    List<DocumentModel> storageDocuments,
+  ) async {
+    try {
+      debugPrint('🔗 DEFINITIVE FIX: Starting Storage-Firestore merge...');
+      debugPrint('   Storage documents: ${storageDocuments.length}');
+
+      // Get all Firestore documents to extract category information
+      final firestoreDocuments = await _documentService.getAllDocuments();
+      debugPrint('   Firestore documents: ${firestoreDocuments.length}');
+
+      // Create a map of file path/name to category for quick lookup
+      final Map<String, String> pathToCategoryMap = {};
+      final Map<String, String> nameToCategoryMap = {};
+
+      for (final firestoreDoc in firestoreDocuments) {
+        if (firestoreDoc.category.isNotEmpty &&
+            firestoreDoc.category != 'general' &&
+            firestoreDoc.category != 'uncategorized') {
+          pathToCategoryMap[firestoreDoc.filePath] = firestoreDoc.category;
+          nameToCategoryMap[firestoreDoc.fileName] = firestoreDoc.category;
+          debugPrint(
+            '📁 Firestore category mapping: ${firestoreDoc.fileName} -> ${firestoreDoc.category}',
+          );
+        }
+      }
+
+      // Merge Storage documents with Firestore category data
+      final mergedDocuments = <DocumentModel>[];
+      int categorizedCount = 0;
+
+      for (final storageDoc in storageDocuments) {
+        String finalCategory = storageDoc.category;
+
+        // Try to find category from Firestore by file path first
+        if (pathToCategoryMap.containsKey(storageDoc.filePath)) {
+          finalCategory = pathToCategoryMap[storageDoc.filePath]!;
+          categorizedCount++;
+          debugPrint('✅ Path match: ${storageDoc.fileName} -> $finalCategory');
+        }
+        // Fallback to file name matching
+        else if (nameToCategoryMap.containsKey(storageDoc.fileName)) {
+          finalCategory = nameToCategoryMap[storageDoc.fileName]!;
+          categorizedCount++;
+          debugPrint('✅ Name match: ${storageDoc.fileName} -> $finalCategory');
+        }
+
+        // Create merged document with correct category
+        final mergedDoc = storageDoc.copyWith(category: finalCategory);
+        mergedDocuments.add(mergedDoc);
+      }
+
+      debugPrint('🔗 DEFINITIVE FIX: Merge completed');
+      debugPrint('   Total documents: ${mergedDocuments.length}');
+      debugPrint('   Categorized documents: $categorizedCount');
+      debugPrint(
+        '   Uncategorized documents: ${mergedDocuments.length - categorizedCount}',
+      );
+
+      return mergedDocuments;
+    } catch (e) {
+      debugPrint('❌ DEFINITIVE FIX: Merge failed: $e');
+      // Return original storage documents as fallback
+      return storageDocuments;
+    }
+  }
 
   // SURGICAL FIX: Helper methods for tracking recent assignments to prevent race condition
 
