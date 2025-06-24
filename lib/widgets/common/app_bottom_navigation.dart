@@ -25,9 +25,9 @@ class AppBottomNavigation extends StatelessWidget {
         List<BottomNavigationBarItem> items = [
           BottomNavigationBarItem(
             icon: SvgPicture.asset(
-              'assets/icon/Home.svg',
-              width: 24,
-              height: 24,
+              'assets/icon/home.svg',
+              width: 20,
+              height: 20,
               colorFilter: ColorFilter.mode(
                 currentIndex == 0 ? AppColors.primary : AppColors.textSecondary,
                 BlendMode.srcIn,
@@ -37,9 +37,9 @@ class AppBottomNavigation extends StatelessWidget {
           ),
           BottomNavigationBarItem(
             icon: SvgPicture.asset(
-              'assets/icon/Category.svg',
-              width: 24,
-              height: 24,
+              'assets/icon/folder.svg',
+              width: 20,
+              height: 20,
               colorFilter: ColorFilter.mode(
                 currentIndex == 1 ? AppColors.primary : AppColors.textSecondary,
                 BlendMode.srcIn,
@@ -49,26 +49,23 @@ class AppBottomNavigation extends StatelessWidget {
           ),
           BottomNavigationBarItem(
             icon: Transform.translate(
-              offset: const Offset(
-                0,
-                8,
-              ), // Move up 8px without changing container size
+              offset: const Offset(0, 4), // Reduced offset for compact design
               child: Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6), // Reduced padding
                 decoration: BoxDecoration(
                   color: Colors.transparent,
                   border: Border.all(
                     color: currentIndex == 2
                         ? AppColors.primary
                         : AppColors.textSecondary.withValues(alpha: 0.5),
-                    width: 2,
+                    width: 1.5, // Slightly thinner border
                   ),
-                  borderRadius: BorderRadius.circular(22),
+                  borderRadius: BorderRadius.circular(18), // Smaller radius
                 ),
                 child: SvgPicture.asset(
-                  'assets/icon/Adding.svg',
-                  width: 24,
-                  height: 24,
+                  'assets/icon/plus.svg',
+                  width: 20,
+                  height: 20,
                   colorFilter: ColorFilter.mode(
                     currentIndex == 2
                         ? AppColors.primary
@@ -85,20 +82,24 @@ class AppBottomNavigation extends StatelessWidget {
         if (authProvider.isAdmin) {
           items.addAll([
             BottomNavigationBarItem(
-              icon: Icon(
-                Icons.person_add,
-                size: 24,
-                color: currentIndex == 3
-                    ? AppColors.primary
-                    : AppColors.textSecondary,
+              icon: SvgPicture.asset(
+                'assets/icon/add-user.svg',
+                width: 20,
+                height: 20,
+                colorFilter: ColorFilter.mode(
+                  currentIndex == 3
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
+                  BlendMode.srcIn,
+                ),
               ),
               label: 'Add User',
             ),
             BottomNavigationBarItem(
               icon: SvgPicture.asset(
-                'assets/icon/Profile.svg',
-                width: 24,
-                height: 24,
+                'assets/icon/user.svg',
+                width: 20,
+                height: 20,
                 colorFilter: ColorFilter.mode(
                   currentIndex == 4
                       ? AppColors.primary
@@ -114,9 +115,9 @@ class AppBottomNavigation extends StatelessWidget {
           items.add(
             BottomNavigationBarItem(
               icon: SvgPicture.asset(
-                'assets/icon/Profile.svg',
-                width: 24,
-                height: 24,
+                'assets/icon/user.svg',
+                width: 20,
+                height: 20,
                 colorFilter: ColorFilter.mode(
                   currentIndex == 3
                       ? AppColors.primary
@@ -130,13 +131,14 @@ class AppBottomNavigation extends StatelessWidget {
         }
 
         return Container(
+          height: 60, // Reduced height for compact design
           decoration: BoxDecoration(
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, -2),
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 8,
+                offset: const Offset(0, -1),
               ),
             ],
           ),
@@ -148,9 +150,15 @@ class AppBottomNavigation extends StatelessWidget {
             unselectedItemColor: AppColors.textSecondary,
             showSelectedLabels: true,
             showUnselectedLabels: true,
-            selectedLabelStyle: GoogleFonts.poppins(fontSize: 12),
-            unselectedLabelStyle: GoogleFonts.poppins(fontSize: 12),
-            iconSize: 24,
+            selectedLabelStyle: GoogleFonts.poppins(
+              fontSize: 10, // Smaller font size
+              fontWeight: FontWeight.w500,
+            ),
+            unselectedLabelStyle: GoogleFonts.poppins(
+              fontSize: 10, // Smaller font size
+              fontWeight: FontWeight.w400,
+            ),
+            iconSize: 20, // Reduced icon size
             elevation: 0,
             backgroundColor: Colors.transparent,
             items: items,
