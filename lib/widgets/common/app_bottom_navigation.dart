@@ -148,9 +148,9 @@ class _CustomBottomNavigationBar extends StatelessWidget {
   /// Get responsive configuration based on screen width
   _ResponsiveNavConfig _getResponsiveConfig(double screenWidth) {
     if (screenWidth >= 1200) {
-      // Desktop/Large screens - Reduced size
+      // Desktop/Large screens - Fixed overflow
       return const _ResponsiveNavConfig(
-        containerHeight: 60,
+        containerHeight: 64, // Increased from 60 to 64 (+4px)
         horizontalPadding: 16,
         verticalPadding: 8,
         regularIconSize: 22,
@@ -160,9 +160,9 @@ class _CustomBottomNavigationBar extends StatelessWidget {
         plusButtonMargin: 14, // Increased margin for better spacing
       );
     } else if (screenWidth >= 768) {
-      // Tablet screens - Reduced size
+      // Tablet screens - Fixed overflow
       return const _ResponsiveNavConfig(
-        containerHeight: 64,
+        containerHeight: 68, // Increased from 64 to 68 (+4px)
         horizontalPadding: 12,
         verticalPadding: 8,
         regularIconSize: 23,
@@ -172,9 +172,10 @@ class _CustomBottomNavigationBar extends StatelessWidget {
         plusButtonMargin: 13, // Increased margin for better spacing
       );
     } else {
-      // Mobile screens - compact design (UKURAN DIKECILKAN)
+      // Mobile screens - Fixed overflow
       return const _ResponsiveNavConfig(
-        containerHeight: 60, // Reduced from 70px
+        containerHeight:
+            64, // Increased from 60 to 64 (+4px) to fix 2px overflow
         horizontalPadding: 8,
         verticalPadding: 6, // Reduced from 8px
         regularIconSize: 24,
