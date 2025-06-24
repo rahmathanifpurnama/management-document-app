@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_service.dart';
 import '../../models/document_model.dart';
 import 'unified_id_system.dart';

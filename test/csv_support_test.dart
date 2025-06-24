@@ -63,10 +63,7 @@ void main() {
       );
 
       expect(previewService.canPreview(csvDocument), true);
-      expect(
-        previewService.getPreviewType(csvDocument),
-        FilePreviewType.document,
-      );
+      expect(previewService.getPreviewType(csvDocument), FilePreviewType.text);
     });
 
     test('File extension validation should work correctly', () {

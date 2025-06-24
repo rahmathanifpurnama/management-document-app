@@ -173,9 +173,8 @@ class _CollapsibleFilterSectionWidgetState
   }
 
   bool _hasActiveFilters(DocumentProvider documentProvider) {
-    // Since DocumentProvider no longer has filter state,
-    // we'll always return false for now
-    // TODO: Update this to work with screen-specific filter states
-    return false;
+    return documentProvider.selectedFileType != 'all' ||
+        documentProvider.sortBy != 'uploadedAt' ||
+        documentProvider.sortAscending != false;
   }
 }

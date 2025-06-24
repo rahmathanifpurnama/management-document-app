@@ -74,8 +74,7 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    // DocumentProvider no longer has clearFilters method
-                    // TODO: Update to work with screen-specific filter states
+                    documentProvider.clearFilters();
                     onFilterApplied?.call();
                   },
                   icon: const Icon(Icons.clear, color: AppColors.textSecondary),
@@ -126,14 +125,11 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
       spacing: 6,
       runSpacing: 6,
       children: fileTypes.map((fileType) {
-        // Since DocumentProvider no longer has filter state, always show unselected
-        final isSelected =
-            false; // TODO: Update to work with screen-specific filter states
+        final isSelected = documentProvider.selectedFileType == fileType['key'];
         return FilterChip(
           selected: isSelected,
           onSelected: (selected) {
-            // DocumentProvider no longer has filterByFileType method
-            // TODO: Update to work with screen-specific filter states
+            documentProvider.filterByFileType(fileType['key'] as String);
             onFilterApplied?.call();
           },
           avatar: Icon(
@@ -193,9 +189,9 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
 
     return Column(
       children: sortOptions.map((option) {
-        // Since DocumentProvider no longer has sort state, always show unselected
         final isSelected =
-            false; // TODO: Update to work with screen-specific filter states
+            documentProvider.sortBy == option['key'] &&
+            documentProvider.sortAscending == option['ascending'];
 
         return Container(
           margin: const EdgeInsets.only(bottom: 2),
@@ -222,8 +218,10 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
                 ? const Icon(Icons.check, color: AppColors.primary, size: 18)
                 : null,
             onTap: () {
-              // DocumentProvider no longer has sortDocuments method
-              // TODO: Update to work with screen-specific filter states
+              documentProvider.sortDocuments(
+                option['key'] as String,
+                ascending: option['ascending'] as bool,
+              );
               onFilterApplied?.call();
             },
             shape: RoundedRectangleBorder(

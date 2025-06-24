@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/config/cloud_functions_config.dart';
 import '../models/upload_file_model.dart';
 import '../core/services/firebase_service.dart';

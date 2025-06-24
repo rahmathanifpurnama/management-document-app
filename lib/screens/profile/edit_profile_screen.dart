@@ -6,7 +6,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import '../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
-
 import '../../core/services/user_service.dart';
 import '../../core/services/firebase_service.dart';
 

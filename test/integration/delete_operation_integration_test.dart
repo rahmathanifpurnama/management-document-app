@@ -13,9 +13,9 @@ import '../helpers/mock_services.dart';
 void main() {
   group('Delete Operation Integration Tests', () {
     late DocumentProvider documentProvider;
-    
+
     setUp(() async {
-      await FirebaseTestHelper.initializeFirebase();
+      await FirebaseTestHelper.initializeMocks();
       documentProvider = DocumentProvider();
     });
 
@@ -33,7 +33,9 @@ void main() {
     }
 
     group('UI Delete Flow Tests', () {
-      testWidgets('should show delete confirmation dialog', (WidgetTester tester) async {
+      testWidgets('should show delete confirmation dialog', (
+        WidgetTester tester,
+      ) async {
         // Arrange
         final testDocument = DocumentModel(
           id: 'test-doc-id',
@@ -44,6 +46,7 @@ void main() {
           uploadedBy: 'user-id',
           uploadedAt: DateTime.now(),
           category: 'test-category',
+          permissions: [],
           metadata: DocumentMetadata(
             description: 'Test document',
             tags: ['test'],
@@ -53,7 +56,7 @@ void main() {
 
         // Add test document to provider
         documentProvider.documents.add(testDocument);
-        
+
         // Build the widget
         await tester.pumpWidget(createTestApp());
         await tester.pumpAndSettle();
@@ -63,10 +66,12 @@ void main() {
         expect(find.text('test-file.pdf'), findsOneWidget);
       });
 
-      testWidgets('should handle delete operation with feature flag enabled', (WidgetTester tester) async {
+      testWidgets('should handle delete operation with feature flag enabled', (
+        WidgetTester tester,
+      ) async {
         // Verify feature flag is enabled
         expect(FeatureFlags.useCloudFunctionDelete, isTrue);
-        
+
         // Build the widget
         await tester.pumpWidget(createTestApp());
         await tester.pumpAndSettle();
@@ -88,6 +93,7 @@ void main() {
           uploadedBy: 'user-id',
           uploadedAt: DateTime.now(),
           category: 'test-category',
+          permissions: [],
           metadata: DocumentMetadata(
             description: 'Test document',
             tags: ['test'],
@@ -119,6 +125,7 @@ void main() {
             uploadedBy: 'user-id',
             uploadedAt: DateTime.now(),
             category: 'category-1',
+            permissions: [],
             metadata: DocumentMetadata(
               description: 'Test document 1',
               tags: ['test'],
@@ -134,6 +141,7 @@ void main() {
             uploadedBy: 'user-id',
             uploadedAt: DateTime.now(),
             category: 'category-1',
+            permissions: [],
             metadata: DocumentMetadata(
               description: 'Test document 2',
               tags: ['test'],
@@ -155,9 +163,11 @@ void main() {
         expect(documentProvider.documents.length, equals(1));
         expect(documentProvider.getDocumentById('doc-1'), isNull);
         expect(documentProvider.getDocumentById('doc-2'), isNotNull);
-        
+
         // Verify category consistency
-        final categoryDocs = documentProvider.getDocumentsByCategory('category-1');
+        final categoryDocs = documentProvider.getDocumentsByCategory(
+          'category-1',
+        );
         expect(categoryDocs.length, equals(1));
         expect(categoryDocs.first.id, equals('doc-2'));
       });
@@ -175,6 +185,7 @@ void main() {
           uploadedBy: 'user-id',
           uploadedAt: DateTime.now(),
           category: 'test-category',
+          permissions: [],
           metadata: DocumentMetadata(
             description: 'Test document',
             tags: ['test'],
@@ -196,7 +207,7 @@ void main() {
       test('should refresh data after deletion inconsistency', () async {
         // This test simulates the scenario where UI shows deleted but backend still has the file
         // The new implementation should prevent this scenario
-        
+
         final testDocument = DocumentModel(
           id: 'test-doc-id',
           fileName: 'test-file.pdf',
@@ -206,6 +217,7 @@ void main() {
           uploadedBy: 'user-id',
           uploadedAt: DateTime.now(),
           category: 'test-category',
+          permissions: [],
           metadata: DocumentMetadata(
             description: 'Test document',
             tags: ['test'],
@@ -214,7 +226,7 @@ void main() {
         );
 
         documentProvider.documents.add(testDocument);
-        
+
         // With the new cloud function approach, this inconsistency should not occur
         // because deletion only happens locally after cloud function confirms success
         expect(FeatureFlags.useCloudFunctionDelete, isTrue);
@@ -224,21 +236,25 @@ void main() {
     group('Performance Tests', () {
       test('should handle multiple deletions efficiently', () async {
         // Arrange
-        final testDocuments = List.generate(10, (index) => DocumentModel(
-          id: 'doc-$index',
-          fileName: 'file$index.pdf',
-          filePath: 'documents/file$index.pdf',
-          fileSize: 1024,
-          fileType: 'application/pdf',
-          uploadedBy: 'user-id',
-          uploadedAt: DateTime.now(),
-          category: 'test-category',
-          metadata: DocumentMetadata(
-            description: 'Test document $index',
-            tags: ['test'],
-            version: '1.0',
+        final testDocuments = List.generate(
+          10,
+          (index) => DocumentModel(
+            id: 'doc-$index',
+            fileName: 'file$index.pdf',
+            filePath: 'documents/file$index.pdf',
+            fileSize: 1024,
+            fileType: 'application/pdf',
+            uploadedBy: 'user-id',
+            uploadedAt: DateTime.now(),
+            category: 'test-category',
+            permissions: [],
+            metadata: DocumentMetadata(
+              description: 'Test document $index',
+              tags: ['test'],
+              version: '1.0',
+            ),
           ),
-        ));
+        );
 
         // Add all documents
         for (final doc in testDocuments) {
