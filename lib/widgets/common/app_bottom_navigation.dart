@@ -7,6 +7,29 @@ import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_routes.dart';
 import '../../providers/auth_provider.dart';
 
+/// Responsive configuration for navigation bar
+class _ResponsiveNavConfig {
+  final double containerHeight;
+  final double horizontalPadding;
+  final double verticalPadding;
+  final double regularIconSize;
+  final double plusButtonSize;
+  final double plusIconSize;
+  final double fontSize;
+  final double plusButtonMargin;
+
+  const _ResponsiveNavConfig({
+    required this.containerHeight,
+    required this.horizontalPadding,
+    required this.verticalPadding,
+    required this.regularIconSize,
+    required this.plusButtonSize,
+    required this.plusIconSize,
+    required this.fontSize,
+    required this.plusButtonMargin,
+  });
+}
+
 class AppBottomNavigation extends StatelessWidget {
   final int currentIndex;
   final Function(int)? onTap;
@@ -92,6 +115,9 @@ class _CustomBottomNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final responsiveConfig = _getResponsiveConfig(screenWidth);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -105,18 +131,65 @@ class _CustomBottomNavigationBar extends StatelessWidget {
       ),
       child: SafeArea(
         child: Container(
-          height: 70,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          height: responsiveConfig.containerHeight,
+          padding: EdgeInsets.symmetric(
+            horizontal: responsiveConfig.horizontalPadding,
+            vertical: responsiveConfig.verticalPadding,
+          ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: _buildNavigationItems(context),
+            children: _buildNavigationItems(context, responsiveConfig),
           ),
         ),
       ),
     );
   }
 
-  List<Widget> _buildNavigationItems(BuildContext context) {
+  /// Get responsive configuration based on screen width
+  _ResponsiveNavConfig _getResponsiveConfig(double screenWidth) {
+    if (screenWidth >= 1200) {
+      // Desktop/Large screens
+      return const _ResponsiveNavConfig(
+        containerHeight: 60,
+        horizontalPadding: 16,
+        verticalPadding: 8,
+        regularIconSize: 22,
+        plusButtonSize: 48,
+        plusIconSize: 24,
+        fontSize: 11,
+        plusButtonMargin: 12,
+      );
+    } else if (screenWidth >= 768) {
+      // Tablet screens
+      return const _ResponsiveNavConfig(
+        containerHeight: 64,
+        horizontalPadding: 12,
+        verticalPadding: 8,
+        regularIconSize: 23,
+        plusButtonSize: 52,
+        plusIconSize: 26,
+        fontSize: 11.5,
+        plusButtonMargin: 10,
+      );
+    } else {
+      // Mobile screens - compact design
+      return const _ResponsiveNavConfig(
+        containerHeight: 60, // Reduced from 70px
+        horizontalPadding: 8,
+        verticalPadding: 6, // Reduced from 8px
+        regularIconSize: 24,
+        plusButtonSize: 56,
+        plusIconSize: 28,
+        fontSize: 12,
+        plusButtonMargin: 8,
+      );
+    }
+  }
+
+  List<Widget> _buildNavigationItems(
+    BuildContext context,
+    _ResponsiveNavConfig config,
+  ) {
     List<Widget> items = [
       // Home
       _buildNavItem(
@@ -127,6 +200,7 @@ class _CustomBottomNavigationBar extends StatelessWidget {
             : 'assets/icon/home.svg',
         label: AppStrings.home,
         isSelected: currentIndex == 0,
+        config: config,
       ),
 
       // Category
@@ -138,10 +212,11 @@ class _CustomBottomNavigationBar extends StatelessWidget {
             : 'assets/icon/folder.svg',
         label: 'Category',
         isSelected: currentIndex == 1,
+        config: config,
       ),
 
       // YouTube-style Plus Button (prominent)
-      _buildPlusButton(context),
+      _buildPlusButton(context, config),
     ];
 
     if (isAdmin) {
@@ -155,6 +230,7 @@ class _CustomBottomNavigationBar extends StatelessWidget {
               : 'assets/icon/add-user.svg',
           label: 'Add User',
           isSelected: currentIndex == 3,
+          config: config,
         ),
       );
 
@@ -168,6 +244,7 @@ class _CustomBottomNavigationBar extends StatelessWidget {
               : 'assets/icon/user.svg',
           label: 'Profile',
           isSelected: currentIndex == 4,
+          config: config,
         ),
       );
     } else {
@@ -181,6 +258,7 @@ class _CustomBottomNavigationBar extends StatelessWidget {
               : 'assets/icon/user.svg',
           label: 'Profile',
           isSelected: currentIndex == 3,
+          config: config,
         ),
       );
     }
@@ -188,37 +266,38 @@ class _CustomBottomNavigationBar extends StatelessWidget {
     return items;
   }
 
-  /// Build regular navigation item
+  /// Build regular navigation item with responsive sizing
   Widget _buildNavItem({
     required BuildContext context,
     required int index,
     required String iconPath,
     required String label,
     required bool isSelected,
+    required _ResponsiveNavConfig config,
   }) {
     return Expanded(
       child: GestureDetector(
         onTap: () => onTap(index),
         behavior: HitTestBehavior.opaque,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          padding: EdgeInsets.symmetric(vertical: config.verticalPadding / 2),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               SvgPicture.asset(
                 iconPath,
-                width: 24,
-                height: 24,
+                width: config.regularIconSize,
+                height: config.regularIconSize,
                 colorFilter: ColorFilter.mode(
                   isSelected ? AppColors.primary : AppColors.textSecondary,
                   BlendMode.srcIn,
                 ),
               ),
-              const SizedBox(height: 4),
+              SizedBox(height: config.verticalPadding / 2),
               Text(
                 label,
                 style: GoogleFonts.poppins(
-                  fontSize: 12,
+                  fontSize: config.fontSize,
                   color: isSelected
                       ? AppColors.primary
                       : AppColors.textSecondary,
@@ -235,21 +314,21 @@ class _CustomBottomNavigationBar extends StatelessWidget {
     );
   }
 
-  /// Build YouTube-style prominent plus button
-  Widget _buildPlusButton(BuildContext context) {
+  /// Build YouTube-style prominent plus button with responsive sizing
+  Widget _buildPlusButton(BuildContext context, _ResponsiveNavConfig config) {
     return GestureDetector(
       onTap: () => onTap(2),
       child: Container(
-        width: 56,
-        height: 56,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
+        width: config.plusButtonSize,
+        height: config.plusButtonSize,
+        margin: EdgeInsets.symmetric(horizontal: config.plusButtonMargin),
         decoration: BoxDecoration(
           color: AppColors.primary,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(config.plusButtonSize / 2),
           boxShadow: [
             BoxShadow(
               color: AppColors.primary.withValues(alpha: 0.3),
-              blurRadius: 8,
+              blurRadius: config.plusButtonSize * 0.15, // Proportional blur
               offset: const Offset(0, 2),
             ),
           ],
@@ -257,8 +336,8 @@ class _CustomBottomNavigationBar extends StatelessWidget {
         child: Center(
           child: SvgPicture.asset(
             'assets/icon/plus.svg',
-            width: 28,
-            height: 28,
+            width: config.plusIconSize,
+            height: config.plusIconSize,
             colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
           ),
         ),
