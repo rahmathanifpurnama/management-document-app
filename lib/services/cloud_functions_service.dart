@@ -371,6 +371,46 @@ class CloudFunctionsService {
     }
   }
 
+  /// Get Firebase Auth users for admin management
+  Future<Map<String, dynamic>> getFirebaseAuthUsers({
+    int maxResults = 1000,
+    String? pageToken,
+  }) async {
+    try {
+      debugPrint('🔄 Fetching Firebase Auth users');
+
+      final callable = _functions.httpsCallable('getFirebaseAuthUsers');
+      final result = await callable.call({
+        'maxResults': maxResults,
+        'pageToken': pageToken,
+      });
+
+      debugPrint('✅ Firebase Auth users fetched successfully');
+      return Map<String, dynamic>.from(result.data);
+    } catch (e) {
+      debugPrint('❌ Error fetching Firebase Auth users: $e');
+      rethrow;
+    }
+  }
+
+  /// Sync Firebase Auth user with Firestore
+  Future<Map<String, dynamic>> syncFirebaseAuthUser({
+    required String userId,
+  }) async {
+    try {
+      debugPrint('🔄 Syncing Firebase Auth user: $userId');
+
+      final callable = _functions.httpsCallable('syncFirebaseAuthUser');
+      final result = await callable.call({'userId': userId});
+
+      debugPrint('✅ Firebase Auth user synced successfully');
+      return Map<String, dynamic>.from(result.data);
+    } catch (e) {
+      debugPrint('❌ Error syncing Firebase Auth user: $e');
+      rethrow;
+    }
+  }
+
   /// Update user permissions
   Future<void> updateUserPermissions({
     required String userId,

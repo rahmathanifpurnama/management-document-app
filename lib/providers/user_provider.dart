@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../core/services/user_service.dart';
-
+import '../services/cloud_functions_service.dart';
 import '../models/user_model.dart';
+import '../models/firebase_auth_user_model.dart';
 
 class UserProvider extends ChangeNotifier {
   final UserService _userService = UserService.instance;
+  final CloudFunctionsService _cloudFunctions = CloudFunctionsService.instance;
 
   List<UserModel> _users = [];
   List<UserModel> _filteredUsers = [];
+  List<CombinedUserModel> _firebaseAuthUsers = [];
+  List<CombinedUserModel> _filteredFirebaseAuthUsers = [];
   bool _isLoading = false;
+  bool _isLoadingFirebaseAuth = false;
   String? _errorMessage;
   String _searchQuery = '';
   String _selectedRole = 'all';
@@ -21,7 +26,9 @@ class UserProvider extends ChangeNotifier {
   // Getters
   List<UserModel> get users => _filteredUsers;
   List<UserModel> get allUsers => _users;
+  List<CombinedUserModel> get firebaseAuthUsers => _filteredFirebaseAuthUsers;
   bool get isLoading => _isLoading;
+  bool get isLoadingFirebaseAuth => _isLoadingFirebaseAuth;
   String? get errorMessage => _errorMessage;
   String get searchQuery => _searchQuery;
   String get selectedRole => _selectedRole;
@@ -334,6 +341,121 @@ class UserProvider extends ChangeNotifier {
   // Clear error manually
   void clearError() {
     _clearError();
+  }
+
+  // Firebase Auth User Management Methods
+
+  /// Fetch Firebase Auth users
+  Future<void> fetchFirebaseAuthUsers({bool refresh = false}) async {
+    if (_isLoadingFirebaseAuth && !refresh) return;
+
+    _isLoadingFirebaseAuth = true;
+    _clearError();
+    notifyListeners();
+
+    try {
+      final result = await _cloudFunctions.getFirebaseAuthUsers();
+
+      if (result['success'] == true && result['users'] != null) {
+        final usersList = result['users'] as List;
+        _firebaseAuthUsers = usersList
+            .map(
+              (user) => CombinedUserModel.fromMap(user as Map<String, dynamic>),
+            )
+            .toList();
+
+        _applyFirebaseAuthFilters();
+      }
+    } catch (e) {
+      _setError('Failed to fetch Firebase Auth users: ${e.toString()}');
+    } finally {
+      _isLoadingFirebaseAuth = false;
+      notifyListeners();
+    }
+  }
+
+  /// Sync Firebase Auth user with Firestore
+  Future<bool> syncFirebaseAuthUser(String userId) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final result = await _cloudFunctions.syncFirebaseAuthUser(userId: userId);
+
+      if (result['success'] == true) {
+        // Refresh both lists
+        await Future.wait([
+          refreshUsers(),
+          fetchFirebaseAuthUsers(refresh: true),
+        ]);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      _setError('Failed to sync Firebase Auth user: ${e.toString()}');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Apply filters to Firebase Auth users
+  void _applyFirebaseAuthFilters() {
+    _filteredFirebaseAuthUsers = _firebaseAuthUsers.where((user) {
+      // Search filter
+      if (_searchQuery.isNotEmpty) {
+        final query = _searchQuery.toLowerCase();
+        final matchesName = user.displayName.toLowerCase().contains(query);
+        final matchesEmail = user.email.toLowerCase().contains(query);
+        if (!matchesName && !matchesEmail) return false;
+      }
+
+      // Role filter
+      if (_selectedRole != 'all') {
+        if (user.role != _selectedRole) return false;
+      }
+
+      // Status filter
+      if (_selectedStatus != 'all') {
+        if (_selectedStatus == 'active' && !user.isActive) return false;
+        if (_selectedStatus == 'inactive' && user.isActive) return false;
+      }
+
+      return true;
+    }).toList();
+  }
+
+  /// Search Firebase Auth users
+  void searchFirebaseAuthUsers(String query) {
+    _searchQuery = query;
+    _searchDebounceTimer?.cancel();
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _applyFirebaseAuthFilters();
+      notifyListeners();
+    });
+  }
+
+  /// Filter Firebase Auth users by role
+  void filterFirebaseAuthUsersByRole(String role) {
+    _selectedRole = role;
+    _applyFirebaseAuthFilters();
+    notifyListeners();
+  }
+
+  /// Filter Firebase Auth users by status
+  void filterFirebaseAuthUsersByStatus(String status) {
+    _selectedStatus = status;
+    _applyFirebaseAuthFilters();
+    notifyListeners();
+  }
+
+  /// Clear Firebase Auth filters
+  void clearFirebaseAuthFilters() {
+    _searchQuery = '';
+    _selectedRole = 'all';
+    _selectedStatus = 'all';
+    _applyFirebaseAuthFilters();
+    notifyListeners();
   }
 
   @override
