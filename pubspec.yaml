@@ -138,10 +138,10 @@ flutter:
   assets:
     - assets/
     - assets/icon/Home.svg
-    - assets/icon/Category.svg
+    - assets/icon/folder.svg
     - assets/icon/Activity.svg
-    - assets/icon/Profile.svg
-    - assets/icon/Adding.svg
+    - assets/icon/user.svg
+    - assets/icon/plus.svg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
