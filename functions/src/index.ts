@@ -54,6 +54,7 @@ export const updateUserPermissions = userFunctions.updateUserPermissions;
 export const deleteUser = userFunctions.deleteUser;
 export const bulkUserOperations = userFunctions.bulkUserOperations;
 export const setAdminClaims = userFunctions.setAdminClaims;
+export const autoSyncFirebaseAuthUsers = userFunctions.autoSyncFirebaseAuthUsers;
 export const initializeAdmin = userFunctions.initializeAdmin;
 
 // Document Management Functions
