@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import '../providers/auth_provider.dart';
@@ -269,36 +268,38 @@ class EnhancedFirebaseTestHelper {
     try {
       debugPrint('⚡ Testing Performance...');
 
-      // Test search performance
-      final searchStartTime = DateTime.now();
-      documentProvider.searchDocuments('test');
-      final searchEndTime = DateTime.now();
+      // Test document loading performance
+      final loadStartTime = DateTime.now();
+      await documentProvider.loadDocuments();
+      final loadEndTime = DateTime.now();
 
-      results['searchTime'] = searchEndTime
-          .difference(searchStartTime)
+      results['loadTime'] = loadEndTime
+          .difference(loadStartTime)
           .inMilliseconds;
 
-      // Test filter performance
-      final filterStartTime = DateTime.now();
-      documentProvider.filterByCategory('general');
-      final filterEndTime = DateTime.now();
+      // Test document refresh performance
+      final refreshStartTime = DateTime.now();
+      await documentProvider.refreshWithStorageSync();
+      final refreshEndTime = DateTime.now();
 
-      results['filterTime'] = filterEndTime
-          .difference(filterStartTime)
+      results['refreshTime'] = refreshEndTime
+          .difference(refreshStartTime)
           .inMilliseconds;
 
-      // Test sort performance
-      final sortStartTime = DateTime.now();
-      documentProvider.sortDocuments('fileName');
-      final sortEndTime = DateTime.now();
+      // Test unlimited query performance (if available)
+      if (await documentProvider.canUseUnlimitedQueries) {
+        final unlimitedStartTime = DateTime.now();
+        await documentProvider.loadAllDocumentsUnlimited();
+        final unlimitedEndTime = DateTime.now();
 
-      results['sortTime'] = sortEndTime
-          .difference(sortStartTime)
-          .inMilliseconds;
+        results['unlimitedQueryTime'] = unlimitedEndTime
+            .difference(unlimitedStartTime)
+            .inMilliseconds;
+      }
 
       // Memory usage (approximate)
       results['documentCount'] = documentProvider.totalDocumentsCount;
-      results['filteredCount'] = documentProvider.documents.length;
+      results['totalFileSize'] = documentProvider.totalFileSize;
 
       results['status'] = 'SUCCESS';
       debugPrint('✅ Performance test completed');
@@ -386,9 +387,15 @@ class EnhancedFirebaseTestHelper {
       final perf = results['performance'] as Map<String, dynamic>;
       buffer.writeln('⚡ Performance Test:');
       buffer.writeln('  Status: ${perf['status']}');
-      buffer.writeln('  Search Time: ${perf['searchTime']}ms');
-      buffer.writeln('  Filter Time: ${perf['filterTime']}ms');
-      buffer.writeln('  Sort Time: ${perf['sortTime']}ms');
+      buffer.writeln('  Load Time: ${perf['loadTime']}ms');
+      buffer.writeln('  Refresh Time: ${perf['refreshTime']}ms');
+      if (perf['unlimitedQueryTime'] != null) {
+        buffer.writeln(
+          '  Unlimited Query Time: ${perf['unlimitedQueryTime']}ms',
+        );
+      }
+      buffer.writeln('  Document Count: ${perf['documentCount']}');
+      buffer.writeln('  Total File Size: ${perf['totalFileSize']} bytes');
       buffer.writeln();
     }
 

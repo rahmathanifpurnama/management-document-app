@@ -26,7 +26,7 @@ void main() {
     test('CSV should have distinct icon from Excel', () {
       final csvIcon = FileIconHelper.getFileIcon('test.csv');
       final excelIcon = FileIconHelper.getFileIcon('test.xlsx');
-      
+
       expect(csvIcon, Icons.grid_on);
       expect(excelIcon, Icons.table_chart);
       expect(csvIcon != excelIcon, true);
@@ -35,7 +35,7 @@ void main() {
     test('CSV should have distinct color from Excel', () {
       final csvColor = FileIconHelper.getFileTypeColor('test.csv');
       final excelColor = FileIconHelper.getFileTypeColor('test.xlsx');
-      
+
       expect(csvColor != excelColor, true);
     });
 
@@ -49,18 +49,24 @@ void main() {
       final csvDocument = DocumentModel(
         id: 'test',
         fileName: 'test.csv',
-        fileType: 'CSV Spreadsheet',
-        fileExtension: 'csv',
+        fileType: 'text/csv',
         filePath: 'test/path',
         fileSize: 1024,
         uploadedAt: DateTime.now(),
         uploadedBy: 'test',
-        categoryId: 'test',
-        categoryName: 'test',
+        category: 'test',
+        permissions: ['test'],
+        metadata: DocumentMetadata(
+          description: 'Test CSV file',
+          tags: ['test', 'csv'],
+        ),
       );
-      
+
       expect(previewService.canPreview(csvDocument), true);
-      expect(previewService.getPreviewType(csvDocument), FilePreviewType.document);
+      expect(
+        previewService.getPreviewType(csvDocument),
+        FilePreviewType.document,
+      );
     });
 
     test('File extension validation should work correctly', () {
@@ -82,8 +88,14 @@ void main() {
     });
 
     test('Excel files should have correct display names', () {
-      expect(FileConfig.getFileTypeDisplayName('test.xlsx'), 'Excel Spreadsheet');
-      expect(FileConfig.getFileTypeDisplayName('test.xls'), 'Excel Spreadsheet');
+      expect(
+        FileConfig.getFileTypeDisplayName('test.xlsx'),
+        'Excel Spreadsheet',
+      );
+      expect(
+        FileConfig.getFileTypeDisplayName('test.xls'),
+        'Excel Spreadsheet',
+      );
     });
   });
 }

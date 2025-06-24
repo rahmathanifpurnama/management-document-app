@@ -46,7 +46,10 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
                         size: 20,
                       ),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                      constraints: const BoxConstraints(
+                        minWidth: 24,
+                        minHeight: 24,
+                      ),
                     ),
                 ],
               ),
@@ -71,7 +74,8 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    documentProvider.clearFilters();
+                    // DocumentProvider no longer has clearFilters method
+                    // TODO: Update to work with screen-specific filter states
                     onFilterApplied?.call();
                   },
                   icon: const Icon(Icons.clear, color: AppColors.textSecondary),
@@ -122,11 +126,14 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
       spacing: 6,
       runSpacing: 6,
       children: fileTypes.map((fileType) {
-        final isSelected = documentProvider.selectedFileType == fileType['key'];
+        // Since DocumentProvider no longer has filter state, always show unselected
+        final isSelected =
+            false; // TODO: Update to work with screen-specific filter states
         return FilterChip(
           selected: isSelected,
           onSelected: (selected) {
-            documentProvider.filterByFileType(fileType['key'] as String);
+            // DocumentProvider no longer has filterByFileType method
+            // TODO: Update to work with screen-specific filter states
             onFilterApplied?.call();
           },
           avatar: Icon(
@@ -186,15 +193,18 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
 
     return Column(
       children: sortOptions.map((option) {
+        // Since DocumentProvider no longer has sort state, always show unselected
         final isSelected =
-            documentProvider.sortBy == option['key'] &&
-            documentProvider.sortAscending == option['ascending'];
+            false; // TODO: Update to work with screen-specific filter states
 
         return Container(
           margin: const EdgeInsets.only(bottom: 2),
           child: ListTile(
             dense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 2,
+            ),
             leading: Icon(
               option['icon'] as IconData,
               color: isSelected ? AppColors.primary : AppColors.textSecondary,
@@ -212,10 +222,8 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
                 ? const Icon(Icons.check, color: AppColors.primary, size: 18)
                 : null,
             onTap: () {
-              documentProvider.sortDocuments(
-                option['key'] as String,
-                ascending: option['ascending'] as bool,
-              );
+              // DocumentProvider no longer has sortDocuments method
+              // TODO: Update to work with screen-specific filter states
               onFilterApplied?.call();
             },
             shape: RoundedRectangleBorder(

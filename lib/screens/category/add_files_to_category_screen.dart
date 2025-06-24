@@ -8,6 +8,7 @@ import '../../core/constants/app_routes.dart';
 
 import '../../providers/file_selection_provider.dart';
 import '../../providers/document_provider.dart';
+import '../../providers/filter_states/add_files_filter_state.dart';
 import '../../models/category_model.dart';
 import '../../models/document_model.dart';
 import '../../widgets/common/app_bottom_navigation.dart';
@@ -16,7 +17,7 @@ import '../../widgets/common/ios_back_button.dart';
 import '../../widgets/common/reusable_file_list_widget.dart';
 import '../../widgets/category/add_only_selection_bar_widget.dart';
 import '../../widgets/category/available_files_empty_state_widget.dart';
-import '../../widgets/common/file_filter_widget.dart';
+import '../../widgets/filters/add_files_filter_widget.dart';
 import '../../widgets/common/reusable_search_widget.dart';
 
 class AddFilesToCategoryScreen extends StatefulWidget {
@@ -436,12 +437,16 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => FileFilterWidget(
-        onFilterApplied: () {
-          setState(() {
-            // Trigger rebuild to apply filters
-          });
-        },
+      builder: (context) => ChangeNotifierProvider(
+        create: (_) =>
+            AddFilesFilterState(targetCategoryId: widget.category.id),
+        child: AddFilesFilterWidget(
+          onFilterApplied: () {
+            setState(() {
+              // Trigger rebuild to apply filters
+            });
+          },
+        ),
       ),
     );
   }
