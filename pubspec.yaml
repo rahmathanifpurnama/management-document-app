@@ -138,9 +138,18 @@ flutter:
   assets:
     - assets/
     - assets/icon/home.svg
+<<<<<<< HEAD
     - assets/icon/folder.svg
     - assets/icon/home.svg
+=======
+    - assets/icon/home-filled.svg
+    - assets/icon/folder.svg
+    - assets/icon/folder-filled.svg
+    - assets/icon/add-user.svg
+    - assets/icon/add-user-filled.svg
+>>>>>>> 379166ca43657bbf53686db176fa9e67471b3aea
     - assets/icon/user.svg
+    - assets/icon/user-filled.svg
     - assets/icon/plus.svg
 
   # An image asset can refer to one or more resolution-specific "variants", see
