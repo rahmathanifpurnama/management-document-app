@@ -46,10 +46,7 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
                         size: 20,
                       ),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 24,
-                        minHeight: 24,
-                      ),
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                     ),
                 ],
               ),
@@ -197,10 +194,7 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: 2),
           child: ListTile(
             dense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 2,
-            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             leading: Icon(
               option['icon'] as IconData,
               color: isSelected ? AppColors.primary : AppColors.textSecondary,
