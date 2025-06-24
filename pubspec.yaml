@@ -138,6 +138,8 @@ flutter:
   assets:
     - assets/
     - assets/icon/home.svg
+    - assets/icon/folder.svg
+    - assets/icon/home.svg
     - assets/icon/home-filled.svg
     - assets/icon/folder.svg
     - assets/icon/folder-filled.svg
