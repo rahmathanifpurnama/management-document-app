@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 /// Utility class for handling filename operations and display formatting
 ///
 /// This utility provides clean filename handling without timestamp prefixes
@@ -151,10 +149,9 @@ class FilenameUtils {
     return true;
   }
 
-  /// Format filename for display in UI with smart truncation
+  /// Format filename for display in UI
   ///
   /// Ensures consistent display formatting across the app
-  /// Automatically adds extensions to truncated names for better UX
   static String formatForDisplay(String fileName, {int? maxLength}) {
     final cleanName = getDisplayFileName(fileName);
 
@@ -163,10 +160,10 @@ class FilenameUtils {
       final nameWithoutExt = getFileNameWithoutExtension(cleanName);
 
       if (extension.isNotEmpty) {
-        // Account for "..." (3) + "." (1) + extension length
-        final maxNameLength = maxLength - extension.length - 4;
+        final maxNameLength =
+            maxLength - extension.length - 4; // Account for "..." and "."
         if (maxNameLength > 0) {
-          return '${nameWithoutExt.substring(0, maxNameLength)}....$extension';
+          return '${nameWithoutExt.substring(0, maxNameLength)}...$extension';
         }
       }
 
@@ -174,79 +171,6 @@ class FilenameUtils {
     }
 
     return cleanName;
-  }
-
-  /// Smart format for display that detects truncation automatically
-  ///
-  /// Uses Text widget constraints to determine if truncation is needed
-  /// This is more accurate than fixed character limits
-  static String formatForDisplaySmart(
-    String fileName, {
-    required double availableWidth,
-    required TextStyle textStyle,
-    int maxLines = 1,
-  }) {
-    final cleanName = getDisplayFileName(fileName);
-
-    // Create a TextPainter to measure text width
-    final textPainter = TextPainter(
-      text: TextSpan(text: cleanName, style: textStyle),
-      maxLines: maxLines,
-      textDirection: TextDirection.ltr,
-    );
-
-    textPainter.layout(maxWidth: availableWidth);
-
-    // If text fits, return as-is
-    if (!textPainter.didExceedMaxLines) {
-      return cleanName;
-    }
-
-    // Text is truncated, add extension if available
-    final extension = getFileExtension(cleanName);
-    final nameWithoutExt = getFileNameWithoutExtension(cleanName);
-
-    if (extension.isNotEmpty) {
-      // Try to fit name with extension
-      final ellipsisText = '....$extension';
-      final ellipsisWidth = TextPainter(
-        text: TextSpan(text: ellipsisText, style: textStyle),
-        textDirection: TextDirection.ltr,
-      )..layout();
-
-      final availableForName = availableWidth - ellipsisWidth.width;
-
-      if (availableForName > 0) {
-        // Binary search to find optimal truncation point
-        int left = 1;
-        int right = nameWithoutExt.length;
-        String bestFit = nameWithoutExt;
-
-        while (left <= right) {
-          final mid = (left + right) ~/ 2;
-          final testText = nameWithoutExt.substring(0, mid);
-
-          final testPainter = TextPainter(
-            text: TextSpan(text: testText, style: textStyle),
-            textDirection: TextDirection.ltr,
-          )..layout();
-
-          if (testPainter.width <= availableForName) {
-            bestFit = testText;
-            left = mid + 1;
-          } else {
-            right = mid - 1;
-          }
-        }
-
-        if (bestFit.isNotEmpty) {
-          return '$bestFit....$extension';
-        }
-      }
-    }
-
-    // Fallback to simple truncation
-    return formatForDisplay(cleanName, maxLength: 20);
   }
 
   /// Create unique filename to avoid conflicts

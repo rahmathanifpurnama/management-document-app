@@ -11,7 +11,6 @@ import '../../utils/file_icon_helper.dart';
 import '../../utils/file_size_formatter.dart';
 import '../../utils/date_formatter.dart';
 import '../common/responsive_layout_widget.dart';
-import 'smart_filename_display_widget.dart';
 
 /// Reusable file grid widget with pagination support
 class ReusableFileGridWidget extends StatefulWidget {
@@ -306,9 +305,20 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
                     Row(
                       children: [
                         Expanded(
-                          child: ResponsiveFilenameDisplay(
-                            document: document,
-                            mode: FilenameDisplayMode.grid,
+                          child: Text(
+                            document.displayFileName, // Use clean display name
+                            style: GoogleFonts.poppins(
+                              fontSize: ResponsiveHelper.getResponsiveFontSize(
+                                context,
+                                mobile: 11,
+                                tablet: 12,
+                                desktop: 14,
+                              ),
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         // Menu button (only show when NOT in selection mode)

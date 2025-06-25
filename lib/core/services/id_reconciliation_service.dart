@@ -377,7 +377,6 @@ class IdReconciliationService {
         return 'DOC';
       case 'xls':
       case 'xlsx':
-      case 'csv': // FIX: Include CSV in Excel category
         return 'Excel';
       case 'ppt':
       case 'pptx':
