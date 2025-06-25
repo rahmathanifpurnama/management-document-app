@@ -362,7 +362,7 @@ class _FileApprovalScreenState extends State<FileApprovalScreen> {
                             ),
 
                             // Document List
-                            SliverFillRemaining(
+                            SliverToBoxAdapter(
                               child: _buildDocumentList(selectionProvider),
                             ),
                           ],

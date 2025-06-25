@@ -97,8 +97,53 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
             margin: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 // Header with title and filter
+                if (widget.title.isNotEmpty)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        widget.title,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      if (widget.showFilter && widget.onFilterTap != null)
+                        IconButton(
+                          onPressed: widget.onFilterTap,
+                          icon: const Icon(
+                            Icons.filter_list,
+                            color: AppColors.textSecondary,
+                            size: 20,
+                          ),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 24,
+                            minHeight: 24,
+                          ),
+                          tooltip: 'Filter Files',
+                        ),
+                    ],
+                  ),
+                // Loading indicator
+                _buildLoadingState(),
+              ],
+            ),
+          );
+        }
+
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header with title and filter
+              if (widget.title.isNotEmpty)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -127,47 +172,6 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
                       ),
                   ],
                 ),
-                // Loading indicator
-                _buildLoadingState(),
-              ],
-            ),
-          );
-        }
-
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with title and filter
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    widget.title,
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  if (widget.showFilter && widget.onFilterTap != null)
-                    IconButton(
-                      onPressed: widget.onFilterTap,
-                      icon: const Icon(
-                        Icons.filter_list,
-                        color: AppColors.textSecondary,
-                        size: 20,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 24,
-                        minHeight: 24,
-                      ),
-                      tooltip: 'Filter Files',
-                    ),
-                ],
-              ),
 
               // Files List
               _buildFilesList(currentPageDocuments, selectionProvider),
