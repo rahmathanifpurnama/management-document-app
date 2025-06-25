@@ -18,6 +18,7 @@ import '../../widgets/category/add_only_selection_bar_widget.dart';
 import '../../widgets/category/available_files_empty_state_widget.dart';
 import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/reusable_search_widget.dart';
+import '../../core/utils/context_filter_utils.dart';
 
 class AddFilesToCategoryScreen extends StatefulWidget {
   final CategoryModel category;
@@ -164,6 +165,16 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     );
     final searchQuery = _searchController.text.toLowerCase().trim();
 
+    // Get add files filter state for additional filtering
+    final addFilesFilterState = FilterStateManager.getState(
+      FilterContext.addFiles,
+    );
+
+    // Update search query in filter state
+    if (addFilesFilterState.searchQuery != searchQuery) {
+      addFilesFilterState.searchQuery = searchQuery;
+    }
+
     // Get all documents from DocumentProvider
     var availableDocuments = documentProvider.documents.where((doc) {
       // DEFINITIVE FIX: Simple and robust filtering logic
@@ -222,8 +233,39 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
       }).toList();
     }
 
-    // Sort by upload date (newest first) for better UX
-    availableDocuments.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
+    // Apply additional context-aware filtering (file type filter)
+    if (addFilesFilterState.selectedFileType != 'all') {
+      availableDocuments = availableDocuments.where((document) {
+        return ContextFilterUtils.applyContextFilters(
+          documents: [document],
+          context: FilterContext.addFiles,
+          filterState: addFilesFilterState,
+          categoryId: widget.category.id,
+        ).isNotEmpty;
+      }).toList();
+    }
+
+    // Apply context-aware sorting
+    availableDocuments.sort((a, b) {
+      int comparison = 0;
+
+      switch (addFilesFilterState.sortBy) {
+        case 'fileName':
+          comparison = a.fileName.compareTo(b.fileName);
+          break;
+        case 'fileSize':
+          comparison = a.fileSize.compareTo(b.fileSize);
+          break;
+        case 'uploadedAt':
+          comparison = a.uploadedAt.compareTo(b.uploadedAt);
+          break;
+        default:
+          // Default: newest first for better UX
+          comparison = b.uploadedAt.compareTo(a.uploadedAt);
+      }
+
+      return addFilesFilterState.sortAscending ? comparison : -comparison;
+    });
 
     // ENHANCED DEBUG: Show detailed category breakdown for troubleshooting
     final categoryBreakdown = <String, int>{};
@@ -411,7 +453,7 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     );
   }
 
-  /// Show filter menu (identical to home screen)
+  /// Show filter menu for add files context
   void _showFilterMenu() {
     showModalBottomSheet(
       context: context,
@@ -419,10 +461,11 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => FileFilterWidget(
+      builder: (context) => FileFilterWidget.forAddFiles(
+        categoryId: widget.category.id,
         onFilterApplied: () {
           setState(() {
-            // Trigger rebuild to apply filters
+            // Trigger rebuild to apply context-aware filters
           });
         },
       ),

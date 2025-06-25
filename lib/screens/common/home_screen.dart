@@ -16,6 +16,7 @@ import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/file_selection_bar.dart';
 import '../../models/document_model.dart';
+import '../../core/utils/context_filter_utils.dart';
 
 import '../../services/ui_refresh_service.dart';
 import '../../services/file_download_service.dart';
@@ -57,13 +58,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _startAutoRefresh();
     _generateNewGreeting();
 
-    // Sync search controller with DocumentProvider on init
+    // Initialize home screen filter state
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
+      final homeFilterState = FilterStateManager.getState(
+        FilterContext.homeScreen,
       );
-      _searchController.text = documentProvider.searchQuery;
+      _searchController.text = homeFilterState.searchQuery;
     });
 
     // CRITICAL FIX: Disable real-time sync service to prevent duplicate listeners
@@ -191,11 +191,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   // This eliminates duplicate listener registration and conflicting debounce timers
 
   void _performSearch() {
-    final documentProvider = Provider.of<DocumentProvider>(
-      context,
-      listen: false,
+    final homeFilterState = FilterStateManager.getState(
+      FilterContext.homeScreen,
     );
-    documentProvider.searchDocuments(_searchController.text.trim());
+    homeFilterState.searchQuery = _searchController.text.trim();
+    setState(() {
+      // Trigger rebuild to apply new search filter
+    });
   }
 
   // Update session activity when user is active
@@ -392,16 +394,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => FileFilterWidget(
+      builder: (context) => FileFilterWidget.forHome(
         onFilterApplied: () {
-          // Sync search controller with DocumentProvider after filter changes
-          final documentProvider = Provider.of<DocumentProvider>(
-            context,
-            listen: false,
-          );
-          if (_searchController.text != documentProvider.searchQuery) {
-            _searchController.text = documentProvider.searchQuery;
-          }
+          // Trigger rebuild to apply context-aware filters
+          setState(() {
+            // The filter state is now managed independently
+            // No need to sync with DocumentProvider
+          });
         },
       ),
     );

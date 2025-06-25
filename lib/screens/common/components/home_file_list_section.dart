@@ -203,8 +203,22 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   Widget build(BuildContext context) {
     return Consumer2<DocumentProvider, FileSelectionProvider>(
       builder: (context, documentProvider, selectionProvider, child) {
-        // Get filtered documents for display
-        final displayDocuments = documentProvider.filteredDocuments;
+        // Get home screen filter state
+        final homeFilterState = FilterStateManager.getState(
+          FilterContext.homeScreen,
+        );
+
+        // Update search query in filter state if different
+        if (homeFilterState.searchQuery != widget.searchQuery) {
+          homeFilterState.searchQuery = widget.searchQuery;
+        }
+
+        // Apply context-aware filtering to all documents
+        final displayDocuments = ContextFilterUtils.applyContextFilters(
+          documents: documentProvider.allDocuments,
+          context: FilterContext.homeScreen,
+          filterState: homeFilterState,
+        );
 
         // Update available files for selection only when necessary
         WidgetsBinding.instance.addPostFrameCallback((_) {

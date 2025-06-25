@@ -10,27 +10,140 @@ enum FileFilterMode {
   embedded, // Embedded in page
 }
 
-class FileFilterWidget extends StatelessWidget {
+/// Context-aware filter contexts for independent filter state management
+enum FilterContext { homeScreen, categoryFiles, addFiles }
+
+/// Independent filter state for each context
+class ContextFilterState {
+  String searchQuery;
+  String selectedFileType;
+  String sortBy;
+  bool sortAscending;
+
+  ContextFilterState({
+    this.searchQuery = '',
+    this.selectedFileType = 'all',
+    this.sortBy = 'uploadedAt',
+    this.sortAscending = false,
+  });
+
+  ContextFilterState copyWith({
+    String? searchQuery,
+    String? selectedFileType,
+    String? sortBy,
+    bool? sortAscending,
+  }) {
+    return ContextFilterState(
+      searchQuery: searchQuery ?? this.searchQuery,
+      selectedFileType: selectedFileType ?? this.selectedFileType,
+      sortBy: sortBy ?? this.sortBy,
+      sortAscending: sortAscending ?? this.sortAscending,
+    );
+  }
+
+  void reset() {
+    searchQuery = '';
+    selectedFileType = 'all';
+    sortBy = 'uploadedAt';
+    sortAscending = false;
+  }
+
+  bool get hasActiveFilters =>
+      searchQuery.isNotEmpty || selectedFileType != 'all';
+}
+
+/// Static helper class to access context-specific filter states
+class FilterStateManager {
+  static final Map<FilterContext, ContextFilterState> _contextStates = {
+    FilterContext.homeScreen: ContextFilterState(),
+    FilterContext.categoryFiles: ContextFilterState(),
+    FilterContext.addFiles: ContextFilterState(),
+  };
+
+  /// Get filter state for specific context
+  static ContextFilterState getState(FilterContext context) {
+    return _contextStates[context]!;
+  }
+
+  /// Reset filter state for specific context
+  static void resetState(FilterContext context) {
+    _contextStates[context]!.reset();
+  }
+
+  /// Reset all filter states
+  static void resetAllStates() {
+    for (var state in _contextStates.values) {
+      state.reset();
+    }
+  }
+
+  /// Check if any context has active filters
+  static bool hasAnyActiveFilters() {
+    return _contextStates.values.any((state) => state.hasActiveFilters);
+  }
+}
+
+class FileFilterWidget extends StatefulWidget {
   final VoidCallback? onFilterApplied;
   final VoidCallback? onClose;
   final FileFilterMode mode;
+  final FilterContext filterContext;
+  final String? categoryId; // For category-specific filtering
 
   const FileFilterWidget({
     super.key,
     this.onFilterApplied,
     this.onClose,
     this.mode = FileFilterMode.modal,
+    this.filterContext = FilterContext.homeScreen,
+    this.categoryId,
   });
 
-  /// Factory constructor for modal filter (bottom sheet)
+  /// Factory constructor for home screen filter
+  factory FileFilterWidget.forHome({VoidCallback? onFilterApplied}) {
+    return FileFilterWidget(
+      onFilterApplied: onFilterApplied,
+      mode: FileFilterMode.modal,
+      filterContext: FilterContext.homeScreen,
+    );
+  }
+
+  /// Factory constructor for category files filter
+  factory FileFilterWidget.forCategory({
+    required String categoryId,
+    VoidCallback? onFilterApplied,
+  }) {
+    return FileFilterWidget(
+      onFilterApplied: onFilterApplied,
+      mode: FileFilterMode.modal,
+      filterContext: FilterContext.categoryFiles,
+      categoryId: categoryId,
+    );
+  }
+
+  /// Factory constructor for add files filter
+  factory FileFilterWidget.forAddFiles({
+    required String categoryId,
+    VoidCallback? onFilterApplied,
+  }) {
+    return FileFilterWidget(
+      onFilterApplied: onFilterApplied,
+      mode: FileFilterMode.modal,
+      filterContext: FilterContext.addFiles,
+      categoryId: categoryId,
+    );
+  }
+
+  /// Factory constructor for modal filter (backward compatibility)
   factory FileFilterWidget.modal({VoidCallback? onFilterApplied}) {
     return FileFilterWidget(
       onFilterApplied: onFilterApplied,
       mode: FileFilterMode.modal,
+      filterContext: FilterContext.homeScreen,
     );
   }
 
-  /// Factory constructor for embedded filter (in page)
+  /// Factory constructor for embedded filter (backward compatibility)
   factory FileFilterWidget.embedded({
     VoidCallback? onFilterApplied,
     VoidCallback? onClose,
@@ -39,8 +152,17 @@ class FileFilterWidget extends StatelessWidget {
       onFilterApplied: onFilterApplied,
       onClose: onClose,
       mode: FileFilterMode.embedded,
+      filterContext: FilterContext.homeScreen,
     );
   }
+
+  @override
+  State<FileFilterWidget> createState() => _FileFilterWidgetState();
+}
+
+class _FileFilterWidgetState extends State<FileFilterWidget> {
+  ContextFilterState get _currentState =>
+      FilterStateManager.getState(widget.filterContext);
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +170,7 @@ class FileFilterWidget extends StatelessWidget {
       builder: (context, documentProvider, child) {
         return Container(
           padding: const EdgeInsets.all(16),
-          decoration: mode == FileFilterMode.modal
+          decoration: widget.mode == FileFilterMode.modal
               ? const BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -59,7 +181,7 @@ class FileFilterWidget extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header with mode-specific styling
-              if (mode == FileFilterMode.embedded) ...[
+              if (widget.mode == FileFilterMode.embedded) ...[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -71,9 +193,9 @@ class FileFilterWidget extends StatelessWidget {
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    if (onClose != null)
+                    if (widget.onClose != null)
                       IconButton(
-                        onPressed: onClose,
+                        onPressed: widget.onClose,
                         icon: const Icon(
                           Icons.close,
                           color: AppColors.textSecondary,
@@ -114,14 +236,14 @@ class FileFilterWidget extends StatelessWidget {
               // File Type Filter Section
               _buildSectionTitle('File Type'),
               const SizedBox(height: 8),
-              _buildFileTypeFilters(context, documentProvider),
+              _buildFileTypeFilters(context),
 
               const SizedBox(height: 20),
 
               // Sort Section
               _buildSectionTitle('Sort Files'),
               const SizedBox(height: 8),
-              _buildSortOptions(context, documentProvider),
+              _buildSortOptions(context),
 
               const SizedBox(height: 20),
 
@@ -130,11 +252,12 @@ class FileFilterWidget extends StatelessWidget {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () {
-                    documentProvider.clearFilters();
-                    onFilterApplied?.call();
-                    if (mode == FileFilterMode.modal) {
+                    _currentState.reset();
+                    widget.onFilterApplied?.call();
+                    if (widget.mode == FileFilterMode.modal) {
                       Navigator.pop(context);
                     }
+                    setState(() {}); // Refresh UI
                   },
                   icon: const Icon(Icons.clear, color: AppColors.textSecondary),
                   label: Text(
@@ -166,10 +289,7 @@ class FileFilterWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildFileTypeFilters(
-    BuildContext context,
-    DocumentProvider documentProvider,
-  ) {
+  Widget _buildFileTypeFilters(BuildContext context) {
     final fileTypes = [
       {'key': 'all', 'label': 'All Files', 'icon': Icons.folder_open},
       {'key': 'PDF', 'label': 'PDF', 'icon': Icons.picture_as_pdf},
@@ -186,12 +306,14 @@ class FileFilterWidget extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: fileTypes.map((fileType) {
-        final isSelected = documentProvider.selectedFileType == fileType['key'];
+        final isSelected = _currentState.selectedFileType == fileType['key'];
         return FilterChip(
           selected: isSelected,
           onSelected: (selected) {
-            documentProvider.filterByFileType(fileType['key'] as String);
-            onFilterApplied?.call();
+            setState(() {
+              _currentState.selectedFileType = fileType['key'] as String;
+            });
+            widget.onFilterApplied?.call();
           },
           avatar: Icon(
             fileType['icon'] as IconData,
@@ -216,10 +338,7 @@ class FileFilterWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildSortOptions(
-    BuildContext context,
-    DocumentProvider documentProvider,
-  ) {
+  Widget _buildSortOptions(BuildContext context) {
     final sortOptions = [
       {
         'key': 'uploadedAt',
@@ -250,8 +369,8 @@ class FileFilterWidget extends StatelessWidget {
     return Column(
       children: sortOptions.map((option) {
         final isSelected =
-            documentProvider.sortBy == option['key'] &&
-            documentProvider.sortAscending == option['ascending'];
+            _currentState.sortBy == option['key'] &&
+            _currentState.sortAscending == option['ascending'];
 
         return Container(
           margin: const EdgeInsets.only(bottom: 4),
@@ -275,12 +394,12 @@ class FileFilterWidget extends StatelessWidget {
                 ? const Icon(Icons.check, color: AppColors.primary, size: 20)
                 : null,
             onTap: () {
-              documentProvider.sortDocuments(
-                option['key'] as String,
-                ascending: option['ascending'] as bool,
-              );
-              onFilterApplied?.call();
-              if (mode == FileFilterMode.modal) {
+              setState(() {
+                _currentState.sortBy = option['key'] as String;
+                _currentState.sortAscending = option['ascending'] as bool;
+              });
+              widget.onFilterApplied?.call();
+              if (widget.mode == FileFilterMode.modal) {
                 Navigator.pop(context);
               }
             },

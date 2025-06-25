@@ -14,6 +14,7 @@ import '../../widgets/common/custom_app_bar.dart';
 import '../../services/file_download_service.dart';
 import '../../services/share_service.dart';
 import '../../widgets/common/ios_back_button.dart';
+import '../../core/utils/context_filter_utils.dart';
 import '../../widgets/common/reusable_file_list_widget.dart';
 import '../../widgets/common/reusable_file_grid_widget.dart';
 import '../../widgets/common/file_filter_widget.dart';
@@ -84,17 +85,6 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
     });
   }
 
-  List<DocumentModel> _filterDocuments(List<DocumentModel> documents) {
-    if (_searchQuery.isEmpty) {
-      return documents;
-    }
-    return documents.where((document) {
-      return document.fileName.toLowerCase().contains(
-        _searchQuery.toLowerCase(),
-      );
-    }).toList();
-  }
-
   void _onSearchChanged(String query) {
     setState(() {
       _searchQuery = query;
@@ -115,11 +105,12 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
             topRight: Radius.circular(20),
           ),
         ),
-        child: FileFilterWidget(
+        child: FileFilterWidget.forCategory(
+          categoryId: widget.category.id,
           onFilterApplied: () {
             Navigator.pop(context);
             setState(() {
-              // Trigger rebuild to apply filters
+              // Trigger rebuild to apply context-aware filters
             });
           },
         ),
@@ -184,12 +175,28 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
           Expanded(
             child: Consumer<DocumentProvider>(
               builder: (context, documentProvider, child) {
-                // IMPROVED: Use provider method for better category filtering
+                // Get category filter state
+                final categoryFilterState = FilterStateManager.getState(
+                  FilterContext.categoryFiles,
+                );
+
+                // Update search query in filter state if different
+                if (categoryFilterState.searchQuery != _searchQuery) {
+                  categoryFilterState.searchQuery = _searchQuery;
+                }
+
+                // Apply context-aware filtering to all documents
+                final filteredDocuments =
+                    ContextFilterUtils.applyContextFilters(
+                      documents: documentProvider.allDocuments,
+                      context: FilterContext.categoryFiles,
+                      filterState: categoryFilterState,
+                      categoryId: widget.category.id,
+                    );
+
+                // Get all category documents for loading state logic
                 final allCategoryDocuments = documentProvider
                     .getDocumentsByCategory(widget.category.id);
-                final filteredDocuments = _filterDocuments(
-                  allCategoryDocuments,
-                );
 
                 // IMPROVED: Better loading and empty state logic
                 final isInitialLoading =
