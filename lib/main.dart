@@ -22,6 +22,8 @@ import 'providers/category_provider.dart';
 import 'providers/consolidated_upload_provider.dart';
 import 'providers/file_selection_provider.dart';
 import 'providers/settings_provider.dart';
+import 'providers/notification_provider.dart';
+import 'providers/sync_provider.dart';
 import 'screens/auth/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/common/home_screen.dart';
@@ -38,6 +40,8 @@ import 'screens/profile/personal_info_screen.dart';
 import 'screens/profile/edit_profile_screen.dart';
 import 'screens/profile/settings_screen.dart';
 import 'screens/profile/change_password_screen.dart';
+import 'screens/admin/file_approval_screen.dart';
+import 'screens/notification/notification_center_screen.dart';
 import 'screens/admin/sync_management_screen.dart';
 import 'screens/upload/upload_document_screen.dart';
 import 'screens/common/file_preview_screen.dart';
@@ -163,6 +167,14 @@ class _MyAppState extends State<MyApp> {
           ),
           ChangeNotifierProvider(
             create: (_) => FileSelectionProvider(),
+            lazy: true, // Initialize when needed to prevent startup delay
+          ),
+          ChangeNotifierProvider(
+            create: (_) => NotificationProvider(),
+            lazy: true, // Initialize when needed to prevent startup delay
+          ),
+          ChangeNotifierProvider(
+            create: (_) => SyncProvider(),
             lazy: true, // Initialize when needed to prevent startup delay
           ),
         ],
@@ -327,6 +339,16 @@ class _MyAppState extends State<MyApp> {
                   case AppRoutes.syncManagement:
                     return MaterialPageRoute(
                       builder: (context) => const SyncManagementScreen(),
+                    );
+
+                  case AppRoutes.fileApproval:
+                    return MaterialPageRoute(
+                      builder: (context) => const FileApprovalScreen(),
+                    );
+
+                  case AppRoutes.notificationCenter:
+                    return MaterialPageRoute(
+                      builder: (context) => const NotificationCenterScreen(),
                     );
 
                   case AppRoutes.filePreview:

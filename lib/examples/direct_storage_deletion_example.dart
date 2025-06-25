@@ -2,11 +2,11 @@ import 'package:flutter/foundation.dart';
 import '../services/direct_storage_deletion_service.dart';
 
 /// Example usage of DirectStorageDeletionService
-/// 
+///
 /// This file demonstrates how to use the standalone storage deletion service
 /// that bypasses Firestore and works directly with Firebase Storage.
 class DirectStorageDeletionExample {
-  final DirectStorageDeletionService _deletionService = 
+  final DirectStorageDeletionService _deletionService =
       DirectStorageDeletionService.instance;
 
   /// Example 1: Delete a single file by its storage path
@@ -27,7 +27,6 @@ class DirectStorageDeletionExample {
         debugPrint('❌ Deletion failed: ${result.message}');
         debugPrint('🔍 Error code: ${result.errorCode}');
       }
-
     } catch (e) {
       debugPrint('❌ Example 1 failed: $e');
     }
@@ -64,7 +63,6 @@ class DirectStorageDeletionExample {
           debugPrint('❌ ${fileResult.path}: ${fileResult.message}');
         }
       }
-
     } catch (e) {
       debugPrint('❌ Example 2 failed: $e');
     }
@@ -94,7 +92,6 @@ class DirectStorageDeletionExample {
       for (final fileResult in result.results) {
         debugPrint('📄 ${fileResult.path}: ${fileResult.success ? "✅" : "❌"}');
       }
-
     } catch (e) {
       debugPrint('❌ Example 3 failed: $e');
     }
@@ -116,7 +113,7 @@ class DirectStorageDeletionExample {
         debugPrint('   Type: ${fileInfo.contentType}');
         debugPrint('   Created: ${fileInfo.timeCreated}');
         debugPrint('   Path: ${fileInfo.path}');
-        
+
         if (fileInfo.customMetadata?.isNotEmpty == true) {
           debugPrint('   Metadata: ${fileInfo.customMetadata}');
         }
@@ -124,7 +121,6 @@ class DirectStorageDeletionExample {
         debugPrint('❌ Failed to get file info: ${fileInfo.message}');
         debugPrint('🔍 Error code: ${fileInfo.errorCode}');
       }
-
     } catch (e) {
       debugPrint('❌ Example 4 failed: $e');
     }
@@ -138,7 +134,7 @@ class DirectStorageDeletionExample {
       // Test with non-existent file
       debugPrint('🔍 Testing with non-existent file...');
       final nonExistentResult = await _deletionService.deleteFileByPath(
-        'documents/non-existent-file.pdf'
+        'documents/non-existent-file.pdf',
       );
       debugPrint('Result: ${nonExistentResult.success ? "Success" : "Failed"}');
       debugPrint('Message: ${nonExistentResult.message}');
@@ -147,7 +143,7 @@ class DirectStorageDeletionExample {
       // Test with invalid path
       debugPrint('\n🔍 Testing with invalid path...');
       final invalidPathResult = await _deletionService.deleteFileByPath(
-        '/invalid/path/../file.pdf'
+        '/invalid/path/../file.pdf',
       );
       debugPrint('Result: ${invalidPathResult.success ? "Success" : "Failed"}');
       debugPrint('Message: ${invalidPathResult.message}');
@@ -159,7 +155,6 @@ class DirectStorageDeletionExample {
       debugPrint('Result: ${emptyPathResult.success ? "Success" : "Failed"}');
       debugPrint('Message: ${emptyPathResult.message}');
       debugPrint('Error Code: ${emptyPathResult.errorCode}');
-
     } catch (e) {
       debugPrint('❌ Example 5 failed: $e');
     }
@@ -171,19 +166,19 @@ class DirectStorageDeletionExample {
     debugPrint('=' * 50);
 
     await deleteSingleFileExample();
-    debugPrint('\n' + '=' * 50);
+    debugPrint('\n${'=' * 50}');
 
     await deleteMultipleFilesExample();
-    debugPrint('\n' + '=' * 50);
+    debugPrint('\n${'=' * 50}');
 
     await deleteFilesByPatternExample();
-    debugPrint('\n' + '=' * 50);
+    debugPrint('\n${'=' * 50}');
 
     await getFileInfoExample();
-    debugPrint('\n' + '=' * 50);
+    debugPrint('\n${'=' * 50}');
 
     await errorHandlingExample();
-    debugPrint('\n' + '=' * 50);
+    debugPrint('\n${'=' * 50}');
 
     debugPrint('✅ All examples completed');
   }
@@ -211,7 +206,7 @@ class StoragePathUtils {
   /// Get user ID from storage path (if following user-based structure)
   static String? getUserIdFromPath(String storagePath) {
     if (!isInDocumentsFolder(storagePath)) return null;
-    
+
     final parts = storagePath.split('/');
     if (parts.length >= 2) {
       return parts[1]; // Assuming structure: documents/userId/filename

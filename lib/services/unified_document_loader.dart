@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/document_model.dart';
 import '../core/services/document_service.dart';
 import '../core/config/anr_config.dart';
 import '../config/firebase_config.dart';
-import '../core/utils/anr_prevention.dart';
 import '../core/utils/circuit_breaker.dart';
 
 /// Unified document loader to eliminate race conditions and ensure consistent data loading

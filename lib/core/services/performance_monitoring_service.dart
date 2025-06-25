@@ -33,7 +33,6 @@ class PerformanceMonitoringService {
   final List<String> _anrEvents = [];
 
   // Performance thresholds
-  static const double _targetFPS = 60.0;
   static const double _lowFPSThreshold = 30.0;
   static const Duration _anrThreshold = Duration(seconds: 2);
   static const int _maxHistorySize = 100;

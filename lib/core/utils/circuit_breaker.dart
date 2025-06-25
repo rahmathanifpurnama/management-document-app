@@ -149,7 +149,7 @@ class _CircuitBreakerState {
       nextRetryTime = DateTime.now().add(resetTime);
       debugPrint(
         '🔴 Circuit breaker OPENED for: $operationId '
-        '(${failureCount} failures, retry at ${nextRetryTime!.toLocal()})',
+        '($failureCount failures, retry at ${nextRetryTime!.toLocal()})',
       );
     } else {
       debugPrint(

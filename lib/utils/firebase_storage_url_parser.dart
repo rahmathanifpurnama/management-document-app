@@ -1,4 +1,5 @@
 import 'dart:developer' as dev;
+import 'package:flutter/foundation.dart';
 
 /// Utility class for parsing Firebase Storage URLs and extracting storage paths
 class FirebaseStorageUrlParser {
@@ -235,27 +236,27 @@ class FirebaseStorageUrlParser {
     const exampleUrl =
         'https://firebasestorage.googleapis.com/v0/b/document-management-c5a96.firebasestorage.app/o/documents%2F1750138299562_penerapan_convolutional_neural_network_untuk_identifikasi_otomatis_spesies_burung_hama_pemakan_biji_part11.pdf?alt=media&token=4304c9f9-7d13-4e74-84e7-8b69dfb3e5ae';
 
-    print('🧪 Testing Firebase Storage URL Parser');
-    print('📄 Example URL: $exampleUrl');
+    debugPrint('🧪 Testing Firebase Storage URL Parser');
+    debugPrint('📄 Example URL: $exampleUrl');
 
     final storagePath = extractStoragePathFromUrl(exampleUrl);
-    print('📁 Extracted storage path: $storagePath');
+    debugPrint('📁 Extracted storage path: $storagePath');
 
     final bucketName = extractBucketName(exampleUrl);
-    print('🪣 Extracted bucket: $bucketName');
+    debugPrint('🪣 Extracted bucket: $bucketName');
 
     final fileName = getFileName(exampleUrl);
-    print('📄 Extracted filename: $fileName');
+    debugPrint('📄 Extracted filename: $fileName');
 
     final directoryPath = getDirectoryPath(exampleUrl);
-    print('📁 Extracted directory: $directoryPath');
+    debugPrint('📁 Extracted directory: $directoryPath');
 
     final isDocuments = isInDocumentsFolder(exampleUrl);
-    print('📂 Is in documents folder: $isDocuments');
+    debugPrint('📂 Is in documents folder: $isDocuments');
 
     final isValid = storagePath != null
         ? isValidStoragePath(storagePath)
         : false;
-    print('✅ Is valid storage path: $isValid');
+    debugPrint('✅ Is valid storage path: $isValid');
   }
 }

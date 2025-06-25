@@ -48,7 +48,7 @@ class _TestGoogleAuthState extends State<TestGoogleAuth> {
       }
     } catch (error) {
       setState(() => _status = 'Sign in failed: $error');
-      print('Google Sign-In Error: $error');
+      debugPrint('Google Sign-In Error: $error');
     }
   }
 

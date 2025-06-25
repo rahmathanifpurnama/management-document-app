@@ -109,7 +109,7 @@ class FileDownloadService {
       }
 
       // Show download completed notification
-      if (notificationId != null && notificationId > 0) {
+      if (notificationId > 0) {
         await _notificationService.showDownloadCompleted(
           notificationId: notificationId,
           document: document,

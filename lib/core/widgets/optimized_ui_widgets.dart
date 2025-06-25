@@ -173,9 +173,6 @@ class OptimizedImageWidget extends StatefulWidget {
 }
 
 class _OptimizedImageWidgetState extends State<OptimizedImageWidget> {
-  static final Map<String, ImageProvider> _imageCache = {};
-  static int _cacheSize = 0;
-
   @override
   Widget build(BuildContext context) {
     return CachedNetworkImage(
@@ -207,15 +204,6 @@ class _OptimizedImageWidgetState extends State<OptimizedImageWidget> {
             child: const Icon(Icons.error_outline, color: Colors.red),
           ),
     );
-  }
-
-  /// Clean image cache when it gets too large
-  static void _cleanCache() {
-    if (_cacheSize > ANRConfig.maxImageCacheSize) {
-      _imageCache.clear();
-      _cacheSize = 0;
-      debugPrint('🧹 Image cache cleaned');
-    }
   }
 }
 

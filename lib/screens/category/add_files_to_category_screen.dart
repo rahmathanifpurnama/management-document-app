@@ -53,20 +53,6 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     // _runDiagnostic();
   }
 
-  /// Run diagnostic to check file path issues (for troubleshooting)
-  Future<void> _runDiagnostic() async {
-    try {
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
-      );
-      final results = await documentProvider.runFilePathDiagnostic();
-      debugPrint('🔍 DIAGNOSTIC RESULTS: $results');
-    } catch (e) {
-      debugPrint('❌ Failed to run diagnostic: $e');
-    }
-  }
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -258,7 +244,7 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
           category.toLowerCase() != 'general' &&
           category.toLowerCase() != 'null' &&
           category.toLowerCase() != 'uncategorized') {
-        categorizedFiles.add('${doc.fileName} (${category})');
+        categorizedFiles.add('${doc.fileName} ($category)');
       } else {
         uncategorizedFiles.add(doc.fileName);
       }

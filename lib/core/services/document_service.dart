@@ -836,13 +836,13 @@ class DocumentService {
     // 4. ENHANCED: Check if filename matches common patterns
     final commonPatterns = [
       documentId,
-      '${documentId}.pdf',
-      '${documentId}.doc',
-      '${documentId}.docx',
-      '${documentId}.jpg',
-      '${documentId}.jpeg',
-      '${documentId}.png',
-      '${documentId}.txt',
+      '$documentId.pdf',
+      '$documentId.doc',
+      '$documentId.docx',
+      '$documentId.jpg',
+      '$documentId.jpeg',
+      '$documentId.png',
+      '$documentId.txt',
     ];
 
     for (final pattern in commonPatterns) {

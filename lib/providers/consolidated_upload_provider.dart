@@ -348,6 +348,23 @@ class ConsolidatedUploadProvider with ChangeNotifier {
         // Don't fail the upload if statistics update fails
       }
 
+      // NOTIFICATION: Send upload notification to user
+      try {
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null && result['documentId'] != null) {
+          // Note: NotificationProvider should be accessed from context in the UI layer
+          // This is a placeholder for the notification trigger
+          debugPrint(
+            '📱 Upload notification trigger for file: ${file.fileName}, documentId: ${result['documentId']}',
+          );
+        }
+      } catch (notificationError) {
+        debugPrint(
+          '⚠️ Upload notification failed (non-critical): $notificationError',
+        );
+        // Don't fail the upload if notification fails
+      }
+
       debugPrint('✅ File uploaded successfully: ${file.fileName}');
     } catch (e) {
       final errorMessage = _categorizeUploadError(e);

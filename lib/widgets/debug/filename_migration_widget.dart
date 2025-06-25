@@ -231,8 +231,8 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: needsMigration
-            ? Colors.orange.withOpacity(0.1)
-            : Colors.green.withOpacity(0.1),
+            ? Colors.orange.withValues(alpha: 0.1)
+            : Colors.green.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: needsMigration ? Colors.orange : Colors.green,
@@ -323,7 +323,7 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.1),
+        color: Colors.blue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: Colors.blue),
       ),
@@ -363,7 +363,7 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
                 ],
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -377,8 +377,8 @@ class _FilenameMigrationWidgetState extends State<FilenameMigrationWidget> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isSuccess
-            ? Colors.green.withOpacity(0.1)
-            : Colors.red.withOpacity(0.1),
+            ? Colors.green.withValues(alpha: 0.1)
+            : Colors.red.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: isSuccess ? Colors.green : Colors.red),
       ),

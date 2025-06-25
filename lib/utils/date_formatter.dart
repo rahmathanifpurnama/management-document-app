@@ -55,23 +55,23 @@ class DateFormatter {
       return 'Just now';
     } else if (difference.inMinutes < 60) {
       final minutes = difference.inMinutes;
-      return '${minutes} minute${minutes == 1 ? '' : 's'} ago';
+      return '$minutes minute${minutes == 1 ? '' : 's'} ago';
     } else if (difference.inHours < 24) {
       final hours = difference.inHours;
-      return '${hours} hour${hours == 1 ? '' : 's'} ago';
+      return '$hours hour${hours == 1 ? '' : 's'} ago';
     } else if (difference.inDays == 1) {
       return 'Yesterday';
     } else if (difference.inDays < 7) {
       return '${difference.inDays} days ago';
     } else if (difference.inDays < 30) {
       final weeks = (difference.inDays / 7).floor();
-      return '${weeks} week${weeks == 1 ? '' : 's'} ago';
+      return '$weeks week${weeks == 1 ? '' : 's'} ago';
     } else if (difference.inDays < 365) {
       final months = (difference.inDays / 30).floor();
-      return '${months} month${months == 1 ? '' : 's'} ago';
+      return '$months month${months == 1 ? '' : 's'} ago';
     } else {
       final years = (difference.inDays / 365).floor();
-      return '${years} year${years == 1 ? '' : 's'} ago';
+      return '$years year${years == 1 ? '' : 's'} ago';
     }
   }
 
@@ -98,17 +98,17 @@ class DateFormatter {
   /// Check if date is today
   static bool isToday(DateTime date) {
     final now = DateTime.now();
-    return date.year == now.year && 
-           date.month == now.month && 
-           date.day == now.day;
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
   }
 
   /// Check if date is yesterday
   static bool isYesterday(DateTime date) {
     final yesterday = DateTime.now().subtract(const Duration(days: 1));
-    return date.year == yesterday.year && 
-           date.month == yesterday.month && 
-           date.day == yesterday.day;
+    return date.year == yesterday.year &&
+        date.month == yesterday.month &&
+        date.day == yesterday.day;
   }
 
   /// Check if date is this week
@@ -116,9 +116,9 @@ class DateFormatter {
     final now = DateTime.now();
     final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
     final endOfWeek = startOfWeek.add(const Duration(days: 6));
-    
+
     return date.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
-           date.isBefore(endOfWeek.add(const Duration(days: 1)));
+        date.isBefore(endOfWeek.add(const Duration(days: 1)));
   }
 
   /// Check if date is this month
@@ -182,7 +182,7 @@ class DateFormatter {
         // Continue to next format
       }
     }
-    
+
     // Try parsing as ISO string
     try {
       return DateTime.parse(dateString);
@@ -195,24 +195,24 @@ class DateFormatter {
   static String getAge(DateTime birthDate) {
     final now = DateTime.now();
     final age = now.difference(birthDate);
-    
+
     if (age.inDays < 365) {
       final months = (age.inDays / 30).floor();
-      return '${months} month${months == 1 ? '' : 's'}';
+      return '$months month${months == 1 ? '' : 's'}';
     } else {
       final years = (age.inDays / 365).floor();
-      return '${years} year${years == 1 ? '' : 's'}';
+      return '$years year${years == 1 ? '' : 's'}';
     }
   }
 
   /// Format date range
   static String formatDateRange(DateTime startDate, DateTime endDate) {
-    if (startDate.year == endDate.year && 
-        startDate.month == endDate.month && 
+    if (startDate.year == endDate.year &&
+        startDate.month == endDate.month &&
         startDate.day == endDate.day) {
       return formatDate(startDate);
-    } else if (startDate.year == endDate.year && 
-               startDate.month == endDate.month) {
+    } else if (startDate.year == endDate.year &&
+        startDate.month == endDate.month) {
       return '${startDate.day} - ${formatDate(endDate)}';
     } else if (startDate.year == endDate.year) {
       return '${DateFormat('dd MMM').format(startDate)} - ${formatDate(endDate)}';

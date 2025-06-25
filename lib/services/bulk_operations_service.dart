@@ -7,7 +7,6 @@ import '../services/file_download_service.dart';
 import '../services/share_service.dart';
 import '../services/download_notification_service.dart';
 import '../core/constants/app_colors.dart';
-import '../core/config/feature_flags.dart';
 import 'deletion_diagnostics_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/google_drive_service.dart';
@@ -128,9 +127,7 @@ class BulkOperationsService {
       }
 
       // Show final result via notification
-      if (bulkNotificationId != null &&
-          bulkNotificationId > 0 &&
-          bulkDocument != null) {
+      if (bulkNotificationId > 0) {
         if (failedDownloads == 0) {
           // All successful
           await notificationService.showDownloadCompleted(
@@ -168,91 +165,6 @@ class BulkOperationsService {
     }
   }
 
-  /// Enhanced diagnostic function to check bulk delete prerequisites and analyze file patterns
-  static Future<Map<String, dynamic>> _diagnoseBulkDeleteIssues({
-    required BuildContext context,
-    required List<DocumentModel> files,
-    required AuthProvider authProvider,
-    required DocumentProvider documentProvider,
-  }) async {
-    final diagnostics = <String, dynamic>{
-      'timestamp': DateTime.now().toIso8601String(),
-      'enhancedDiagnostics': true,
-    };
-
-    try {
-      // Check user authentication
-      final currentUser = authProvider.currentUser;
-      diagnostics['userAuthenticated'] = currentUser != null;
-      diagnostics['userId'] = currentUser?.id ?? 'null';
-
-      // Check admin permissions
-      final isAdmin = await authProvider.isCurrentUserAdmin;
-      diagnostics['isAdmin'] = isAdmin;
-
-      // Check feature flags
-      diagnostics['useCloudFunctionDelete'] =
-          FeatureFlags.useCloudFunctionDelete;
-      diagnostics['enforceAdminOnlyDeletion'] =
-          FeatureFlags.enforceAdminOnlyDeletion;
-      diagnostics['enableEnhancedDeleteErrorHandling'] =
-          FeatureFlags.enableEnhancedDeleteErrorHandling;
-
-      // Enhanced file analysis
-      diagnostics['fileCount'] = files.length;
-      diagnostics['fileIds'] = files.map((f) => f.id).take(5).toList();
-      diagnostics['fileNames'] = files.map((f) => f.fileName).take(5).toList();
-
-      // Analyze file types and potential issues
-      final fileTypeAnalysis = <String, dynamic>{};
-      final pathPatterns = <String, List<String>>{};
-      final potentialIssues = <String>[];
-
-      for (final file in files) {
-        // File type analysis
-        final fileType = _getFileTypeCategory(file.fileType);
-        fileTypeAnalysis[fileType] = (fileTypeAnalysis[fileType] ?? 0) + 1;
-
-        // Path pattern analysis
-        final pathPattern = _analyzePathPattern(file.filePath);
-        if (!pathPatterns.containsKey(pathPattern)) {
-          pathPatterns[pathPattern] = <String>[];
-        }
-        pathPatterns[pathPattern]!.add(file.fileName);
-
-        // Identify potential issues
-        if (file.filePath.isEmpty) {
-          potentialIssues.add('Empty file path: ${file.fileName}');
-        }
-        if (file.id.isEmpty) {
-          potentialIssues.add('Empty document ID: ${file.fileName}');
-        }
-        if (file.fileName.isEmpty) {
-          potentialIssues.add('Empty file name: ${file.id}');
-        }
-      }
-
-      diagnostics['fileTypeAnalysis'] = fileTypeAnalysis;
-      diagnostics['pathPatterns'] = pathPatterns;
-      diagnostics['potentialIssues'] = potentialIssues;
-      diagnostics['documentProviderAvailable'] = true;
-
-      // Log comprehensive diagnostics
-      debugPrint('🔍 ENHANCED BULK DELETE DIAGNOSTICS:');
-      debugPrint('   File Types: $fileTypeAnalysis');
-      debugPrint('   Path Patterns: ${pathPatterns.keys.toList()}');
-      debugPrint('   Potential Issues: ${potentialIssues.length}');
-      if (potentialIssues.isNotEmpty) {
-        debugPrint('   Issues: ${potentialIssues.take(3).join(', ')}');
-      }
-    } catch (e) {
-      diagnostics['diagnosticError'] = e.toString();
-      debugPrint('❌ Error during enhanced bulk delete diagnostics: $e');
-    }
-
-    return diagnostics;
-  }
-
   /// Analyze file type category for diagnostics
   static String _getFileTypeCategory(String fileType) {
     final lowerFileType = fileType.toLowerCase();
@@ -271,24 +183,6 @@ class BulkOperationsService {
       return 'Spreadsheet';
     }
     return 'Other';
-  }
-
-  /// Analyze file path pattern for diagnostics
-  static String _analyzePathPattern(String filePath) {
-    if (filePath.isEmpty) {
-      return 'empty';
-    }
-    final parts = filePath.split('/');
-    if (parts.length >= 3 && parts[1] == 'categories') {
-      return 'documents/categories/[category]/[file]';
-    }
-    if (parts.length == 2 && parts[0] == 'documents') {
-      return 'documents/[file]';
-    }
-    if (parts.length == 3 && parts[0] == 'documents') {
-      return 'documents/[user]/[file]';
-    }
-    return 'other: ${parts.take(2).join('/')}';
   }
 
   /// Analyze error patterns to provide better user feedback
@@ -410,10 +304,6 @@ class BulkOperationsService {
     if (!context.mounted) return;
 
     // Show confirmation dialog with risk assessment
-    final riskLevel = diagnostics['riskAssessment']['riskLevel'] as String;
-    final riskFactors =
-        diagnostics['riskAssessment']['riskFactors'] as List<String>;
-    final recommendations = diagnostics['recommendations'] as List<String>;
 
     final confirmed = await showDialog<bool>(
       context: context,

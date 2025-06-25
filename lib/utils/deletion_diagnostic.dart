@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import '../core/services/firebase_service.dart';
-import '../models/document_model.dart';
 
 /// Diagnostic tool for file deletion issues
 class DeletionDiagnostic {

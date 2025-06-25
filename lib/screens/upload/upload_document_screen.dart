@@ -2,11 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:file_selector/file_selector.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/upload_ui_constants.dart';
 
 import '../../providers/consolidated_upload_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../widgets/upload/duplicate_file_dialog.dart';
 
 import '../../models/upload_file_model.dart';
@@ -84,6 +86,9 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
 
       // Schedule delayed cleanup
       _scheduleDelayedQueueCleanup();
+
+      // Send upload notifications to users
+      _sendUploadNotifications(uploadProvider);
 
       debugPrint(
         '🔄 UI refreshed after upload completion ($currentCompletedCount files completed)',
@@ -674,5 +679,40 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
         ],
       ),
     );
+  }
+
+  /// Send upload notifications to users for completed files
+  void _sendUploadNotifications(ConsolidatedUploadProvider uploadProvider) {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      final notificationProvider = Provider.of<NotificationProvider>(
+        context,
+        listen: false,
+      );
+
+      // Get completed files that haven't been notified yet
+      final completedFiles = uploadProvider.uploadQueue
+          .where(
+            (file) =>
+                file.status == UploadStatus.completed &&
+                file.documentId != null,
+          )
+          .toList();
+
+      // Send notification for each completed file
+      for (final file in completedFiles) {
+        notificationProvider.sendFileUploadNotification(
+          userId: currentUser.uid,
+          fileName: file.fileName,
+          documentId: file.documentId!,
+        );
+
+        debugPrint('📱 Upload notification sent for file: ${file.fileName}');
+      }
+    } catch (e) {
+      debugPrint('❌ Error sending upload notifications: $e');
+    }
   }
 }

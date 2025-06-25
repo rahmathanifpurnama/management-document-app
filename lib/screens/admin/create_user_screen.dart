@@ -28,8 +28,6 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  String? _createdPassword; // Store the password for admin display
-  bool _userCreated = false; // Track if user was successfully created
 
   @override
   void dispose() {
@@ -434,11 +432,6 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       );
 
       if (success && mounted) {
-        setState(() {
-          _createdPassword = password;
-          _userCreated = true;
-        });
-
         // Show success dialog with password
         _showPasswordDialog(password);
       } else if (mounted) {

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../widgets/common/app_bottom_navigation.dart';
 import '../../models/user_model.dart';
 
@@ -58,6 +59,26 @@ class ProfileScreen extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 16),
+
+                  // Admin-only File Approval menu item with notification badge
+                  if (authProvider.isAdmin) ...[
+                    Consumer<NotificationProvider>(
+                      builder: (context, notificationProvider, child) {
+                        final pendingCount = notificationProvider.unreadCount;
+                        return _buildMenuItemWithBadge(
+                          context,
+                          icon: Icons.approval_outlined,
+                          title: 'File Approval',
+                          subtitle: pendingCount > 0
+                              ? '$pendingCount pending approvals'
+                              : 'No pending approvals',
+                          badgeCount: pendingCount,
+                          onTap: () => _navigateToFileApproval(context),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                  ],
 
                   _buildMenuItem(
                     context,
@@ -251,6 +272,118 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildMenuItemWithBadge(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required VoidCallback onTap,
+    int badgeCount = 0,
+    bool isDestructive = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.shadow,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Stack(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isDestructive
+                        ? Colors.red.withValues(alpha: 0.1)
+                        : AppColors.primary.withValues(alpha: 0.1),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: isDestructive ? Colors.red : AppColors.primary,
+                  ),
+                ),
+                if (badgeCount > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: AppColors.error,
+                        shape: BoxShape.circle,
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        badgeCount > 9 ? '9+' : badgeCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+
+            const SizedBox(width: 16),
+
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: isDestructive ? Colors.red : Colors.black87,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: badgeCount > 0
+                            ? AppColors.warning
+                            : Colors.grey[600],
+                        fontWeight: badgeCount > 0
+                            ? FontWeight.w500
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _navigateToPersonalInfo(BuildContext context) {
     Navigator.of(context).pushNamed(AppRoutes.personalInfo);
   }
@@ -261,6 +394,10 @@ class ProfileScreen extends StatelessWidget {
 
   void _navigateToSettings(BuildContext context) {
     Navigator.of(context).pushNamed(AppRoutes.settings);
+  }
+
+  void _navigateToFileApproval(BuildContext context) {
+    Navigator.of(context).pushNamed(AppRoutes.fileApproval);
   }
 
   void _showLogoutDialog(BuildContext context) {

@@ -47,6 +47,10 @@ class AppRoutes {
   static const String settings = '/settings';
   static const String syncManagement = '/sync-management';
 
+  // Approval Routes
+  static const String fileApproval = '/file-approval';
+  static const String notificationCenter = '/notification-center';
+
   // Error Routes
   static const String notFound = '/not-found';
   static const String unauthorized = '/unauthorized';

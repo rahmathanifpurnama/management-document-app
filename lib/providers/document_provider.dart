@@ -6,7 +6,6 @@ import 'dart:convert';
 import '../models/document_model.dart';
 import '../core/services/document_service.dart';
 import '../core/services/firebase_service.dart';
-import '../core/services/category_service.dart';
 // REMOVED: Sync services that created duplicate documents
 import '../services/file_category_management_service.dart';
 import '../services/cloud_functions_service.dart';
@@ -285,50 +284,6 @@ class DocumentProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('❌ Traditional loading failed: $e');
       // REMOVED: Cache fallback to prevent showing cached count
-    }
-  }
-
-  /// Firebase Storage fallback when Firestore is empty
-  Future<void> _loadFromFirebaseStorageFallback() async {
-    // Use circuit breaker to prevent repeated failures
-    final result = await CircuitBreaker.execute(
-      'storage_fallback_loading',
-      () async {
-        debugPrint('📁 Loading documents directly from Firebase Storage...');
-
-        // Use enhanced storage service to get all files
-        final storageDocuments = await _enhancedStorageService
-            .getAllStorageFilesUnlimited();
-
-        if (storageDocuments.isNotEmpty) {
-          debugPrint(
-            '✅ Firebase Storage fallback: Found ${storageDocuments.length} files',
-          );
-
-          // Clear existing documents and add storage documents
-          _documents.clear();
-          _categoryDocuments.clear();
-
-          // Process storage documents
-          for (final doc in storageDocuments) {
-            _addDocumentToLocal(doc);
-          }
-
-          _applyFiltersAndSort();
-          await _saveToStorage();
-
-          debugPrint('✅ Firebase Storage fallback completed successfully');
-          return true;
-        } else {
-          debugPrint('⚠️ Firebase Storage fallback: No files found');
-          return false;
-        }
-      },
-      operationName: 'Firebase Storage Fallback',
-    );
-
-    if (result == null) {
-      debugPrint('🚫 Firebase Storage fallback blocked by circuit breaker');
     }
   }
 
@@ -2313,34 +2268,6 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  // Ensure all existing categories from Firestore are initialized in local storage
-  Future<void> _ensureCategoriesInitialized() async {
-    try {
-      // Create CategoryService instance to get all categories
-      final categoryService = CategoryService();
-      final allCategories = await categoryService.getAllCategories();
-
-      bool hasChanges = false;
-      for (final category in allCategories) {
-        if (!_categoryDocuments.containsKey(category.id)) {
-          _categoryDocuments[category.id] = [];
-          debugPrint(
-            '✅ Auto-initialized category: ${category.name} (${category.id})',
-          );
-          hasChanges = true;
-        }
-      }
-
-      // No automatic uncategorized category - let users create categories as needed
-
-      if (hasChanges) {
-        await _saveToStorage();
-      }
-    } catch (e) {
-      debugPrint('⚠️ Failed to ensure categories initialized: $e');
-    }
-  }
-
   // Remove category and its documents
   void removeCategory(String categoryId) {
     _categoryDocuments.remove(categoryId);
@@ -3184,18 +3111,5 @@ class DocumentProvider extends ChangeNotifier {
       debugPrint('❌ Error loading persistent assignments: $e');
       _persistentTrackingLoaded = true; // Mark as loaded to prevent retry loops
     }
-  }
-
-  /// Clear persistent assignments (for cleanup or reset)
-  void _clearPersistentAssignments() {
-    _persistentAssignments.clear();
-    SharedPreferences.getInstance()
-        .then((prefs) {
-          prefs.remove('persistent_assignments');
-          debugPrint('🧹 Cleared all persistent assignments');
-        })
-        .catchError((e) {
-          debugPrint('❌ Failed to clear persistent assignments: $e');
-        });
   }
 }

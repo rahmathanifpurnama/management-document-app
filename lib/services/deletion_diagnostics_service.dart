@@ -35,17 +35,23 @@ class DeletionDiagnosticsService {
       diagnostics['pathAnalysis'] = pathAnalysis;
 
       // Risk assessment
-      final riskAssessment = _assessDeletionRisks(files, fileAnalysis, pathAnalysis);
+      final riskAssessment = _assessDeletionRisks(
+        files,
+        fileAnalysis,
+        pathAnalysis,
+      );
       diagnostics['riskAssessment'] = riskAssessment;
 
       // Recommendations
-      final recommendations = _generateRecommendations(riskAssessment, fileAnalysis);
+      final recommendations = _generateRecommendations(
+        riskAssessment,
+        fileAnalysis,
+      );
       diagnostics['recommendations'] = recommendations;
 
       if (FeatureFlags.enableDeleteOperationLogging) {
         _logDiagnostics(diagnostics);
       }
-
     } catch (e) {
       diagnostics['diagnosticError'] = e.toString();
       debugPrint('$_logPrefix Error during diagnostic analysis: $e');
@@ -55,7 +61,9 @@ class DeletionDiagnosticsService {
   }
 
   /// Analyze individual files for potential issues
-  static Future<Map<String, dynamic>> _analyzeFiles(List<DocumentModel> files) async {
+  static Future<Map<String, dynamic>> _analyzeFiles(
+    List<DocumentModel> files,
+  ) async {
     final analysis = <String, dynamic>{
       'fileTypes': <String, int>{},
       'pathPatterns': <String, int>{},
@@ -66,11 +74,13 @@ class DeletionDiagnosticsService {
     for (final file in files) {
       // File type analysis
       final fileType = _categorizeFileType(file.fileType);
-      analysis['fileTypes'][fileType] = (analysis['fileTypes'][fileType] ?? 0) + 1;
+      analysis['fileTypes'][fileType] =
+          (analysis['fileTypes'][fileType] ?? 0) + 1;
 
       // Path pattern analysis
       final pathPattern = _categorizePathPattern(file.filePath);
-      analysis['pathPatterns'][pathPattern] = (analysis['pathPatterns'][pathPattern] ?? 0) + 1;
+      analysis['pathPatterns'][pathPattern] =
+          (analysis['pathPatterns'][pathPattern] ?? 0) + 1;
 
       // Issue detection
       final issues = _detectFileIssues(file);
@@ -121,7 +131,9 @@ class DeletionDiagnosticsService {
       }
 
       // User-specific paths
-      if (parts.length >= 3 && parts[0] == 'documents' && parts[1] != 'categories') {
+      if (parts.length >= 3 &&
+          parts[0] == 'documents' &&
+          parts[1] != 'categories') {
         analysis['userSpecificPaths']++;
       }
 
@@ -153,22 +165,31 @@ class DeletionDiagnosticsService {
     if (emptyPaths > 0) {
       riskScore += emptyPaths * 2;
       risks['riskFactors'].add('$emptyPaths files with empty storage paths');
-      risks['mitigationSuggestions'].add('Verify file existence before deletion');
+      risks['mitigationSuggestions'].add(
+        'Verify file existence before deletion',
+      );
     }
 
     // Suspicious path patterns
-    final suspiciousPatterns = pathAnalysis['suspiciousPatterns'] as List<String>;
+    final suspiciousPatterns =
+        pathAnalysis['suspiciousPatterns'] as List<String>;
     if (suspiciousPatterns.isNotEmpty) {
       riskScore += suspiciousPatterns.length * 3;
-      risks['riskFactors'].add('${suspiciousPatterns.length} files with suspicious path patterns');
-      risks['mitigationSuggestions'].add('Review path patterns before deletion');
+      risks['riskFactors'].add(
+        '${suspiciousPatterns.length} files with suspicious path patterns',
+      );
+      risks['mitigationSuggestions'].add(
+        'Review path patterns before deletion',
+      );
     }
 
     // Large number of files
     if (files.length > 100) {
       riskScore += 2;
       risks['riskFactors'].add('Large batch deletion (${files.length} files)');
-      risks['mitigationSuggestions'].add('Consider processing in smaller batches');
+      risks['mitigationSuggestions'].add(
+        'Consider processing in smaller batches',
+      );
     }
 
     // PDF files (known issue)
@@ -176,7 +197,9 @@ class DeletionDiagnosticsService {
     final pdfCount = fileTypes['PDF'] ?? 0;
     if (pdfCount > 0) {
       riskScore += 1;
-      risks['riskFactors'].add('$pdfCount PDF files (known path resolution issues)');
+      risks['riskFactors'].add(
+        '$pdfCount PDF files (known path resolution issues)',
+      );
       risks['mitigationSuggestions'].add('Monitor PDF file deletions closely');
     }
 
@@ -215,7 +238,9 @@ class DeletionDiagnosticsService {
 
     final potentialIssues = fileAnalysis['potentialIssues'] as List<String>;
     if (potentialIssues.isNotEmpty) {
-      recommendations.add('Review and resolve ${potentialIssues.length} potential file issues');
+      recommendations.add(
+        'Review and resolve ${potentialIssues.length} potential file issues',
+      );
     }
 
     if (recommendations.isEmpty) {
@@ -229,9 +254,17 @@ class DeletionDiagnosticsService {
   static String _categorizeFileType(String fileType) {
     final lowerFileType = fileType.toLowerCase();
     if (lowerFileType.contains('pdf')) return 'PDF';
-    if (lowerFileType.contains('image') || lowerFileType.contains('jpg') || lowerFileType.contains('png')) return 'Image';
-    if (lowerFileType.contains('doc')) return 'Document';
-    if (lowerFileType.contains('excel') || lowerFileType.contains('sheet')) return 'Spreadsheet';
+    if (lowerFileType.contains('image') ||
+        lowerFileType.contains('jpg') ||
+        lowerFileType.contains('png')) {
+      return 'Image';
+    }
+    if (lowerFileType.contains('doc')) {
+      return 'Document';
+    }
+    if (lowerFileType.contains('excel') || lowerFileType.contains('sheet')) {
+      return 'Spreadsheet';
+    }
     return 'Other';
   }
 
@@ -269,7 +302,8 @@ class DeletionDiagnosticsService {
   static Map<String, bool> _getRelevantFeatureFlags() {
     return {
       'useCloudFunctionDelete': FeatureFlags.useCloudFunctionDelete,
-      'enableEnhancedDeleteErrorHandling': FeatureFlags.enableEnhancedDeleteErrorHandling,
+      'enableEnhancedDeleteErrorHandling':
+          FeatureFlags.enableEnhancedDeleteErrorHandling,
       'enableDeleteOperationLogging': FeatureFlags.enableDeleteOperationLogging,
       'enforceAdminOnlyDeletion': FeatureFlags.enforceAdminOnlyDeletion,
     };
@@ -283,10 +317,13 @@ class DeletionDiagnosticsService {
     debugPrint('   Operation: ${diagnostics['operationType']}');
     debugPrint('   Files: ${diagnostics['fileCount']}');
     debugPrint('   Risk Level: ${diagnostics['riskAssessment']['riskLevel']}');
-    
-    final fileTypes = diagnostics['fileAnalysis']['fileTypes'] as Map<String, int>;
+
+    final fileTypes =
+        diagnostics['fileAnalysis']['fileTypes'] as Map<String, int>;
     if (fileTypes.isNotEmpty) {
-      debugPrint('   File Types: ${fileTypes.entries.map((e) => '${e.key}:${e.value}').join(', ')}');
+      debugPrint(
+        '   File Types: ${fileTypes.entries.map((e) => '${e.key}:${e.value}').join(', ')}',
+      );
     }
 
     final recommendations = diagnostics['recommendations'] as List<String>;
@@ -310,7 +347,9 @@ class DeletionDiagnosticsService {
       'totalFiles': totalFiles,
       'successfulDeletions': successfulDeletions,
       'failedDeletions': failedDeletions,
-      'successRate': totalFiles > 0 ? (successfulDeletions / totalFiles * 100).toStringAsFixed(1) : '0.0',
+      'successRate': totalFiles > 0
+          ? (successfulDeletions / totalFiles * 100).toStringAsFixed(1)
+          : '0.0',
     };
 
     if (errorDetails.isNotEmpty) {
@@ -331,13 +370,17 @@ class DeletionDiagnosticsService {
 
       // Identify primary issues
       if (errorPatterns.isNotEmpty) {
-        final primaryError = errorPatterns.entries.reduce((a, b) => a.value > b.value ? a : b);
+        final primaryError = errorPatterns.entries.reduce(
+          (a, b) => a.value > b.value ? a : b,
+        );
         analysis['primaryErrorType'] = primaryError.key;
         analysis['primaryErrorCount'] = primaryError.value;
       }
 
       if (fileTypeErrors.isNotEmpty) {
-        final mostAffectedType = fileTypeErrors.entries.reduce((a, b) => a.value > b.value ? a : b);
+        final mostAffectedType = fileTypeErrors.entries.reduce(
+          (a, b) => a.value > b.value ? a : b,
+        );
         analysis['mostAffectedFileType'] = mostAffectedType.key;
         analysis['mostAffectedCount'] = mostAffectedType.value;
       }
@@ -345,12 +388,18 @@ class DeletionDiagnosticsService {
 
     if (FeatureFlags.enableDeleteOperationLogging) {
       debugPrint('$_logPrefix Deletion Results Analysis:');
-      debugPrint('   Success Rate: ${analysis['successRate']}% (${successfulDeletions}/${totalFiles})');
+      debugPrint(
+        '   Success Rate: ${analysis['successRate']}% ($successfulDeletions/$totalFiles)',
+      );
       if (analysis.containsKey('primaryErrorType')) {
-        debugPrint('   Primary Error: ${analysis['primaryErrorType']} (${analysis['primaryErrorCount']} occurrences)');
+        debugPrint(
+          '   Primary Error: ${analysis['primaryErrorType']} (${analysis['primaryErrorCount']} occurrences)',
+        );
       }
       if (analysis.containsKey('mostAffectedFileType')) {
-        debugPrint('   Most Affected Type: ${analysis['mostAffectedFileType']} (${analysis['mostAffectedCount']} failures)');
+        debugPrint(
+          '   Most Affected Type: ${analysis['mostAffectedFileType']} (${analysis['mostAffectedCount']} failures)',
+        );
       }
     }
 
