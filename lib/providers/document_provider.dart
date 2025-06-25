@@ -2868,6 +2868,47 @@ class DocumentProvider extends ChangeNotifier {
   // REMOVED: _loadFromStorage method to prevent cache loading
   // This ensures statistics show 0 until Firebase Storage loads
 
+  // USER STRATEGY: Get Firestore documents that user has access to
+  Future<List<DocumentModel>> _getUserAccessibleFirestoreDocuments(
+    List<DocumentModel> storageDocuments,
+  ) async {
+    final accessibleDocuments = <DocumentModel>[];
+
+    try {
+      // For user accounts, we need to check each document individually
+      // since they can't do unlimited queries
+      for (final storageDoc in storageDocuments) {
+        try {
+          // Try to get the document from Firestore by ID if it exists
+          if (storageDoc.id.isNotEmpty) {
+            final docSnapshot = await _firebaseService.documentsCollection
+                .doc(storageDoc.id)
+                .get();
+
+            if (docSnapshot.exists) {
+              final firestoreDoc = DocumentModel.fromFirestore(docSnapshot);
+              accessibleDocuments.add(firestoreDoc);
+              debugPrint(
+                '✅ User access: ${firestoreDoc.fileName} (${firestoreDoc.category})',
+              );
+            }
+          }
+        } catch (e) {
+          // If individual document access fails, skip it
+          debugPrint('⚠️ User access denied for: ${storageDoc.fileName}');
+        }
+      }
+
+      debugPrint(
+        '👤 User strategy completed: ${accessibleDocuments.length} accessible documents',
+      );
+      return accessibleDocuments;
+    } catch (e) {
+      debugPrint('❌ User strategy failed: $e');
+      return [];
+    }
+  }
+
   // DEFINITIVE FIX: Merge Firebase Storage data with Firestore category metadata
   Future<List<DocumentModel>> _mergeStorageWithFirestoreCategories(
     List<DocumentModel> storageDocuments,
@@ -2876,9 +2917,39 @@ class DocumentProvider extends ChangeNotifier {
       debugPrint('🔗 DEFINITIVE FIX: Starting Storage-Firestore merge...');
       debugPrint('   Storage documents: ${storageDocuments.length}');
 
-      // Get all Firestore documents to extract category information
-      final firestoreDocuments = await _documentService.getAllDocuments();
-      debugPrint('   Firestore documents: ${firestoreDocuments.length}');
+      // Check if current user is admin to determine merge strategy
+      final isAdmin = await _enhancedAuthService.isCurrentUserAdmin;
+      debugPrint('   User type: ${isAdmin ? "Admin" : "User"}');
+
+      List<DocumentModel> firestoreDocuments = [];
+
+      if (isAdmin) {
+        // ADMIN STRATEGY: Get all documents (unlimited access)
+        debugPrint('🔓 Admin strategy: Getting all Firestore documents...');
+        try {
+          firestoreDocuments = await _documentService.getAllDocuments();
+          debugPrint(
+            '   Admin Firestore documents: ${firestoreDocuments.length}',
+          );
+        } catch (e) {
+          debugPrint('⚠️ Admin getAllDocuments failed: $e');
+          // Fallback to enhanced service for admin
+          final enhancedService = EnhancedDocumentService.instance;
+          firestoreDocuments = await enhancedService.getAllDocumentsUnlimited();
+          debugPrint(
+            '   Admin enhanced documents: ${firestoreDocuments.length}',
+          );
+        }
+      } else {
+        // USER STRATEGY: Get documents individually by checking each storage document
+        debugPrint('👤 User strategy: Individual document lookup...');
+        firestoreDocuments = await _getUserAccessibleFirestoreDocuments(
+          storageDocuments,
+        );
+        debugPrint(
+          '   User accessible documents: ${firestoreDocuments.length}',
+        );
+      }
 
       // Create a map of file path/name to category for quick lookup
       final Map<String, String> pathToCategoryMap = {};
