@@ -495,7 +495,9 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         if (documents.isEmpty &&
             !documentProvider.isLoading &&
             _hasDataCheckCompleted) {
-          return _buildEmptyState();
+          return _buildFilterAwareEmptyState(
+            documentProvider.allDocuments.isNotEmpty,
+          );
         }
 
         // Return the actual files list
@@ -931,17 +933,47 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     });
   }
 
-  /// Build empty state with animation
-  Widget _buildEmptyState() {
+  /// Build filter-aware empty state with animation
+  Widget _buildFilterAwareEmptyState(bool hasFilesInStorage) {
     final emptyStateManager = EmptyStorageStateManager.instance;
     final isEmptyStateConfirmed = emptyStateManager.shouldShowEmptyUI();
 
-    final emptyMessage = isEmptyStateConfirmed
-        ? 'No files in storage'
-        : 'No files found';
-    final emptySubMessage = isEmptyStateConfirmed
-        ? 'Upload files to see them here'
-        : 'Files will appear here once uploaded';
+    // Get current filter state to determine appropriate message
+    final homeFilterState = FilterStateManager.getState(
+      FilterContext.homeScreen,
+    );
+    final hasActiveFilters =
+        homeFilterState.selectedFileType != 'all' ||
+        homeFilterState.searchQuery.isNotEmpty;
+
+    String emptyMessage;
+    String emptySubMessage;
+    IconData emptyIcon;
+
+    if (!hasFilesInStorage && isEmptyStateConfirmed) {
+      // No files in storage at all
+      emptyMessage = 'No files in storage';
+      emptySubMessage = 'Upload files to see them here';
+      emptyIcon = Icons.cloud_off;
+    } else if (hasActiveFilters) {
+      // Files exist but none match current filter
+      if (homeFilterState.searchQuery.isNotEmpty) {
+        emptyMessage = 'No results found';
+        emptySubMessage =
+            'No files match "${homeFilterState.searchQuery}". Try different keywords';
+      } else {
+        final filterType = homeFilterState.selectedFileType;
+        emptyMessage = 'No $filterType files found';
+        emptySubMessage =
+            'Try selecting a different file type or clear filters';
+      }
+      emptyIcon = Icons.search_off;
+    } else {
+      // Default empty state
+      emptyMessage = 'No files found';
+      emptySubMessage = 'Files will appear here once uploaded';
+      emptyIcon = Icons.folder_open;
+    }
 
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 600),
@@ -964,13 +996,13 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
               child: Column(
                 children: [
                   Icon(
-                    Icons.folder_open,
+                    emptyIcon,
                     size: 48,
                     color: AppColors.textSecondary.withValues(alpha: 0.5),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'No files found',
+                    emptyMessage,
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -1005,9 +1037,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                 child: Column(
                   children: [
                     Icon(
-                      isEmptyStateConfirmed
-                          ? Icons.cloud_off
-                          : Icons.folder_open,
+                      emptyIcon,
                       size: 48,
                       color: AppColors.textSecondary.withValues(alpha: 0.5),
                     ),

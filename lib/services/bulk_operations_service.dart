@@ -179,7 +179,10 @@ class BulkOperationsService {
     if (lowerFileType.contains('doc')) {
       return 'Document';
     }
-    if (lowerFileType.contains('excel') || lowerFileType.contains('sheet')) {
+    if (lowerFileType.contains('excel') ||
+        lowerFileType.contains('sheet') ||
+        lowerFileType.contains('csv')) {
+      // FIX: Include CSV detection
       return 'Spreadsheet';
     }
     return 'Other';

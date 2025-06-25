@@ -8,6 +8,7 @@ import '../../models/document_model.dart';
 import '../../providers/file_selection_provider.dart';
 import '../../providers/document_provider.dart';
 import '../../services/bulk_operations_service.dart';
+import 'smart_filename_display_widget.dart';
 
 /// Reusable file list widget that can be used across different screens
 class ReusableFileListWidget extends StatefulWidget {
@@ -405,15 +406,9 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        document.displayFileName, // Use clean display name
-                        style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      ResponsiveFilenameDisplay(
+                        document: document,
+                        mode: FilenameDisplayMode.list,
                       ),
                       const SizedBox(height: 4),
                       Row(
