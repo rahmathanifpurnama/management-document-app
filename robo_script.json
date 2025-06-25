@@ -1,0 +1,39 @@
+{
+  "startingActivity": ".MainActivity",
+  "appPackage": "io.document.managementdoc",
+  "loginInfo": {
+    "username": {
+      "resourceId": "io.document.managementdoc:id/email_field",
+      "value": "admin@simdoc.com"
+    },
+    "password": {
+      "resourceId": "io.document.managementdoc:id/password_field",
+      "value": "password123"
+    },
+    "loginButton": {
+      "resourceId": "io.document.managementdoc:id/login_button"
+    }
+  },
+  "crawlRules": [
+    {
+      "action": "CLICK",
+      "resourceId": "io.document.managementdoc:id/dashboard_button"
+    },
+    {
+      "action": "CLICK",
+      "resourceId": "io.document.managementdoc:id/document_list_button"
+    },
+    {
+      "action": "CLICK",
+      "resourceId": "io.document.managementdoc:id/category_button"
+    },
+    {
+      "action": "CLICK",
+      "resourceId": "io.document.managementdoc:id/profile_button"
+    },
+    {
+      "action": "IGNORE",
+      "resourceId": "io.document.managementdoc:id/logout_button"
+    }
+  ]
+}
