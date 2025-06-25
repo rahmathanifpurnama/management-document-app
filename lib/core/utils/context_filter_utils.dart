@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../../models/document_model.dart';
 import '../../widgets/common/file_filter_widget.dart';
 
@@ -26,9 +27,20 @@ class ContextFilterUtils {
 
     // Apply file type filter
     if (filterState.selectedFileType != 'all') {
+      final beforeCount = filteredDocuments.length;
       filteredDocuments = filteredDocuments.where((document) {
-        return _getFileTypeCategory(document.fileType) == filterState.selectedFileType;
+        final documentFileType = _getFileTypeCategory(document.fileType);
+        final matches = documentFileType == filterState.selectedFileType;
+        if (!matches) {
+          debugPrint(
+            '🔍 File type filter: ${document.fileName} (${document.fileType} -> $documentFileType) does not match ${filterState.selectedFileType}',
+          );
+        }
+        return matches;
       }).toList();
+      debugPrint(
+        '🔍 File type filter: ${filterState.selectedFileType} reduced documents from $beforeCount to ${filteredDocuments.length}',
+      );
     }
 
     // Apply context-specific filters
@@ -37,13 +49,8 @@ class ContextFilterUtils {
         // Home screen shows all documents (no additional filtering)
         break;
       case FilterContext.categoryFiles:
-        // Category files screen shows only documents in specific category
-        if (categoryId != null) {
-          filteredDocuments = filteredDocuments.where((document) {
-            return document.category == categoryId ||
-                document.category.toLowerCase() == categoryId.toLowerCase();
-          }).toList();
-        }
+        // Category files screen: documents are already pre-filtered by category
+        // No additional category filtering needed
         break;
       case FilterContext.addFiles:
         // Add files screen excludes documents already in target category
@@ -86,25 +93,34 @@ class ContextFilterUtils {
   /// Get file type category for filtering (matches DocumentProvider logic)
   static String _getFileTypeCategory(String fileType) {
     final lowerFileType = fileType.toLowerCase();
-    
+
     if (lowerFileType.contains('pdf')) {
       return 'PDF';
-    } else if (lowerFileType.contains('doc') || lowerFileType.contains('docx')) {
+    } else if (lowerFileType.contains('doc') ||
+        lowerFileType.contains('docx') ||
+        lowerFileType.contains('word')) {
       return 'DOC';
-    } else if (lowerFileType.contains('xls') || lowerFileType.contains('xlsx')) {
+    } else if (lowerFileType.contains('excel') ||
+        lowerFileType.contains('sheet') ||
+        lowerFileType.contains('xls') ||
+        lowerFileType.contains('xlsx') ||
+        lowerFileType.contains('csv')) {
       return 'Excel';
-    } else if (lowerFileType.contains('csv')) {
-      return 'CSV';
-    } else if (lowerFileType.contains('ppt') || lowerFileType.contains('pptx')) {
+    } else if (lowerFileType.contains('powerpoint') ||
+        lowerFileType.contains('presentation') ||
+        lowerFileType.contains('ppt') ||
+        lowerFileType.contains('pptx')) {
       return 'PPT';
-    } else if (lowerFileType.contains('txt')) {
+    } else if (lowerFileType.contains('text') ||
+        lowerFileType.contains('txt')) {
       return 'TXT';
-    } else if (lowerFileType.contains('jpg') || 
-               lowerFileType.contains('jpeg') || 
-               lowerFileType.contains('png') || 
-               lowerFileType.contains('gif') || 
-               lowerFileType.contains('bmp') || 
-               lowerFileType.contains('webp')) {
+    } else if (lowerFileType.contains('image') ||
+        lowerFileType.contains('jpg') ||
+        lowerFileType.contains('jpeg') ||
+        lowerFileType.contains('png') ||
+        lowerFileType.contains('gif') ||
+        lowerFileType.contains('bmp') ||
+        lowerFileType.contains('webp')) {
       return 'Image';
     } else {
       return 'Other';
@@ -114,7 +130,7 @@ class ContextFilterUtils {
   /// Check if documents match search query (for real-time search)
   static bool matchesSearchQuery(DocumentModel document, String query) {
     if (query.isEmpty) return true;
-    
+
     final lowerQuery = query.toLowerCase();
     return document.fileName.toLowerCase().contains(lowerQuery) ||
         document.metadata.description.toLowerCase().contains(lowerQuery) ||

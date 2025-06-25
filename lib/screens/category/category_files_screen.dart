@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import 'dart:async';
+import '../../utils/date_formatter.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 import '../../providers/document_provider.dart';
@@ -185,18 +185,32 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                   categoryFilterState.searchQuery = _searchQuery;
                 }
 
-                // Apply context-aware filtering to all documents
+                // Get all category documents first
+                final allCategoryDocuments = documentProvider
+                    .getDocumentsByCategory(widget.category.id);
+
+                // Apply context-aware filtering to category documents only
                 final filteredDocuments =
                     ContextFilterUtils.applyContextFilters(
-                      documents: documentProvider.allDocuments,
+                      documents: allCategoryDocuments,
                       context: FilterContext.categoryFiles,
                       filterState: categoryFilterState,
                       categoryId: widget.category.id,
                     );
 
-                // Get all category documents for loading state logic
-                final allCategoryDocuments = documentProvider
-                    .getDocumentsByCategory(widget.category.id);
+                debugPrint('🔍 CategoryFilesScreen Filtering Debug:');
+                debugPrint(
+                  '   Category documents: ${allCategoryDocuments.length}',
+                );
+                debugPrint(
+                  '   Filtered documents: ${filteredDocuments.length}',
+                );
+                debugPrint(
+                  '   Search query: "${categoryFilterState.searchQuery}"',
+                );
+                debugPrint(
+                  '   Selected file type: "${categoryFilterState.selectedFileType}"',
+                );
 
                 // IMPROVED: Better loading and empty state logic
                 final isInitialLoading =
@@ -586,20 +600,9 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
     ).pushNamed(AppRoutes.uploadDocument, arguments: widget.category.id);
   }
 
-  // Helper method for date formatting
+  // Helper method for date formatting in detail dialogs
   String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      return 'Today';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} days ago';
-    } else {
-      return DateFormat('dd/MM/yyyy').format(date);
-    }
+    return DateFormatter.formatAbsoluteForDetails(date);
   }
 
   // Helper method for file size formatting

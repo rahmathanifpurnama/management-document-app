@@ -95,6 +95,39 @@ class DateFormatter {
     }
   }
 
+  /// Format relative time for file lists (e.g., "2 hours ago", "3 days ago")
+  /// Transitions to absolute date for older files (30+ days)
+  static String formatRelativeForFileList(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inSeconds < 60) {
+      return 'Just now';
+    } else if (difference.inMinutes < 60) {
+      final minutes = difference.inMinutes;
+      return '$minutes minute${minutes == 1 ? '' : 's'} ago';
+    } else if (difference.inHours < 24) {
+      final hours = difference.inHours;
+      return '$hours hour${hours == 1 ? '' : 's'} ago';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else if (difference.inDays < 30) {
+      final weeks = (difference.inDays / 7).floor();
+      return '$weeks week${weeks == 1 ? '' : 's'} ago';
+    } else {
+      // For files older than 30 days, show absolute date with time
+      return formatDateTime(date);
+    }
+  }
+
+  /// Format absolute date and time for detail screens
+  /// Always shows full date and time, no relative formatting
+  static String formatAbsoluteForDetails(DateTime date) {
+    return formatFullDateTime(date);
+  }
+
   /// Check if date is today
   static bool isToday(DateTime date) {
     final now = DateTime.now();

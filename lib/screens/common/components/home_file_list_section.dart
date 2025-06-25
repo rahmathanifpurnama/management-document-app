@@ -1218,20 +1218,9 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
-  /// Format date
+  /// Format date for file list display
   String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays == 0) {
-      return 'Today';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} days ago';
-    } else {
-      return DateFormat('MMM dd, yyyy').format(date);
-    }
+    return DateFormatter.formatRelativeForFileList(date);
   }
 
   /// Handle tap on file item

@@ -357,7 +357,7 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
                     const SizedBox(height: 4),
                     // File size and date
                     Text(
-                      '${FileSizeFormatter.formatBytes(document.fileSize)} • ${DateFormatter.formatRelative(document.uploadedAt)}',
+                      '${FileSizeFormatter.formatBytes(document.fileSize)} • ${DateFormatter.formatRelativeForFileList(document.uploadedAt)}',
                       style: GoogleFonts.poppins(
                         fontSize: ResponsiveHelper.getResponsiveFontSize(
                           context,

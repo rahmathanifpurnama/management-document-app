@@ -1958,7 +1958,8 @@ class DocumentProvider extends ChangeNotifier {
     } else if (lowerFileType.contains('excel') ||
         lowerFileType.contains('sheet') ||
         lowerFileType.contains('xlsx') ||
-        lowerFileType.contains('xls')) {
+        lowerFileType.contains('xls') ||
+        lowerFileType.contains('csv')) {
       return 'Excel';
     } else if (lowerFileType.contains('image') ||
         lowerFileType.contains('jpg') ||
