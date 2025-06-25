@@ -113,6 +113,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
+  # Integration Testing
+  integration_test:
+    sdk: flutter
+
   # Firebase Testing Mocks
   fake_cloud_firestore: ^3.0.3
   firebase_storage_mocks: ^0.7.0

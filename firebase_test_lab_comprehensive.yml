@@ -1,0 +1,336 @@
+name: Comprehensive Firebase Test Lab CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run comprehensive tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: 'Test suite to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - smoke
+        - comprehensive
+        - performance
+        - compatibility
+        - device_matrix
+
+env:
+  FLUTTER_VERSION: '3.24.0'
+  JAVA_VERSION: '17'
+  FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+
+jobs:
+  # Quick smoke tests for PRs
+  smoke-tests:
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.event.inputs.test_suite == 'smoke')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: ${{ env.JAVA_VERSION }}
+        
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        
+    - name: Get dependencies
+      run: flutter pub get
+      
+    - name: Run unit tests
+      run: flutter test test/services/unit_tests_only.dart
+      
+    - name: Run widget tests
+      run: flutter test test/widgets/
+      
+    - name: Build APK for testing
+      run: |
+        flutter build apk --debug
+        flutter build apk --debug integration_test/test_flows/auth_flow_test.dart
+        
+    - name: Setup Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        service_account_key: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+        project_id: ${{ env.FIREBASE_PROJECT_ID }}
+        
+    - name: Run smoke tests on Firebase Test Lab
+      run: |
+        gcloud firebase test android run \
+          --type instrumentation \
+          --app build/app/outputs/flutter-apk/app-debug.apk \
+          --test build/app/outputs/flutter-apk/app-debug-androidTest.apk \
+          --device model=Pixel2,version=28,locale=en,orientation=portrait \
+          --timeout 10m \
+          --results-bucket=gs://${{ env.FIREBASE_PROJECT_ID }}-test-results \
+          --results-dir=smoke-tests-$(date +%Y%m%d-%H%M%S)
+
+  # Comprehensive device matrix testing
+  device-matrix-tests:
+    if: github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'device_matrix'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        test-suite:
+          - name: "auth-flow-android"
+            file: "integration_test/test_flows/auth_flow_test.dart"
+            devices: "model=Pixel2,version=28,locale=en,orientation=portrait"
+          - name: "auth-flow-samsung"
+            file: "integration_test/test_flows/auth_flow_test.dart"
+            devices: "model=j7xelte,version=23,locale=en,orientation=portrait"
+          - name: "document-flow-pixel"
+            file: "integration_test/test_flows/document_flow_test.dart"
+            devices: "model=Pixel3,version=30,locale=en,orientation=portrait"
+          - name: "document-flow-tablet"
+            file: "integration_test/test_flows/document_flow_test.dart"
+            devices: "model=Nexus9,version=25,locale=en,orientation=landscape"
+          - name: "navigation-flow-modern"
+            file: "integration_test/test_flows/navigation_flow_test.dart"
+            devices: "model=Pixel4,version=31,locale=en,orientation=portrait"
+          - name: "navigation-flow-legacy"
+            file: "integration_test/test_flows/navigation_flow_test.dart"
+            devices: "model=NexusLowRes,version=25,locale=en,orientation=portrait"
+          - name: "performance-test-flagship"
+            file: "integration_test/test_flows/performance_test.dart"
+            devices: "model=Pixel6,version=33,locale=en,orientation=portrait"
+          - name: "performance-test-midrange"
+            file: "integration_test/test_flows/performance_test.dart"
+            devices: "model=MediumPhone.arm,version=30,locale=en,orientation=portrait"
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: ${{ env.JAVA_VERSION }}
+        
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        
+    - name: Get dependencies
+      run: flutter pub get
+      
+    - name: Run unit tests
+      run: flutter test
+      
+    - name: Build APK for testing
+      run: |
+        flutter build apk --debug
+        flutter build apk --debug ${{ matrix.test-suite.file }}
+        
+    - name: Setup Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        service_account_key: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+        project_id: ${{ env.FIREBASE_PROJECT_ID }}
+        
+    - name: Run ${{ matrix.test-suite.name }} on Firebase Test Lab
+      run: |
+        gcloud firebase test android run \
+          --type instrumentation \
+          --app build/app/outputs/flutter-apk/app-debug.apk \
+          --test build/app/outputs/flutter-apk/app-debug-androidTest.apk \
+          --device ${{ matrix.test-suite.devices }} \
+          --timeout 20m \
+          --results-bucket=gs://${{ env.FIREBASE_PROJECT_ID }}-test-results \
+          --results-dir=${{ matrix.test-suite.name }}-$(date +%Y%m%d-%H%M%S) \
+          --environment-variables coverage=true,coverageFile=/sdcard/coverage.info
+
+  # Performance testing on various devices
+  performance-tests:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'performance'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    
+    strategy:
+      matrix:
+        device-config:
+          - name: "low-end-device"
+            device: "model=NexusLowRes,version=25,locale=en,orientation=portrait"
+            description: "Low-end device performance"
+          - name: "mid-range-device"
+            device: "model=MediumPhone.arm,version=30,locale=en,orientation=portrait"
+            description: "Mid-range device performance"
+          - name: "high-end-device"
+            device: "model=Pixel6,version=33,locale=en,orientation=portrait"
+            description: "High-end device performance"
+          - name: "tablet-device"
+            device: "model=Nexus9,version=25,locale=en,orientation=landscape"
+            description: "Tablet performance"
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: ${{ env.JAVA_VERSION }}
+        
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        
+    - name: Get dependencies
+      run: flutter pub get
+      
+    - name: Build performance test APK
+      run: |
+        flutter build apk --debug --dart-define=PERFORMANCE_TEST=true
+        flutter build apk --debug integration_test/test_flows/performance_test.dart
+        
+    - name: Setup Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        service_account_key: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+        project_id: ${{ env.FIREBASE_PROJECT_ID }}
+        
+    - name: Run performance tests - ${{ matrix.device-config.description }}
+      run: |
+        gcloud firebase test android run \
+          --type instrumentation \
+          --app build/app/outputs/flutter-apk/app-debug.apk \
+          --test build/app/outputs/flutter-apk/app-debug-androidTest.apk \
+          --device ${{ matrix.device-config.device }} \
+          --timeout 30m \
+          --results-bucket=gs://${{ env.FIREBASE_PROJECT_ID }}-test-results \
+          --results-dir=performance-${{ matrix.device-config.name }}-$(date +%Y%m%d-%H%M%S) \
+          --environment-variables performance_test=true
+
+  # Compatibility testing across different Android versions
+  compatibility-tests:
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (github.event.inputs.test_suite == 'all' || github.event.inputs.test_suite == 'compatibility'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    
+    strategy:
+      matrix:
+        android-config:
+          - version: "23"
+            model: "Nexus6"
+            description: "Android 6.0 (API 23)"
+          - version: "25"
+            model: "NexusLowRes"
+            description: "Android 7.1 (API 25)"
+          - version: "28"
+            model: "Pixel2"
+            description: "Android 9.0 (API 28)"
+          - version: "30"
+            model: "Pixel3"
+            description: "Android 11.0 (API 30)"
+          - version: "31"
+            model: "Pixel4"
+            description: "Android 12.0 (API 31)"
+          - version: "33"
+            model: "Pixel6"
+            description: "Android 13.0 (API 33)"
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: ${{ env.JAVA_VERSION }}
+        
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: ${{ env.FLUTTER_VERSION }}
+        channel: 'stable'
+        
+    - name: Get dependencies
+      run: flutter pub get
+      
+    - name: Build compatibility test APK
+      run: |
+        flutter build apk --debug
+        flutter build apk --debug integration_test/test_flows/auth_flow_test.dart
+        flutter build apk --debug integration_test/test_flows/document_flow_test.dart
+        
+    - name: Setup Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        service_account_key: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+        project_id: ${{ env.FIREBASE_PROJECT_ID }}
+        
+    - name: Run compatibility tests - ${{ matrix.android-config.description }}
+      run: |
+        gcloud firebase test android run \
+          --type instrumentation \
+          --app build/app/outputs/flutter-apk/app-debug.apk \
+          --test build/app/outputs/flutter-apk/app-debug-androidTest.apk \
+          --device model=${{ matrix.android-config.model }},version=${{ matrix.android-config.version }},locale=en,orientation=portrait \
+          --timeout 25m \
+          --results-bucket=gs://${{ env.FIREBASE_PROJECT_ID }}-test-results \
+          --results-dir=compatibility-api${{ matrix.android-config.version }}-$(date +%Y%m%d-%H%M%S)
+
+  # Test results aggregation and reporting
+  test-results:
+    if: always()
+    needs: [smoke-tests, device-matrix-tests, performance-tests, compatibility-tests]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        service_account_key: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+        project_id: ${{ env.FIREBASE_PROJECT_ID }}
+        
+    - name: Download test results
+      run: |
+        mkdir -p test-results
+        gsutil -m cp -r gs://${{ env.FIREBASE_PROJECT_ID }}-test-results/* test-results/ || true
+        
+    - name: Generate test report
+      run: |
+        echo "# Firebase Test Lab Results" > test-report.md
+        echo "## Test Summary" >> test-report.md
+        echo "- Smoke Tests: ${{ needs.smoke-tests.result }}" >> test-report.md
+        echo "- Device Matrix Tests: ${{ needs.device-matrix-tests.result }}" >> test-report.md
+        echo "- Performance Tests: ${{ needs.performance-tests.result }}" >> test-report.md
+        echo "- Compatibility Tests: ${{ needs.compatibility-tests.result }}" >> test-report.md
+        
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: firebase-test-lab-results
+        path: |
+          test-results/
+          test-report.md
+        retention-days: 30
