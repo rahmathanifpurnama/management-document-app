@@ -518,7 +518,7 @@ class DocumentProvider extends ChangeNotifier {
       // CRITICAL FIX: Only start listener if not already active
       if (_documentsSubscription != null) {
         debugPrint(
-          '⚠️ Firebase listener already active, skipping duplicate listener',
+          '! Firebase listener already active, skipping duplicate listener',
         );
         return;
       }
@@ -553,6 +553,15 @@ class DocumentProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Failed to start Firebase listener: $e');
       // Continue with local data if Firebase setup fails
+    }
+  }
+
+  // Stop Firebase listener to prevent duplicates
+  void _stopFirebaseListener() {
+    if (_documentsSubscription != null) {
+      _documentsSubscription!.cancel();
+      _documentsSubscription = null;
+      debugPrint('🛑 Firebase listener stopped');
     }
   }
 
@@ -2468,8 +2477,18 @@ class DocumentProvider extends ChangeNotifier {
       return;
     }
 
+    // Prevent concurrent unlimited loading operations
+    if (_isLoadingDocuments) {
+      debugPrint(
+        '⚠️ Unlimited document loading already in progress, skipping...',
+      );
+      return;
+    }
+
     _setLoading(true);
     _clearError();
+
+    _isLoadingDocuments = true;
 
     try {
       debugPrint('🔓 Loading all documents with unlimited query...');
@@ -2482,11 +2501,17 @@ class DocumentProvider extends ChangeNotifier {
       _documents = documents;
       _applyFiltersAndSort();
 
+      // Start Firebase listener only if not already active and we have documents
+      if (_useFirebaseSync && documents.isNotEmpty) {
+        _startFirebaseListener();
+      }
+
       debugPrint('✅ Loaded ${documents.length} documents with unlimited query');
     } catch (e) {
       _setError('Failed to load documents: ${e.toString()}');
       debugPrint('❌ Unlimited query failed: $e');
     } finally {
+      _isLoadingDocuments = false;
       _setLoading(false);
     }
   }

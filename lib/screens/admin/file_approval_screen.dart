@@ -9,7 +9,6 @@ import '../../providers/notification_provider.dart';
 import '../../providers/file_selection_provider.dart';
 import '../../models/document_model.dart';
 import '../../core/services/approval_service.dart';
-
 import '../../widgets/common/app_bottom_navigation.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/reusable_file_list_widget.dart';
@@ -334,29 +333,36 @@ class _FileApprovalScreenState extends State<FileApprovalScreen> {
                     children: [
                       RefreshIndicator(
                         onRefresh: _handleRefresh,
-                        child: Column(
-                          children: [
+                        child: CustomScrollView(
+                          slivers: [
                             // Statistics Card
                             if (_approvalStats.isNotEmpty)
-                              _buildStatisticsCard(),
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: _buildStatisticsCard(),
+                                ),
+                              ),
 
                             // Search and Filter
-                            _buildSearchAndFilter(),
+                            SliverToBoxAdapter(child: _buildSearchAndFilter()),
 
                             // Enhanced Bulk Operations
-                            EnhancedBulkOperations(
-                              onApprove: (documents, reason) =>
-                                  _handleBulkApproval(documents),
-                              onReject: (documents, reason) =>
-                                  _handleBulkRejection(documents, reason),
-                              onDelete: (documents) =>
-                                  _handleBulkDeletion(documents),
-                              showApprovalActions: true,
-                              showFileActions: false,
+                            SliverToBoxAdapter(
+                              child: EnhancedBulkOperations(
+                                onApprove: (documents, reason) =>
+                                    _handleBulkApproval(documents),
+                                onReject: (documents, reason) =>
+                                    _handleBulkRejection(documents, reason),
+                                onDelete: (documents) =>
+                                    _handleBulkDeletion(documents),
+                                showApprovalActions: true,
+                                showFileActions: false,
+                              ),
                             ),
 
                             // Document List
-                            Expanded(
+                            SliverFillRemaining(
                               child: _buildDocumentList(selectionProvider),
                             ),
                           ],
