@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../../config/firebase_config.dart';
 import '../../services/cloud_functions_service.dart';
 import 'network_service.dart';
@@ -19,6 +20,7 @@ class FirebaseService {
   FirebaseAuth get auth => FirebaseAuth.instance;
   FirebaseFirestore get firestore => FirebaseFirestore.instance;
   FirebaseStorage get storage => FirebaseStorage.instance;
+  FirebaseFunctions get functions => FirebaseFunctions.instance;
 
   // Initialize Firebase
   static Future<void> initialize() async {

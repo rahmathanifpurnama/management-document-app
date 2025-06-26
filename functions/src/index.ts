@@ -72,6 +72,11 @@ export const performComprehensiveSync = syncFunctions.performComprehensiveSync;
 export const monitorSyncConsistency = syncFunctions.monitorSyncConsistency;
 export const repairSyncInconsistencies = syncFunctions.repairSyncInconsistencies;
 
+// ENHANCED: Statistics Functions for Large Datasets (1M+ files)
+export const getAggregatedStatistics = syncFunctions.getAggregatedStatistics;
+export const getPaginatedFileStats = syncFunctions.getPaginatedFileStats;
+export const invalidateStatisticsCache = syncFunctions.invalidateStatisticsCache;
+
 // Notification Functions
 export const sendNotification = notificationFunctions.sendNotification;
 export const processActivityLog = notificationFunctions.processActivityLog;

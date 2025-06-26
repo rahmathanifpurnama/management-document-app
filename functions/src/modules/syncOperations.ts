@@ -559,6 +559,373 @@ async function updateUserStatistics() {
   console.log(`Updated statistics for ${usersSnapshot.size} users`);
 }
 
+/**
+ * OPTIMIZED STATISTICS FUNCTIONS FOR LARGE DATASETS
+ * Handles 1M+ files efficiently using aggregation and caching
+ */
+
+// Aggregated statistics cache collection
+const STATS_CACHE_COLLECTION = "statistics-cache";
+const STATS_CACHE_DOC = "global-stats";
+const CACHE_TTL_MINUTES = 5; // 5 minutes cache
+
+/**
+ * Get aggregated statistics optimized for large datasets
+ * Uses Firestore aggregation queries and intelligent caching
+ */
+export const getAggregatedStatistics = functions.https.onCall(
+  async (data, context) => {
+    try {
+      console.log("📊 Getting aggregated statistics...");
+
+      // Check cache first
+      const cachedStats = await getCachedStatistics();
+      if (cachedStats) {
+        console.log("✅ Returning cached statistics");
+        return cachedStats;
+      }
+
+      // Calculate fresh statistics
+      const freshStats = await calculateFreshStatistics();
+
+      // Cache the results
+      await cacheStatistics(freshStats);
+
+      console.log("✅ Calculated and cached fresh statistics");
+      return freshStats;
+    } catch (error) {
+      console.error("❌ Error getting aggregated statistics:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Failed to get statistics",
+        error
+      );
+    }
+  }
+);
+
+/**
+ * Get cached statistics if valid
+ */
+async function getCachedStatistics(): Promise<any | null> {
+  try {
+    const cacheDoc = await admin
+      .firestore()
+      .collection(STATS_CACHE_COLLECTION)
+      .doc(STATS_CACHE_DOC)
+      .get();
+
+    if (!cacheDoc.exists) {
+      return null;
+    }
+
+    const data = cacheDoc.data();
+    if (!data) return null;
+
+    // Check if cache is still valid
+    const cacheTime = data.cachedAt?.toDate();
+    if (!cacheTime) return null;
+
+    const now = new Date();
+    const diffMinutes = (now.getTime() - cacheTime.getTime()) / (1000 * 60);
+
+    if (diffMinutes > CACHE_TTL_MINUTES) {
+      console.log("⏰ Cache expired, will calculate fresh stats");
+      return null;
+    }
+
+    return data.statistics;
+  } catch (error) {
+    console.error("❌ Error getting cached statistics:", error);
+    return null;
+  }
+}
+
+/**
+ * Calculate fresh statistics using optimized queries
+ */
+async function calculateFreshStatistics(): Promise<any> {
+  console.log("🔄 Calculating fresh statistics...");
+
+  // Use Promise.all for parallel execution
+  const [
+    totalFilesResult,
+    activeUsersResult,
+    totalCategoriesResult,
+    recentFilesResult,
+    fileTypeStatsResult,
+    storageSizeResult
+  ] = await Promise.all([
+    // Total active files
+    admin
+      .firestore()
+      .collection("document-metadata")
+      .where("isActive", "==", true)
+      .count()
+      .get(),
+
+    // Active users
+    admin
+      .firestore()
+      .collection("users")
+      .where("isActive", "==", true)
+      .count()
+      .get(),
+
+    // Total categories
+    admin
+      .firestore()
+      .collection("categories")
+      .count()
+      .get(),
+
+    // Recent files (last 7 days)
+    admin
+      .firestore()
+      .collection("document-metadata")
+      .where("isActive", "==", true)
+      .where("uploadedAt", ">=", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
+      .count()
+      .get(),
+
+    // File type statistics (limited sample for performance)
+    getFileTypeStatistics(),
+
+    // Storage size calculation (optimized)
+    getOptimizedStorageSize()
+  ]);
+
+  const statistics = {
+    totalFiles: totalFilesResult.data().count,
+    activeUsers: activeUsersResult.data().count,
+    totalCategories: totalCategoriesResult.data().count,
+    recentFiles: recentFilesResult.data().count,
+    fileTypeStats: fileTypeStatsResult,
+    totalStorageSize: storageSizeResult,
+    lastCalculated: admin.firestore.FieldValue.serverTimestamp(),
+    calculationDurationMs: Date.now() // Will be updated after calculation
+  };
+
+  return statistics;
+}
+
+/**
+ * Get file type statistics with optimized sampling
+ * For large datasets, uses sampling to avoid loading all documents
+ */
+async function getFileTypeStatistics(): Promise<Record<string, number>> {
+  try {
+    // For performance, limit to recent files or use sampling
+    const recentFilesSnapshot = await admin
+      .firestore()
+      .collection("document-metadata")
+      .where("isActive", "==", true)
+      .orderBy("uploadedAt", "desc")
+      .limit(10000) // Sample recent files for type distribution
+      .get();
+
+    const fileTypeStats: Record<string, number> = {};
+
+    recentFilesSnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const fileType = data.fileType || 'unknown';
+      fileTypeStats[fileType] = (fileTypeStats[fileType] || 0) + 1;
+    });
+
+    return fileTypeStats;
+  } catch (error) {
+    console.error("❌ Error getting file type statistics:", error);
+    return {};
+  }
+}
+
+/**
+ * Get optimized storage size calculation
+ * Uses aggregation where possible to avoid loading all documents
+ */
+async function getOptimizedStorageSize(): Promise<number> {
+  try {
+    // For large datasets, we might need to use Cloud Storage API
+    // or maintain a running total in a separate document
+
+    // For now, use a limited sample to estimate
+    const sampleSnapshot = await admin
+      .firestore()
+      .collection("document-metadata")
+      .where("isActive", "==", true)
+      .limit(1000)
+      .get();
+
+    let totalSampleSize = 0;
+    sampleSnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      totalSampleSize += data.fileSize || 0;
+    });
+
+    // Estimate total size based on sample
+    const totalFilesSnapshot = await admin
+      .firestore()
+      .collection("document-metadata")
+      .where("isActive", "==", true)
+      .count()
+      .get();
+
+    const totalFiles = totalFilesSnapshot.data().count;
+    const sampleSize = sampleSnapshot.size;
+
+    if (sampleSize === 0) return 0;
+
+    const averageFileSize = totalSampleSize / sampleSize;
+    const estimatedTotalSize = Math.round(averageFileSize * totalFiles);
+
+    return estimatedTotalSize;
+  } catch (error) {
+    console.error("❌ Error calculating storage size:", error);
+    return 0;
+  }
+}
+
+/**
+ * Cache statistics for performance
+ */
+async function cacheStatistics(statistics: any): Promise<void> {
+  try {
+    await admin
+      .firestore()
+      .collection(STATS_CACHE_COLLECTION)
+      .doc(STATS_CACHE_DOC)
+      .set({
+        statistics,
+        cachedAt: admin.firestore.FieldValue.serverTimestamp(),
+        version: "1.0"
+      });
+  } catch (error) {
+    console.error("❌ Error caching statistics:", error);
+    // Don't throw error, caching failure shouldn't break the function
+  }
+}
+
+/**
+ * Invalidate statistics cache
+ * Called when files are uploaded/deleted to ensure fresh data
+ */
+export const invalidateStatisticsCache = functions.https.onCall(
+  async (data, context) => {
+    try {
+      console.log("🗑️ Invalidating statistics cache...");
+
+      await admin
+        .firestore()
+        .collection(STATS_CACHE_COLLECTION)
+        .doc(STATS_CACHE_DOC)
+        .delete();
+
+      console.log("✅ Statistics cache invalidated");
+      return { success: true };
+    } catch (error) {
+      console.error("❌ Error invalidating cache:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Failed to invalidate cache",
+        error
+      );
+    }
+  }
+);
+
+/**
+ * Get paginated file statistics for detailed breakdowns
+ * Supports large datasets with pagination
+ */
+export const getPaginatedFileStats = functions.https.onCall(
+  async (data, context) => {
+    try {
+      const {
+        page = 1,
+        limit = 50,
+        category,
+        fileType,
+        sortBy = 'uploadedAt',
+        sortOrder = 'desc'
+      } = data;
+
+      console.log(`📄 Getting paginated stats: page=${page}, limit=${limit}`);
+
+      let query = admin
+        .firestore()
+        .collection("document-metadata")
+        .where("isActive", "==", true);
+
+      // Add filters
+      if (category) {
+        query = query.where("category", "==", category);
+      }
+
+      if (fileType) {
+        query = query.where("fileType", "==", fileType);
+      }
+
+      // Add sorting
+      query = query.orderBy(sortBy, sortOrder as any);
+
+      // Add pagination
+      const offset = (page - 1) * limit;
+      query = query.offset(offset).limit(limit);
+
+      const snapshot = await query.get();
+
+      const files = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        // Only return essential fields for performance
+        fileName: doc.data().fileName,
+        fileSize: doc.data().fileSize,
+        fileType: doc.data().fileType,
+        category: doc.data().category,
+        uploadedAt: doc.data().uploadedAt,
+        uploadedBy: doc.data().uploadedBy
+      }));
+
+      // Get total count for pagination info
+      let countQuery = admin
+        .firestore()
+        .collection("document-metadata")
+        .where("isActive", "==", true);
+
+      if (category) {
+        countQuery = countQuery.where("category", "==", category);
+      }
+
+      if (fileType) {
+        countQuery = countQuery.where("fileType", "==", fileType);
+      }
+
+      const totalCount = await countQuery.count().get();
+      const total = totalCount.data().count;
+      const totalPages = Math.ceil(total / limit);
+
+      return {
+        files,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1
+        }
+      };
+    } catch (error) {
+      console.error("❌ Error getting paginated file stats:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Failed to get paginated stats",
+        error
+      );
+    }
+  }
+);
+
 // Helper functions for storage sync
 
 interface StorageFileInfo {
@@ -987,4 +1354,8 @@ export const syncFunctions = {
   performComprehensiveSync,
   monitorSyncConsistency,
   repairSyncInconsistencies,
+  // ENHANCED: Statistics Functions for Large Datasets
+  getAggregatedStatistics,
+  getPaginatedFileStats,
+  invalidateStatisticsCache,
 };
