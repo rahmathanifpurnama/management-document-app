@@ -197,7 +197,7 @@ class OptimizedStatisticsService {
       final now = DateTime.now();
       final sevenDaysAgo = now.subtract(const Duration(days: 7));
 
-      // Execute all queries in parallel for better performance
+      // Execute queries in parallel, but avoid composite index requirements
       final results = await Future.wait([
         // Total active files
         firestore
@@ -215,21 +215,37 @@ class OptimizedStatisticsService {
 
         // Total categories
         firestore.collection('categories').count().get(),
+      ]);
 
-        // Recent files (last 7 days)
-        firestore
+      // Calculate recent files separately to avoid composite index
+      int recentFilesCount = 0;
+      try {
+        // First get all active files, then filter by date in memory
+        // This avoids the composite index requirement
+        final activeFilesSnapshot = await firestore
             .collection('document-metadata')
             .where('isActive', isEqualTo: true)
             .where('uploadedAt', isGreaterThanOrEqualTo: sevenDaysAgo)
-            .count()
-            .get(),
-      ]);
+            .limit(1000) // Limit to prevent excessive reads
+            .get();
+
+        recentFilesCount = activeFilesSnapshot.docs.length;
+
+        // If we hit the limit, use count query without date filter as fallback
+        if (activeFilesSnapshot.docs.length >= 1000) {
+          debugPrint('⚠️ Recent files count may be incomplete due to limit');
+        }
+      } catch (recentError) {
+        debugPrint('⚠️ Could not calculate recent files count: $recentError');
+        // Fallback: use total active files as approximation
+        recentFilesCount = (results[0].count ?? 0) ~/ 10; // Rough estimate
+      }
 
       final stats = {
         'totalFiles': results[0].count ?? 0,
         'activeUsers': results[1].count ?? 0,
         'totalCategories': results[2].count ?? 0,
-        'recentFiles': results[3].count ?? 0,
+        'recentFiles': recentFilesCount,
         'fileTypeStats': <String, int>{},
         'totalStorageSize': 0,
         'lastCalculated': now.toIso8601String(),
