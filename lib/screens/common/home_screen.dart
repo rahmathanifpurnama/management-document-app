@@ -29,7 +29,7 @@ import '../../services/statistics_notification_service.dart';
 import '../../services/optimized_statistics_service.dart';
 import '../../core/utils/circuit_breaker.dart';
 import '../../core/utils/empty_storage_state_manager.dart';
-import '../../widgets/statistics/unified_stats_widget.dart';
+import '../../widgets/statistics/real_time_stats_widget.dart';
 part 'components/home_greeting_section.dart';
 part 'components/home_dashboard_stats.dart';
 part 'components/home_search_section.dart';
@@ -356,27 +356,35 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                   SizedBox(height: responsiveSpacing / 3),
 
-                  // Dashboard Statistics Section (Admin only) - Using unified component
+                  // Dashboard Statistics Section (Admin only) - Using real-time component
                   if (authProvider.isAdmin) ...[
-                    Consumer3<DocumentProvider, CategoryProvider, UserProvider>(
-                      builder:
-                          (
-                            context,
-                            docProvider,
-                            catProvider,
-                            userProvider,
-                            child,
-                          ) {
-                            return UnifiedStatsWidget.dashboard(
-                              enablePullToRefresh: true,
-                              onRefresh: () {
-                                // Trigger refresh for all providers
-                                docProvider.refreshDocuments();
-                                catProvider.refreshCategories();
-                                userProvider.refreshUsers();
-                              },
+                    RealTimeStatsWidget(
+                      enablePullToRefresh: true,
+                      onRefresh: () {
+                        // Trigger refresh for all providers
+                        final docProvider = Provider.of<DocumentProvider>(
+                          context,
+                          listen: false,
+                        );
+                        final catProvider = Provider.of<CategoryProvider>(
+                          context,
+                          listen: false,
+                        );
+                        final userProvider = Provider.of<UserProvider>(
+                          context,
+                          listen: false,
+                        );
+
+                        docProvider.refreshDocuments();
+                        catProvider.refreshCategories();
+                        userProvider.refreshUsers();
+
+                        // Trigger statistics refresh
+                        StatisticsNotificationService.instance
+                            .requestStatisticsRefresh(
+                              reason: 'Manual refresh from home screen',
                             );
-                          },
+                      },
                     ),
                     SizedBox(height: responsiveSpacing / 3),
                   ],

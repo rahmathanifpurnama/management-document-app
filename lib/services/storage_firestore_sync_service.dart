@@ -342,8 +342,10 @@ class StorageFirestoreSyncService {
     if (contentType.contains('word') || contentType.contains('document')) {
       return 'Document';
     }
-    if (contentType.contains('sheet') || contentType.contains('excel')) {
-      return 'Spreadsheet';
+    if (contentType.contains('sheet') ||
+        contentType.contains('excel') ||
+        contentType.contains('csv')) {
+      return 'Excel';
     }
     return 'Other';
   }

@@ -1,7 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/optimized_statistics_service.dart';
+import '../../services/statistics_notification_service.dart';
+import '../../providers/document_provider.dart';
+import '../../providers/category_provider.dart';
+import '../../providers/user_provider.dart';
 
 /// Unified statistics widget that consolidates all stat displays
 /// Supports dashboard stats, upload stats, and custom configurations
@@ -181,6 +187,8 @@ class _UnifiedStatsWidgetState extends State<UnifiedStatsWidget>
     with TickerProviderStateMixin {
   final OptimizedStatisticsService _statsService =
       OptimizedStatisticsService.instance;
+  final StatisticsNotificationService _notificationService =
+      StatisticsNotificationService.instance;
 
   // Animation controllers
   late AnimationController _loadingAnimationController;
@@ -194,10 +202,15 @@ class _UnifiedStatsWidgetState extends State<UnifiedStatsWidget>
   bool _hasError = false;
   String? _errorMessage;
 
+  // Stream subscriptions for real-time updates
+  StreamSubscription? _statisticsSubscription;
+  StreamSubscription? _fileCountSubscription;
+
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
+    _setupRealTimeListeners();
     _loadStatistics();
   }
 
@@ -240,6 +253,7 @@ class _UnifiedStatsWidgetState extends State<UnifiedStatsWidget>
     });
 
     try {
+      // Try to get statistics from service
       final stats = await _statsService.getAggregatedStatistics();
 
       if (mounted) {
@@ -258,17 +272,71 @@ class _UnifiedStatsWidgetState extends State<UnifiedStatsWidget>
         });
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _hasError = true;
-          _errorMessage = e.toString();
-        });
+      debugPrint('❌ Statistics service failed, trying provider fallback: $e');
 
-        _loadingAnimationController.stop();
-        _loadingAnimationController.reset();
+      // Fallback to provider data
+      try {
+        final fallbackStats = await _getStatsFromProviders();
+
+        if (mounted) {
+          setState(() {
+            _statsData = fallbackStats;
+            _isLoading = false;
+            _hasError = false; // Clear error since fallback worked
+          });
+
+          // Stop loading animation
+          _loadingAnimationController.stop();
+          _loadingAnimationController.reset();
+
+          // Trigger refresh animation
+          _refreshAnimationController.forward().then((_) {
+            _refreshAnimationController.reverse();
+          });
+        }
+      } catch (fallbackError) {
+        debugPrint('❌ Provider fallback also failed: $fallbackError');
+
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _hasError = true;
+            _errorMessage = 'Unable to load statistics: ${e.toString()}';
+          });
+
+          _loadingAnimationController.stop();
+          _loadingAnimationController.reset();
+        }
       }
     }
+  }
+
+  /// Get statistics from local providers as fallback
+  Future<Map<String, dynamic>> _getStatsFromProviders() async {
+    if (!mounted) return {};
+
+    final docProvider = Provider.of<DocumentProvider>(context, listen: false);
+    final catProvider = Provider.of<CategoryProvider>(context, listen: false);
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+    // Calculate recent files (last 7 days)
+    final now = DateTime.now();
+    final sevenDaysAgo = now.subtract(const Duration(days: 7));
+
+    final recentFiles = docProvider.documents.where((doc) {
+      return doc.uploadedAt.isAfter(sevenDaysAgo);
+    }).length;
+
+    return {
+      'totalFiles': docProvider.documents.length,
+      'activeUsers': userProvider.users.length,
+      'totalCategories': catProvider.categories.length,
+      'recentFiles': recentFiles,
+      'fileTypeStats': <String, int>{},
+      'totalStorageSize': 0,
+      'lastCalculated': DateTime.now().toIso8601String(),
+      'calculationDurationMs': 0,
+    };
   }
 
   Future<void> _handleRefresh() async {
@@ -281,8 +349,29 @@ class _UnifiedStatsWidgetState extends State<UnifiedStatsWidget>
     await _loadStatistics();
   }
 
+  /// Setup real-time listeners for statistics updates
+  void _setupRealTimeListeners() {
+    // Listen to general statistics updates
+    _statisticsSubscription = _notificationService.statisticsUpdates.listen((
+      event,
+    ) {
+      debugPrint('📊 Statistics update received: ${event.type}');
+      _loadStatistics();
+    });
+
+    // Listen to file count updates
+    _fileCountSubscription = _notificationService.fileCountUpdates.listen((
+      event,
+    ) {
+      debugPrint('📊 File count update received: ${event.type}');
+      _loadStatistics();
+    });
+  }
+
   @override
   void dispose() {
+    _statisticsSubscription?.cancel();
+    _fileCountSubscription?.cancel();
     _loadingAnimationController.dispose();
     _refreshAnimationController.dispose();
     super.dispose();

@@ -371,9 +371,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
               },
             ),
 
-            const SizedBox(height: 16),
-
-            // Files List with enhanced animations
+            // Files List with enhanced animations (removed vertical spacing)
             AnimatedBuilder(
               animation: Listenable.merge([
                 _slideController,
@@ -402,14 +400,8 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
               },
             ),
 
-            // Pagination Controls
-            if (totalPages > 1) ...[
-              const SizedBox(height: 16),
-              _buildPaginationControls(totalPages),
-            ],
-
-            // Add some bottom padding
-            const SizedBox(height: 100),
+            // Pagination Controls (removed vertical spacing)
+            if (totalPages > 1) ...[_buildPaginationControls(totalPages)],
           ],
         ),
       ),
@@ -426,7 +418,10 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         // PRIORITY 1: Show first-time loading state for login users
         if (_isFirstTimeLoading || !_hasDataCheckCompleted) {
           return Container(
-            padding: const EdgeInsets.symmetric(vertical: 50, horizontal: 20),
+            padding: const EdgeInsets.symmetric(
+              vertical: 20,
+              horizontal: 20,
+            ), // Reduced vertical padding
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
@@ -448,7 +443,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8), // Reduced spacing
                   Text(
                     'Loading your files...',
                     style: GoogleFonts.poppins(
@@ -458,7 +453,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4), // Reduced spacing
                   Text(
                     'Checking database for your documents',
                     style: GoogleFonts.poppins(
@@ -477,7 +472,10 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         // PRIORITY 2: Show transition loading state (for page changes, etc.)
         if (_isTransitioning) {
           return Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 10,
+            ), // Reduced vertical padding
             child: Center(
               child: SizedBox(
                 width: 24,
@@ -758,37 +756,34 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
 
   /// Build clean pagination controls without background styling
   Widget _buildPaginationControls(int totalPages) {
-    return Container(
-      margin: const EdgeInsets.only(top: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Previous button
-          _buildPaginationButton(
-            icon: Icons.chevron_left,
-            isEnabled: _currentPage > 0,
-            onTap: _currentPage > 0 ? () => _goToPage(_currentPage - 1) : null,
-            tooltip: 'Previous page',
-          ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Previous button
+        _buildPaginationButton(
+          icon: Icons.chevron_left,
+          isEnabled: _currentPage > 0,
+          onTap: _currentPage > 0 ? () => _goToPage(_currentPage - 1) : null,
+          tooltip: 'Previous page',
+        ),
 
-          const SizedBox(width: 16),
+        const SizedBox(width: 16),
 
-          // Page indicators with smart truncation and ellipsis
-          ..._buildPageIndicators(totalPages),
+        // Page indicators with smart truncation and ellipsis
+        ..._buildPageIndicators(totalPages),
 
-          const SizedBox(width: 16),
+        const SizedBox(width: 16),
 
-          // Next button
-          _buildPaginationButton(
-            icon: Icons.chevron_right,
-            isEnabled: _currentPage < totalPages - 1,
-            onTap: _currentPage < totalPages - 1
-                ? () => _goToPage(_currentPage + 1)
-                : null,
-            tooltip: 'Next page',
-          ),
-        ],
-      ),
+        // Next button
+        _buildPaginationButton(
+          icon: Icons.chevron_right,
+          isEnabled: _currentPage < totalPages - 1,
+          onTap: _currentPage < totalPages - 1
+              ? () => _goToPage(_currentPage + 1)
+              : null,
+          tooltip: 'Next page',
+        ),
+      ],
     );
   }
 
@@ -951,7 +946,10 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         // Ensure animation value is valid and not NaN
         if (value.isNaN || value.isInfinite) {
           return Container(
-            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+            padding: const EdgeInsets.symmetric(
+              vertical: 20,
+              horizontal: 20,
+            ), // Reduced vertical padding
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
@@ -968,7 +966,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                     size: 48,
                     color: AppColors.textSecondary.withValues(alpha: 0.5),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8), // Reduced spacing
                   Text(
                     'No files found',
                     style: GoogleFonts.poppins(
@@ -992,7 +990,10 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           child: Opacity(
             opacity: safeOpacity,
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+              padding: const EdgeInsets.symmetric(
+                vertical: 20,
+                horizontal: 20,
+              ), // Reduced vertical padding
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(16),
@@ -1011,7 +1012,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                       size: 48,
                       color: AppColors.textSecondary.withValues(alpha: 0.5),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8), // Reduced spacing
                     Text(
                       emptyMessage,
                       style: GoogleFonts.poppins(
@@ -1020,7 +1021,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                         color: AppColors.textSecondary,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4), // Reduced spacing
                     Text(
                       emptySubMessage,
                       style: GoogleFonts.poppins(

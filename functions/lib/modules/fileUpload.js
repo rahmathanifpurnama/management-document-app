@@ -507,6 +507,7 @@ function getFileType(fileName) {
             return "DOC";
         case "xls":
         case "xlsx":
+        case "csv":
             return "Excel";
         case "ppt":
         case "pptx":

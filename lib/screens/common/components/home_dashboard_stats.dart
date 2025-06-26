@@ -210,7 +210,7 @@ class _HomeDashboardStatsState extends State<HomeDashboardStats>
                 horizontal: screenWidth < 400
                     ? 8.0
                     : 16.0, // Lebih kecil untuk layar kecil
-                vertical: 8.0,
+                // Removed vertical padding for compact layout
               );
               final responsiveSpacing = screenWidth < 400
                   ? 8.0
@@ -261,7 +261,7 @@ class _HomeDashboardStatsState extends State<HomeDashboardStats>
     final screenWidth = MediaQuery.of(context).size.width;
     final responsiveMargin = EdgeInsets.symmetric(
       horizontal: screenWidth < 400 ? 8.0 : 16.0,
-      vertical: 8.0,
+      // Removed vertical padding for compact layout
     );
     final responsiveSpacing = screenWidth < 400 ? 8.0 : 12.0;
 
@@ -374,8 +374,12 @@ class _StatCard extends StatelessWidget {
     final isMediumScreen = screenWidth < 600;
 
     // FIX: Gunakan nilai padding yang lebih kecil dan konsisten
-    final responsivePadding = EdgeInsets.all(
-      isSmallScreen ? 8.0 : (isMediumScreen ? 10.0 : 12.0),
+    // Removed vertical padding components for compact layout
+    final responsivePadding = EdgeInsets.symmetric(
+      horizontal: isSmallScreen ? 8.0 : (isMediumScreen ? 10.0 : 12.0),
+      vertical: isSmallScreen
+          ? 4.0
+          : (isMediumScreen ? 6.0 : 8.0), // Reduced vertical padding
     );
     final responsiveBorderRadius = isSmallScreen ? 8.0 : 12.0;
     final responsiveElevation = 2.0;

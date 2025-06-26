@@ -39,37 +39,67 @@ class OptimizedStatisticsService {
 
       debugPrint('📊 OptimizedStatisticsService: Fetching fresh statistics...');
 
-      // Call Cloud Function for optimized statistics
-      final callable = _firebaseService.functions.httpsCallable(
-        'getAggregatedStatistics',
-      );
-      final result = await callable.call();
+      // Try Cloud Function first
+      try {
+        final callable = _firebaseService.functions.httpsCallable(
+          'getAggregatedStatistics',
+        );
+        final result = await callable.call().timeout(
+          const Duration(seconds: 10),
+        );
 
-      final stats = Map<String, dynamic>.from(result.data);
+        final stats = Map<String, dynamic>.from(result.data);
 
-      // Update cache
-      _cachedStats = stats;
-      _lastCacheTime = DateTime.now();
+        // Update cache
+        _cachedStats = stats;
+        _lastCacheTime = DateTime.now();
 
-      // Emit to stream
-      _statsStreamController.add(stats);
+        // Emit to stream
+        _statsStreamController.add(stats);
 
-      debugPrint(
-        '✅ OptimizedStatisticsService: Statistics fetched successfully',
-      );
-      return stats;
+        debugPrint(
+          '✅ OptimizedStatisticsService: Statistics fetched from Cloud Function',
+        );
+        return stats;
+      } catch (cloudError) {
+        debugPrint(
+          '⚠️ Cloud Function failed, falling back to direct Firestore: $cloudError',
+        );
+
+        // Fallback to direct Firestore queries
+        final stats = await _calculateStatisticsDirectly();
+
+        // Update cache
+        _cachedStats = stats;
+        _lastCacheTime = DateTime.now();
+
+        // Emit to stream
+        _statsStreamController.add(stats);
+
+        debugPrint(
+          '✅ OptimizedStatisticsService: Statistics calculated directly',
+        );
+        return stats;
+      }
     } catch (e) {
       debugPrint(
         '❌ OptimizedStatisticsService: Error fetching statistics - $e',
       );
 
-      // Return cached data if available, otherwise return empty stats
+      // Return cached data if available, otherwise calculate directly
       if (_cachedStats != null) {
         debugPrint('⚠️ Using cached statistics due to error');
         return _cachedStats!;
       }
 
-      return _getEmptyStats();
+      // Last resort: try direct calculation
+      try {
+        final stats = await _calculateStatisticsDirectly();
+        return stats;
+      } catch (directError) {
+        debugPrint('❌ Direct calculation also failed: $directError');
+        return _getEmptyStats();
+      }
     }
   }
 
@@ -156,6 +186,62 @@ class OptimizedStatisticsService {
     return _cachedStats != null &&
         _lastCacheTime != null &&
         DateTime.now().difference(_lastCacheTime!) < _cacheValidDuration;
+  }
+
+  /// Calculate statistics directly from Firestore (fallback method)
+  Future<Map<String, dynamic>> _calculateStatisticsDirectly() async {
+    debugPrint('📊 Calculating statistics directly from Firestore...');
+
+    try {
+      final firestore = _firebaseService.firestore;
+      final now = DateTime.now();
+      final sevenDaysAgo = now.subtract(const Duration(days: 7));
+
+      // Execute all queries in parallel for better performance
+      final results = await Future.wait([
+        // Total active files
+        firestore
+            .collection('document-metadata')
+            .where('isActive', isEqualTo: true)
+            .count()
+            .get(),
+
+        // Active users
+        firestore
+            .collection('users')
+            .where('isActive', isEqualTo: true)
+            .count()
+            .get(),
+
+        // Total categories
+        firestore.collection('categories').count().get(),
+
+        // Recent files (last 7 days)
+        firestore
+            .collection('document-metadata')
+            .where('isActive', isEqualTo: true)
+            .where('uploadedAt', isGreaterThanOrEqualTo: sevenDaysAgo)
+            .count()
+            .get(),
+      ]);
+
+      final stats = {
+        'totalFiles': results[0].count ?? 0,
+        'activeUsers': results[1].count ?? 0,
+        'totalCategories': results[2].count ?? 0,
+        'recentFiles': results[3].count ?? 0,
+        'fileTypeStats': <String, int>{},
+        'totalStorageSize': 0,
+        'lastCalculated': now.toIso8601String(),
+        'calculationDurationMs': DateTime.now().difference(now).inMilliseconds,
+      };
+
+      debugPrint('✅ Direct statistics calculation completed: $stats');
+      return stats;
+    } catch (e) {
+      debugPrint('❌ Direct statistics calculation failed: $e');
+      rethrow;
+    }
   }
 
   /// Get empty statistics structure
