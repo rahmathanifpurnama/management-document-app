@@ -16,9 +16,6 @@ class CategoryScreen extends StatefulWidget {
 }
 
 class _CategoryScreenState extends State<CategoryScreen> {
-  int _currentPage = 0;
-  final int _itemsPerPage = 25;
-
   @override
   void initState() {
     super.initState();
@@ -131,7 +128,22 @@ class _CategoryScreenState extends State<CategoryScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                Expanded(child: _buildCategoriesWithPagination(categories)),
+                Expanded(
+                  child: GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 1.1,
+                        ),
+                    itemCount: categories.length,
+                    itemBuilder: (context, index) {
+                      final category = categories[index];
+                      return _buildCategoryCard(category);
+                    },
+                  ),
+                ),
               ],
             ),
           );
@@ -182,133 +194,6 @@ class _CategoryScreenState extends State<CategoryScreen> {
         ],
       ),
     );
-  }
-
-  /// Build categories with pagination
-  Widget _buildCategoriesWithPagination(List<CategoryModel> categories) {
-    // Calculate pagination
-    final totalPages = (categories.length / _itemsPerPage).ceil();
-    final startIndex = _currentPage * _itemsPerPage;
-    final endIndex = (startIndex + _itemsPerPage).clamp(0, categories.length);
-    final currentPageCategories = categories.sublist(startIndex, endIndex);
-
-    return Column(
-      children: [
-        // Categories Grid
-        Expanded(
-          child: GridView.builder(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 1.1,
-            ),
-            itemCount: currentPageCategories.length,
-            itemBuilder: (context, index) {
-              final category = currentPageCategories[index];
-              return _buildCategoryCard(category);
-            },
-          ),
-        ),
-        // Pagination Controls
-        if (totalPages > 1) ...[
-          const SizedBox(height: 16),
-          _buildPaginationControls(totalPages),
-          const SizedBox(height: 16),
-        ],
-      ],
-    );
-  }
-
-  /// Build pagination controls
-  Widget _buildPaginationControls(int totalPages) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Previous button
-          IconButton(
-            onPressed: _currentPage > 0
-                ? () => _goToPage(_currentPage - 1)
-                : null,
-            icon: const Icon(Icons.chevron_left),
-            style: IconButton.styleFrom(
-              backgroundColor: _currentPage > 0
-                  ? AppColors.primary.withValues(alpha: 0.1)
-                  : AppColors.border.withValues(alpha: 0.1),
-              foregroundColor: _currentPage > 0
-                  ? AppColors.primary
-                  : AppColors.textSecondary,
-            ),
-          ),
-
-          const SizedBox(width: 16),
-
-          // Page indicators
-          ...List.generate(totalPages, (index) {
-            final isCurrentPage = index == _currentPage;
-            return GestureDetector(
-              onTap: () => _goToPage(index),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: isCurrentPage
-                      ? AppColors.primary
-                      : AppColors.background,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isCurrentPage
-                        ? AppColors.primary
-                        : AppColors.border.withValues(alpha: 0.3),
-                    width: 1,
-                  ),
-                ),
-                child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: isCurrentPage
-                          ? Colors.white
-                          : AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }),
-
-          const SizedBox(width: 16),
-
-          // Next button
-          IconButton(
-            onPressed: _currentPage < totalPages - 1
-                ? () => _goToPage(_currentPage + 1)
-                : null,
-            icon: const Icon(Icons.chevron_right),
-            style: IconButton.styleFrom(
-              backgroundColor: _currentPage < totalPages - 1
-                  ? AppColors.primary.withValues(alpha: 0.1)
-                  : AppColors.border.withValues(alpha: 0.1),
-              foregroundColor: _currentPage < totalPages - 1
-                  ? AppColors.primary
-                  : AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Navigate to specific page
-  void _goToPage(int page) {
-    setState(() {
-      _currentPage = page;
-    });
   }
 
   Widget _buildCategoryCard(CategoryModel category) {

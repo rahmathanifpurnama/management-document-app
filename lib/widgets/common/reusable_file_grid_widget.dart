@@ -306,9 +306,7 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
                       children: [
                         Expanded(
                           child: Text(
-                            document.getSmartDisplayName(
-                              maxLength: 25,
-                            ), // Use smart display name with shorter length for grid
+                            document.displayFileName, // Use clean display name
                             style: GoogleFonts.poppins(
                               fontSize: ResponsiveHelper.getResponsiveFontSize(
                                 context,

@@ -45,16 +45,8 @@ class HomeFileListSection extends StatefulWidget {
 class _HomeFileListSectionState extends State<HomeFileListSection>
     with TickerProviderStateMixin {
   int _currentPage = 0;
-  // ENTERPRISE SCALE: Optimized pagination for millions of files
-  static const int _filesPerPage =
-      50; // Increased from 25 to 50 for better performance
-  static const int _maxCachedPages =
-      5; // Limit cached pages to prevent memory issues
-
-  // Page caching for performance optimization
-  final Map<int, List<DocumentModel>> _pageCache = {};
-  final Set<int> _loadedPages = {};
-
+  // ENTERPRISE SCALE: Increased pagination for better performance with large datasets
+  static const int _filesPerPage = 25;
   bool _isTransitioning = false;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
@@ -121,9 +113,6 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         setState(() {
           _currentPage = 0;
         });
-
-        // Clear cache when search query changes for fresh data
-        _clearPageCache();
 
         // Start initial loading process
         _startInitialLoading();
@@ -205,9 +194,6 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           setState(() {
             _currentPage = 0;
           });
-
-          // Clear cache when search query changes for fresh data
-          _clearPageCache();
         }
       });
     }
@@ -258,15 +244,9 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     FileSelectionProvider selectionProvider,
   ) {
     final totalPages = (documents.length / _filesPerPage).ceil();
-
-    // PERFORMANCE OPTIMIZATION: Use cached pages for large datasets
-    final currentPageDocuments = _getCachedPageDocuments(
-      documents,
-      _currentPage,
-    );
-
-    // Preload adjacent pages for smooth navigation
-    _preloadAdjacentPages(documents, _currentPage, totalPages);
+    final startIndex = _currentPage * _filesPerPage;
+    final endIndex = (startIndex + _filesPerPage).clamp(0, documents.length);
+    final currentPageDocuments = documents.sublist(startIndex, endIndex);
 
     return SingleChildScrollView(
       child: Container(
@@ -529,11 +509,6 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     List<DocumentModel> documents,
     FileSelectionProvider selectionProvider,
   ) {
-    // PERFORMANCE OPTIMIZATION: Use different rendering strategies based on dataset size
-    if (documents.length > 100) {
-      return _buildVirtualizedFilesList(documents, selectionProvider);
-    }
-
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -549,60 +524,37 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           final document = entry.value;
           final isLast = index == documents.length - 1;
 
-          // Reduce animation complexity for better performance
-          final animationDuration = documents.length > 20
-              ? const Duration(milliseconds: 200) // Faster for large lists
-              : Duration(milliseconds: (300 + (index * 50)).clamp(300, 1000));
-
+          // Add staggered animation for each file item
           return TweenAnimationBuilder<double>(
-            duration: animationDuration,
+            duration: Duration(
+              milliseconds: (300 + (index * 100)).clamp(300, 2000),
+            ),
             tween: Tween<double>(begin: 0.0, end: 1.0),
-            curve: Curves.easeOutCubic, // Simpler curve for performance
+            curve: Curves.easeOutBack,
             builder: (context, value, child) {
               // Ensure animation value is valid and not NaN
               if (value.isNaN || value.isInfinite) {
                 return _buildFileListItem(document, isLast, selectionProvider);
               }
 
-              // Simplified animation for performance
+              // Ensure opacity value is valid (between 0.0 and 1.0)
               final safeOpacity = value.clamp(0.0, 1.0);
+              final safeTranslateValue = (1 - value).clamp(0.0, 1.0);
 
-              return Opacity(
-                opacity: safeOpacity,
-                child: _buildFileListItem(document, isLast, selectionProvider),
+              return Transform.translate(
+                offset: Offset(0, 20 * safeTranslateValue),
+                child: Opacity(
+                  opacity: safeOpacity,
+                  child: _buildFileListItem(
+                    document,
+                    isLast,
+                    selectionProvider,
+                  ),
+                ),
               );
             },
           );
         }).toList(),
-      ),
-    );
-  }
-
-  /// Build virtualized files list for large datasets (100+ files)
-  Widget _buildVirtualizedFilesList(
-    List<DocumentModel> documents,
-    FileSelectionProvider selectionProvider,
-  ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.border.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
-      child: ListView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: documents.length,
-        itemBuilder: (context, index) {
-          final document = documents[index];
-          final isLast = index == documents.length - 1;
-
-          // No animations for virtualized list to improve performance
-          return _buildFileListItem(document, isLast, selectionProvider);
-        },
       ),
     );
   }
@@ -977,86 +929,6 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     setState(() {
       _currentPage = page;
     });
-  }
-
-  /// PERFORMANCE OPTIMIZATION: Get cached page documents for large datasets
-  List<DocumentModel> _getCachedPageDocuments(
-    List<DocumentModel> allDocuments,
-    int pageIndex,
-  ) {
-    // Check if page is already cached
-    if (_pageCache.containsKey(pageIndex)) {
-      return _pageCache[pageIndex]!;
-    }
-
-    // Calculate page boundaries
-    final startIndex = pageIndex * _filesPerPage;
-    final endIndex = (startIndex + _filesPerPage).clamp(0, allDocuments.length);
-
-    // Extract page documents
-    final pageDocuments = allDocuments.sublist(startIndex, endIndex);
-
-    // Cache the page (with memory management)
-    _cachePageWithMemoryManagement(pageIndex, pageDocuments);
-
-    return pageDocuments;
-  }
-
-  /// Cache page with memory management to prevent memory leaks
-  void _cachePageWithMemoryManagement(
-    int pageIndex,
-    List<DocumentModel> documents,
-  ) {
-    // Add to cache
-    _pageCache[pageIndex] = documents;
-    _loadedPages.add(pageIndex);
-
-    // Memory management: Remove old pages if cache is too large
-    if (_loadedPages.length > _maxCachedPages) {
-      // Remove the oldest pages (furthest from current page)
-      final pagesToRemove = _loadedPages.where((page) {
-        return (page - _currentPage).abs() > _maxCachedPages ~/ 2;
-      }).toList();
-
-      for (final page in pagesToRemove) {
-        _pageCache.remove(page);
-        _loadedPages.remove(page);
-      }
-    }
-  }
-
-  /// Preload adjacent pages for smooth navigation
-  void _preloadAdjacentPages(
-    List<DocumentModel> allDocuments,
-    int currentPage,
-    int totalPages,
-  ) {
-    // Preload previous and next pages in background
-    final pagesToPreload = <int>[];
-
-    if (currentPage > 0) {
-      pagesToPreload.add(currentPage - 1);
-    }
-    if (currentPage < totalPages - 1) {
-      pagesToPreload.add(currentPage + 1);
-    }
-
-    // Preload pages asynchronously to avoid blocking UI
-    for (final pageIndex in pagesToPreload) {
-      if (!_pageCache.containsKey(pageIndex)) {
-        Future.microtask(() {
-          if (mounted) {
-            _getCachedPageDocuments(allDocuments, pageIndex);
-          }
-        });
-      }
-    }
-  }
-
-  /// Clear page cache for fresh data
-  void _clearPageCache() {
-    _pageCache.clear();
-    _loadedPages.clear();
   }
 
   /// Build empty state with animation

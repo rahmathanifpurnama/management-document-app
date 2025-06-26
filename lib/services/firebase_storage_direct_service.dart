@@ -208,8 +208,6 @@ class FirebaseStorageDirectService {
       case 'xls':
       case 'xlsx':
         return 'spreadsheet';
-      case 'csv': // Added CSV support
-        return 'spreadsheet'; // Group CSV with spreadsheets
       case 'ppt':
       case 'pptx':
         return 'presentation';

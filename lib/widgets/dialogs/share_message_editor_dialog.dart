@@ -114,7 +114,7 @@ class _ShareMessageEditorDialogState extends State<ShareMessageEditorDialog> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.document.getSmartDisplayName(maxLength: 30),
+                          widget.document.displayFileName,
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,

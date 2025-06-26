@@ -864,7 +864,7 @@ class _FileTableWidgetState extends State<FileTableWidget> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Uploading ${document.smartDisplayName} to Google Drive...',
+                  'Uploading ${document.displayFileName} to Google Drive...',
                 ),
               ),
             ],
@@ -893,7 +893,7 @@ class _FileTableWidgetState extends State<FileTableWidget> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${document.smartDisplayName} uploaded to Google Drive and shared!',
+                    '${document.displayFileName} uploaded to Google Drive and shared!',
                   ),
                 ),
               ],
@@ -942,8 +942,8 @@ class _FileTableWidgetState extends State<FileTableWidget> {
           children: [
             _buildDetailRow(
               'Name',
-              document.smartDisplayName,
-            ), // Use smart display name with intelligent truncation
+              document.displayFileName,
+            ), // Use clean display name
             _buildDetailRow('Size', _formatFileSize(document.fileSize)),
             _buildDetailRow('Type', document.fileType),
             _buildDetailRow('Uploaded', _formatDate(document.uploadedAt)),

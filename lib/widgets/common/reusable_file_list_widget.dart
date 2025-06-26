@@ -406,8 +406,7 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        document
-                            .smartDisplayName, // Use smart display name with intelligent truncation
+                        document.displayFileName, // Use clean display name
                         style: GoogleFonts.poppins(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
