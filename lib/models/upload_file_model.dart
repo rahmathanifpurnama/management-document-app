@@ -87,6 +87,8 @@ class UploadFileModel {
         return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       case 'xls':
         return 'application/vnd.ms-excel';
+      case 'csv': // Added CSV support
+        return 'text/csv';
       default:
         return 'application/octet-stream';
     }
@@ -95,6 +97,16 @@ class UploadFileModel {
   // Get clean display filename without timestamp prefix
   String get displayFileName {
     return FilenameUtils.getDisplayFileName(fileName);
+  }
+
+  // Get smart display name with intelligent truncation
+  String get smartDisplayName {
+    return FilenameUtils.getSmartDisplayName(fileName);
+  }
+
+  // Get smart display name with custom max length
+  String getSmartDisplayName({int maxLength = 35}) {
+    return FilenameUtils.getSmartDisplayName(fileName, maxLength: maxLength);
   }
 
   // Get file type icon
@@ -291,6 +303,7 @@ class UploadFileModel {
         return 'Image';
       case 'xlsx':
       case 'xls':
+      case 'csv': // Added CSV support
         return 'Excel';
       default:
         return 'Other';

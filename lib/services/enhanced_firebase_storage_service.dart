@@ -265,6 +265,8 @@ class EnhancedFirebaseStorageService {
       case 'xls':
       case 'xlsx':
         return 'Excel Spreadsheet';
+      case 'csv': // Added CSV support
+        return 'Excel'; // Group CSV with Excel for filtering
       case 'ppt':
       case 'pptx':
         return 'PowerPoint Presentation';

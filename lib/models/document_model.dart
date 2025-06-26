@@ -166,6 +166,16 @@ class DocumentModel {
     return FilenameUtils.getUserFriendlyName(fileName);
   }
 
+  // Get smart display name with intelligent truncation
+  String get smartDisplayName {
+    return FilenameUtils.getSmartDisplayName(fileName);
+  }
+
+  // Get smart display name with custom max length
+  String getSmartDisplayName({int maxLength = 35}) {
+    return FilenameUtils.getSmartDisplayName(fileName, maxLength: maxLength);
+  }
+
   // Check if filename is valid
   bool get isValidFileName {
     return FilenameUtils.isValidFileName(fileName);

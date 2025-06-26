@@ -173,6 +173,44 @@ class FilenameUtils {
     return cleanName;
   }
 
+  /// Smart filename truncation that shows extensions only when truncated
+  ///
+  /// For short names: shows full name without extension display
+  /// For long names: shows truncated name with extension (e.g., "long_file_name...pdf")
+  static String formatForSmartDisplay(String fileName, {int maxLength = 30}) {
+    final cleanName = getDisplayFileName(fileName);
+
+    // If name fits within limit, show full name without special formatting
+    if (cleanName.length <= maxLength) {
+      return cleanName;
+    }
+
+    // Name is too long, apply smart truncation with extension
+    final extension = getFileExtension(cleanName);
+    final nameWithoutExt = getFileNameWithoutExtension(cleanName);
+
+    if (extension.isNotEmpty) {
+      // Calculate space for name part (reserve space for "..." and extension)
+      final extensionPart = '...$extension';
+      final maxNameLength = maxLength - extensionPart.length;
+
+      if (maxNameLength > 3) {
+        // Ensure we have reasonable space for name
+        return '${nameWithoutExt.substring(0, maxNameLength)}$extensionPart';
+      }
+    }
+
+    // Fallback: simple truncation if extension handling fails
+    return '${cleanName.substring(0, maxLength - 3)}...';
+  }
+
+  /// Get smart display name for file lists
+  ///
+  /// Returns either full name or truncated name with extension based on length
+  static String getSmartDisplayName(String fileName, {int maxLength = 35}) {
+    return formatForSmartDisplay(fileName, maxLength: maxLength);
+  }
+
   /// Create unique filename to avoid conflicts
   ///
   /// Adds counter suffix if filename already exists

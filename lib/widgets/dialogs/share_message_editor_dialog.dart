@@ -19,7 +19,8 @@ class ShareMessageEditorDialog extends StatefulWidget {
   });
 
   @override
-  State<ShareMessageEditorDialog> createState() => _ShareMessageEditorDialogState();
+  State<ShareMessageEditorDialog> createState() =>
+      _ShareMessageEditorDialogState();
 
   /// Static method to show the dialog
   static Future<void> show({
@@ -63,9 +64,7 @@ class _ShareMessageEditorDialogState extends State<ShareMessageEditorDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
         padding: const EdgeInsets.all(24),
@@ -76,11 +75,7 @@ class _ShareMessageEditorDialogState extends State<ShareMessageEditorDialog> {
             // Header
             Row(
               children: [
-                Icon(
-                  Icons.edit_note,
-                  color: AppColors.primary,
-                  size: 24,
-                ),
+                Icon(Icons.edit_note, color: AppColors.primary, size: 24),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -99,9 +94,9 @@ class _ShareMessageEditorDialogState extends State<ShareMessageEditorDialog> {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // File info
             Container(
               padding: const EdgeInsets.all(12),
@@ -112,18 +107,14 @@ class _ShareMessageEditorDialogState extends State<ShareMessageEditorDialog> {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.description,
-                    color: AppColors.primary,
-                    size: 20,
-                  ),
+                  Icon(Icons.description, color: AppColors.primary, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.document.displayFileName,
+                          widget.document.getSmartDisplayName(maxLength: 30),
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
@@ -143,9 +134,9 @@ class _ShareMessageEditorDialogState extends State<ShareMessageEditorDialog> {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Message editor
             Text(
               'Message',
@@ -156,7 +147,7 @@ class _ShareMessageEditorDialogState extends State<ShareMessageEditorDialog> {
               ),
             ),
             const SizedBox(height: 8),
-            
+
             Flexible(
               child: Container(
                 decoration: BoxDecoration(
@@ -183,9 +174,9 @@ class _ShareMessageEditorDialogState extends State<ShareMessageEditorDialog> {
                 ),
               ),
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // Google Drive link info (read-only)
             Container(
               padding: const EdgeInsets.all(12),
@@ -214,15 +205,17 @@ class _ShareMessageEditorDialogState extends State<ShareMessageEditorDialog> {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Action buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: _isSharing ? null : () => Navigator.of(context).pop(),
+                  onPressed: _isSharing
+                      ? null
+                      : () => Navigator.of(context).pop(),
                   child: Text(
                     'Cancel',
                     style: GoogleFonts.poppins(
@@ -240,7 +233,10 @@ class _ShareMessageEditorDialogState extends State<ShareMessageEditorDialog> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                   ),
                   child: _isSharing
                       ? Row(
@@ -251,7 +247,9 @@ class _ShareMessageEditorDialogState extends State<ShareMessageEditorDialog> {
                               height: 16,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -279,7 +277,7 @@ class _ShareMessageEditorDialogState extends State<ShareMessageEditorDialog> {
 
   void _handleShare() async {
     if (_isSharing) return;
-    
+
     setState(() {
       _isSharing = true;
     });
@@ -287,7 +285,7 @@ class _ShareMessageEditorDialogState extends State<ShareMessageEditorDialog> {
     try {
       final message = _messageController.text.trim();
       widget.onShare(message);
-      
+
       if (mounted) {
         Navigator.of(context).pop();
       }
@@ -295,7 +293,7 @@ class _ShareMessageEditorDialogState extends State<ShareMessageEditorDialog> {
       setState(() {
         _isSharing = false;
       });
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

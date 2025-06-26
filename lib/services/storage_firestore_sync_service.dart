@@ -342,8 +342,11 @@ class StorageFirestoreSyncService {
     if (contentType.contains('word') || contentType.contains('document')) {
       return 'Document';
     }
-    if (contentType.contains('sheet') || contentType.contains('excel')) {
-      return 'Spreadsheet';
+    if (contentType.contains('sheet') ||
+        contentType.contains('excel') ||
+        contentType.contains('csv')) {
+      // Added CSV support
+      return 'Excel'; // Group CSV with Excel for filtering
     }
     return 'Other';
   }

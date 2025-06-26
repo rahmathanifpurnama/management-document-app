@@ -143,7 +143,9 @@ class _UploadFileItemWidgetState extends State<UploadFileItemWidget>
         // File Name
         Flexible(
           child: Text(
-            widget.file.displayFileName, // Use clean display name if available
+            widget
+                .file
+                .smartDisplayName, // Use smart display name with intelligent truncation
             style: GoogleFonts.poppins(
               fontSize: 16,
               fontWeight: FontWeight.w500,

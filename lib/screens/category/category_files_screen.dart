@@ -40,6 +40,7 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
   final ShareService _shareService = ShareService();
   String _searchQuery = '';
   bool _isRefreshing = false; // Add refresh state
+  bool _isInitialLoading = true; // Add initial loading state
 
   @override
   void initState() {
@@ -68,7 +69,23 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
 
       // Always try to load documents from Firebase to ensure fresh data
       debugPrint('📁 Category screen: Loading documents...');
-      await documentProvider.loadDocuments();
+
+      // Show loading for minimum duration for better UX
+      final minimumLoadingTime = Future.delayed(
+        const Duration(milliseconds: 1200),
+      );
+
+      final dataLoadingFuture = documentProvider.loadDocuments();
+
+      // Wait for both minimum loading time and data loading
+      await Future.wait([minimumLoadingTime, dataLoadingFuture]);
+
+      // Set initial loading to false
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = false;
+        });
+      }
 
       // If category is still empty, try async Firebase query
       final categoryDocuments = documentProvider.getDocumentsByCategory(
@@ -322,13 +339,16 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
     List<DocumentModel> filteredDocuments,
     DocumentProvider documentProvider,
   ) {
-    // IMPROVED: Better loading state logic
+    // IMPROVED: Better loading state logic with initial loading
     final isInitialLoading =
-        documentProvider.isLoading && allCategoryDocuments.isEmpty;
+        _isInitialLoading ||
+        (documentProvider.isLoading && allCategoryDocuments.isEmpty);
     final isCategoryLoading = _isRefreshing;
 
-    // Show loading state during refresh or initial loading
-    if (isCategoryLoading || isInitialLoading) {
+    // Show loading state during refresh, initial loading, or when entering screen with files
+    if (isCategoryLoading ||
+        isInitialLoading ||
+        (_isInitialLoading && allCategoryDocuments.isNotEmpty)) {
       debugPrint('📱 FileListSection: Showing loading widget');
       return _buildLoadingWidget();
     }

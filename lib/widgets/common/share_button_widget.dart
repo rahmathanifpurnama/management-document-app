@@ -396,7 +396,7 @@ class _ShareButtonWidgetState extends State<ShareButtonWidget> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Upload "${widget.document.displayFileName}" to your Google Drive and share?',
+                    'Upload "${widget.document.getSmartDisplayName(maxLength: 30)}" to your Google Drive and share?',
                     style: GoogleFonts.poppins(color: AppColors.textSecondary),
                   ),
                   const SizedBox(height: 12),
