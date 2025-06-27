@@ -563,17 +563,29 @@ async function calculateFreshStatistics() {
         getOptimizedStorageSize()
     ]);
     // For recent files, use a simpler approach that doesn't require complex indexing
+    // Get recent files by fetching documents and counting them locally (last 7 days)
     let recentFilesCount = 0;
     try {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        console.log(`📊 Calculating recent files since: ${sevenDaysAgo.toISOString()}`);
         const recentFilesSnapshot = await admin
             .firestore()
             .collection("document-metadata")
             .where("isActive", "==", true)
-            .where("uploadedAt", ">=", new Date(Date.now() - 24 * 60 * 60 * 1000))
+            .where("uploadedAt", ">=", sevenDaysAgo)
             .limit(1000) // Limit to prevent excessive reads
             .get();
         recentFilesCount = recentFilesSnapshot.docs.length;
-        console.log(`📊 Recent files count: ${recentFilesCount}`);
+        console.log(`📊 Recent files count (last 7 days): ${recentFilesCount}`);
+        // Debug: Log some sample recent files for verification
+        if (recentFilesSnapshot.docs.length > 0) {
+            const sampleDocs = recentFilesSnapshot.docs.slice(0, 3);
+            sampleDocs.forEach(doc => {
+                const data = doc.data();
+                const uploadedAt = data.uploadedAt;
+                console.log(`📄 Sample recent file: ${data.fileName} uploaded at: ${uploadedAt}`);
+            });
+        }
     }
     catch (recentFilesError) {
         console.warn(`⚠️ Could not calculate recent files, using 0: ${recentFilesError}`);

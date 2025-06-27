@@ -217,23 +217,33 @@ class OptimizedStatisticsService {
       ]);
 
       // For recent files, use a simpler approach that doesn't require complex indexing
-      // Get recent files by fetching documents and counting them locally
+      // Get recent files by fetching documents and counting them locally (last 7 days)
       int recentFilesCount = 0;
       try {
+        final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
+        debugPrint('📊 Calculating recent files since: $sevenDaysAgo');
+
         final recentFilesSnapshot = await firestore
             .collection('document-metadata')
             .where('isActive', isEqualTo: true)
-            .where(
-              'uploadedAt',
-              isGreaterThanOrEqualTo: DateTime.now().subtract(
-                const Duration(hours: 24),
-              ),
-            )
+            .where('uploadedAt', isGreaterThanOrEqualTo: sevenDaysAgo)
             .limit(1000) // Limit to prevent excessive reads
             .get();
 
         recentFilesCount = recentFilesSnapshot.docs.length;
-        debugPrint('📊 Recent files count: $recentFilesCount');
+        debugPrint('📊 Recent files count (last 7 days): $recentFilesCount');
+
+        // Debug: Log some sample recent files for verification
+        if (recentFilesSnapshot.docs.isNotEmpty) {
+          final sampleDocs = recentFilesSnapshot.docs.take(3);
+          for (final doc in sampleDocs) {
+            final data = doc.data();
+            final uploadedAt = data['uploadedAt'];
+            debugPrint(
+              '📄 Sample recent file: ${data['fileName']} uploaded at: $uploadedAt',
+            );
+          }
+        }
       } catch (recentFilesError) {
         debugPrint(
           '⚠️ Could not calculate recent files, using 0: $recentFilesError',
