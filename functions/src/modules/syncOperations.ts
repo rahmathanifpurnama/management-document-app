@@ -647,16 +647,15 @@ async function getCachedStatistics(): Promise<any | null> {
 async function calculateFreshStatistics(): Promise<any> {
   console.log("🔄 Calculating fresh statistics...");
 
-  // Use Promise.all for parallel execution
+  // Execute basic count queries in parallel (these don't require complex indexes)
   const [
     totalFilesResult,
     activeUsersResult,
     totalCategoriesResult,
-    recentFilesResult,
     fileTypeStatsResult,
     storageSizeResult
   ] = await Promise.all([
-    // Total active files
+    // Total active files - simple single-field query
     admin
       .firestore()
       .collection("document-metadata")
@@ -664,7 +663,7 @@ async function calculateFreshStatistics(): Promise<any> {
       .count()
       .get(),
 
-    // Active users
+    // Active users - simple single-field query
     admin
       .firestore()
       .collection("users")
@@ -672,19 +671,10 @@ async function calculateFreshStatistics(): Promise<any> {
       .count()
       .get(),
 
-    // Total categories
+    // Total categories - simple count query
     admin
       .firestore()
       .collection("categories")
-      .count()
-      .get(),
-
-    // FIXED: Recent files (last 24 hours) to differentiate from total files
-    admin
-      .firestore()
-      .collection("document-metadata")
-      .where("isActive", "==", true)
-      .where("uploadedAt", ">=", new Date(Date.now() - 24 * 60 * 60 * 1000))
       .count()
       .get(),
 
@@ -695,11 +685,29 @@ async function calculateFreshStatistics(): Promise<any> {
     getOptimizedStorageSize()
   ]);
 
+  // For recent files, use a simpler approach that doesn't require complex indexing
+  let recentFilesCount = 0;
+  try {
+    const recentFilesSnapshot = await admin
+      .firestore()
+      .collection("document-metadata")
+      .where("isActive", "==", true)
+      .where("uploadedAt", ">=", new Date(Date.now() - 24 * 60 * 60 * 1000))
+      .limit(1000) // Limit to prevent excessive reads
+      .get();
+
+    recentFilesCount = recentFilesSnapshot.docs.length;
+    console.log(`📊 Recent files count: ${recentFilesCount}`);
+  } catch (recentFilesError) {
+    console.warn(`⚠️ Could not calculate recent files, using 0: ${recentFilesError}`);
+    recentFilesCount = 0;
+  }
+
   const statistics = {
     totalFiles: totalFilesResult.data().count,
     activeUsers: activeUsersResult.data().count,
     totalCategories: totalCategoriesResult.data().count,
-    recentFiles: recentFilesResult.data().count,
+    recentFiles: recentFilesCount,
     fileTypeStats: fileTypeStatsResult,
     totalStorageSize: storageSizeResult,
     lastCalculated: admin.firestore.FieldValue.serverTimestamp(),

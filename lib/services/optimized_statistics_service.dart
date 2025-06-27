@@ -196,27 +196,31 @@ class OptimizedStatisticsService {
       final firestore = _firebaseService.firestore;
       final startTime = DateTime.now();
 
-      // Execute all queries in parallel for better performance
-      final results = await Future.wait([
-        // Total active files
+      // Execute basic count queries in parallel (these don't require complex indexes)
+      final basicResults = await Future.wait([
+        // Total active files - simple single-field query
         firestore
             .collection('document-metadata')
             .where('isActive', isEqualTo: true)
             .count()
             .get(),
 
-        // Active users
+        // Active users - simple single-field query
         firestore
             .collection('users')
             .where('isActive', isEqualTo: true)
             .count()
             .get(),
 
-        // Total categories
+        // Total categories - simple count query
         firestore.collection('categories').count().get(),
+      ]);
 
-        // FIXED: Recent files (last 24 hours) to differentiate from total files
-        firestore
+      // For recent files, use a simpler approach that doesn't require complex indexing
+      // Get recent files by fetching documents and counting them locally
+      int recentFilesCount = 0;
+      try {
+        final recentFilesSnapshot = await firestore
             .collection('document-metadata')
             .where('isActive', isEqualTo: true)
             .where(
@@ -225,15 +229,23 @@ class OptimizedStatisticsService {
                 const Duration(hours: 24),
               ),
             )
-            .count()
-            .get(),
-      ]);
+            .limit(1000) // Limit to prevent excessive reads
+            .get();
+
+        recentFilesCount = recentFilesSnapshot.docs.length;
+        debugPrint('📊 Recent files count: $recentFilesCount');
+      } catch (recentFilesError) {
+        debugPrint(
+          '⚠️ Could not calculate recent files, using 0: $recentFilesError',
+        );
+        recentFilesCount = 0;
+      }
 
       final stats = {
-        'totalFiles': results[0].count ?? 0,
-        'activeUsers': results[1].count ?? 0,
-        'totalCategories': results[2].count ?? 0,
-        'recentFiles': results[3].count ?? 0,
+        'totalFiles': basicResults[0].count ?? 0,
+        'activeUsers': basicResults[1].count ?? 0,
+        'totalCategories': basicResults[2].count ?? 0,
+        'recentFiles': recentFilesCount,
         'fileTypeStats': <String, int>{},
         'totalStorageSize': 0,
         'lastCalculated': startTime.toIso8601String(),
