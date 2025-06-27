@@ -27,6 +27,7 @@ import '../../core/services/greeting_service.dart';
 import '../../services/firebase_storage_direct_service.dart';
 import '../../services/statistics_notification_service.dart';
 import '../../services/optimized_statistics_service.dart';
+import '../../services/timestamp_debug_service.dart';
 import '../../core/utils/circuit_breaker.dart';
 import '../../core/utils/empty_storage_state_manager.dart';
 import '../../widgets/statistics/real_time_stats_widget.dart';
@@ -384,6 +385,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             .requestStatisticsRefresh(
                               reason: 'Manual refresh from home screen',
                             );
+
+                        // DEBUGGING: Run timestamp analysis on manual refresh
+                        TimestampDebugService.instance
+                            .monitorRecentFilesStatistics();
                       },
                     ),
                     SizedBox(height: responsiveSpacing / 3),

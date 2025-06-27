@@ -2300,57 +2300,51 @@ class DocumentProvider extends ChangeNotifier {
         .toList();
   }
 
-  // ENHANCED: Firebase Storage as single source of truth for recent documents
+  // UNIFIED DATA SOURCE: Firestore as single source of truth for recent documents
   List<DocumentModel> getRecentDocuments({int? limit}) {
-    // PRIORITY 1: Always use Firebase Storage data from state manager
-    final stateManagerDocs = _stateManager.getRecentDocuments(
-      limit:
-          limit ??
-          (FirebaseConfig.shouldEnableUnlimitedFiles
-              ? 0
-              : ANRConfig.defaultPageSize),
-    );
+    // TIMESTAMP FIX: Use consistent recent files calculation (7 days)
+    final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
 
-    // CONSISTENCY FIX: Always sync local state with Storage-based state manager
-    if (_stateManager.documents.isNotEmpty) {
-      if (_documents.length != _stateManager.documents.length) {
-        debugPrint('🔄 Syncing local state with Firebase Storage data...');
-        _documents = List.from(_stateManager.documents);
-        _applyFiltersAndSort();
-      }
+    // Filter documents from Firestore data (primary source)
+    List<DocumentModel> recentDocs = _documents
+        .where((doc) => doc.uploadedAt.isAfter(sevenDaysAgo))
+        .toList();
 
-      // Return Storage-based data for consistency
-      debugPrint(
-        '📊 Using Firebase Storage data: ${stateManagerDocs.length} recent files',
-      );
-      return stateManagerDocs;
-    }
-
-    // FALLBACK: Only use local data if Storage data is not available
-    // This ensures we don't show inconsistent data
-    List<DocumentModel> sortedDocs = List.from(_documents);
-    sortedDocs.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
+    // Sort by upload time (newest first)
+    recentDocs.sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
 
     // ENTERPRISE SCALE: Apply appropriate limit based on configuration
-    List<DocumentModel> recentDocs;
+    List<DocumentModel> limitedDocs;
     if (FirebaseConfig.shouldEnableUnlimitedFiles &&
         (limit == null || limit == 0)) {
       // No limit for enterprise mode
-      recentDocs = sortedDocs;
+      limitedDocs = recentDocs;
     } else {
       // Apply specified limit or safe default
       final safeLimit = limit ?? ANRConfig.defaultPageSize;
-      recentDocs = sortedDocs.take(safeLimit).toList();
+      limitedDocs = recentDocs.take(safeLimit).toList();
     }
 
-    // Log fallback usage for monitoring
-    if (recentDocs.isNotEmpty) {
-      debugPrint(
-        '⚠️ Using fallback data (may not match Storage): ${recentDocs.length} files',
-      );
+    // Enhanced debugging for recent files
+    debugPrint('📊 Recent files calculation:');
+    debugPrint('   - Cutoff date: $sevenDaysAgo');
+    debugPrint('   - Total documents: ${_documents.length}');
+    debugPrint('   - Recent documents (7 days): ${recentDocs.length}');
+    debugPrint('   - Limited result: ${limitedDocs.length}');
+
+    // Log sample recent files for verification
+    if (limitedDocs.isNotEmpty) {
+      debugPrint('📊 Sample recent files:');
+      final sampleDocs = limitedDocs.take(3);
+      for (final doc in sampleDocs) {
+        final daysDiff = DateTime.now().difference(doc.uploadedAt).inDays;
+        debugPrint('   - ${doc.fileName} ($daysDiff days ago)');
+      }
+    } else {
+      debugPrint('⚠️ No recent files found in the last 7 days');
     }
 
-    return recentDocs;
+    return limitedDocs;
   }
 
   // ARCHITECTURAL FIX: Use centralized state manager for atomic updates

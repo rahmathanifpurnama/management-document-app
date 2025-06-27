@@ -256,6 +256,8 @@ class UploadFileModel {
             filePath ??
             'documents/$fileName', // Simple path without category folder
         uploadedBy: uploadedBy,
+        // TIMESTAMP FIX: Use uploadEndTime if available, otherwise use current time
+        // Note: This is for local model creation only. Firestore documents should use serverTimestamp
         uploadedAt: uploadEndTime ?? DateTime.now(),
         category: categoryId ?? '', // Empty string for uncategorized files
         permissions: [uploadedBy],

@@ -285,7 +285,9 @@ class StorageFirestoreSyncService {
       'fileSize': file.size,
       'fileType': _getFileTypeFromContentType(file.contentType),
       'uploadedBy': adminUserId,
-      'uploadedAt': Timestamp.fromDate(file.timeCreated),
+      // TIMESTAMP FIX: Use serverTimestamp for consistency instead of file.timeCreated
+      // This ensures all uploadedAt timestamps are server-side and timezone-consistent
+      'uploadedAt': FieldValue.serverTimestamp(),
       'downloadUrl': downloadUrl,
       'category': _extractCategoryFromPath(file.path),
       'status': 'active',
@@ -299,6 +301,8 @@ class StorageFirestoreSyncService {
         'syncedAt': FieldValue.serverTimestamp(),
         'createdBy': 'storage_sync_service',
         'unifiedIdSystem': true,
+        // Store original file creation time for reference
+        'originalTimeCreated': Timestamp.fromDate(file.timeCreated),
       },
     };
 

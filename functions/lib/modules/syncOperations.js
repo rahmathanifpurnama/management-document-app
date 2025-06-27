@@ -925,7 +925,9 @@ async function createFirestoreRecordForStorageFile(file, adminUserId) {
         fileSize: file.size,
         fileType: getFileTypeFromContentType(file.contentType),
         uploadedBy: adminUserId,
-        uploadedAt: admin.firestore.Timestamp.fromDate(file.timeCreated),
+        // TIMESTAMP FIX: Use serverTimestamp for consistency instead of file.timeCreated
+        // This ensures all uploadedAt timestamps are server-side and timezone-consistent
+        uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
         downloadUrl: downloadUrl,
         category: extractCategoryFromPath(file.path),
         status: 'active',
@@ -939,6 +941,8 @@ async function createFirestoreRecordForStorageFile(file, adminUserId) {
             syncedAt: admin.firestore.FieldValue.serverTimestamp(),
             createdBy: 'sync_operations',
             unifiedIdSystem: true,
+            // Store original file creation time for reference
+            originalTimeCreated: admin.firestore.Timestamp.fromDate(file.timeCreated),
         },
     };
     // ENHANCED: Use atomic transaction to ensure both collections are updated together

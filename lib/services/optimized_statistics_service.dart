@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/services/firebase_service.dart';
 import '../models/document_model.dart';
+import 'timestamp_debug_service.dart';
 
 /// Optimized statistics service for handling large datasets (1M+ files)
 /// Uses Cloud Functions, intelligent caching, and streaming for performance
@@ -216,12 +218,18 @@ class OptimizedStatisticsService {
         firestore.collection('categories').count().get(),
       ]);
 
-      // For recent files, use a simpler approach that doesn't require complex indexing
+      // TIMESTAMP FIX: Enhanced recent files calculation with proper server-side timestamp handling
       // Get recent files by fetching documents and counting them locally (last 7 days)
       int recentFilesCount = 0;
       try {
-        final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
-        debugPrint('📊 Calculating recent files since: $sevenDaysAgo');
+        // Use Firestore Timestamp for server-side consistency
+        final sevenDaysAgo = Timestamp.fromDate(
+          DateTime.now().subtract(const Duration(days: 7)),
+        );
+        debugPrint(
+          '📊 Calculating recent files since: ${sevenDaysAgo.toDate()}',
+        );
+        debugPrint('📊 Current server time reference: ${DateTime.now()}');
 
         final recentFilesSnapshot = await firestore
             .collection('document-metadata')
@@ -233,14 +241,47 @@ class OptimizedStatisticsService {
         recentFilesCount = recentFilesSnapshot.docs.length;
         debugPrint('📊 Recent files count (last 7 days): $recentFilesCount');
 
-        // Debug: Log some sample recent files for verification
+        // Enhanced debugging: Log sample recent files with detailed timestamp info
         if (recentFilesSnapshot.docs.isNotEmpty) {
-          final sampleDocs = recentFilesSnapshot.docs.take(3);
+          debugPrint('📊 Sample recent files for verification:');
+          final sampleDocs = recentFilesSnapshot.docs.take(5);
           for (final doc in sampleDocs) {
             final data = doc.data();
             final uploadedAt = data['uploadedAt'];
+            final uploadedAtDate = uploadedAt is Timestamp
+                ? uploadedAt.toDate()
+                : uploadedAt;
+            final daysDiff = DateTime.now().difference(uploadedAtDate).inDays;
             debugPrint(
-              '📄 Sample recent file: ${data['fileName']} uploaded at: $uploadedAt',
+              '📄 File: ${data['fileName']} | Uploaded: $uploadedAtDate | Days ago: $daysDiff',
+            );
+          }
+        } else {
+          debugPrint('⚠️ No recent files found in the last 7 days');
+
+          // ENHANCED DEBUGGING: Run comprehensive timestamp analysis
+          debugPrint('🔍 Running comprehensive timestamp analysis...');
+          await TimestampDebugService.instance.monitorRecentFilesStatistics();
+
+          // Additional debugging: Check if there are any files at all
+          final totalFilesSnapshot = await firestore
+              .collection('document-metadata')
+              .where('isActive', isEqualTo: true)
+              .limit(5)
+              .get();
+
+          debugPrint(
+            '📊 Total active files sample (${totalFilesSnapshot.docs.length}):',
+          );
+          for (final doc in totalFilesSnapshot.docs) {
+            final data = doc.data();
+            final uploadedAt = data['uploadedAt'];
+            final uploadedAtDate = uploadedAt is Timestamp
+                ? uploadedAt.toDate()
+                : uploadedAt;
+            final daysDiff = DateTime.now().difference(uploadedAtDate).inDays;
+            debugPrint(
+              '📄 File: ${data['fileName']} | Uploaded: $uploadedAtDate | Days ago: $daysDiff',
             );
           }
         }
@@ -248,6 +289,7 @@ class OptimizedStatisticsService {
         debugPrint(
           '⚠️ Could not calculate recent files, using 0: $recentFilesError',
         );
+        debugPrint('⚠️ Error details: ${recentFilesError.toString()}');
         recentFilesCount = 0;
       }
 
