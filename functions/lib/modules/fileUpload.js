@@ -103,6 +103,7 @@ function checkRateLimit(userId) {
 }
 /**
  * Sanitize filename to prevent path traversal and injection attacks
+ * ENHANCED: Preserves spaces for display while securing dangerous characters
  */
 function sanitizeFileName(fileName) {
     if (!fileName || typeof fileName !== "string") {
@@ -110,7 +111,7 @@ function sanitizeFileName(fileName) {
     }
     // Remove path traversal attempts
     let sanitized = fileName.replace(/\.\./g, "");
-    // Remove or replace dangerous characters
+    // Remove or replace dangerous characters (but preserve spaces)
     // eslint-disable-next-line no-control-regex
     sanitized = sanitized.replace(/[<>:"/\\|?*\x00-\x1f]/g, "_");
     // Remove leading/trailing spaces and dots
@@ -127,6 +128,22 @@ function sanitizeFileName(fileName) {
             nameWithoutExt.substring(0, 250 - extension.length) + "." + extension;
     }
     return sanitized;
+}
+/**
+ * Create secure storage path from filename
+ * ENHANCED: Replaces spaces and special characters for secure storage paths
+ */
+function createSecureStoragePath(fileName) {
+    if (!fileName || typeof fileName !== "string") {
+        throw new functions.https.HttpsError("invalid-argument", "Invalid filename provided");
+    }
+    // First sanitize for security
+    let securePath = sanitizeFileName(fileName);
+    // Then replace spaces with underscores for storage path
+    securePath = securePath.replace(/\s+/g, "_");
+    // Convert to lowercase for consistency
+    securePath = securePath.toLowerCase();
+    return securePath;
 }
 /**
  * Calculate file hash for duplicate detection
@@ -206,16 +223,17 @@ const processFileUpload = functions.https.onCall(async (data, context) => {
         const { filePath, contentType, metadata, categoryId } = data;
         const uploadedBy = context.auth.uid;
         console.log(`Processing file upload: ${filePath}`);
-        // Extract and sanitize file information
+        // Extract and process file information
         const originalFileName = filePath.split("/").pop() || "unknown";
-        const sanitizedFileName = sanitizeFileName(originalFileName);
+        const displayFileName = sanitizeFileName(originalFileName); // For display (preserves spaces)
+        const secureStorageName = createSecureStoragePath(originalFileName); // For storage paths
         const fileRef = admin.storage().bucket().file(filePath);
         // Get file metadata
         const [fileMetadata] = await fileRef.getMetadata();
         const fileSize = parseInt(String(fileMetadata.size || "0"));
-        // Enhanced file validation
+        // Enhanced file validation (use display name for validation)
         const validation = await validateFileInternal({
-            fileName: sanitizedFileName,
+            fileName: displayFileName,
             fileSize,
             contentType: contentType || fileMetadata.contentType || "",
         });
@@ -226,7 +244,7 @@ const processFileUpload = functions.https.onCall(async (data, context) => {
         console.log("Calculating file hash for duplicate detection...");
         const fileHash = await calculateFileHash(filePath);
         // Check for duplicates
-        const duplicateCheck = await checkForDuplicates(fileHash, sanitizedFileName, fileSize, uploadedBy);
+        const duplicateCheck = await checkForDuplicates(fileHash, displayFileName, fileSize, uploadedBy);
         if (duplicateCheck.isDuplicate) {
             // DISABLED: Automatic file deletion to prevent unwanted data loss
             // Instead, just reject the upload without deleting the file
@@ -253,12 +271,12 @@ const processFileUpload = functions.https.onCall(async (data, context) => {
         const docRef = admin.firestore().collection("document-metadata").doc();
         const documentId = docRef.id; // Use Firestore's auto-generated ID
         console.log(`🆔 Using unified document ID: ${documentId}`);
-        // Use clean filename for both display and storage
-        const displayFileName = sanitizedFileName; // Clean filename
+        // ENHANCED: Use original name for display, secure name for storage references
         const documentData = {
             id: documentId, // Store ID in document for consistency
-            fileName: displayFileName, // Clean filename for display
+            fileName: displayFileName, // Clean filename for display (preserves spaces)
             originalFileName: originalFileName, // Keep original for reference
+            secureStorageName: secureStorageName, // Secure name for storage operations
             fileSize,
             fileType: getFileType(displayFileName),
             filePath, // Storage path without timestamp
@@ -273,8 +291,10 @@ const processFileUpload = functions.https.onCall(async (data, context) => {
             uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
             category: categoryId || "",
             status: "active", // Changed from "pending" to "active"
-            metadata: Object.assign(Object.assign({}, extractedMetadata), { originalMetadata: metadata, fileHash: fileHash, storageFileName: filePath.split("/").pop() || sanitizedFileName, displayFileName: sanitizedFileName, createdBy: "cloud_function_upload", unifiedIdSystem: true, securityChecks: {
-                    fileNameSanitized: originalFileName !== sanitizedFileName,
+            metadata: Object.assign(Object.assign({}, extractedMetadata), { originalMetadata: metadata, fileHash: fileHash, storageFileName: filePath.split("/").pop() || secureStorageName, displayFileName: displayFileName, secureStorageName: secureStorageName, createdBy: "cloud_function_upload", unifiedIdSystem: true, securityChecks: {
+                    fileNameSanitized: originalFileName !== displayFileName,
+                    storageNameSecured: originalFileName !== secureStorageName,
+                    spacesPreservedInDisplay: displayFileName.includes(' '),
                     contentValidated: false, // Content-based scanning disabled
                     duplicateChecked: true,
                     validatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -292,7 +312,7 @@ const processFileUpload = functions.https.onCall(async (data, context) => {
             documentId,
             userId: uploadedBy,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: `File ${sanitizedFileName} uploaded successfully`,
+            details: `File ${displayFileName} uploaded successfully`,
         });
         // Commit both operations atomically
         await batch.commit();
@@ -336,7 +356,7 @@ const validateFile = functions.https.onCall(async (data, context) => {
     }
     // Rate limiting check
     checkRateLimit(context.auth.uid);
-    // Sanitize filename in validation data
+    // Sanitize filename in validation data (preserve spaces for display)
     const sanitizedData = Object.assign(Object.assign({}, data), { fileName: sanitizeFileName(data.fileName) });
     const validation = await validateFileInternal(sanitizedData);
     return validation;
@@ -865,8 +885,9 @@ const streamingUpload = functions.https.onRequest(async (req, res) => {
             });
             return;
         }
-        const sanitizedFileName = sanitizeFileName(originalFileName);
-        const filePath = `documents/${decodedToken.uid}/${sanitizedFileName}`;
+        const displayFileName = sanitizeFileName(originalFileName); // Preserves spaces
+        const secureStorageName = createSecureStoragePath(originalFileName); // Secure for storage
+        const filePath = `documents/${decodedToken.uid}/${secureStorageName}`;
         // Stream upload to Firebase Storage
         const bucket = admin.storage().bucket();
         const file = bucket.file(filePath);
