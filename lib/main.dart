@@ -46,7 +46,6 @@ import 'screens/notification/notification_center_screen.dart';
 import 'screens/admin/sync_management_screen.dart';
 import 'screens/upload/upload_document_screen.dart';
 import 'screens/common/file_preview_screen.dart';
-import 'screens/diagnostic_screen.dart';
 import 'services/download_notification_service.dart';
 
 import 'models/category_model.dart';
@@ -359,11 +358,6 @@ class _MyAppState extends State<MyApp> {
                     return MaterialPageRoute(
                       builder: (context) =>
                           FilePreviewScreen(document: document),
-                    );
-
-                  case AppRoutes.diagnostic:
-                    return MaterialPageRoute(
-                      builder: (context) => const DiagnosticScreen(),
                     );
 
                   default:
