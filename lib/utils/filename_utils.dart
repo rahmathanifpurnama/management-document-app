@@ -48,25 +48,32 @@ class FilenameUtils {
 
   /// Generate storage path without timestamp
   ///
-  /// Creates clean storage paths using original filename
+  /// Creates clean storage paths using secure filename for storage
   static String generateStoragePath({
     required String originalFileName,
     required String userId,
     String? categoryId,
   }) {
-    final sanitizedFileName = _sanitizeFileName(originalFileName);
+    final secureFileName = _createSecureStoragePath(originalFileName);
 
     if (categoryId != null && categoryId.isNotEmpty) {
-      return 'documents/categories/$categoryId/$sanitizedFileName';
+      return 'documents/categories/$categoryId/$secureFileName';
     } else {
-      return 'documents/$sanitizedFileName';
+      return 'documents/$secureFileName';
     }
   }
 
-  /// Sanitize filename for safe storage
+  /// Sanitize filename for display with preserved spaces
   ///
-  /// Removes or replaces dangerous characters while preserving readability
-  static String _sanitizeFileName(String fileName) {
+  /// Removes dangerous characters while preserving spaces for readability
+  static String sanitizeForDisplay(String fileName) {
+    return fileName.replaceAll(RegExp(r'[^\w\s\-\.]'), '_').trim();
+  }
+
+  /// Create secure storage path from filename
+  ///
+  /// Replaces spaces and special characters for secure storage paths
+  static String _createSecureStoragePath(String fileName) {
     return fileName
         .replaceAll(RegExp(r'[^\w\s\-\.]'), '_')
         .replaceAll(RegExp(r'\s+'), '_')

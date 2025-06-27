@@ -59,6 +59,9 @@ class StatisticsNotificationService {
   }) {
     debugPrint('📊 StatisticsNotificationService: File deleted - $fileName');
 
+    // ENHANCED: Invalidate all caches immediately when file is deleted
+    _invalidateCache();
+
     // Emit file count update event
     _fileCountUpdateController.add(
       FileCountUpdateEvent(
@@ -85,6 +88,9 @@ class StatisticsNotificationService {
       ),
     );
 
+    // ENHANCED: Force immediate statistics refresh for real-time updates
+    requestStatisticsRefresh(reason: 'File deleted: $fileName');
+
     // Add to batch for optimized processing
     _addToBatch({
       'type': 'fileDeleted',
@@ -104,6 +110,9 @@ class StatisticsNotificationService {
     required int fileSize,
   }) {
     debugPrint('📊 StatisticsNotificationService: File uploaded - $fileName');
+
+    // ENHANCED: Invalidate all caches immediately when file is uploaded
+    _invalidateCache();
 
     // Emit file count update event
     _fileCountUpdateController.add(
@@ -130,6 +139,9 @@ class StatisticsNotificationService {
         timestamp: DateTime.now(),
       ),
     );
+
+    // ENHANCED: Force immediate statistics refresh for real-time updates
+    requestStatisticsRefresh(reason: 'File uploaded: $fileName');
 
     // Add to batch for optimized processing
     _addToBatch({

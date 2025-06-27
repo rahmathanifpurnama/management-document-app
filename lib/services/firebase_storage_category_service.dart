@@ -166,12 +166,12 @@ class FirebaseStorageCategoryService {
     String fileName,
   ) {
     // Use flat structure with metadata for categorization
-    final sanitizedFileName = _sanitizeFileName(fileName);
-    return 'documents/$sanitizedFileName';
+    final secureFileName = _createSecureStoragePath(fileName);
+    return 'documents/$secureFileName';
   }
 
-  /// Sanitize file name
-  String _sanitizeFileName(String fileName) {
+  /// Sanitize file name for display (preserves spaces)
+  String _sanitizeFileNameForDisplay(String fileName) {
     // Keep original extension but sanitize the name part
     final parts = fileName.split('.');
     final extension = parts.length > 1 ? parts.last : '';
@@ -181,9 +181,25 @@ class FirebaseStorageCategoryService {
 
     final sanitizedName = nameWithoutExt
         .replaceAll(RegExp(r'[^\w\s.-]'), '')
-        .replaceAll(RegExp(r'\s+'), '_');
+        .trim(); // Preserve spaces for display
 
     return extension.isNotEmpty ? '$sanitizedName.$extension' : sanitizedName;
+  }
+
+  /// Create secure storage path (replaces spaces with underscores)
+  String _createSecureStoragePath(String fileName) {
+    // Keep original extension but sanitize the name part
+    final parts = fileName.split('.');
+    final extension = parts.length > 1 ? parts.last : '';
+    final nameWithoutExt = parts.length > 1
+        ? parts.sublist(0, parts.length - 1).join('.')
+        : fileName;
+
+    final secureName = nameWithoutExt
+        .replaceAll(RegExp(r'[^\w\s.-]'), '')
+        .replaceAll(RegExp(r'\s+'), '_'); // Replace spaces for storage
+
+    return extension.isNotEmpty ? '$secureName.$extension' : secureName;
   }
 
   /// Validate file existence and get reference with fallback search
@@ -283,7 +299,7 @@ class FirebaseStorageCategoryService {
     }
 
     // Check with sanitized version
-    final sanitizedOriginal = _sanitizeFileName(originalName);
+    final sanitizedOriginal = _createSecureStoragePath(originalName);
     if (storageName == sanitizedOriginal ||
         storageName.contains(sanitizedOriginal)) {
       return true;

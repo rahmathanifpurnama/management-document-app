@@ -179,12 +179,12 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget>
         await userProvider.loadUsers();
       }
 
-      // FIXED: Calculate recent files (last 24 hours) to differentiate from total files
+      // STANDARDIZED: Calculate recent files (last 7 days) to match Cloud Function
       final now = DateTime.now();
-      final twentyFourHoursAgo = now.subtract(const Duration(hours: 24));
+      final sevenDaysAgo = now.subtract(const Duration(days: 7));
 
       final recentFiles = docProvider.documents.where((doc) {
-        return doc.uploadedAt.isAfter(twentyFourHoursAgo);
+        return doc.uploadedAt.isAfter(sevenDaysAgo);
       }).length;
 
       // Debug logging to identify count discrepancy
@@ -192,7 +192,7 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget>
       debugPrint(
         '   Total documents in provider: ${docProvider.documents.length}',
       );
-      debugPrint('   Recent files (24h): $recentFiles');
+      debugPrint('   Recent files (7 days): $recentFiles');
 
       // Check for potential data integrity issues
       final approvedDocs = docProvider.documents

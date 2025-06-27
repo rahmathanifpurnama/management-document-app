@@ -9,7 +9,8 @@ import 'optimized_statistics_service.dart';
 /// Service to synchronize statistics updates across providers
 /// Ensures real-time statistics updates when data changes
 class StatisticsSyncService {
-  static final StatisticsSyncService _instance = StatisticsSyncService._internal();
+  static final StatisticsSyncService _instance =
+      StatisticsSyncService._internal();
   factory StatisticsSyncService() => _instance;
   StatisticsSyncService._internal();
 
@@ -58,10 +59,10 @@ class StatisticsSyncService {
   void _setupProviderListeners() {
     // Listen to document changes
     _documentProvider?.addListener(_onDocumentProviderChanged);
-    
+
     // Listen to category changes
     _categoryProvider?.addListener(_onCategoryProviderChanged);
-    
+
     // Listen to user changes
     _userProvider?.addListener(_onUserProviderChanged);
   }
@@ -97,7 +98,9 @@ class StatisticsSyncService {
 
   /// Trigger statistics update
   void _triggerStatisticsUpdate(String reason) {
-    debugPrint('📊 StatisticsSyncService: Triggering statistics update - $reason');
+    debugPrint(
+      '📊 StatisticsSyncService: Triggering statistics update - $reason',
+    );
 
     // Invalidate cache to force fresh calculation
     _statsService.invalidateCache(reason: reason);
@@ -120,7 +123,7 @@ class StatisticsSyncService {
     required int fileSize,
   }) {
     debugPrint('📊 StatisticsSyncService: File uploaded - $fileName');
-    
+
     _notificationService.notifyFileUploaded(
       fileId: fileId,
       fileName: fileName,
@@ -139,7 +142,7 @@ class StatisticsSyncService {
     required int fileSize,
   }) {
     debugPrint('📊 StatisticsSyncService: File deleted - $fileName');
-    
+
     _notificationService.notifyFileDeleted(
       fileId: fileId,
       fileName: fileName,
@@ -169,19 +172,13 @@ class StatisticsSyncService {
   }
 
   /// Notify user created
-  void notifyUserCreated({
-    required String userId,
-    required String userName,
-  }) {
+  void notifyUserCreated({required String userId, required String userName}) {
     debugPrint('📊 StatisticsSyncService: User created - $userName');
     _triggerStatisticsUpdate('User created: $userName');
   }
 
   /// Notify user deleted
-  void notifyUserDeleted({
-    required String userId,
-    required String userName,
-  }) {
+  void notifyUserDeleted({required String userId, required String userName}) {
     debugPrint('📊 StatisticsSyncService: User deleted - $userName');
     _triggerStatisticsUpdate('User deleted: $userName');
   }
@@ -189,7 +186,9 @@ class StatisticsSyncService {
   /// Get current statistics from providers (fallback method)
   Map<String, dynamic> getCurrentStatisticsFromProviders() {
     if (!_isInitialized) {
-      debugPrint('⚠️ StatisticsSyncService: Not initialized, returning empty stats');
+      debugPrint(
+        '⚠️ StatisticsSyncService: Not initialized, returning empty stats',
+      );
       return _getEmptyStats();
     }
 
@@ -197,10 +196,21 @@ class StatisticsSyncService {
       final now = DateTime.now();
       final sevenDaysAgo = now.subtract(const Duration(days: 7));
 
-      // Calculate recent files
-      final recentFiles = _documentProvider?.documents.where((doc) {
-        return doc.uploadedAt.isAfter(sevenDaysAgo);
-      }).length ?? 0;
+      // Calculate recent files (standardized to 7 days)
+      final recentFiles =
+          _documentProvider?.documents.where((doc) {
+            return doc.uploadedAt.isAfter(sevenDaysAgo);
+          }).length ??
+          0;
+
+      // Debug logging for statistics coordination
+      debugPrint('📊 StatisticsSyncService: Calculating statistics');
+      debugPrint('   Total files: ${_documentProvider?.documents.length ?? 0}');
+      debugPrint('   Recent files (7 days): $recentFiles');
+      debugPrint('   Active users: ${_userProvider?.users.length ?? 0}');
+      debugPrint(
+        '   Total categories: ${_categoryProvider?.categories.length ?? 0}',
+      );
 
       final stats = {
         'totalFiles': _documentProvider?.documents.length ?? 0,
@@ -213,10 +223,14 @@ class StatisticsSyncService {
         'calculationDurationMs': 0,
       };
 
-      debugPrint('📊 StatisticsSyncService: Current stats from providers: $stats');
+      debugPrint(
+        '📊 StatisticsSyncService: Current stats from providers: $stats',
+      );
       return stats;
     } catch (e) {
-      debugPrint('❌ StatisticsSyncService: Error getting stats from providers: $e');
+      debugPrint(
+        '❌ StatisticsSyncService: Error getting stats from providers: $e',
+      );
       return _getEmptyStats();
     }
   }
@@ -241,9 +255,9 @@ class StatisticsSyncService {
   /// Dispose resources
   void dispose() {
     debugPrint('📊 StatisticsSyncService: Disposing...');
-    
+
     _debounceTimer?.cancel();
-    
+
     // Remove listeners
     _documentProvider?.removeListener(_onDocumentProviderChanged);
     _categoryProvider?.removeListener(_onCategoryProviderChanged);
@@ -252,9 +266,9 @@ class StatisticsSyncService {
     _documentProvider = null;
     _categoryProvider = null;
     _userProvider = null;
-    
+
     _isInitialized = false;
-    
+
     debugPrint('✅ StatisticsSyncService: Disposed');
   }
 }
