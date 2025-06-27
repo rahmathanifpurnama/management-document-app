@@ -400,8 +400,11 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
               },
             ),
 
-            // Pagination Controls (removed vertical spacing)
-            if (totalPages > 1) ...[_buildPaginationControls(totalPages)],
+            // Pagination Controls with top margin
+            if (totalPages > 1) ...[
+              const SizedBox(height: 16), // Add top margin above pagination
+              _buildPaginationControls(totalPages),
+            ],
           ],
         ),
       ),
