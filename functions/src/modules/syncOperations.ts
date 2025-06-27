@@ -1347,6 +1347,136 @@ const repairSyncInconsistencies = functions.https.onCall(
   }
 );
 
+/**
+ * Analyze data consistency between Firebase Storage and Firestore
+ * Returns detailed report of discrepancies for diagnostic purposes
+ */
+export const analyzeDataConsistency = functions.https.onCall(
+  async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "User must be authenticated"
+      );
+    }
+
+    try {
+      console.log('🔍 Starting data consistency analysis...');
+
+      // Get all Firestore metadata
+      const firestoreSnapshot = await admin
+        .firestore()
+        .collection("document-metadata")
+        .get();
+
+      const firestoreFiles = firestoreSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          fileName: data.fileName || '',
+          isActive: data.isActive || false,
+          uploadedAt: data.uploadedAt,
+          category: data.category || 'uncategorized',
+          fileSize: data.fileSize || 0,
+          uploadedBy: data.uploadedBy || '',
+          ...data
+        };
+      });
+
+      // Get all Storage files
+      const storageFiles = await getAllStorageFiles();
+
+      console.log(`📊 Found ${firestoreFiles.length} Firestore records, ${storageFiles.length} Storage files`);
+
+      // Create lookup maps
+      const storageFileMap = new Map();
+      storageFiles.forEach(file => {
+        storageFileMap.set(file.name, file);
+      });
+
+      const firestoreFileMap = new Map();
+      const activeFirestoreFiles: any[] = [];
+      const inactiveFirestoreFiles: any[] = [];
+
+      firestoreFiles.forEach(file => {
+        firestoreFileMap.set(file.fileName, file);
+        if (file.isActive) {
+          activeFirestoreFiles.push(file);
+        } else {
+          inactiveFirestoreFiles.push(file);
+        }
+      });
+
+      // Find orphaned metadata (exists in Firestore but not in Storage)
+      const orphanedMetadata: any[] = [];
+      firestoreFiles.forEach(file => {
+        if (!storageFileMap.has(file.fileName)) {
+          orphanedMetadata.push(file);
+        }
+      });
+
+      // Find orphaned storage files (exists in Storage but not in Firestore)
+      const orphanedStorageFiles: any[] = [];
+      storageFiles.forEach(file => {
+        if (!firestoreFileMap.has(file.name)) {
+          orphanedStorageFiles.push(file);
+        }
+      });
+
+      // Find duplicate metadata entries
+      const duplicateMetadata: { [key: string]: any[] } = {};
+      const fileNameCounts: { [key: string]: number } = {};
+
+      firestoreFiles.forEach(file => {
+        fileNameCounts[file.fileName] = (fileNameCounts[file.fileName] || 0) + 1;
+      });
+
+      Object.entries(fileNameCounts).forEach(([fileName, count]) => {
+        if (count > 1) {
+          duplicateMetadata[fileName] = firestoreFiles.filter(f => f.fileName === fileName);
+        }
+      });
+
+      const report = {
+        totalFirestoreRecords: firestoreFiles.length,
+        totalActiveFirestoreRecords: activeFirestoreFiles.length,
+        totalInactiveFirestoreRecords: inactiveFirestoreFiles.length,
+        totalStorageFiles: storageFiles.length,
+        orphanedMetadata: orphanedMetadata.map(f => ({
+          id: f.id,
+          fileName: f.fileName,
+          isActive: f.isActive,
+          uploadedAt: f.uploadedAt,
+          category: f.category
+        })),
+        orphanedStorageFiles: orphanedStorageFiles.map(f => ({
+          fileName: f.name,
+          size: f.size,
+          contentType: f.contentType
+        })),
+        duplicateMetadata: Object.keys(duplicateMetadata),
+        isConsistent: activeFirestoreFiles.length === storageFiles.length &&
+                     orphanedMetadata.length === 0 &&
+                     orphanedStorageFiles.length === 0 &&
+                     Object.keys(duplicateMetadata).length === 0,
+        discrepancyCount: Math.abs(activeFirestoreFiles.length - storageFiles.length)
+      };
+
+      console.log('✅ Data consistency analysis completed');
+      console.log(`   Consistent: ${report.isConsistent}`);
+      console.log(`   Discrepancy: ${report.discrepancyCount}`);
+      console.log(`   Orphaned metadata: ${orphanedMetadata.length}`);
+      console.log(`   Orphaned storage: ${orphanedStorageFiles.length}`);
+
+      return report;
+
+    } catch (error) {
+      console.error('❌ Error analyzing data consistency:', error);
+      throw new functions.https.HttpsError('internal', 'Failed to analyze data consistency');
+    }
+  }
+);
+
 export const syncFunctions = {
   syncStorageWithFirestore,
   syncStorageToFirestore,
@@ -1358,4 +1488,6 @@ export const syncFunctions = {
   getAggregatedStatistics,
   getPaginatedFileStats,
   invalidateStatisticsCache,
+  // DIAGNOSTIC: Data Consistency Analysis
+  analyzeDataConsistency,
 };

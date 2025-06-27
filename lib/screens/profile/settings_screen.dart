@@ -126,6 +126,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
                     const SizedBox(height: 12),
 
+                    _buildMenuTile(
+                      icon: Icons.bug_report_outlined,
+                      title: 'Data Diagnostic',
+                      subtitle:
+                          'Analyze data consistency between Storage and Firestore',
+                      onTap: () =>
+                          Navigator.pushNamed(context, AppRoutes.diagnostic),
+                    ),
+
+                    const SizedBox(height: 12),
+
                     const SizedBox(height: 32),
                   ],
                 );

@@ -51,6 +51,9 @@ class AppRoutes {
   static const String fileApproval = '/file-approval';
   static const String notificationCenter = '/notification-center';
 
+  // Diagnostic Routes
+  static const String diagnostic = '/diagnostic';
+
   // Error Routes
   static const String notFound = '/not-found';
   static const String unauthorized = '/unauthorized';
