@@ -319,12 +319,12 @@ class _UnifiedStatsWidgetState extends State<UnifiedStatsWidget>
     final catProvider = Provider.of<CategoryProvider>(context, listen: false);
     final userProvider = Provider.of<UserProvider>(context, listen: false);
 
-    // Calculate recent files (last 7 days)
+    // FIXED: Calculate recent files (last 24 hours) to differentiate from total files
     final now = DateTime.now();
-    final sevenDaysAgo = now.subtract(const Duration(days: 7));
+    final twentyFourHoursAgo = now.subtract(const Duration(hours: 24));
 
     final recentFiles = docProvider.documents.where((doc) {
-      return doc.uploadedAt.isAfter(sevenDaysAgo);
+      return doc.uploadedAt.isAfter(twentyFourHoursAgo);
     }).length;
 
     return {

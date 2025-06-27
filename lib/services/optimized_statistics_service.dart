@@ -194,8 +194,7 @@ class OptimizedStatisticsService {
 
     try {
       final firestore = _firebaseService.firestore;
-      final now = DateTime.now();
-      final sevenDaysAgo = now.subtract(const Duration(days: 7));
+      final startTime = DateTime.now();
 
       // Execute all queries in parallel for better performance
       final results = await Future.wait([
@@ -216,11 +215,16 @@ class OptimizedStatisticsService {
         // Total categories
         firestore.collection('categories').count().get(),
 
-        // Recent files (last 7 days)
+        // FIXED: Recent files (last 24 hours) to differentiate from total files
         firestore
             .collection('document-metadata')
             .where('isActive', isEqualTo: true)
-            .where('uploadedAt', isGreaterThanOrEqualTo: sevenDaysAgo)
+            .where(
+              'uploadedAt',
+              isGreaterThanOrEqualTo: DateTime.now().subtract(
+                const Duration(hours: 24),
+              ),
+            )
             .count()
             .get(),
       ]);
@@ -232,8 +236,10 @@ class OptimizedStatisticsService {
         'recentFiles': results[3].count ?? 0,
         'fileTypeStats': <String, int>{},
         'totalStorageSize': 0,
-        'lastCalculated': now.toIso8601String(),
-        'calculationDurationMs': DateTime.now().difference(now).inMilliseconds,
+        'lastCalculated': startTime.toIso8601String(),
+        'calculationDurationMs': DateTime.now()
+            .difference(startTime)
+            .inMilliseconds,
       };
 
       debugPrint('✅ Direct statistics calculation completed: $stats');

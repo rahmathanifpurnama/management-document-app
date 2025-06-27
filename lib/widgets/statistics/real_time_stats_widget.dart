@@ -179,13 +179,39 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget>
         await userProvider.loadUsers();
       }
 
-      // Calculate recent files (last 7 days)
+      // FIXED: Calculate recent files (last 24 hours) to differentiate from total files
       final now = DateTime.now();
-      final sevenDaysAgo = now.subtract(const Duration(days: 7));
+      final twentyFourHoursAgo = now.subtract(const Duration(hours: 24));
 
       final recentFiles = docProvider.documents.where((doc) {
-        return doc.uploadedAt.isAfter(sevenDaysAgo);
+        return doc.uploadedAt.isAfter(twentyFourHoursAgo);
       }).length;
+
+      // Debug logging to identify count discrepancy
+      debugPrint('📊 Statistics Debug:');
+      debugPrint(
+        '   Total documents in provider: ${docProvider.documents.length}',
+      );
+      debugPrint('   Recent files (24h): $recentFiles');
+
+      // Check for potential data integrity issues
+      final approvedDocs = docProvider.documents
+          .where(
+            (doc) =>
+                doc.metadata.status == 'approved' ||
+                doc.metadata.status == null,
+          )
+          .length;
+      debugPrint('   Approved/Active documents: $approvedDocs');
+
+      // Log sample document IDs for debugging
+      if (docProvider.documents.isNotEmpty) {
+        final sampleIds = docProvider.documents
+            .take(3)
+            .map((doc) => doc.id)
+            .join(', ');
+        debugPrint('   Sample document IDs: $sampleIds');
+      }
 
       final stats = {
         'totalFiles': docProvider.documents.length,

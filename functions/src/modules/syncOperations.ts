@@ -679,12 +679,12 @@ async function calculateFreshStatistics(): Promise<any> {
       .count()
       .get(),
 
-    // Recent files (last 7 days)
+    // FIXED: Recent files (last 24 hours) to differentiate from total files
     admin
       .firestore()
       .collection("document-metadata")
       .where("isActive", "==", true)
-      .where("uploadedAt", ">=", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
+      .where("uploadedAt", ">=", new Date(Date.now() - 24 * 60 * 60 * 1000))
       .count()
       .get(),
 
@@ -835,7 +835,7 @@ export const invalidateStatisticsCache = functions.https.onCall(
 
 /**
  * Get paginated file statistics for detailed breakdowns
- * Supports large datasets with pagination
+ * Supports large datasets with cursor-based pagination (FIXED: No more offset/limit issues)
  */
 export const getPaginatedFileStats = functions.https.onCall(
   async (data, context) => {
@@ -846,10 +846,11 @@ export const getPaginatedFileStats = functions.https.onCall(
         category,
         fileType,
         sortBy = 'uploadedAt',
-        sortOrder = 'desc'
+        sortOrder = 'desc',
+        lastDocumentId: cursorDocumentId = null // For cursor-based pagination
       } = data;
 
-      console.log(`📄 Getting paginated stats: page=${page}, limit=${limit}`);
+      console.log(`📄 Getting paginated stats: page=${page}, limit=${limit}, cursor=${cursorDocumentId}`);
 
       let query = admin
         .firestore()
@@ -868,9 +869,22 @@ export const getPaginatedFileStats = functions.https.onCall(
       // Add sorting
       query = query.orderBy(sortBy, sortOrder as any);
 
-      // Add pagination
-      const offset = (page - 1) * limit;
-      query = query.offset(offset).limit(limit);
+      // FIXED: Use cursor-based pagination instead of offset/limit
+      if (cursorDocumentId && page > 1) {
+        // Get the last document for cursor pagination
+        const lastDocRef = admin
+          .firestore()
+          .collection("document-metadata")
+          .doc(cursorDocumentId);
+        const lastDocSnapshot = await lastDocRef.get();
+
+        if (lastDocSnapshot.exists) {
+          query = query.startAfter(lastDocSnapshot);
+        }
+      }
+
+      // Apply limit
+      query = query.limit(limit);
 
       const snapshot = await query.get();
 
@@ -902,7 +916,11 @@ export const getPaginatedFileStats = functions.https.onCall(
 
       const totalCount = await countQuery.count().get();
       const total = totalCount.data().count;
-      const totalPages = Math.ceil(total / limit);
+
+      // Calculate pagination info for cursor-based pagination
+      const hasNext = files.length === limit;
+      const hasPrev = page > 1;
+      const lastDocumentId = files.length > 0 ? files[files.length - 1].id : null;
 
       return {
         files,
@@ -910,9 +928,15 @@ export const getPaginatedFileStats = functions.https.onCall(
           page,
           limit,
           total,
-          totalPages,
-          hasNext: page < totalPages,
-          hasPrev: page > 1
+          hasNext,
+          hasPrev,
+          lastDocumentId // For next page cursor
+        },
+        filters: {
+          category,
+          fileType,
+          sortBy,
+          sortOrder
         }
       };
     } catch (error) {
@@ -920,6 +944,102 @@ export const getPaginatedFileStats = functions.https.onCall(
       throw new functions.https.HttpsError(
         "internal",
         "Failed to get paginated stats",
+        error
+      );
+    }
+  }
+);
+
+/**
+ * DIAGNOSTIC: Check data integrity between Firestore and Storage
+ * Identifies orphaned documents and count discrepancies
+ */
+export const checkDataIntegrity = functions.https.onCall(
+  async (data, context) => {
+    try {
+      console.log("🔍 Starting data integrity check...");
+
+      const bucket = admin.storage().bucket();
+
+      // Get all active documents from Firestore
+      const firestoreSnapshot = await admin
+        .firestore()
+        .collection("document-metadata")
+        .where("isActive", "==", true)
+        .get();
+
+      console.log(`📊 Found ${firestoreSnapshot.docs.length} active documents in Firestore`);
+
+      // Get all files from Storage
+      const [storageFiles] = await bucket.getFiles();
+      console.log(`📁 Found ${storageFiles.length} files in Storage`);
+
+      const issues: any[] = [];
+      let orphanedDocuments = 0;
+      let missingDocuments = 0;
+
+      // Check for orphaned Firestore documents (no corresponding Storage file)
+      for (const doc of firestoreSnapshot.docs) {
+        const docData = doc.data();
+        const filePath = docData.filePath;
+
+        if (filePath) {
+          const file = bucket.file(filePath);
+          const [exists] = await file.exists();
+
+          if (!exists) {
+            orphanedDocuments++;
+            issues.push({
+              type: "orphaned_document",
+              documentId: doc.id,
+              fileName: docData.fileName,
+              filePath: filePath,
+              issue: "Firestore document exists but Storage file is missing"
+            });
+          }
+        }
+      }
+
+      // Check for missing Firestore documents (Storage files without metadata)
+      for (const file of storageFiles) {
+        const fileName = file.name.split("/").pop() || "unknown";
+        const documentId = fileName.split(".")[0] || fileName;
+
+        const docExists = firestoreSnapshot.docs.some(doc => doc.id === documentId);
+
+        if (!docExists) {
+          missingDocuments++;
+          issues.push({
+            type: "missing_document",
+            fileName: fileName,
+            filePath: file.name,
+            issue: "Storage file exists but no Firestore document found"
+          });
+        }
+      }
+
+      const summary = {
+        firestoreDocuments: firestoreSnapshot.docs.length,
+        storageFiles: storageFiles.length,
+        orphanedDocuments,
+        missingDocuments,
+        totalIssues: issues.length,
+        isHealthy: issues.length === 0
+      };
+
+      console.log("📋 Data Integrity Summary:", summary);
+
+      return {
+        summary,
+        issues: issues.slice(0, 50), // Limit to first 50 issues for response size
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+      };
+
+    } catch (error) {
+      console.error("❌ Error checking data integrity:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Failed to check data integrity",
         error
       );
     }
