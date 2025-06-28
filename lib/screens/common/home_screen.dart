@@ -17,13 +17,11 @@ import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/file_selection_bar.dart';
 import '../../models/document_model.dart';
 import '../../core/utils/context_filter_utils.dart';
-
 import '../../services/ui_refresh_service.dart';
 import '../../services/file_download_service.dart';
 import '../../services/share_service.dart';
 import '../../services/bulk_operations_service.dart';
 import '../../core/services/greeting_service.dart';
-
 import '../../services/firebase_storage_direct_service.dart';
 import '../../services/statistics_notification_service.dart';
 import '../../services/optimized_statistics_service.dart';
@@ -152,6 +150,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         userProvider.refreshUsers(),
         categoryProvider.refreshCategories(),
       ]);
+
+      // FIXED: Refresh statistics as part of the main RefreshIndicator
+      final statisticsService = OptimizedStatisticsService.instance;
+      await statisticsService.invalidateCache(reason: 'Pull to refresh');
 
       // Generate new greeting on refresh
       _generateNewGreeting();

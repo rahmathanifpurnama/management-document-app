@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../core/services/user_service.dart';
 import '../services/cloud_functions_service.dart';
+import '../services/statistics_sync_service.dart';
 import '../models/user_model.dart';
 
 class UserProvider extends ChangeNotifier {
   final UserService _userService = UserService.instance;
   final CloudFunctionsService _cloudFunctions = CloudFunctionsService.instance;
+  final StatisticsSyncService _statisticsSync = StatisticsSyncService.instance;
 
   List<UserModel> _users = [];
   List<UserModel> _filteredUsers = [];
@@ -172,11 +174,18 @@ class UserProvider extends ChangeNotifier {
     _clearError();
 
     try {
+      // Get user name before deletion for statistics
+      final user = _users.firstWhere((u) => u.id == userId);
+      final userName = user.fullName;
+
       await _userService.deleteUser(userId, deletedBy);
 
       // Remove from local list
       _users.removeWhere((u) => u.id == userId);
       _applyFilters();
+
+      // FIXED: Trigger real-time statistics refresh
+      _statisticsSync.notifyUserDeleted(userId: userId, userName: userName);
 
       return true;
     } catch (e) {

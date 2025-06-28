@@ -3,10 +3,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/category_model.dart';
 import '../core/services/category_service.dart';
 import '../core/services/cloud_functions_service.dart';
+import '../services/statistics_sync_service.dart';
 
 class CategoryProvider extends ChangeNotifier {
   final CategoryService _categoryService = CategoryService();
   final CloudFunctionsService _cloudFunctions = CloudFunctionsService.instance;
+  final StatisticsSyncService _statisticsSync = StatisticsSyncService.instance;
   List<CategoryModel> _categories = [];
   bool _isLoading = false;
   String? _errorMessage;
@@ -253,6 +255,11 @@ class CategoryProvider extends ChangeNotifier {
       final result = await _cloudFunctions.deleteCategory(categoryId);
 
       if (result['success'] == true) {
+        // Get category name before removal for statistics
+        final categoryName = _categories
+            .firstWhere((c) => c.id == categoryId)
+            .name;
+
         // Remove from local list
         _categories.removeWhere((c) => c.id == categoryId);
         debugPrint(
@@ -261,6 +268,13 @@ class CategoryProvider extends ChangeNotifier {
         debugPrint(
           '📊 Moved ${result['movedDocuments']} documents to uncategorized',
         );
+
+        // FIXED: Trigger real-time statistics refresh
+        _statisticsSync.notifyCategoryDeleted(
+          categoryId: categoryId,
+          categoryName: categoryName,
+        );
+
         notifyListeners();
       } else {
         throw Exception('Failed to delete category: ${result['message']}');
@@ -271,10 +285,23 @@ class CategoryProvider extends ChangeNotifier {
       // Fallback: try using direct Firebase service
       try {
         debugPrint('🔄 Falling back to direct Firebase service...');
+
+        // Get category name before removal for statistics
+        final categoryName = _categories
+            .firstWhere((c) => c.id == categoryId)
+            .name;
+
         await _categoryService.deleteCategory(categoryId);
 
         _categories.removeWhere((c) => c.id == categoryId);
         debugPrint('✅ Category removed via fallback method: $categoryId');
+
+        // FIXED: Trigger real-time statistics refresh
+        _statisticsSync.notifyCategoryDeleted(
+          categoryId: categoryId,
+          categoryName: categoryName,
+        );
+
         notifyListeners();
       } catch (fallbackError) {
         debugPrint('❌ Fallback also failed: $fallbackError');

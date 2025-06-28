@@ -24,8 +24,7 @@ class HomeDashboardStats extends StatefulWidget {
   State<HomeDashboardStats> createState() => _HomeDashboardStatsState();
 }
 
-class _HomeDashboardStatsState extends State<HomeDashboardStats>
-    with TickerProviderStateMixin {
+class _HomeDashboardStatsState extends State<HomeDashboardStats> {
   // Cache for storage statistics to prevent unnecessary Firebase calls
   Map<String, dynamic>? _cachedStorageStats;
   DateTime? _lastFetchTime;
@@ -34,50 +33,22 @@ class _HomeDashboardStatsState extends State<HomeDashboardStats>
   // Cache duration - 2 minutes for more responsive updates
   static const Duration _cacheDuration = Duration(minutes: 2);
 
-  // Animation controllers for smooth refresh effects
-  late AnimationController _refreshAnimationController;
-  late AnimationController _pulseAnimationController;
-  late Animation<double> _refreshAnimation;
-  late Animation<double> _pulseAnimation;
+  // REMOVED: Animation controllers for cleaner UI without pop-out effects
 
   // Statistics notification service for real-time updates
   final StatisticsNotificationService _statisticsService =
       StatisticsNotificationService.instance;
   StreamSubscription<StatisticsUpdateEvent>? _statisticsSubscription;
 
+  // FIXED: Direct statistics service for real-time queries
+  final OptimizedStatisticsService _directStatsService =
+      OptimizedStatisticsService.instance;
+
   @override
   void initState() {
     super.initState();
-    _initializeAnimations();
     _setupStatisticsListener();
     _loadStorageStatistics();
-  }
-
-  /// Initialize animation controllers for smooth refresh effects
-  void _initializeAnimations() {
-    // Refresh animation for the entire stats container
-    _refreshAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-    _refreshAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
-      CurvedAnimation(
-        parent: _refreshAnimationController,
-        curve: Curves.elasticOut,
-      ),
-    );
-
-    // Pulse animation for individual stat cards
-    _pulseAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
-      CurvedAnimation(
-        parent: _pulseAnimationController,
-        curve: Curves.easeInOut,
-      ),
-    );
   }
 
   /// Setup listener for real-time statistics updates
@@ -88,8 +59,7 @@ class _HomeDashboardStatsState extends State<HomeDashboardStats>
           '📊 HomeDashboardStats: Received statistics update - ${event.type}',
         );
 
-        // Trigger refresh animation and reload statistics
-        _triggerRefreshAnimation();
+        // FIXED: Reload statistics without animation for cleaner UI
         _invalidateCacheAndReload();
       },
       onError: (error) {
@@ -100,29 +70,11 @@ class _HomeDashboardStatsState extends State<HomeDashboardStats>
 
   @override
   void dispose() {
-    _refreshAnimationController.dispose();
-    _pulseAnimationController.dispose();
     _statisticsSubscription?.cancel();
     super.dispose();
   }
 
-  /// Trigger refresh animation when statistics are updated
-  void _triggerRefreshAnimation() {
-    if (mounted) {
-      _refreshAnimationController.forward().then((_) {
-        if (mounted) {
-          _refreshAnimationController.reverse();
-        }
-      });
-
-      // Also trigger pulse animation for visual feedback
-      _pulseAnimationController.forward().then((_) {
-        if (mounted) {
-          _pulseAnimationController.reverse();
-        }
-      });
-    }
-  }
+  /// REMOVED: Animation triggers for cleaner UI without pop-out effects
 
   /// Invalidate cache and reload statistics
   void _invalidateCacheAndReload() {
@@ -131,6 +83,11 @@ class _HomeDashboardStatsState extends State<HomeDashboardStats>
         _cachedStorageStats = null;
         _lastFetchTime = null;
       });
+
+      // FIXED: Force refresh direct statistics service
+      _directStatsService.invalidateCache(
+        reason: 'Manual refresh from dashboard',
+      );
       _loadStorageStatistics();
     }
   }
@@ -182,75 +139,76 @@ class _HomeDashboardStatsState extends State<HomeDashboardStats>
 
   @override
   Widget build(BuildContext context) {
-    // ARCHITECTURAL FIX: Only listen to UserProvider and CategoryProvider
-    // Removed DocumentProvider dependency to prevent unnecessary rebuilds during search/filter
-    return AnimatedBuilder(
-      animation: _refreshAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _refreshAnimation.value,
-          child: Consumer2<UserProvider, CategoryProvider>(
-            builder: (context, userProvider, categoryProvider, child) {
-              // Show loading only on initial load, not during search/filter operations
-              if (_isLoading && _cachedStorageStats == null) {
-                return _buildLoadingStats(context);
-              }
+    // FIXED: Use direct real-time statistics queries instead of cached provider data
+    // REMOVED: AnimatedBuilder wrapper for cleaner UI without pop-out effects
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _directStatsService.getAggregatedStatistics(forceRefresh: false),
+      builder: (context, snapshot) {
+        // Show loading only on initial load
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            _cachedStorageStats == null) {
+          return _buildLoadingStats(context);
+        }
 
-              // Use cached storage statistics to prevent flickering
-              final storageStats = _cachedStorageStats ?? {};
-              final totalDocuments = storageStats['totalFiles'] ?? 0;
-              final recentDocuments = storageStats['recentFiles'] ?? 0;
-              final totalUsers = userProvider.users.length;
-              final totalCategories = categoryProvider.categories.length;
+        // Use direct statistics data or fallback to cached storage stats
+        final directStats = snapshot.data ?? {};
+        final storageStats = _cachedStorageStats ?? {};
 
-              // DEBUG: Gunakan nilai fixed untuk margin dan spacing
-              // Ganti ResponsiveUtils dengan nilai yang lebih kecil
-              final screenWidth = MediaQuery.of(context).size.width;
-              final responsiveMargin = EdgeInsets.symmetric(
-                horizontal: screenWidth < 400
-                    ? 8.0
-                    : 16.0, // Lebih kecil untuk layar kecil
-                // Removed vertical padding for compact layout
-              );
-              final responsiveSpacing = screenWidth < 400
-                  ? 8.0
-                  : 12.0; // Spacing antar cards
+        // FIXED: Use real-time statistics from direct queries
+        final totalDocuments =
+            directStats['totalFiles'] ?? storageStats['totalFiles'] ?? 0;
+        final recentDocuments =
+            directStats['recentFiles'] ?? storageStats['recentFiles'] ?? 0;
+        final totalUsers =
+            directStats['activeUsers'] ?? 0; // Firebase Auth users
+        final totalCategories =
+            directStats['totalCategories'] ?? 0; // Real-time categories
 
-              // Create stat cards data
-              final statCards = [
-                _StatCardData(
-                  title: 'Total',
-                  value: totalDocuments.toString(),
-                  icon: Icons.description,
-                  color: AppColors.primary,
-                ),
-                _StatCardData(
-                  title: 'Recent',
-                  value: recentDocuments.toString(),
-                  icon: Icons.access_time,
-                  color: AppColors.success,
-                ),
-                _StatCardData(
-                  title: 'Users',
-                  value: totalUsers.toString(),
-                  icon: Icons.people,
-                  color: AppColors.warning,
-                ),
-                _StatCardData(
-                  title: 'Categories',
-                  value: totalCategories.toString(),
-                  icon: Icons.folder,
-                  color: AppColors.info,
-                ),
-              ];
+        // DEBUG: Gunakan nilai fixed untuk margin dan spacing
+        // Ganti ResponsiveUtils dengan nilai yang lebih kecil
+        final screenWidth = MediaQuery.of(context).size.width;
+        final responsiveMargin = EdgeInsets.symmetric(
+          horizontal: screenWidth < 400
+              ? 8.0
+              : 16.0, // Lebih kecil untuk layar kecil
+          // Removed vertical padding for compact layout
+        );
+        final responsiveSpacing = screenWidth < 400
+            ? 8.0
+            : 12.0; // Spacing antar cards
 
-              return Container(
-                margin: responsiveMargin,
-                // PERUBAHAN: Selalu gunakan Row layout (1 baris)
-                child: _buildRowLayout(context, statCards, responsiveSpacing),
-              );
-            },
+        // Create stat cards data
+        final statCards = [
+          _StatCardData(
+            title: 'Total',
+            value: totalDocuments.toString(),
+            icon: Icons.description,
+            color: AppColors.primary,
           ),
+          _StatCardData(
+            title: 'Recent',
+            value: recentDocuments.toString(),
+            icon: Icons.access_time,
+            color: AppColors.success,
+          ),
+          _StatCardData(
+            title: 'Users',
+            value: totalUsers.toString(),
+            icon: Icons.people,
+            color: AppColors.warning,
+          ),
+          _StatCardData(
+            title: 'Categories',
+            value: totalCategories.toString(),
+            icon: Icons.folder,
+            color: AppColors.info,
+          ),
+        ];
+
+        return Container(
+          margin: responsiveMargin,
+          // PERUBAHAN: Selalu gunakan Row layout (1 baris)
+          child: _buildRowLayout(context, statCards, responsiveSpacing),
         );
       },
     );
@@ -312,19 +270,11 @@ class _HomeDashboardStatsState extends State<HomeDashboardStats>
           child: Row(
             children: [
               Expanded(
-                child: AnimatedBuilder(
-                  animation: _pulseAnimation,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: _pulseAnimation.value,
-                      child: _StatCard(
-                        title: cardData.title,
-                        value: cardData.value,
-                        icon: cardData.icon,
-                        color: cardData.color,
-                      ),
-                    );
-                  },
+                child: _StatCard(
+                  title: cardData.title,
+                  value: cardData.value,
+                  icon: cardData.icon,
+                  color: cardData.color,
                 ),
               ),
               if (!isLast) SizedBox(width: spacing),
