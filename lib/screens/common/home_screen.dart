@@ -44,6 +44,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Timer? _searchTimer;
   Timer? _refreshTimer;
   late GreetingSet _currentGreeting;
+  final GlobalKey<_HomeFileListSectionState> _fileListKey =
+      GlobalKey<_HomeFileListSectionState>();
 
   @override
   void initState() {
@@ -131,18 +133,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       CircuitBreaker.resetAllCircuits();
       debugPrint('🔄 Circuit breakers reset for manual refresh');
 
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
-      );
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final categoryProvider = Provider.of<CategoryProvider>(
         context,
         listen: false,
       );
 
+      // Trigger file list refresh with loading state
+      final fileListRefresh = _fileListKey.currentState?.handleRefresh();
+
       await Future.wait([
-        documentProvider.refreshDocuments(),
+        if (fileListRefresh != null) fileListRefresh,
         userProvider.refreshUsers(),
         categoryProvider.refreshCategories(),
       ]);
@@ -376,6 +377,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ), // Reduced spacing before file list
                   // File List Section - Using new component
                   HomeFileListSection(
+                    key: _fileListKey,
                     searchQuery: _searchController.text,
                     onDocumentTap: _navigateToFilePreview,
                     onDocumentMenu: _showDocumentMenu,
