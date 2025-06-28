@@ -128,6 +128,58 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     super.dispose();
   }
 
+  /// Handle pull-to-refresh with loading state
+  Future<void> handleRefresh() async {
+    if (!mounted) return;
+
+    // Set loading state for refresh
+    setState(() {
+      _isFirstTimeLoading = true;
+      _hasDataCheckCompleted = false;
+    });
+
+    try {
+      debugPrint('🔄 HomeFileListSection: Starting pull-to-refresh loading...');
+
+      // Show loading UI for minimum duration (better UX)
+      final minimumLoadingTime = Future.delayed(
+        const Duration(milliseconds: 1000),
+      );
+
+      // Get document provider
+      final documentProvider = Provider.of<DocumentProvider>(
+        context,
+        listen: false,
+      );
+
+      // Force refresh documents from database
+      final dataLoadingFuture = documentProvider.refreshDocuments();
+
+      // Wait for both minimum loading time and data loading
+      await Future.wait([minimumLoadingTime, dataLoadingFuture]);
+
+      if (mounted) {
+        setState(() {
+          _isFirstTimeLoading = false;
+          _hasDataCheckCompleted = true;
+        });
+
+        final documentCount = documentProvider.allDocuments.length;
+        debugPrint(
+          '✅ HomeFileListSection: Pull-to-refresh completed - Found $documentCount files',
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ HomeFileListSection: Pull-to-refresh failed: $e');
+      if (mounted) {
+        setState(() {
+          _isFirstTimeLoading = false;
+          _hasDataCheckCompleted = true;
+        });
+      }
+    }
+  }
+
   /// Start first-time loading process for login users
   Future<void> _startInitialLoading() async {
     if (!mounted) return;
@@ -145,7 +197,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
 
       // Show loading UI for minimum duration (better UX)
       final minimumLoadingTime = Future.delayed(
-        const Duration(milliseconds: 1200),
+        const Duration(milliseconds: 1000),
       );
 
       // Get document provider
@@ -417,11 +469,31 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
       builder: (context, documentProvider, child) {
         // PRIORITY 1: Show first-time loading state for login users
         if (_isFirstTimeLoading || !_hasDataCheckCompleted) {
+          // Responsive design implementation
+          final screenWidth = MediaQuery.of(context).size.width;
+          final screenHeight = MediaQuery.of(context).size.height;
+          final isSmallScreen = screenWidth < 400;
+
+          // Calculate responsive values
+          final horizontalPadding = 20.0;
+          final bottomSpacing = isSmallScreen ? 10.0 : 12.0;
+          final progressIndicatorSize = isSmallScreen ? 48.0 : 56.0;
+          final textSpacing = isSmallScreen ? 12.0 : 16.0;
+          final fontSize = isSmallScreen ? 15.0 : 16.0;
+
+          // Calculate container height to extend near bottom navigation bar
+          // Account for: AppBar (~56px), bottom nav (~80px), margins, and spacing
+          final availableHeight =
+              screenHeight - 200; // Approximate space for bars and margins
+          final containerHeight = availableHeight - bottomSpacing;
+
           return Container(
-            padding: const EdgeInsets.symmetric(
-              vertical: 20,
-              horizontal: 20,
-            ), // Reduced vertical padding
+            height: containerHeight,
+            margin: EdgeInsets.only(bottom: bottomSpacing),
+            padding: EdgeInsets.symmetric(
+              vertical: isSmallScreen ? 40.0 : 60.0,
+              horizontal: horizontalPadding,
+            ),
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(16),
@@ -432,10 +504,11 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
             ),
             child: Center(
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   SizedBox(
-                    width: 32,
-                    height: 32,
+                    width: progressIndicatorSize,
+                    height: progressIndicatorSize,
                     child: CircularProgressIndicator(
                       strokeWidth: 3,
                       valueColor: AlwaysStoppedAnimation<Color>(
@@ -443,23 +516,13 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8), // Reduced spacing
+                  SizedBox(height: textSpacing),
                   Text(
                     'Loading your files...',
                     style: GoogleFonts.poppins(
-                      fontSize: 16,
+                      fontSize: fontSize,
                       fontWeight: FontWeight.w500,
                       color: AppColors.textSecondary,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 4), // Reduced spacing
-                  Text(
-                    'Checking database for your documents',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.textSecondary.withValues(alpha: 0.7),
                     ),
                     textAlign: TextAlign.center,
                   ),
