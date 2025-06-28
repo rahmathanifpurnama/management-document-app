@@ -484,7 +484,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           // Calculate container height to extend near bottom navigation bar
           // Account for: AppBar (~56px), bottom nav (~80px), margins, and spacing
           final availableHeight =
-              screenHeight - 200; // Approximate space for bars and margins
+              screenHeight - 560; // Approximate space for bars and margins
           final containerHeight = availableHeight - bottomSpacing;
 
           return Container(
@@ -518,7 +518,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                   ),
                   SizedBox(height: textSpacing),
                   Text(
-                    'Loading your files...',
+                    'Loading',
                     style: GoogleFonts.poppins(
                       fontSize: fontSize,
                       fontWeight: FontWeight.w500,
