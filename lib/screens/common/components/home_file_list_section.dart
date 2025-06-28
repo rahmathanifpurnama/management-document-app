@@ -507,6 +507,8 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     List<DocumentModel> documents,
     FileSelectionProvider selectionProvider,
   ) {
+    final responsiveElevation = 2.0;
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -515,6 +517,13 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           color: AppColors.border.withValues(alpha: 0.3),
           width: 1,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: responsiveElevation * 2,
+            offset: Offset(0, responsiveElevation / 2),
+          ),
+        ],
       ),
       child: Column(
         children: documents.asMap().entries.map((entry) {
@@ -756,34 +765,37 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
 
   /// Build clean pagination controls without background styling
   Widget _buildPaginationControls(int totalPages) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Previous button
-        _buildPaginationButton(
-          icon: Icons.chevron_left,
-          isEnabled: _currentPage > 0,
-          onTap: _currentPage > 0 ? () => _goToPage(_currentPage - 1) : null,
-          tooltip: 'Previous page',
-        ),
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Previous button
+          _buildPaginationButton(
+            icon: Icons.chevron_left,
+            isEnabled: _currentPage > 0,
+            onTap: _currentPage > 0 ? () => _goToPage(_currentPage - 1) : null,
+            tooltip: 'Previous page',
+          ),
 
-        const SizedBox(width: 16),
+          const SizedBox(width: 16),
 
-        // Page indicators with smart truncation and ellipsis
-        ..._buildPageIndicators(totalPages),
+          // Page indicators with smart truncation and ellipsis
+          ..._buildPageIndicators(totalPages),
 
-        const SizedBox(width: 16),
+          const SizedBox(width: 16),
 
-        // Next button
-        _buildPaginationButton(
-          icon: Icons.chevron_right,
-          isEnabled: _currentPage < totalPages - 1,
-          onTap: _currentPage < totalPages - 1
-              ? () => _goToPage(_currentPage + 1)
-              : null,
-          tooltip: 'Next page',
-        ),
-      ],
+          // Next button
+          _buildPaginationButton(
+            icon: Icons.chevron_right,
+            isEnabled: _currentPage < totalPages - 1,
+            onTap: _currentPage < totalPages - 1
+                ? () => _goToPage(_currentPage + 1)
+                : null,
+            tooltip: 'Next page',
+          ),
+        ],
+      ),
     );
   }
 

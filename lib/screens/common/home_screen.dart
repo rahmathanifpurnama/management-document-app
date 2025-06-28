@@ -357,11 +357,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                   // Dashboard Statistics Section (Admin only) - Using RealTimeStatsWidget without animations
                   if (authProvider.isAdmin) ...[
+                    const SizedBox(height: 12),
                     const RealTimeStatsWidget(
                       enablePullToRefresh:
                           false, // Integrate with main screen refresh
                     ),
-                    SizedBox(height: responsiveSpacing / 3),
+                    const SizedBox(height: 12),
                   ],
 
                   // Search Section - Using new component

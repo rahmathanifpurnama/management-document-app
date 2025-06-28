@@ -113,12 +113,14 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget> {
         widget.margin ??
         EdgeInsets.symmetric(
           horizontal: isSmallScreen ? 12.0 : (isMediumScreen ? 16.0 : 20.0),
-          vertical: 8.0,
+          vertical: 0.0,
         );
 
     final containerPadding =
         widget.padding ??
         EdgeInsets.all(isSmallScreen ? 12.0 : (isMediumScreen ? 16.0 : 20.0));
+
+    final responsiveElevation = 2.0;
 
     Widget content = _buildStatsContent();
 
@@ -143,14 +145,9 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadow.withValues(alpha: 0.08),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-          BoxShadow(
-            color: AppColors.shadow.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: responsiveElevation * 2,
+            offset: Offset(0, responsiveElevation / 2),
           ),
         ],
       ),
