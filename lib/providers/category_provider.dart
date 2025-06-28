@@ -3,11 +3,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/category_model.dart';
 import '../core/services/category_service.dart';
 import '../core/services/cloud_functions_service.dart';
+import '../services/statistics_sync_service.dart';
 import '../services/direct_statistics_update_service.dart';
 
 class CategoryProvider extends ChangeNotifier {
   final CategoryService _categoryService = CategoryService();
   final CloudFunctionsService _cloudFunctions = CloudFunctionsService.instance;
+  final StatisticsSyncService _statisticsSyncService =
+      StatisticsSyncService.instance;
   final DirectStatisticsUpdateService _directStatisticsService =
       DirectStatisticsUpdateService.instance;
   List<CategoryModel> _categories = [];

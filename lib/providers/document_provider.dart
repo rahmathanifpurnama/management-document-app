@@ -26,6 +26,7 @@ import '../services/document_state_manager.dart';
 import '../services/unified_document_loader.dart';
 import '../services/direct_storage_deletion_service.dart';
 import '../services/optimized_deletion_service.dart';
+import '../services/statistics_sync_service.dart';
 import '../services/direct_statistics_update_service.dart';
 import '../core/utils/circuit_breaker.dart';
 import '../core/utils/empty_storage_state_manager.dart';
@@ -113,6 +114,8 @@ class DocumentProvider extends ChangeNotifier {
       OptimizedDeletionService.instance;
 
   // STATISTICS UPDATE: Service for direct real-time statistics updates
+  final StatisticsSyncService _statisticsSyncService =
+      StatisticsSyncService.instance;
   final DirectStatisticsUpdateService _directStatisticsService =
       DirectStatisticsUpdateService.instance;
 

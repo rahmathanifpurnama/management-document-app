@@ -7,8 +7,7 @@ import '../core/services/firebase_service.dart';
 /// Performs real-time queries to Firebase collections without caching
 /// Ensures statistics always reflect current database state
 class DirectStatisticsService {
-  static final DirectStatisticsService _instance =
-      DirectStatisticsService._internal();
+  static final DirectStatisticsService _instance = DirectStatisticsService._internal();
   static DirectStatisticsService get instance => _instance;
   DirectStatisticsService._internal();
 
@@ -18,39 +17,35 @@ class DirectStatisticsService {
   Future<Map<String, dynamic>> getCategoryStatistics() async {
     try {
       debugPrint('📊 DirectStatisticsService: Getting category statistics...');
-
+      
       final firestore = _firebaseService.firestore;
-
+      
       // Direct count query to categories collection
       final categoriesCountResult = await firestore
           .collection('categories')
           .count()
           .get();
-
+      
       final totalCategories = categoriesCountResult.count ?? 0;
-
+      
       // Get active categories count
       final activeCategoriesResult = await firestore
           .collection('categories')
           .where('isActive', isEqualTo: true)
           .count()
           .get();
-
+      
       final activeCategories = activeCategoriesResult.count ?? 0;
-
-      debugPrint(
-        '📊 Category Statistics: Total=$totalCategories, Active=$activeCategories',
-      );
-
+      
+      debugPrint('📊 Category Statistics: Total=$totalCategories, Active=$activeCategories');
+      
       return {
         'totalCategories': totalCategories,
         'activeCategories': activeCategories,
         'lastUpdated': DateTime.now().toIso8601String(),
       };
     } catch (e) {
-      debugPrint(
-        '❌ DirectStatisticsService: Error getting category statistics - $e',
-      );
+      debugPrint('❌ DirectStatisticsService: Error getting category statistics - $e');
       return {
         'totalCategories': 0,
         'activeCategories': 0,
@@ -64,49 +59,45 @@ class DirectStatisticsService {
   Future<Map<String, dynamic>> getUserStatistics() async {
     try {
       debugPrint('📊 DirectStatisticsService: Getting user statistics...');
-
+      
       final firestore = _firebaseService.firestore;
       final auth = _firebaseService.auth;
-
-      // Get Firebase Authentication user count (this is the actual registered users)
-      // Note: Firebase Auth doesn't provide a direct count API, so we use Firestore users collection
-      // which should be synced with Firebase Auth users
-
+      
       // Direct count query to users collection (Firestore users)
       final usersCountResult = await firestore
           .collection('users')
           .count()
           .get();
-
+      
       final totalUsers = usersCountResult.count ?? 0;
-
+      
       // Get active users count
       final activeUsersResult = await firestore
           .collection('users')
           .where('isActive', isEqualTo: true)
           .count()
           .get();
-
+      
       final activeUsers = activeUsersResult.count ?? 0;
-
+      
       // Get admin users count
       final adminUsersResult = await firestore
           .collection('users')
           .where('role', isEqualTo: 'admin')
           .count()
           .get();
-
+      
       final adminUsers = adminUsersResult.count ?? 0;
-
+      
       // Get current authenticated user info for debugging
       final currentUser = auth.currentUser;
       final currentUserEmail = currentUser?.email ?? 'Not authenticated';
-
+      
       debugPrint(
         '📊 User Statistics: Total=$totalUsers, Active=$activeUsers, Admin=$adminUsers',
       );
       debugPrint('📊 Current Auth User: $currentUserEmail');
-
+      
       return {
         'totalUsers': totalUsers,
         'activeUsers': activeUsers,
@@ -134,37 +125,35 @@ class DirectStatisticsService {
   Future<Map<String, dynamic>> getFileStatistics() async {
     try {
       debugPrint('📊 DirectStatisticsService: Getting file statistics...');
-
+      
       final firestore = _firebaseService.firestore;
-
+      
       // Direct count query to document-metadata collection
       final filesCountResult = await firestore
           .collection('document-metadata')
           .count()
           .get();
-
+      
       final totalFiles = filesCountResult.count ?? 0;
-
+      
       // Get active files count
       final activeFilesResult = await firestore
           .collection('document-metadata')
           .where('isActive', isEqualTo: true)
           .count()
           .get();
-
+      
       final activeFiles = activeFilesResult.count ?? 0;
-
+      
       debugPrint('📊 File Statistics: Total=$totalFiles, Active=$activeFiles');
-
+      
       return {
         'totalFiles': totalFiles,
         'activeFiles': activeFiles,
         'lastUpdated': DateTime.now().toIso8601String(),
       };
     } catch (e) {
-      debugPrint(
-        '❌ DirectStatisticsService: Error getting file statistics - $e',
-      );
+      debugPrint('❌ DirectStatisticsService: Error getting file statistics - $e');
       return {
         'totalFiles': 0,
         'activeFiles': 0,
@@ -178,23 +167,23 @@ class DirectStatisticsService {
   Future<Map<String, dynamic>> getAllStatistics() async {
     try {
       debugPrint('📊 DirectStatisticsService: Getting all statistics...');
-
+      
       final startTime = DateTime.now();
-
+      
       // Execute all queries in parallel for better performance
       final results = await Future.wait([
         getCategoryStatistics(),
         getUserStatistics(),
         getFileStatistics(),
       ]);
-
+      
       final endTime = DateTime.now();
       final duration = endTime.difference(startTime).inMilliseconds;
-
+      
       final categoryStats = results[0];
       final userStats = results[1];
       final fileStats = results[2];
-
+      
       final allStats = {
         'categories': categoryStats,
         'users': userStats,
@@ -204,7 +193,7 @@ class DirectStatisticsService {
           'timestamp': DateTime.now().toIso8601String(),
         },
       };
-
+      
       debugPrint('📊 All statistics retrieved in ${duration}ms');
       return allStats;
     } catch (e) {

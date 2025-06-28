@@ -6,6 +6,7 @@ import '../../services/direct_statistics_service.dart';
 /// Direct Statistics Widget
 /// Uses DirectStatisticsService for real-time data without caching
 /// Designed for integration with main pull-to-refresh mechanism
+/// UI/UX restored to original larger size while maintaining direct query functionality
 class DirectStatsWidget extends StatefulWidget {
   final Function(VoidCallback)? onRefreshCallbackSet;
   final bool showLoadingAnimation;
@@ -25,9 +26,8 @@ class DirectStatsWidget extends StatefulWidget {
 }
 
 class _DirectStatsWidgetState extends State<DirectStatsWidget> {
-  final DirectStatisticsService _directStatsService =
-      DirectStatisticsService.instance;
-
+  final DirectStatisticsService _directStatsService = DirectStatisticsService.instance;
+  
   Map<String, dynamic>? _statsData;
   bool _isLoading = false;
   String? _errorMessage;
@@ -36,7 +36,7 @@ class _DirectStatsWidgetState extends State<DirectStatsWidget> {
   void initState() {
     super.initState();
     _loadStatistics();
-
+    
     // Set up refresh callback for parent
     if (widget.onRefreshCallbackSet != null) {
       widget.onRefreshCallbackSet!(refreshStatistics);
@@ -53,7 +53,7 @@ class _DirectStatsWidgetState extends State<DirectStatsWidget> {
 
     try {
       final stats = await _directStatsService.getAllStatistics();
-
+      
       if (mounted) {
         setState(() {
           _statsData = stats;
@@ -79,7 +79,7 @@ class _DirectStatsWidgetState extends State<DirectStatsWidget> {
   Future<void> _showUserSyncDiagnostics() async {
     try {
       final diagnostics = await _directStatsService.getUserSyncDiagnostics();
-
+      
       if (mounted) {
         showDialog(
           context: context,
@@ -133,21 +133,17 @@ class _DirectStatsWidgetState extends State<DirectStatsWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin:
-          widget.margin ??
-          const EdgeInsets.symmetric(
-            horizontal: 16.0,
-            vertical: 4.0,
-          ), // Reduced vertical margin
-      padding: widget.padding ?? const EdgeInsets.all(12.0), // Reduced padding
+      // RESTORED: Original larger margins and padding like RealTimeStatsWidget
+      margin: widget.margin ?? const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      padding: widget.padding ?? const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05), // Minimal shadow
-            blurRadius: 4.0,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.1), // Restored original shadow
+            blurRadius: 8.0, // Restored original blur radius
+            offset: const Offset(0, 4), // Restored original offset
           ),
         ],
       ),
@@ -173,7 +169,8 @@ class _DirectStatsWidgetState extends State<DirectStatsWidget> {
                 ),
             ],
           ),
-          const SizedBox(height: 12), // Reduced spacing
+          const SizedBox(height: 16), // RESTORED: Original spacing
+          
           // Statistics Content
           if (_errorMessage != null)
             _buildErrorState()
@@ -206,7 +203,7 @@ class _DirectStatsWidgetState extends State<DirectStatsWidget> {
                 AppColors.primary,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16), // RESTORED: Original spacing
             Expanded(
               child: _buildStatCard(
                 'Users',
@@ -215,7 +212,7 @@ class _DirectStatsWidgetState extends State<DirectStatsWidget> {
                 AppColors.secondary,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16), // RESTORED: Original spacing
             Expanded(
               child: _buildStatCard(
                 'Files',
@@ -226,21 +223,21 @@ class _DirectStatsWidgetState extends State<DirectStatsWidget> {
             ),
           ],
         ),
-
+        
         // Performance Info (Debug)
         if (_statsData!['performance'] != null) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 12), // RESTORED: Original spacing
           Text(
             'Query time: ${_statsData!['performance']['queryDurationMs']}ms',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
           ),
         ],
-
+        
         // User Sync Diagnostic Button (Debug mode only)
         if (kDebugMode) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 12), // RESTORED: Original spacing
           TextButton.icon(
             onPressed: _showUserSyncDiagnostics,
             icon: const Icon(Icons.bug_report, size: 16),
@@ -255,14 +252,10 @@ class _DirectStatsWidgetState extends State<DirectStatsWidget> {
     );
   }
 
-  Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
+  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(8.0), // Reduced padding
+      // RESTORED: Original larger padding
+      padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8.0),
@@ -270,8 +263,9 @@ class _DirectStatsWidgetState extends State<DirectStatsWidget> {
       ),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 20), // Reduced icon size
-          const SizedBox(height: 6), // Reduced spacing
+          // RESTORED: Original larger icon size
+          Icon(icon, color: color, size: 32),
+          const SizedBox(height: 12), // RESTORED: Original spacing
           Text(
             value,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -279,12 +273,12 @@ class _DirectStatsWidgetState extends State<DirectStatsWidget> {
               color: color,
             ),
           ),
-          const SizedBox(height: 2), // Reduced spacing
+          const SizedBox(height: 8), // RESTORED: Original spacing
           Text(
             title,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -307,20 +301,24 @@ class _DirectStatsWidgetState extends State<DirectStatsWidget> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Icon(Icons.error_outline, color: AppColors.error, size: 48),
+            Icon(
+              Icons.error_outline,
+              color: AppColors.error,
+              size: 48,
+            ),
             const SizedBox(height: 16),
             Text(
               'Failed to load statistics',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(color: AppColors.error),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: AppColors.error,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               _errorMessage!,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: AppColors.textSecondary),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: AppColors.textSecondary,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),

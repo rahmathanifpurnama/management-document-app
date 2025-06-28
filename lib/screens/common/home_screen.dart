@@ -17,15 +17,14 @@ import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/file_selection_bar.dart';
 import '../../models/document_model.dart';
 import '../../core/utils/context_filter_utils.dart';
-
 import '../../services/ui_refresh_service.dart';
 import '../../services/file_download_service.dart';
 import '../../services/share_service.dart';
 import '../../services/bulk_operations_service.dart';
 import '../../core/services/greeting_service.dart';
-
 import '../../core/utils/circuit_breaker.dart';
 import '../../core/utils/empty_storage_state_manager.dart';
+import '../../widgets/statistics/real_time_stats_widget.dart';
 import '../../widgets/statistics/direct_stats_widget.dart';
 part 'components/home_greeting_section.dart';
 part 'components/home_search_section.dart';
@@ -358,7 +357,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                   SizedBox(height: responsiveSpacing / 3),
 
-                  // Dashboard Statistics Section (Admin only) - Using direct queries
+                  // Dashboard Statistics Section (Admin only) - Using direct queries with original UI
                   if (authProvider.isAdmin) ...[
                     DirectStatsWidget(
                       showLoadingAnimation:
