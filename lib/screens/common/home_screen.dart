@@ -353,8 +353,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     onProfileTap: () => _showProfileMenu(authProvider),
                   ),
 
-                  SizedBox(height: responsiveSpacing / 3),
-
                   // Dashboard Statistics Section (Admin only) - Using RealTimeStatsWidget without animations
                   if (authProvider.isAdmin) ...[
                     const SizedBox(height: 12),
@@ -371,10 +369,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     onSearchChanged: _performSearch,
                   ),
 
-                  SizedBox(
-                    height: responsiveSpacing / 12,
-                  ), // Reduced spacing before file list
-                  // File List Section - Using new component
                   HomeFileListSection(
                     searchQuery: _searchController.text,
                     onDocumentTap: _navigateToFilePreview,
