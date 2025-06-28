@@ -96,9 +96,9 @@ const syncStorageWithFirestore = functions.https.onCall(async (data, context) =>
                         })
                             .then((urls) => urls[0]),
                         uploadedBy: ((_a = metadata.metadata) === null || _a === void 0 ? void 0 : _a.uploadedBy) || "system",
-                        uploadedAt: metadata.timeCreated
-                            ? new Date(metadata.timeCreated)
-                            : admin.firestore.FieldValue.serverTimestamp(),
+                        // TIMESTAMP FIX: Always use serverTimestamp for consistency
+                        // This ensures all uploadedAt timestamps are server-side and timezone-consistent
+                        uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
                         category: ((_b = metadata.metadata) === null || _b === void 0 ? void 0 : _b.categoryId) || "uncategorized",
                         status: "approved", // Default for synced files
                         isActive: true,
