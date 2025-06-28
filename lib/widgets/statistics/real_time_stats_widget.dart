@@ -29,24 +29,16 @@ class RealTimeStatsWidget extends StatefulWidget {
   State<RealTimeStatsWidget> createState() => _RealTimeStatsWidgetState();
 }
 
-class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget>
-    with TickerProviderStateMixin {
+class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget> {
   final OptimizedStatisticsService _statsService =
       OptimizedStatisticsService.instance;
   final StatisticsNotificationService _notificationService =
       StatisticsNotificationService.instance;
 
-  // Animation controllers
-  late AnimationController _pulseController;
-  late AnimationController _refreshController;
-  late Animation<double> _pulseAnimation;
-  late Animation<double> _refreshAnimation;
-
   // State management
   Map<String, dynamic> _statsData = {};
   bool _isLoading = true;
   bool _hasError = false;
-  String? _errorMessage;
 
   // Stream subscriptions
   StreamSubscription? _statisticsSubscription;
@@ -55,29 +47,8 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget>
   @override
   void initState() {
     super.initState();
-    _initializeAnimations();
     _setupRealTimeListeners();
     _loadStatistics();
-  }
-
-  void _initializeAnimations() {
-    _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
-      vsync: this,
-    );
-
-    _refreshController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-
-    _pulseAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-
-    _refreshAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
-      CurvedAnimation(parent: _refreshController, curve: Curves.elasticOut),
-    );
   }
 
   void _setupRealTimeListeners() {
@@ -104,7 +75,6 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget>
     setState(() {
       _isLoading = true;
       _hasError = false;
-      _errorMessage = null;
     });
 
     try {
@@ -115,11 +85,6 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget>
         setState(() {
           _statsData = stats;
           _isLoading = false;
-        });
-
-        // Trigger refresh animation
-        _refreshController.forward().then((_) {
-          _refreshController.reverse();
         });
       }
     } catch (e) {
@@ -135,11 +100,6 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget>
             _isLoading = false;
             _hasError = false;
           });
-
-          // Trigger refresh animation
-          _refreshController.forward().then((_) {
-            _refreshController.reverse();
-          });
         }
       } catch (fallbackError) {
         debugPrint('❌ Provider fallback failed: $fallbackError');
@@ -148,7 +108,6 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget>
           setState(() {
             _isLoading = false;
             _hasError = true;
-            _errorMessage = 'Unable to load statistics';
           });
         }
       }
@@ -245,8 +204,6 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget>
   void dispose() {
     _statisticsSubscription?.cancel();
     _fileCountSubscription?.cancel();
-    _pulseController.dispose();
-    _refreshController.dispose();
     super.dispose();
   }
 
@@ -415,7 +372,6 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget>
   Widget _buildStatsGrid() {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 400;
-    final isMediumScreen = screenWidth < 600;
 
     final statCards = [
       _StatCardData(
@@ -444,27 +400,18 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget>
       ),
     ];
 
-    return AnimatedBuilder(
-      animation: _refreshAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: _refreshAnimation.value,
+    return Row(
+      children: statCards.map((cardData) {
+        final isLast = statCards.indexOf(cardData) == statCards.length - 1;
+        return Expanded(
           child: Row(
-            children: statCards.map((cardData) {
-              final isLast =
-                  statCards.indexOf(cardData) == statCards.length - 1;
-              return Expanded(
-                child: Row(
-                  children: [
-                    Expanded(child: _buildStatCard(cardData)),
-                    if (!isLast) SizedBox(width: isSmallScreen ? 8 : 12),
-                  ],
-                ),
-              );
-            }).toList(),
+            children: [
+              Expanded(child: _buildStatCard(cardData)),
+              if (!isLast) SizedBox(width: isSmallScreen ? 8 : 12),
+            ],
           ),
         );
-      },
+      }).toList(),
     );
   }
 

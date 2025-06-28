@@ -22,14 +22,11 @@ import '../../services/file_download_service.dart';
 import '../../services/share_service.dart';
 import '../../services/bulk_operations_service.dart';
 import '../../core/services/greeting_service.dart';
-import '../../services/firebase_storage_direct_service.dart';
-import '../../services/statistics_notification_service.dart';
 import '../../services/optimized_statistics_service.dart';
-import '../../services/timestamp_debug_service.dart';
 import '../../core/utils/circuit_breaker.dart';
 import '../../core/utils/empty_storage_state_manager.dart';
+import '../../widgets/statistics/real_time_stats_widget.dart';
 part 'components/home_greeting_section.dart';
-part 'components/home_dashboard_stats.dart';
 part 'components/home_search_section.dart';
 part 'components/home_file_list_section.dart';
 
@@ -358,9 +355,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                   SizedBox(height: responsiveSpacing / 3),
 
-                  // Dashboard Statistics Section (Admin only) - Using cleaned component without animations
+                  // Dashboard Statistics Section (Admin only) - Using RealTimeStatsWidget without animations
                   if (authProvider.isAdmin) ...[
-                    const HomeDashboardStats(),
+                    const RealTimeStatsWidget(
+                      enablePullToRefresh:
+                          false, // Integrate with main screen refresh
+                    ),
                     SizedBox(height: responsiveSpacing / 3),
                   ],
 
