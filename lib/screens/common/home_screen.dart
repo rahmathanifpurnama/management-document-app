@@ -17,16 +17,22 @@ import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/file_selection_bar.dart';
 import '../../models/document_model.dart';
 import '../../core/utils/context_filter_utils.dart';
+
 import '../../services/ui_refresh_service.dart';
 import '../../services/file_download_service.dart';
 import '../../services/share_service.dart';
 import '../../services/bulk_operations_service.dart';
 import '../../core/services/greeting_service.dart';
+
+import '../../services/firebase_storage_direct_service.dart';
+import '../../services/statistics_notification_service.dart';
+import '../../services/optimized_statistics_service.dart';
+import '../../services/timestamp_debug_service.dart';
 import '../../core/utils/circuit_breaker.dart';
 import '../../core/utils/empty_storage_state_manager.dart';
 import '../../widgets/statistics/real_time_stats_widget.dart';
-import '../../widgets/statistics/direct_stats_widget.dart';
 part 'components/home_greeting_section.dart';
+part 'components/home_dashboard_stats.dart';
 part 'components/home_search_section.dart';
 part 'components/home_file_list_section.dart';
 
@@ -44,7 +50,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Timer? _searchTimer;
   Timer? _refreshTimer;
   late GreetingSet _currentGreeting;
-  VoidCallback? _refreshStatisticsCallback;
 
   @override
   void initState() {
@@ -141,11 +146,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         context,
         listen: false,
       );
-
-      // Refresh statistics using callback (no cache)
-      if (_refreshStatisticsCallback != null) {
-        _refreshStatisticsCallback!();
-      }
 
       await Future.wait([
         documentProvider.refreshDocuments(),
@@ -357,14 +357,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                   SizedBox(height: responsiveSpacing / 3),
 
-                  // Dashboard Statistics Section (Admin only) - Using direct queries with original UI
+                  // Dashboard Statistics Section (Admin only) - Using real-time component
                   if (authProvider.isAdmin) ...[
-                    DirectStatsWidget(
-                      showLoadingAnimation:
-                          false, // Integrated with main refresh
-                      onRefreshCallbackSet: (callback) {
-                        // Set callback for statistics refresh
-                        _refreshStatisticsCallback = callback;
+                    RealTimeStatsWidget(
+                      enablePullToRefresh: true,
+                      onRefresh: () {
+                        // Trigger refresh for all providers
+                        final docProvider = Provider.of<DocumentProvider>(
+                          context,
+                          listen: false,
+                        );
+                        final catProvider = Provider.of<CategoryProvider>(
+                          context,
+                          listen: false,
+                        );
+                        final userProvider = Provider.of<UserProvider>(
+                          context,
+                          listen: false,
+                        );
+
+                        docProvider.refreshDocuments();
+                        catProvider.refreshCategories();
+                        userProvider.refreshUsers();
+
+                        // Trigger statistics refresh
+                        StatisticsNotificationService.instance
+                            .requestStatisticsRefresh(
+                              reason: 'Manual refresh from home screen',
+                            );
+
+                        // DEBUGGING: Run timestamp analysis on manual refresh
+                        TimestampDebugService.instance
+                            .monitorRecentFilesStatistics();
                       },
                     ),
                     SizedBox(height: responsiveSpacing / 3),

@@ -26,8 +26,7 @@ import '../services/document_state_manager.dart';
 import '../services/unified_document_loader.dart';
 import '../services/direct_storage_deletion_service.dart';
 import '../services/optimized_deletion_service.dart';
-import '../services/statistics_sync_service.dart';
-import '../services/direct_statistics_update_service.dart';
+import '../services/statistics_notification_service.dart';
 import '../core/utils/circuit_breaker.dart';
 import '../core/utils/empty_storage_state_manager.dart';
 
@@ -113,11 +112,9 @@ class DocumentProvider extends ChangeNotifier {
   final OptimizedDeletionService _optimizedDeletionService =
       OptimizedDeletionService.instance;
 
-  // STATISTICS UPDATE: Service for direct real-time statistics updates
-  final StatisticsSyncService _statisticsSyncService =
-      StatisticsSyncService.instance;
-  final DirectStatisticsUpdateService _directStatisticsService =
-      DirectStatisticsUpdateService.instance;
+  // STATISTICS NOTIFICATION: Service for real-time statistics updates
+  final StatisticsNotificationService _statisticsService =
+      StatisticsNotificationService.instance;
 
   // UNIFIED ID SYSTEM: New architectural services
   final UnifiedIdSystem _unifiedIdSystem = UnifiedIdSystem.instance;
@@ -1512,16 +1509,16 @@ class DocumentProvider extends ChangeNotifier {
           '✅ DocumentProvider: Document removal completed successfully for ID: $documentId (Method: $deletionMethod)',
         );
 
-        // STATISTICS UPDATE: Notify about successful file deletion using direct queries
+        // STATISTICS UPDATE: Notify about successful file deletion
         if (localDocument != null && localDocument.id.isNotEmpty) {
-          await _directStatisticsService.notifyFileDeleted(
+          _statisticsService.notifyFileDeleted(
             fileId: localDocument.id,
             fileName: localDocument.fileName,
             category: localDocument.category,
             fileSize: localDocument.fileSize,
           );
           debugPrint(
-            '📊 Direct statistics update completed for deleted file: ${localDocument.fileName}',
+            '📊 Statistics notification sent for deleted file: ${localDocument.fileName}',
           );
         }
       } else {
@@ -1696,16 +1693,16 @@ class DocumentProvider extends ChangeNotifier {
           '✅ DocumentProvider: Cloud function deletion completed for: $documentId',
         );
 
-        // STATISTICS UPDATE: Notify about successful file deletion via cloud function using direct queries
+        // STATISTICS UPDATE: Notify about successful file deletion via cloud function
         if (localDocument != null && localDocument.id.isNotEmpty) {
-          await _directStatisticsService.notifyFileDeleted(
+          _statisticsService.notifyFileDeleted(
             fileId: localDocument.id,
             fileName: localDocument.fileName,
             category: localDocument.category,
             fileSize: localDocument.fileSize,
           );
           debugPrint(
-            '📊 Direct statistics update completed for cloud function deleted file: ${localDocument.fileName}',
+            '📊 Statistics notification sent for cloud function deleted file: ${localDocument.fileName}',
           );
         }
       } else {
