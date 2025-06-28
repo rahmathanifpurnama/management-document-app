@@ -1,17 +1,18 @@
 part of '../home_screen.dart';
 
-/// ENHANCED: Stateful widget for displaying dashboard statistics with caching and real-time updates
+/// ENHANCED: Stateful widget for displaying dashboard statistics with real-time updates
 /// Uses composition pattern with individual stat cards
 /// Now includes responsive design, prevents unnecessary rebuilds during search/filter,
-/// and automatically updates when files are deleted with smooth animations
+/// and automatically updates when files are deleted
 ///
 /// ROOT CAUSE FIX: Removed DocumentProvider dependency to prevent statistics
 /// from showing loading state when search/filter operations are performed
 ///
-/// NEW FEATURES:
+/// FEATURES:
 /// - Real-time statistics updates via StatisticsNotificationService
-/// - Smooth refresh animations when statistics change
+/// - Direct Firebase queries for accurate data
 /// - Automatic cache invalidation on file operations
+/// - Clean UI without animation effects
 class HomeDashboardStats extends StatefulWidget {
   const HomeDashboardStats({super.key});
 
@@ -25,13 +26,12 @@ class HomeDashboardStats extends StatefulWidget {
 }
 
 class _HomeDashboardStatsState extends State<HomeDashboardStats> {
-  // Cache for storage statistics to prevent unnecessary Firebase calls
-  Map<String, dynamic>? _cachedStorageStats;
-  DateTime? _lastFetchTime;
+  // FIXED: Use unified statistics state management
+  Map<String, dynamic>? _currentStats;
   bool _isLoading = false;
 
-  // Cache duration - 2 minutes for more responsive updates
-  static const Duration _cacheDuration = Duration(minutes: 2);
+  // Key to force FutureBuilder refresh
+  int _refreshKey = 0;
 
   // REMOVED: Animation controllers for cleaner UI without pop-out effects
 
@@ -48,7 +48,7 @@ class _HomeDashboardStatsState extends State<HomeDashboardStats> {
   void initState() {
     super.initState();
     _setupStatisticsListener();
-    _loadStorageStatistics();
+    _loadStatistics();
   }
 
   /// Setup listener for real-time statistics updates
@@ -80,89 +80,69 @@ class _HomeDashboardStatsState extends State<HomeDashboardStats> {
   void _invalidateCacheAndReload() {
     if (mounted) {
       setState(() {
-        _cachedStorageStats = null;
-        _lastFetchTime = null;
+        _currentStats = null;
+        _refreshKey++; // Force FutureBuilder to rebuild
       });
 
       // FIXED: Force refresh direct statistics service
       _directStatsService.invalidateCache(
         reason: 'Manual refresh from dashboard',
       );
-      _loadStorageStatistics();
     }
   }
 
-  /// Load storage statistics with intelligent caching mechanism
-  Future<void> _loadStorageStatistics() async {
-    // Check if we have valid cached data
-    if (_cachedStorageStats != null &&
-        _lastFetchTime != null &&
-        DateTime.now().difference(_lastFetchTime!) < _cacheDuration) {
-      return; // Use cached data, no need to fetch
-    }
-
-    if (_isLoading) return; // Prevent multiple simultaneous calls
+  /// Load statistics using direct service
+  Future<Map<String, dynamic>> _loadStatistics() async {
+    if (_isLoading) return _currentStats ?? {};
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final stats = await _getStorageStatistics();
+      final stats = await _directStatsService.getAggregatedStatistics(
+        forceRefresh: true,
+      );
       if (mounted) {
         setState(() {
-          _cachedStorageStats = stats;
-          _lastFetchTime = DateTime.now();
+          _currentStats = stats;
           _isLoading = false;
         });
       }
+      return stats;
     } catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
       }
-      debugPrint('❌ Failed to load storage statistics: $e');
-    }
-  }
-
-  /// Get Firebase Storage statistics with error handling
-  Future<Map<String, dynamic>> _getStorageStatistics() async {
-    try {
-      final storageService = FirebaseStorageDirectService.instance;
-      return await storageService.getStorageStatistics();
-    } catch (e) {
-      debugPrint('❌ Failed to get storage statistics: $e');
-      return {};
+      debugPrint('❌ Failed to load statistics: $e');
+      return _currentStats ?? {};
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // FIXED: Use direct real-time statistics queries instead of cached provider data
-    // REMOVED: AnimatedBuilder wrapper for cleaner UI without pop-out effects
+    // FIXED: Use direct real-time statistics queries with proper refresh mechanism
     return FutureBuilder<Map<String, dynamic>>(
+      key: ValueKey(_refreshKey), // Force rebuild when refresh key changes
       future: _directStatsService.getAggregatedStatistics(forceRefresh: false),
       builder: (context, snapshot) {
         // Show loading only on initial load
         if (snapshot.connectionState == ConnectionState.waiting &&
-            _cachedStorageStats == null) {
+            _currentStats == null) {
           return _buildLoadingStats(context);
         }
 
-        // Use direct statistics data or fallback to cached storage stats
-        final directStats = snapshot.data ?? {};
-        final storageStats = _cachedStorageStats ?? {};
+        // Use direct statistics data or fallback to current stats
+        final stats = snapshot.data ?? _currentStats ?? {};
 
         // FIXED: Use real-time statistics from direct queries
-        final totalDocuments =
-            directStats['totalFiles'] ?? storageStats['totalFiles'] ?? 0;
-        final recentDocuments =
-            directStats['recentFiles'] ?? storageStats['recentFiles'] ?? 0;
-        final totalUsers =
-            directStats['activeUsers'] ?? 0; // Firebase Auth users
+        final totalDocuments = stats['totalFiles'] ?? 0;
+        final recentDocuments = stats['recentFiles'] ?? 0;
+        final totalUsers = stats['activeUsers'] ?? 0; // Firebase Auth users
         final totalCategories =
-            directStats['totalCategories'] ?? 0; // Real-time categories
+            stats['totalCategories'] ?? 0; // Real-time categories
 
         // DEBUG: Gunakan nilai fixed untuk margin dan spacing
         // Ganti ResponsiveUtils dengan nilai yang lebih kecil

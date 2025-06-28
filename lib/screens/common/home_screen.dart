@@ -28,7 +28,6 @@ import '../../services/optimized_statistics_service.dart';
 import '../../services/timestamp_debug_service.dart';
 import '../../core/utils/circuit_breaker.dart';
 import '../../core/utils/empty_storage_state_manager.dart';
-import '../../widgets/statistics/real_time_stats_widget.dart';
 part 'components/home_greeting_section.dart';
 part 'components/home_dashboard_stats.dart';
 part 'components/home_search_section.dart';
@@ -359,40 +358,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                   SizedBox(height: responsiveSpacing / 3),
 
-                  // Dashboard Statistics Section (Admin only) - Using real-time component
+                  // Dashboard Statistics Section (Admin only) - Using cleaned component without animations
                   if (authProvider.isAdmin) ...[
-                    RealTimeStatsWidget(
-                      enablePullToRefresh: true,
-                      onRefresh: () {
-                        // Trigger refresh for all providers
-                        final docProvider = Provider.of<DocumentProvider>(
-                          context,
-                          listen: false,
-                        );
-                        final catProvider = Provider.of<CategoryProvider>(
-                          context,
-                          listen: false,
-                        );
-                        final userProvider = Provider.of<UserProvider>(
-                          context,
-                          listen: false,
-                        );
-
-                        docProvider.refreshDocuments();
-                        catProvider.refreshCategories();
-                        userProvider.refreshUsers();
-
-                        // Trigger statistics refresh
-                        StatisticsNotificationService.instance
-                            .requestStatisticsRefresh(
-                              reason: 'Manual refresh from home screen',
-                            );
-
-                        // DEBUGGING: Run timestamp analysis on manual refresh
-                        TimestampDebugService.instance
-                            .monitorRecentFilesStatistics();
-                      },
-                    ),
+                    const HomeDashboardStats(),
                     SizedBox(height: responsiveSpacing / 3),
                   ],
 
