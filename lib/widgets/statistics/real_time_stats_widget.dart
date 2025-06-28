@@ -1,13 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/optimized_statistics_service.dart';
 import '../../services/statistics_notification_service.dart';
-import '../../providers/document_provider.dart';
-import '../../providers/category_provider.dart';
-import '../../providers/user_provider.dart';
 
 /// Real-time statistics widget with robust fallback mechanisms
 /// Ensures statistics are always displayed with accurate, up-to-date data
@@ -78,7 +74,8 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget> {
     });
 
     try {
-      // Try optimized service first
+      // Use optimized service with built-in fallback to direct Firestore
+      // This service already handles Cloud Function -> Direct Firestore fallback
       final stats = await _statsService.getAggregatedStatistics();
 
       if (mounted) {
@@ -88,115 +85,14 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget> {
         });
       }
     } catch (e) {
-      debugPrint('❌ Stats service failed, using provider fallback: $e');
+      debugPrint('❌ Statistics service failed completely: $e');
 
-      // Fallback to provider data
-      try {
-        final fallbackStats = await _getStatsFromProviders();
-
-        if (mounted) {
-          setState(() {
-            _statsData = fallbackStats;
-            _isLoading = false;
-            _hasError = false;
-          });
-        }
-      } catch (fallbackError) {
-        debugPrint('❌ Provider fallback failed: $fallbackError');
-
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _hasError = true;
-          });
-        }
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasError = true;
+        });
       }
-    }
-  }
-
-  Future<Map<String, dynamic>> _getStatsFromProviders() async {
-    if (!mounted) return {};
-
-    try {
-      final docProvider = Provider.of<DocumentProvider>(context, listen: false);
-      final catProvider = Provider.of<CategoryProvider>(context, listen: false);
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-
-      // Ensure providers have loaded data
-      if (docProvider.documents.isEmpty && !docProvider.isLoading) {
-        debugPrint('📊 DocumentProvider empty, loading documents...');
-        await docProvider.loadDocuments();
-      }
-
-      if (catProvider.categories.isEmpty && !catProvider.isLoading) {
-        debugPrint('📊 CategoryProvider empty, loading categories...');
-        await catProvider.loadCategories();
-      }
-
-      if (userProvider.users.isEmpty && !userProvider.isLoading) {
-        debugPrint('📊 UserProvider empty, loading users...');
-        await userProvider.loadUsers();
-      }
-
-      // STANDARDIZED: Calculate recent files (last 7 days) to match Cloud Function
-      final now = DateTime.now();
-      final sevenDaysAgo = now.subtract(const Duration(days: 7));
-
-      final recentFiles = docProvider.documents.where((doc) {
-        return doc.uploadedAt.isAfter(sevenDaysAgo);
-      }).length;
-
-      // Debug logging to identify count discrepancy
-      debugPrint('📊 Statistics Debug:');
-      debugPrint(
-        '   Total documents in provider: ${docProvider.documents.length}',
-      );
-      debugPrint('   Recent files (7 days): $recentFiles');
-
-      // Check for potential data integrity issues
-      final approvedDocs = docProvider.documents
-          .where(
-            (doc) =>
-                doc.metadata.status == 'approved' ||
-                doc.metadata.status == null,
-          )
-          .length;
-      debugPrint('   Approved/Active documents: $approvedDocs');
-
-      // Log sample document IDs for debugging
-      if (docProvider.documents.isNotEmpty) {
-        final sampleIds = docProvider.documents
-            .take(3)
-            .map((doc) => doc.id)
-            .join(', ');
-        debugPrint('   Sample document IDs: $sampleIds');
-      }
-
-      final stats = {
-        'totalFiles': docProvider.documents.length,
-        'activeUsers': userProvider.users.length,
-        'totalCategories': catProvider.categories.length,
-        'recentFiles': recentFiles,
-        'fileTypeStats': <String, int>{},
-        'totalStorageSize': 0,
-        'lastCalculated': DateTime.now().toIso8601String(),
-        'calculationDurationMs': 0,
-      };
-
-      debugPrint('📊 Provider fallback stats: $stats');
-      return stats;
-    } catch (e) {
-      debugPrint('❌ Error getting stats from providers: $e');
-      return {
-        'totalFiles': 0,
-        'activeUsers': 0,
-        'totalCategories': 0,
-        'recentFiles': 0,
-        'fileTypeStats': <String, int>{},
-        'totalStorageSize': 0,
-        'lastCalculated': DateTime.now().toIso8601String(),
-        'calculationDurationMs': 0,
-      };
     }
   }
 

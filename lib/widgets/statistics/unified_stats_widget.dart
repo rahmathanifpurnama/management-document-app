@@ -1,13 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/optimized_statistics_service.dart';
 import '../../services/statistics_notification_service.dart';
-import '../../providers/document_provider.dart';
-import '../../providers/category_provider.dart';
-import '../../providers/user_provider.dart';
 
 /// Unified statistics widget that consolidates all stat displays
 /// Supports dashboard stats, upload stats, and custom configurations
@@ -272,71 +268,19 @@ class _UnifiedStatsWidgetState extends State<UnifiedStatsWidget>
         });
       }
     } catch (e) {
-      debugPrint('❌ Statistics service failed, trying provider fallback: $e');
+      debugPrint('❌ Statistics service failed completely: $e');
 
-      // Fallback to provider data
-      try {
-        final fallbackStats = await _getStatsFromProviders();
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasError = true;
+          _errorMessage = 'Unable to load statistics: ${e.toString()}';
+        });
 
-        if (mounted) {
-          setState(() {
-            _statsData = fallbackStats;
-            _isLoading = false;
-            _hasError = false; // Clear error since fallback worked
-          });
-
-          // Stop loading animation
-          _loadingAnimationController.stop();
-          _loadingAnimationController.reset();
-
-          // Trigger refresh animation
-          _refreshAnimationController.forward().then((_) {
-            _refreshAnimationController.reverse();
-          });
-        }
-      } catch (fallbackError) {
-        debugPrint('❌ Provider fallback also failed: $fallbackError');
-
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-            _hasError = true;
-            _errorMessage = 'Unable to load statistics: ${e.toString()}';
-          });
-
-          _loadingAnimationController.stop();
-          _loadingAnimationController.reset();
-        }
+        _loadingAnimationController.stop();
+        _loadingAnimationController.reset();
       }
     }
-  }
-
-  /// Get statistics from local providers as fallback
-  Future<Map<String, dynamic>> _getStatsFromProviders() async {
-    if (!mounted) return {};
-
-    final docProvider = Provider.of<DocumentProvider>(context, listen: false);
-    final catProvider = Provider.of<CategoryProvider>(context, listen: false);
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-
-    // FIXED: Calculate recent files (last 24 hours) to differentiate from total files
-    final now = DateTime.now();
-    final twentyFourHoursAgo = now.subtract(const Duration(hours: 24));
-
-    final recentFiles = docProvider.documents.where((doc) {
-      return doc.uploadedAt.isAfter(twentyFourHoursAgo);
-    }).length;
-
-    return {
-      'totalFiles': docProvider.documents.length,
-      'activeUsers': userProvider.users.length,
-      'totalCategories': catProvider.categories.length,
-      'recentFiles': recentFiles,
-      'fileTypeStats': <String, int>{},
-      'totalStorageSize': 0,
-      'lastCalculated': DateTime.now().toIso8601String(),
-      'calculationDurationMs': 0,
-    };
   }
 
   Future<void> _handleRefresh() async {

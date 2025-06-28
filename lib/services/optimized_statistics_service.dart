@@ -326,46 +326,25 @@ class OptimizedStatisticsService {
   }
 
   /// Get Firebase Authentication user count (real-time)
+  /// This method queries the Firestore users collection for active users
+  /// which should correspond to actual Firebase Auth users
   Future<int> _getFirebaseAuthUserCount() async {
     try {
-      // Use Firebase Auth to get actual registered users count
-      final auth = _firebaseService.auth;
-
-      // For client-side, we'll use a Cloud Function or fallback to Firestore users
-      // Since Firebase Auth doesn't provide direct user count on client side,
-      // we'll query active users from Firestore but ensure they exist in Auth
       final firestore = _firebaseService.firestore;
+
+      // Query active users from Firestore users collection
+      // This collection should only contain users who have successfully registered via Firebase Auth
       final usersSnapshot = await firestore
           .collection('users')
           .where('isActive', isEqualTo: true)
+          .count()
           .get();
 
-      // Count users that have corresponding auth records
-      int authUserCount = 0;
-      for (final userDoc in usersSnapshot.docs) {
-        try {
-          final userId = userDoc.id;
-          // Check if user exists in Firebase Auth by trying to get user record
-          final currentUser = auth.currentUser;
-          if (currentUser != null && currentUser.uid == userId) {
-            authUserCount++;
-          } else {
-            // For other users, we assume they exist in auth if they're in Firestore
-            // This is a limitation of client-side Firebase Auth
-            authUserCount++;
-          }
-        } catch (e) {
-          // User doesn't exist in auth, skip
-          debugPrint(
-            '⚠️ User ${userDoc.id} exists in Firestore but not in Auth',
-          );
-        }
-      }
-
-      debugPrint('📊 Firebase Auth user count: $authUserCount');
-      return authUserCount;
+      final userCount = usersSnapshot.count ?? 0;
+      debugPrint('📊 Active users count from Firestore: $userCount');
+      return userCount;
     } catch (e) {
-      debugPrint('❌ Error getting Firebase Auth user count: $e');
+      debugPrint('❌ Error getting user count from Firestore: $e');
       return 0;
     }
   }
