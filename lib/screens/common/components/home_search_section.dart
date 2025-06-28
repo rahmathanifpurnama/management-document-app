@@ -56,9 +56,19 @@ class _HomeSearchSectionState extends State<HomeSearchSection> {
       horizontal: screenWidth < 400 ? 12.0 : 16.0,
       vertical: 0, // No vertical margin
     );
+    final responsiveElevation = 2.0;
 
     return Container(
       margin: responsiveMargin,
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: responsiveElevation * 2,
+            offset: Offset(0, responsiveElevation / 2),
+          ),
+        ],
+      ),
       child: _SearchField(
         controller: widget.searchController,
         onClear: _clearSearch,
@@ -85,7 +95,6 @@ class _SearchField extends StatelessWidget {
     final isSmallScreen = screenWidth < 400;
 
     final responsiveBorderRadius = isSmallScreen ? 12.0 : 16.0;
-    final responsiveElevation = 2.0;
     final fontSize = isSmallScreen ? 14.0 : 15.0;
     final iconSize = isSmallScreen ? 18.0 : 20.0;
     final verticalPadding = isSmallScreen ? 12.0 : 14.0;
@@ -99,13 +108,6 @@ class _SearchField extends StatelessWidget {
           color: AppColors.border.withValues(alpha: 0.3),
           width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: responsiveElevation * 2,
-            offset: Offset(0, responsiveElevation / 2),
-          ),
-        ],
       ),
       child: TextField(
         controller: controller,
