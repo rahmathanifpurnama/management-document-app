@@ -18,7 +18,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _obscureCurrentPassword = true;
   bool _obscureNewPassword = true;
@@ -41,7 +41,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+
       final success = await authProvider.changePassword(
         _currentPasswordController.text,
         _newPasswordController.text,
@@ -118,8 +118,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         backgroundColor: AppColors.primary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.chevron_left, size: 28, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
+          tooltip: 'Back',
         ),
         title: const Text(
           'Change Password',
@@ -139,7 +140,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              
+
               // Instructions
               Container(
                 padding: const EdgeInsets.all(16),
@@ -182,7 +183,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 validator: _validateCurrentPassword,
                 suffixIcon: IconButton(
                   icon: Icon(
-                    _obscureCurrentPassword ? Icons.visibility : Icons.visibility_off,
+                    _obscureCurrentPassword
+                        ? Icons.visibility
+                        : Icons.visibility_off,
                     color: AppColors.textSecondary,
                   ),
                   onPressed: () {
@@ -204,7 +207,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 validator: _validateNewPassword,
                 suffixIcon: IconButton(
                   icon: Icon(
-                    _obscureNewPassword ? Icons.visibility : Icons.visibility_off,
+                    _obscureNewPassword
+                        ? Icons.visibility
+                        : Icons.visibility_off,
                     color: AppColors.textSecondary,
                   ),
                   onPressed: () {
@@ -226,7 +231,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 validator: _validateConfirmPassword,
                 suffixIcon: IconButton(
                   icon: Icon(
-                    _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                    _obscureConfirmPassword
+                        ? Icons.visibility
+                        : Icons.visibility_off,
                     color: AppColors.textSecondary,
                   ),
                   onPressed: () {
@@ -268,7 +275,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                     ),
                     const SizedBox(height: 8),
                     _buildSecurityTip('Use at least 8 characters'),
-                    _buildSecurityTip('Include uppercase and lowercase letters'),
+                    _buildSecurityTip(
+                      'Include uppercase and lowercase letters',
+                    ),
                     _buildSecurityTip('Include numbers and special characters'),
                     _buildSecurityTip('Avoid using personal information'),
                   ],

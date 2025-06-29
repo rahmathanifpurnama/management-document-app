@@ -43,7 +43,7 @@ import 'screens/profile/settings_screen.dart';
 import 'screens/profile/change_password_screen.dart';
 import 'screens/admin/file_approval_screen.dart';
 import 'screens/notification/notification_center_screen.dart';
-import 'screens/admin/sync_management_screen.dart';
+
 import 'screens/upload/upload_document_screen.dart';
 import 'screens/common/file_preview_screen.dart';
 import 'services/download_notification_service.dart';
@@ -337,10 +337,6 @@ class _MyAppState extends State<MyApp> {
                     return MaterialPageRoute(
                       builder: (context) =>
                           UploadDocumentScreen(categoryId: categoryId),
-                    );
-                  case AppRoutes.syncManagement:
-                    return MaterialPageRoute(
-                      builder: (context) => const SyncManagementScreen(),
                     );
 
                   case AppRoutes.fileApproval:

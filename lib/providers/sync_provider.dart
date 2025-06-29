@@ -67,11 +67,6 @@ class SyncProvider with ChangeNotifier {
     await _autoSyncService.performAutoSync(force: force);
   }
 
-  /// Perform comprehensive sync
-  Future<void> performComprehensiveSync() async {
-    await _autoSyncService.performComprehensiveSync();
-  }
-
   /// Sync with providers
   Future<void> syncWithProviders({
     dynamic documentProvider,

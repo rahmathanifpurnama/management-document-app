@@ -13,35 +13,43 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
   final List<FAQItem> _faqItems = [
     FAQItem(
       question: 'How do I upload documents?',
-      answer: 'To upload documents, go to the Documents section and tap the "+" button. You can select files from your device or take photos directly.',
+      answer:
+          'To upload documents, go to the Documents section and tap the "+" button. You can select files from your device or take photos directly.',
     ),
     FAQItem(
       question: 'How do I organize documents into categories?',
-      answer: 'You can create categories in the Categories section and then assign documents to them. This helps keep your documents organized and easy to find.',
+      answer:
+          'You can create categories in the Categories section and then assign documents to them. This helps keep your documents organized and easy to find.',
     ),
     FAQItem(
       question: 'Can I share documents with other users?',
-      answer: 'Yes, if you have the appropriate permissions, you can share documents with other users in your organization through the sharing options.',
+      answer:
+          'Yes, if you have the appropriate permissions, you can share documents with other users in your organization through the sharing options.',
     ),
     FAQItem(
       question: 'How do I search for specific documents?',
-      answer: 'Use the search bar in the Documents section to find files by name, content, or category. You can also use filters to narrow down your search.',
+      answer:
+          'Use the search bar in the Documents section to find files by name, content, or category. You can also use filters to narrow down your search.',
     ),
     FAQItem(
       question: 'What file formats are supported?',
-      answer: 'The app supports common document formats including PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, and image formats like JPG, PNG.',
+      answer:
+          'The app supports common document formats including PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, and image formats like JPG, PNG.',
     ),
     FAQItem(
       question: 'How do I change my password?',
-      answer: 'Go to Profile > Settings > Security > Change Password. You\'ll need to enter your current password and choose a new one.',
+      answer:
+          'Go to Profile > Settings > Security > Change Password. You\'ll need to enter your current password and choose a new one.',
     ),
     FAQItem(
       question: 'Is my data secure?',
-      answer: 'Yes, all data is encrypted and stored securely in the cloud. We follow industry-standard security practices to protect your information.',
+      answer:
+          'Yes, all data is encrypted and stored securely in the cloud. We follow industry-standard security practices to protect your information.',
     ),
     FAQItem(
       question: 'How do I contact support?',
-      answer: 'You can contact our support team through the contact options below or by using the feedback form in the app.',
+      answer:
+          'You can contact our support team through the contact options below or by using the feedback form in the app.',
     ),
   ];
 
@@ -53,8 +61,9 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
         backgroundColor: AppColors.primary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.chevron_left, size: 28, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
+          tooltip: 'Back',
         ),
         title: const Text(
           'Help Center',
@@ -91,11 +100,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
               ),
               child: const Column(
                 children: [
-                  Icon(
-                    Icons.help_center,
-                    size: 48,
-                    color: AppColors.primary,
-                  ),
+                  Icon(Icons.help_center, size: 48, color: AppColors.primary),
                   SizedBox(height: 16),
                   Text(
                     'How can we help you?',
@@ -202,18 +207,11 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
         ),
         child: Column(
           children: [
-            Icon(
-              icon,
-              size: 32,
-              color: AppColors.primary,
-            ),
+            Icon(icon, size: 32, color: AppColors.primary),
             const SizedBox(height: 8),
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 4),
             Text(
@@ -241,10 +239,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
       child: ExpansionTile(
         title: Text(
           item.question,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
         children: [
           Padding(
@@ -309,11 +304,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
       onTap: onTap,
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 20,
-            color: AppColors.primary,
-          ),
+          Icon(icon, size: 20, color: AppColors.primary),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -354,15 +345,13 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
       path: 'support@managementdoc.com',
       query: 'subject=Help Request - Management Doc App',
     );
-    
+
     if (await canLaunchUrl(emailUri)) {
       await launchUrl(emailUri);
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not open email client'),
-          ),
+          const SnackBar(content: Text('Could not open email client')),
         );
       }
     }
@@ -370,15 +359,13 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
 
   Future<void> _launchPhone() async {
     final Uri phoneUri = Uri(scheme: 'tel', path: '+15551234567');
-    
+
     if (await canLaunchUrl(phoneUri)) {
       await launchUrl(phoneUri);
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not open phone dialer'),
-          ),
+          const SnackBar(content: Text('Could not open phone dialer')),
         );
       }
     }
@@ -389,8 +376,5 @@ class FAQItem {
   final String question;
   final String answer;
 
-  FAQItem({
-    required this.question,
-    required this.answer,
-  });
+  FAQItem({required this.question, required this.answer});
 }

@@ -45,7 +45,6 @@ class AppRoutes {
 
   // Settings Routes
   static const String settings = '/settings';
-  static const String syncManagement = '/sync-management';
 
   // Approval Routes
   static const String fileApproval = '/file-approval';

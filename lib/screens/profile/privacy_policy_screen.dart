@@ -12,8 +12,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
         backgroundColor: AppColors.primary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.chevron_left, size: 28, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
+          tooltip: 'Back',
         ),
         title: const Text(
           'Privacy Policy',
@@ -81,21 +82,21 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildSection(
               'Information We Collect',
               'We collect information you provide directly to us, such as:\n\n'
-              '• Account information (name, email address, password)\n'
-              '• Documents and files you upload\n'
-              '• Usage data and preferences\n'
-              '• Communication with our support team',
+                  '• Account information (name, email address, password)\n'
+                  '• Documents and files you upload\n'
+                  '• Usage data and preferences\n'
+                  '• Communication with our support team',
             ),
 
             // How We Use Your Information
             _buildSection(
               'How We Use Your Information',
               'We use the information we collect to:\n\n'
-              '• Provide and maintain our services\n'
-              '• Process and store your documents securely\n'
-              '• Communicate with you about your account\n'
-              '• Improve our application and services\n'
-              '• Ensure security and prevent fraud',
+                  '• Provide and maintain our services\n'
+                  '• Process and store your documents securely\n'
+                  '• Communicate with you about your account\n'
+                  '• Improve our application and services\n'
+                  '• Ensure security and prevent fraud',
             ),
 
             // Data Security
@@ -108,20 +109,20 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildSection(
               'Data Sharing',
               'We do not sell, trade, or otherwise transfer your personal information to third parties without your consent, except as described in this policy. We may share information:\n\n'
-              '• With your explicit consent\n'
-              '• To comply with legal obligations\n'
-              '• To protect our rights and safety',
+                  '• With your explicit consent\n'
+                  '• To comply with legal obligations\n'
+                  '• To protect our rights and safety',
             ),
 
             // Your Rights
             _buildSection(
               'Your Rights',
               'You have the right to:\n\n'
-              '• Access your personal information\n'
-              '• Correct inaccurate information\n'
-              '• Delete your account and data\n'
-              '• Export your data\n'
-              '• Opt-out of communications',
+                  '• Access your personal information\n'
+                  '• Correct inaccurate information\n'
+                  '• Delete your account and data\n'
+                  '• Export your data\n'
+                  '• Opt-out of communications',
             ),
 
             // Data Retention
@@ -146,8 +147,8 @@ class PrivacyPolicyScreen extends StatelessWidget {
             _buildSection(
               'Contact Us',
               'If you have any questions about this Privacy Policy, please contact us:\n\n'
-              'Email: privacy@managementdoc.com\n'
-              'Phone: +1 (555) 123-4567',
+                  'Email: privacy@managementdoc.com\n'
+                  'Phone: +1 (555) 123-4567',
             ),
 
             const SizedBox(height: 32),

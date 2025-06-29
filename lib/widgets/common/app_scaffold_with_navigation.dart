@@ -31,6 +31,15 @@ class AppScaffoldWithNavigation extends StatelessWidget {
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               actions: actions,
+              leading: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(
+                  Icons.chevron_left,
+                  size: 28,
+                  color: Colors.white,
+                ),
+                tooltip: 'Back',
+              ),
             )
           : null,
       body: body,

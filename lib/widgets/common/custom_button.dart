@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../../core/constants/app_colors.dart';
 
 class CustomButton extends StatelessWidget {
@@ -35,16 +34,17 @@ class CustomButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isEnabled = onPressed != null && !isLoading;
-    
-    final Color bgColor = isOutlined 
-        ? Colors.transparent 
+
+    final Color bgColor = isOutlined
+        ? Colors.transparent
         : (backgroundColor ?? AppColors.primary);
-    
-    final Color txtColor = isOutlined 
+
+    final Color txtColor = isOutlined
         ? (textColor ?? AppColors.primary)
         : (textColor ?? AppColors.textWhite);
-    
-    final Color brdColor = borderColor ?? 
+
+    final Color brdColor =
+        borderColor ??
         (isOutlined ? (textColor ?? AppColors.primary) : bgColor);
 
     return SizedBox(
@@ -55,8 +55,8 @@ class CustomButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           backgroundColor: bgColor,
           foregroundColor: txtColor,
-          disabledBackgroundColor: isOutlined 
-              ? Colors.transparent 
+          disabledBackgroundColor: isOutlined
+              ? Colors.transparent
               : AppColors.border,
           disabledForegroundColor: AppColors.textHint,
           elevation: isOutlined ? 0 : 2,
@@ -71,20 +71,20 @@ class CustomButton extends StatelessWidget {
           padding: padding ?? const EdgeInsets.symmetric(horizontal: 16),
         ),
         child: isLoading
-            ? SpinKitThreeBounce(
-                color: txtColor,
-                size: 20,
+            ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(txtColor),
+                  strokeWidth: 2.0,
+                ),
               )
             : Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (icon != null) ...[
-                    Icon(
-                      icon,
-                      size: 18,
-                      color: txtColor,
-                    ),
+                    Icon(icon, size: 18, color: txtColor),
                     const SizedBox(width: 8),
                   ],
                   Text(

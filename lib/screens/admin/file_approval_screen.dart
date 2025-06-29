@@ -10,7 +10,7 @@ import '../../providers/file_selection_provider.dart';
 import '../../models/document_model.dart';
 import '../../core/services/approval_service.dart';
 import '../../widgets/common/app_bottom_navigation.dart';
-import '../../widgets/common/loading_widget.dart';
+
 import '../../widgets/common/reusable_file_list_widget.dart';
 import '../../widgets/admin/enhanced_bulk_operations.dart';
 import '../../widgets/common/advanced_search_filter.dart';
@@ -395,11 +395,29 @@ class _FileApprovalScreenState extends State<FileApprovalScreen> {
   Widget _buildDocumentList(FileSelectionProvider selectionProvider) {
     if (_isLoading) {
       return Center(
-        child: LoadingWidget(
-          message: _isRefreshing
-              ? 'Refreshing approval data...'
-              : 'Loading approval data...',
-          showMessage: true,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 50,
+              height: 50,
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                strokeWidth: 3.0,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              _isRefreshing
+                  ? 'Refreshing approval data...'
+                  : 'Loading approval data...',
+              style: const TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
       );
     }

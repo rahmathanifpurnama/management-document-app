@@ -4,7 +4,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../providers/document_provider.dart';
 import '../../providers/category_provider.dart';
 import '../../providers/notification_provider.dart';
-import 'cloud_sync_service.dart';
 
 enum SyncStatus { idle, syncing, success, error }
 
@@ -13,7 +12,6 @@ class AutoSyncService {
   factory AutoSyncService() => _instance;
   AutoSyncService._internal();
 
-  final CloudSyncService _cloudSyncService = CloudSyncService.instance;
   final Connectivity _connectivity = Connectivity();
 
   Timer? _autoSyncTimer;
@@ -137,42 +135,6 @@ class AutoSyncService {
 
     // Simulate sync delay
     await Future.delayed(const Duration(milliseconds: 500));
-  }
-
-  /// Perform comprehensive sync
-  Future<void> performComprehensiveSync() async {
-    if (_syncStatus == SyncStatus.syncing) {
-      debugPrint('⚠️ Sync already in progress, skipping comprehensive sync...');
-      return;
-    }
-
-    _updateSyncStatus(SyncStatus.syncing);
-    onLoadingStateChanged?.call(true);
-
-    try {
-      debugPrint('🔄 Starting comprehensive sync...');
-
-      final result = await _cloudSyncService.performComprehensiveSync();
-
-      if (result['success'] == true) {
-        _updateSyncStatus(SyncStatus.success);
-        _lastSyncTime = DateTime.now();
-        _lastSyncError = null;
-
-        onSyncMessage?.call('Comprehensive sync completed successfully');
-        debugPrint('✅ Comprehensive sync completed successfully');
-      } else {
-        throw Exception(result['message'] ?? 'Comprehensive sync failed');
-      }
-    } catch (e) {
-      _updateSyncStatus(SyncStatus.error);
-      _lastSyncError = e.toString();
-
-      onSyncMessage?.call('Comprehensive sync failed: ${e.toString()}');
-      debugPrint('❌ Comprehensive sync failed: $e');
-    } finally {
-      onLoadingStateChanged?.call(false);
-    }
   }
 
   /// Sync with providers (to be called from UI layer)

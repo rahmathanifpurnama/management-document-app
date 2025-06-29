@@ -23,8 +23,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         backgroundColor: AppColors.primary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textWhite),
+          icon: const Icon(
+            Icons.chevron_left,
+            size: 28,
+            color: AppColors.textWhite,
+          ),
           onPressed: () => Navigator.of(context).pop(),
+          tooltip: 'Back',
         ),
         title: const Text(
           'Settings',
@@ -102,35 +107,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             const SizedBox(height: 32),
-
-            // Admin Section (only for admin users)
-            Consumer<AuthProvider>(
-              builder: (context, authProvider, child) {
-                if (!authProvider.isAdmin) return const SizedBox.shrink();
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionHeader('Admin Tools'),
-                    const SizedBox(height: 16),
-
-                    _buildMenuTile(
-                      icon: Icons.sync,
-                      title: 'Sync Management',
-                      subtitle: 'Manage data synchronization operations',
-                      onTap: () => Navigator.pushNamed(
-                        context,
-                        AppRoutes.syncManagement,
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    const SizedBox(height: 32),
-                  ],
-                );
-              },
-            ),
 
             // Support Section
             _buildSectionHeader('Support'),

@@ -16,8 +16,13 @@ class PersonalInfoScreen extends StatelessWidget {
         backgroundColor: AppColors.primary,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textWhite),
+          icon: const Icon(
+            Icons.chevron_left,
+            size: 28,
+            color: AppColors.textWhite,
+          ),
           onPressed: () => Navigator.of(context).pop(),
+          tooltip: 'Back',
         ),
         title: const Text(
           'Personal Information',

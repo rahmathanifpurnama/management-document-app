@@ -20,41 +20,33 @@ class LoadingWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: backgroundColor ?? Colors.black.withValues(alpha: 0.5),
+      color: Colors.transparent,
       child: Center(
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.shadow,
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SpinKitFadingCircle(
-                color: indicatorColor ?? AppColors.primary,
-                size: 50,
-              ),
-              if (showMessage) ...[
-                const SizedBox(height: 16),
-                Text(
-                  message ?? AppStrings.loading,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 50,
+              height: 50,
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  indicatorColor ?? AppColors.primary,
                 ),
-              ],
+                strokeWidth: 3.0,
+              ),
+            ),
+            if (showMessage) ...[
+              const SizedBox(height: 16),
+              Text(
+                message ?? AppStrings.loading,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );
