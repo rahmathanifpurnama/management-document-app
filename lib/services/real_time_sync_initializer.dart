@@ -101,14 +101,8 @@ class RealTimeSyncInitializer {
     debugPrint('🔍 Verifying Firebase connection...');
 
     try {
-      // Test Firestore connection
-      await _firebaseService.firestore
-          .collection('_health_check')
-          .doc('connection_test')
-          .set({
-            'timestamp': FieldValue.serverTimestamp(),
-            'source': 'real_time_sync_initializer',
-          });
+      // Test Firestore connection with simple read operation
+      await _firebaseService.firestore.collection('users').limit(1).get();
 
       // Test Cloud Functions connection
       try {
@@ -388,17 +382,25 @@ class RealTimeSyncInitializer {
 
   /// Handle initialization failure
   Future<void> _handleInitializationFailure(dynamic error) async {
-    try {
-      await _firebaseService.firestore.collection('system-logs').add({
-        'type': 'real_time_sync_initialization',
-        'status': 'failure',
-        'error': error.toString(),
-        'completedSteps': _initializationSteps,
-        'componentStatus': _componentStatus,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      debugPrint('❌ Failed to log initialization failure: $e');
+    // Only log critical errors, skip permission errors for system-logs
+    if (!error.toString().contains('permission-denied')) {
+      try {
+        await _firebaseService.firestore.collection('system-logs').add({
+          'type': 'real_time_sync_initialization',
+          'status': 'failure',
+          'error': error.toString(),
+          'completedSteps': _initializationSteps,
+          'componentStatus': _componentStatus,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      } catch (e) {
+        // Silently fail for logging errors to avoid noise
+        debugPrint('⚠️ System logging unavailable (non-critical)');
+      }
+    } else {
+      debugPrint(
+        '⚠️ Permission error during initialization (rules may need update)',
+      );
     }
   }
 

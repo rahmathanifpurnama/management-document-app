@@ -143,5 +143,69 @@ service cloud.firestore {
       // Allow admin full access
       allow read, write, delete: if isAdmin();
     }
+
+    // Real-time sync system collections
+    match /system-logs/{logId} {
+      // Allow read for admin only
+      allow read: if isAdmin();
+
+      // Allow create for authenticated users (for system logging)
+      allow create: if isAuthenticated();
+
+      // Allow admin to delete old logs
+      allow delete: if isAdmin();
+    }
+
+    match /statistics-cache/{cacheId} {
+      // Allow read for authenticated users
+      allow read: if isAuthenticated();
+
+      // Allow write/delete for authenticated users (for cache management)
+      allow write, delete: if isAuthenticated();
+
+      // Allow admin full access
+      allow read, write, delete: if isAdmin();
+    }
+
+    match /sync-operations/{syncId} {
+      // Allow read for authenticated users
+      allow read: if isAuthenticated();
+
+      // Allow write for authenticated users (for sync operations)
+      allow write: if isAuthenticated();
+
+      // Allow admin full access
+      allow read, write, delete: if isAdmin();
+    }
+
+    match /sync-errors/{errorId} {
+      // Allow read for admin only
+      allow read: if isAdmin();
+
+      // Allow create for authenticated users (for error logging)
+      allow create: if isAuthenticated();
+
+      // Allow admin to delete old errors
+      allow delete: if isAdmin();
+    }
+
+    match /critical-errors/{errorId} {
+      // Allow read for admin only
+      allow read: if isAdmin();
+
+      // Allow create for authenticated users (for critical error logging)
+      allow create: if isAuthenticated();
+
+      // Allow admin to delete old errors
+      allow delete: if isAdmin();
+    }
+
+    match /_health_check/{checkId} {
+      // Allow read/write for authenticated users (for health monitoring)
+      allow read, write: if isAuthenticated();
+
+      // Allow admin full access
+      allow read, write, delete: if isAdmin();
+    }
   }
 }
