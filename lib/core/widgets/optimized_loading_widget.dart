@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import '../constants/app_colors.dart';
 
-/// Optimized loading widget that doesn't block the main thread
-class OptimizedLoadingWidget extends StatefulWidget {
+/// Optimized loading widget using standard CircularProgressIndicator
+class OptimizedLoadingWidget extends StatelessWidget {
   final String? message;
   final Color? color;
   final double? size;
   final bool showMessage;
-  final Duration animationDuration;
 
   const OptimizedLoadingWidget({
     super.key,
@@ -16,34 +15,7 @@ class OptimizedLoadingWidget extends StatefulWidget {
     this.color,
     this.size = 40.0,
     this.showMessage = true,
-    this.animationDuration = const Duration(milliseconds: 1200),
   });
-
-  @override
-  State<OptimizedLoadingWidget> createState() => _OptimizedLoadingWidgetState();
-}
-
-class _OptimizedLoadingWidgetState extends State<OptimizedLoadingWidget>
-    with TickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: widget.animationDuration,
-      vsync: this,
-    );
-    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
-    _controller.repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,51 +23,24 @@ class _OptimizedLoadingWidgetState extends State<OptimizedLoadingWidget>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Optimized spinner that doesn't cause frame drops
-          AnimatedBuilder(
-            animation: _animation,
-            builder: (context, child) {
-              return Transform.rotate(
-                angle: _animation.value * 2.0 * 3.14159,
-                child: Container(
-                  width: widget.size,
-                  height: widget.size,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: (widget.color ?? AppColors.primary).withValues(
-                        alpha: 0.3,
-                      ),
-                      width: 3.0,
-                    ),
-                  ),
-                  child: Container(
-                    margin: const EdgeInsets.all(3),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [
-                          widget.color ?? AppColors.primary,
-                          (widget.color ?? AppColors.primary).withValues(
-                            alpha: 0.1,
-                          ),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
+          // Standard Flutter CircularProgressIndicator
+          SizedBox(
+            width: size,
+            height: size,
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(
+                color ?? AppColors.primary,
+              ),
+              strokeWidth: 3.0,
+            ),
           ),
 
-          if (widget.showMessage && widget.message != null) ...[
+          if (showMessage && message != null) ...[
             const SizedBox(height: 16),
             Text(
-              widget.message!,
+              message!,
               style: TextStyle(
-                color: widget.color ?? AppColors.primary,
+                color: color ?? AppColors.primary,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),

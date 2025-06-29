@@ -4,7 +4,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_routes.dart';
-import '../../core/widgets/optimized_loading_widget.dart';
 import '../../core/utils/anr_prevention.dart';
 import '../../providers/auth_provider.dart';
 
@@ -107,11 +106,16 @@ class _SplashScreenState extends State<SplashScreen> {
                     ),
                   ),
 
-                  // Loading Indicator - Optimized
-                  const OptimizedLoadingWidget(
-                    color: AppColors.primary,
-                    size: 40,
-                    showMessage: false,
+                  // Loading Indicator - Standard CircularProgressIndicator
+                  const SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.primary,
+                      ),
+                      strokeWidth: 3.0,
+                    ),
                   ),
                 ],
               ),

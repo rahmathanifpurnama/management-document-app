@@ -22,7 +22,6 @@
     <application
         android:label="SIMDOC BAPELTAN"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon"
         android:enableOnBackInvokedCallback="true"
         android:largeHeap="true"
         android:usesCleartextTraffic="false"

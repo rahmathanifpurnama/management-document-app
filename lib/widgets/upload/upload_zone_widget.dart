@@ -160,9 +160,8 @@ class _UploadZoneWidgetState extends State<UploadZoneWidget>
                     spacing: 8,
                     runSpacing: 8,
                     alignment: WrapAlignment.center,
-                    children: FileConfig.allowedExtensions
-                        .take(7) // Show first 7 extensions
-                        .map((ext) => _buildFormatChip(ext.toUpperCase()))
+                    children: _getSupportedFormats()
+                        .map((format) => _buildFormatChip(format))
                         .toList(),
                   ),
                 ],
@@ -172,6 +171,10 @@ class _UploadZoneWidgetState extends State<UploadZoneWidget>
         },
       ),
     );
+  }
+
+  List<String> _getSupportedFormats() {
+    return ['PDF', 'Word', 'Excel', 'PowerPoint', 'Images', 'Text', 'CSV'];
   }
 
   Widget _buildFormatChip(String format) {
