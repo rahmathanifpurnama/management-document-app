@@ -7,11 +7,9 @@ import 'optimized_statistics_service.dart';
 import 'duplicate_prevention_service.dart';
 import 'sync_edge_case_handler.dart';
 
-/**
- * REAL-TIME SYNC INITIALIZER
- * Coordinates initialization of all real-time synchronization components
- * Ensures proper startup sequence and error handling
- */
+/// REAL-TIME SYNC INITIALIZER
+/// Coordinates initialization of all real-time synchronization components
+/// Ensures proper startup sequence and error handling
 class RealTimeSyncInitializer {
   static final RealTimeSyncInitializer _instance =
       RealTimeSyncInitializer._internal();
