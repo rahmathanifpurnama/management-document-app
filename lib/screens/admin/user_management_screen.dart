@@ -117,7 +117,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           if (userProvider.isLoading) {
             return const Center(
               child: OptimizedLoadingWidget(
-                message: 'Syncing Firebase Auth users and loading data...',
+                message: 'Loading users...',
                 color: AppColors.primary,
                 size: 50,
                 showMessage: true,
