@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/document_provider.dart';
-import '../../theme/app_colors.dart';
+import '../../providers/user_provider.dart';
 import '../../services/user_sync_service.dart';
-import 'firebase_providers_test_widget.dart';
+import '../../core/constants/app_colors.dart';
 
 /// Enhanced Admin Dashboard with unlimited query capabilities
 class EnhancedAdminDashboard extends StatefulWidget {
@@ -446,9 +447,9 @@ class _EnhancedAdminDashboardState extends State<EnhancedAdminDashboard> {
               _syncFirebaseAuthUsers,
             ),
             _buildActionButton(
-              'Test Firebase Providers',
-              Icons.science,
-              _openTestWidget,
+              'Clear Cache & Reload',
+              Icons.cached,
+              _clearCacheAndReload,
             ),
           ],
         ),
@@ -513,13 +514,49 @@ class _EnhancedAdminDashboardState extends State<EnhancedAdminDashboard> {
     }
   }
 
-  void _openTestWidget() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const FirebaseProvidersTestWidget(),
-      ),
-    );
+  Future<void> _clearCacheAndReload() async {
+    try {
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Clearing cache and reloading data...'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+
+      // Reload data from providers
+      final documentProvider = Provider.of<DocumentProvider>(
+        context,
+        listen: false,
+      );
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+      // Reload document data
+      await documentProvider.loadAllDocumentsUnlimited();
+      await documentProvider.loadDocumentsFromStorageUnlimited();
+
+      // Reload user data
+      await userProvider.loadUsers();
+
+      // Reload statistics
+      await _loadStatistics();
+
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: 'Cache cleared and data reloaded successfully',
+          backgroundColor: AppColors.success,
+          textColor: Colors.white,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Fluttertoast.showToast(
+          msg: 'Error clearing cache: ${e.toString()}',
+          backgroundColor: AppColors.error,
+          textColor: Colors.white,
+        );
+      }
+    }
   }
 
   String _formatBytes(int bytes) {
