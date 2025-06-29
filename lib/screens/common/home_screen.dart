@@ -95,7 +95,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     // Refresh UI when app comes back to foreground (user returns from upload screen)
     if (state == AppLifecycleState.resumed) {
-      debugPrint('🔄 App resumed - triggering UI refresh');
+      debugPrint('🔄 App resumed - triggering UI refresh with loading state');
+
+      // Trigger file list refresh with loading state
+      _fileListKey.currentState?.handlePageResume();
+
+      // Refresh other providers
       UIRefreshService.refreshAllProviders(context);
     }
   }

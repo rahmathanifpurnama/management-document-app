@@ -251,6 +251,60 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     }
   }
 
+  /// Handle page resume with loading state
+  Future<void> handlePageResume() async {
+    if (!mounted) return;
+
+    // Set loading state for page resume
+    setState(() {
+      _isFirstTimeLoading = true;
+      _hasDataCheckCompleted = false;
+    });
+
+    try {
+      debugPrint('🔄 HomeFileListSection: Starting page resume loading...');
+
+      // Show loading UI for minimum duration (better UX)
+      final minimumLoadingTime = Future.delayed(
+        const Duration(milliseconds: 1000),
+      );
+
+      // Get document provider
+      final documentProvider = Provider.of<DocumentProvider>(
+        context,
+        listen: false,
+      );
+
+      // Refresh documents when page resumes
+      final dataLoadingFuture = documentProvider.loadDocuments(
+        forceRefresh: false, // Use cache if available
+      );
+
+      // Wait for both minimum loading time and data loading
+      await Future.wait([minimumLoadingTime, dataLoadingFuture]);
+
+      if (mounted) {
+        setState(() {
+          _isFirstTimeLoading = false;
+          _hasDataCheckCompleted = true;
+        });
+
+        final documentCount = documentProvider.allDocuments.length;
+        debugPrint(
+          '✅ HomeFileListSection: Page resume loading completed - Found $documentCount files',
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ HomeFileListSection: Page resume loading failed: $e');
+      if (mounted) {
+        setState(() {
+          _isFirstTimeLoading = false;
+          _hasDataCheckCompleted = true;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer2<DocumentProvider, FileSelectionProvider>(
@@ -452,8 +506,11 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
               },
             ),
 
-            // Pagination Controls (hidden during loading state)
-            if (totalPages > 1 && !_isTransitioning) ...[
+            // Pagination Controls (hidden during all loading states)
+            if (totalPages > 1 &&
+                !_isTransitioning &&
+                !_isFirstTimeLoading &&
+                _hasDataCheckCompleted) ...[
               _buildPaginationControls(totalPages),
             ],
           ],
@@ -473,40 +530,21 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         if (_isFirstTimeLoading || !_hasDataCheckCompleted) {
           // Responsive design implementation
           final screenWidth = MediaQuery.of(context).size.width;
-          final screenHeight = MediaQuery.of(context).size.height;
           final isSmallScreen = screenWidth < 400;
 
           // Calculate responsive values
-          final horizontalPadding = 20.0;
-          final bottomSpacing = isSmallScreen ? 10.0 : 12.0;
           final progressIndicatorSize = isSmallScreen ? 48.0 : 56.0;
           final textSpacing = isSmallScreen ? 12.0 : 16.0;
           final fontSize = isSmallScreen ? 15.0 : 16.0;
 
-          // Calculate container height to extend near bottom navigation bar
-          // Account for: AppBar (~56px), bottom nav (~80px), margins, and spacing
-          final availableHeight =
-              screenHeight - 560; // Approximate space for bars and margins
-          final containerHeight = availableHeight - bottomSpacing;
-
-          return Container(
-            height: containerHeight,
-            margin: EdgeInsets.only(bottom: bottomSpacing),
+          return Padding(
             padding: EdgeInsets.symmetric(
-              vertical: isSmallScreen ? 40.0 : 60.0,
-              horizontal: horizontalPadding,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppColors.border.withValues(alpha: 0.3),
-                width: 1,
-              ),
+              vertical: isSmallScreen ? 60.0 : 80.0,
             ),
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
                     width: progressIndicatorSize,
@@ -520,7 +558,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                   ),
                   SizedBox(height: textSpacing),
                   Text(
-                    'Loading',
+                    'Loading your files...',
                     style: GoogleFonts.poppins(
                       fontSize: fontSize,
                       fontWeight: FontWeight.w500,
@@ -536,40 +574,23 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
 
         // PRIORITY 2: Show transition loading state (for page changes, etc.)
         if (_isTransitioning) {
-          // Responsive design implementation (same as first-time loading)
+          // Responsive design implementation
           final screenWidth = MediaQuery.of(context).size.width;
-          final screenHeight = MediaQuery.of(context).size.height;
           final isSmallScreen = screenWidth < 400;
 
           // Calculate responsive values
-          final horizontalPadding = 20.0;
-          final bottomSpacing = isSmallScreen ? 10.0 : 12.0;
           final progressIndicatorSize = isSmallScreen ? 48.0 : 56.0;
           final textSpacing = isSmallScreen ? 12.0 : 16.0;
           final fontSize = isSmallScreen ? 15.0 : 16.0;
 
-          // Calculate container height to extend near bottom navigation bar
-          final availableHeight = screenHeight - 200;
-          final containerHeight = availableHeight - bottomSpacing;
-
-          return Container(
-            height: containerHeight,
-            margin: EdgeInsets.only(bottom: bottomSpacing),
+          return Padding(
             padding: EdgeInsets.symmetric(
-              vertical: isSmallScreen ? 40.0 : 60.0,
-              horizontal: horizontalPadding,
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppColors.border.withValues(alpha: 0.3),
-                width: 1,
-              ),
+              vertical: isSmallScreen ? 60.0 : 80.0,
             ),
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
                     width: progressIndicatorSize,
