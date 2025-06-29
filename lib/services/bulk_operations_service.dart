@@ -261,6 +261,7 @@ class BulkOperationsService {
   }
 
   /// Delete multiple files with parallel processing and error handling
+  /// Uses STORAGE-FIRST deletion approach: deletes from Firebase Storage first, then Firestore
   static Future<void> deleteSelectedFiles({
     required BuildContext context,
     required List<DocumentModel> files,
@@ -400,12 +401,13 @@ class BulkOperationsService {
         final futures = batch.map((file) async {
           try {
             debugPrint(
-              '🔄 Enhanced deletion starting for: ${file.fileName} (ID: ${file.id}, Type: ${_getFileTypeCategory(file.fileType)})',
+              '🔄 STORAGE-FIRST bulk deletion starting for: ${file.fileName} (ID: ${file.id}, Type: ${_getFileTypeCategory(file.fileType)})',
             );
 
             // Track deletion start time for diagnostics
             final startTime = DateTime.now();
 
+            // Use storage-first deletion approach via DocumentProvider
             await documentProvider.removeDocument(file.id, currentUserId);
 
             final duration = DateTime.now().difference(startTime);

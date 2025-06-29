@@ -5,28 +5,31 @@ import '../core/services/document_service.dart';
 import '../core/services/firebase_service.dart';
 import '../utils/firebase_storage_url_parser.dart';
 
-/// Optimized Deletion Service with comprehensive error handling and fallback mechanisms
-/// 
-/// This service provides a hybrid approach to file deletion:
-/// 1. Attempts direct Firebase Storage deletion when possible
-/// 2. Falls back to traditional Firestore-based deletion
-/// 3. Provides comprehensive error handling and recovery
-/// 4. Maintains admin-only permissions throughout
+/// Optimized Deletion Service with STORAGE-FIRST approach and comprehensive error handling
+///
+/// This service provides a storage-first approach to file deletion:
+/// 1. PRIORITY: Deletes from Firebase Storage FIRST using direct storage access
+/// 2. SECONDARY: Cleans up Firestore metadata AFTER storage deletion
+/// 3. FALLBACK: Falls back to traditional Firestore-based deletion if direct storage fails
+/// 4. Provides comprehensive error handling and recovery
+/// 5. Maintains admin-only permissions throughout
 class OptimizedDeletionService {
-  static final OptimizedDeletionService _instance = OptimizedDeletionService._internal();
+  static final OptimizedDeletionService _instance =
+      OptimizedDeletionService._internal();
   static OptimizedDeletionService get instance => _instance;
   OptimizedDeletionService._internal();
 
-  final DirectStorageDeletionService _directStorageService = DirectStorageDeletionService.instance;
+  final DirectStorageDeletionService _directStorageService =
+      DirectStorageDeletionService.instance;
   final DocumentService _documentService = DocumentService.instance;
   final FirebaseService _firebaseService = FirebaseService.instance;
 
   /// Delete a document using the optimized hybrid approach
-  /// 
+  ///
   /// [document] - The DocumentModel to delete
   /// [deletedBy] - User ID of the person performing the deletion
   /// [forceTraditional] - If true, skips direct deletion and uses traditional method
-  /// 
+  ///
   /// Returns [OptimizedDeletionResult] with detailed operation information
   Future<OptimizedDeletionResult> deleteDocument(
     DocumentModel document,
@@ -34,7 +37,9 @@ class OptimizedDeletionService {
     bool forceTraditional = false,
   }) async {
     final startTime = DateTime.now();
-    debugPrint('🗑️ OptimizedDeletionService: Starting deletion for ${document.fileName}');
+    debugPrint(
+      '🗑️ OptimizedDeletionService: Starting deletion for ${document.fileName}',
+    );
 
     try {
       // Verify admin permissions first
@@ -50,21 +55,32 @@ class OptimizedDeletionService {
       // Choose deletion strategy
       if (forceTraditional) {
         debugPrint('🔄 Using traditional deletion method (forced)');
-        return await _performTraditionalDeletion(document, deletedBy, startTime);
+        return await _performTraditionalDeletion(
+          document,
+          deletedBy,
+          startTime,
+        );
       }
 
       // Try optimized deletion first
-      final optimizedResult = await _attemptOptimizedDeletion(document, deletedBy, startTime);
+      final optimizedResult = await _attemptOptimizedDeletion(
+        document,
+        deletedBy,
+        startTime,
+      );
       if (optimizedResult.success) {
         return optimizedResult;
       }
 
       // Fall back to traditional deletion
-      debugPrint('⚠️ Optimized deletion failed, falling back to traditional method');
+      debugPrint(
+        '⚠️ Optimized deletion failed, falling back to traditional method',
+      );
       return await _performTraditionalDeletion(document, deletedBy, startTime);
-
     } catch (e) {
-      debugPrint('❌ OptimizedDeletionService: Unexpected error during deletion: $e');
+      debugPrint(
+        '❌ OptimizedDeletionService: Unexpected error during deletion: $e',
+      );
       return OptimizedDeletionResult.error(
         documentId: document.id,
         fileName: document.fileName,
@@ -76,10 +92,10 @@ class OptimizedDeletionService {
   }
 
   /// Delete a document by URL (when only download URL is available)
-  /// 
+  ///
   /// [downloadUrl] - Firebase Storage download URL
   /// [deletedBy] - User ID of the person performing the deletion
-  /// 
+  ///
   /// Returns [OptimizedDeletionResult] with detailed operation information
   Future<OptimizedDeletionResult> deleteDocumentByUrl(
     String downloadUrl,
@@ -94,13 +110,16 @@ class OptimizedDeletionService {
       if (!isAdmin) {
         return OptimizedDeletionResult.unauthorized(
           documentId: 'url-based',
-          fileName: FirebaseStorageUrlParser.getFileName(downloadUrl) ?? 'unknown',
+          fileName:
+              FirebaseStorageUrlParser.getFileName(downloadUrl) ?? 'unknown',
           message: 'Access denied: Only administrators can delete files',
         );
       }
 
       // Extract storage path from URL
-      final storagePath = FirebaseStorageUrlParser.extractStoragePathFromUrl(downloadUrl);
+      final storagePath = FirebaseStorageUrlParser.extractStoragePathFromUrl(
+        downloadUrl,
+      );
       if (storagePath == null) {
         return OptimizedDeletionResult.error(
           documentId: 'url-based',
@@ -112,13 +131,18 @@ class OptimizedDeletionService {
       }
 
       // Perform direct storage deletion
-      final directResult = await _directStorageService.deleteFileByPath(storagePath);
-      
+      final directResult = await _directStorageService.deleteFileByPath(
+        storagePath,
+      );
+
       if (directResult.success) {
         debugPrint('✅ URL-based deletion completed successfully');
         return OptimizedDeletionResult.success(
           documentId: 'url-based',
-          fileName: directResult.fileName ?? FirebaseStorageUrlParser.getFileName(downloadUrl) ?? 'unknown',
+          fileName:
+              directResult.fileName ??
+              FirebaseStorageUrlParser.getFileName(downloadUrl) ??
+              'unknown',
           message: 'File deleted successfully using URL-based deletion',
           method: DeletionMethod.directUrl,
           duration: DateTime.now().difference(startTime),
@@ -128,18 +152,19 @@ class OptimizedDeletionService {
       } else {
         return OptimizedDeletionResult.error(
           documentId: 'url-based',
-          fileName: FirebaseStorageUrlParser.getFileName(downloadUrl) ?? 'unknown',
+          fileName:
+              FirebaseStorageUrlParser.getFileName(downloadUrl) ?? 'unknown',
           message: 'URL-based deletion failed: ${directResult.message}',
           errorCode: directResult.errorCode ?? 'URL_DELETION_FAILED',
           duration: DateTime.now().difference(startTime),
         );
       }
-
     } catch (e) {
       debugPrint('❌ OptimizedDeletionService: URL-based deletion error: $e');
       return OptimizedDeletionResult.error(
         documentId: 'url-based',
-        fileName: FirebaseStorageUrlParser.getFileName(downloadUrl) ?? 'unknown',
+        fileName:
+            FirebaseStorageUrlParser.getFileName(downloadUrl) ?? 'unknown',
         message: 'URL-based deletion error: ${e.toString()}',
         errorCode: 'URL_DELETION_ERROR',
         duration: DateTime.now().difference(startTime),
@@ -147,43 +172,55 @@ class OptimizedDeletionService {
     }
   }
 
-  /// Attempt optimized deletion using direct storage access
+  /// Attempt optimized deletion using STORAGE-FIRST approach
+  /// Deletes from Firebase Storage first, then cleans up Firestore metadata
   Future<OptimizedDeletionResult> _attemptOptimizedDeletion(
     DocumentModel document,
     String deletedBy,
     DateTime startTime,
   ) async {
     try {
-      debugPrint('🚀 Attempting optimized direct storage deletion...');
+      debugPrint('🚀 Attempting STORAGE-FIRST optimized deletion...');
 
-      // Use DirectStorageDeletionService for optimized deletion
-      final directResult = await _directStorageService.deleteDocumentDirect(document);
+      // STEP 1: Delete from Firebase Storage FIRST (priority)
+      debugPrint(
+        '🗑️ STEP 1: Deleting file from Firebase Storage (PRIORITY)...',
+      );
+      final directResult = await _directStorageService.deleteDocumentDirect(
+        document,
+      );
 
       if (directResult.success) {
         debugPrint('✅ Direct storage deletion successful');
 
-        // Clean up Firestore metadata
+        // STEP 2: Clean up Firestore metadata AFTER storage deletion
+        debugPrint('🗑️ STEP 2: Cleaning up Firestore metadata (SECONDARY)...');
         bool firestoreDeleted = false;
         try {
           await _firebaseService.documentsCollection.doc(document.id).delete();
           firestoreDeleted = true;
           debugPrint('✅ Firestore metadata cleanup completed');
         } catch (firestoreError) {
-          debugPrint('⚠️ Firestore cleanup failed (non-critical): $firestoreError');
+          debugPrint(
+            '⚠️ Firestore cleanup failed (non-critical): $firestoreError',
+          );
           // Non-critical error - storage deletion was successful
         }
 
         return OptimizedDeletionResult.success(
           documentId: document.id,
           fileName: document.fileName,
-          message: 'File deleted successfully using optimized direct storage deletion',
+          message:
+              'File deleted successfully using optimized direct storage deletion',
           method: DeletionMethod.directStorage,
           duration: DateTime.now().difference(startTime),
           storageDeleted: true,
           firestoreDeleted: firestoreDeleted,
         );
       } else {
-        debugPrint('⚠️ Direct storage deletion failed: ${directResult.message}');
+        debugPrint(
+          '⚠️ Direct storage deletion failed: ${directResult.message}',
+        );
         return OptimizedDeletionResult.error(
           documentId: document.id,
           fileName: document.fileName,
@@ -227,7 +264,7 @@ class OptimizedDeletionService {
       );
     } catch (e) {
       debugPrint('❌ Traditional deletion failed: $e');
-      
+
       // Handle specific error cases
       if (e.toString().contains('Document not found')) {
         return OptimizedDeletionResult.success(
@@ -278,12 +315,7 @@ class OptimizedDeletionService {
 }
 
 /// Enumeration of deletion methods
-enum DeletionMethod {
-  directStorage,
-  directUrl,
-  traditional,
-  notFoundCleanup,
-}
+enum DeletionMethod { directStorage, directUrl, traditional, notFoundCleanup }
 
 /// Result of optimized deletion operation
 class OptimizedDeletionResult {

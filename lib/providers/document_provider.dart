@@ -10,7 +10,7 @@ import '../core/services/firebase_service.dart';
 import '../services/file_category_management_service.dart';
 import '../services/cloud_functions_service.dart';
 import '../core/config/anr_config.dart';
-import '../core/config/feature_flags.dart';
+
 import '../config/firebase_config.dart';
 import 'category_provider.dart';
 
@@ -25,7 +25,7 @@ import '../core/services/id_reconciliation_service.dart';
 import '../services/document_state_manager.dart';
 import '../services/unified_document_loader.dart';
 import '../services/direct_storage_deletion_service.dart';
-import '../services/optimized_deletion_service.dart';
+
 import '../services/statistics_notification_service.dart';
 import '../core/utils/circuit_breaker.dart';
 import '../core/utils/empty_storage_state_manager.dart';
@@ -106,11 +106,9 @@ class DocumentProvider extends ChangeNotifier {
   // UNIFIED LOADING: Use unified document loader to eliminate race conditions
   final UnifiedDocumentLoader _unifiedLoader = UnifiedDocumentLoader.instance;
 
-  // OPTIMIZED DELETION: Services for improved deletion performance
+  // STORAGE-FIRST DELETION: Service for direct storage deletion
   final DirectStorageDeletionService _directStorageService =
       DirectStorageDeletionService.instance;
-  final OptimizedDeletionService _optimizedDeletionService =
-      OptimizedDeletionService.instance;
 
   // STATISTICS NOTIFICATION: Service for real-time statistics updates
   final StatisticsNotificationService _statisticsService =
@@ -1283,23 +1281,17 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  // Remove document permanently (from Firebase Storage and Firestore)
+  // Remove document permanently (STORAGE-FIRST: Delete from Firebase Storage first, then Firestore)
   Future<void> removeDocument(String documentId, String deletedBy) async {
     try {
       debugPrint(
-        '🗑️ DocumentProvider: Starting document removal for ID: $documentId',
+        '🗑️ DocumentProvider: Starting STORAGE-FIRST document removal for ID: $documentId',
       );
 
       // ADMIN-ONLY: Verify admin status before proceeding
       final isAdmin = await _verifyUserIsAdmin(deletedBy);
       if (!isAdmin) {
         throw Exception('Access denied: Only administrators can delete files');
-      }
-
-      // FEATURE FLAG: Use cloud function for deletion if enabled
-      if (FeatureFlags.useCloudFunctionDelete) {
-        await _deleteDocumentViaCloudFunction(documentId, deletedBy);
-        return;
       }
 
       // ENHANCED FIX: Force refresh from Firestore before deletion to ensure we have latest data
@@ -1361,83 +1353,110 @@ class DocumentProvider extends ChangeNotifier {
         debugPrint('⚠️ Document not found in local cache: $documentId');
       }
 
-      // OPTIMIZED DELETE: Use OptimizedDeletionService for comprehensive deletion handling
-      bool backendDeletionSuccessful = false;
+      // STORAGE-FIRST DELETION: Delete from Firebase Storage first, then Firestore
+      bool storageDeleted = false;
+      bool firestoreDeleted = false;
       String? backendError;
-      String deletionMethod = 'unknown';
+      String deletionMethod = 'storage_first';
 
       try {
-        // Use OptimizedDeletionService for intelligent deletion
+        // STEP 1: Delete from Firebase Storage first
         if (localDocument != null && localDocument.id.isNotEmpty) {
-          debugPrint('🚀 Using OptimizedDeletionService for deletion...');
+          debugPrint('🗑️ STEP 1: Deleting file from Firebase Storage...');
 
-          final optimizedResult = await _optimizedDeletionService
-              .deleteDocument(localDocument, deletedBy);
+          try {
+            // Use DirectStorageDeletionService for direct storage deletion
+            final directStorageService = DirectStorageDeletionService.instance;
+            final storageResult = await directStorageService
+                .deleteDocumentDirect(localDocument);
 
-          if (optimizedResult.success) {
-            debugPrint('✅ Optimized deletion completed successfully');
-            backendDeletionSuccessful = true;
-            deletionMethod = optimizedResult.methodName;
-
-            debugPrint(
-              '📊 Deletion stats: Storage=${optimizedResult.storageDeleted}, Firestore=${optimizedResult.firestoreDeleted}, Duration=${optimizedResult.formattedDuration}',
-            );
-          } else {
-            debugPrint(
-              '❌ Optimized deletion failed: ${optimizedResult.message}',
-            );
-            backendError = optimizedResult.message;
-            deletionMethod = 'optimized_failed';
-
-            // Check if it's an authorization error
-            if (optimizedResult.errorCode == 'UNAUTHORIZED') {
-              throw Exception(
-                'Access denied: Only administrators can delete files',
+            if (storageResult.success) {
+              debugPrint(
+                '✅ Storage deletion successful: ${storageResult.message}',
               );
+              storageDeleted = true;
+            } else {
+              debugPrint(
+                '⚠️ Storage deletion failed: ${storageResult.message}',
+              );
+              // Continue with Firestore deletion even if storage fails
             }
+          } catch (storageError) {
+            debugPrint('❌ Storage deletion error: $storageError');
+            // Continue with Firestore deletion even if storage fails
+          }
 
-            // For other errors, still proceed with local cleanup
-            backendDeletionSuccessful = false;
+          // STEP 2: Delete from Firestore after storage deletion
+          debugPrint('🗑️ STEP 2: Deleting metadata from Firestore...');
+
+          try {
+            await _firebaseService.documentsCollection.doc(documentId).delete();
+            debugPrint('✅ Firestore deletion successful');
+            firestoreDeleted = true;
+          } catch (firestoreError) {
+            debugPrint('⚠️ Firestore deletion failed: $firestoreError');
+            backendError = firestoreError.toString();
+
+            // If document not found in Firestore, consider it successful
+            if (firestoreError.toString().contains('not found') ||
+                firestoreError.toString().contains('not-found')) {
+              debugPrint(
+                'ℹ️ Document not found in Firestore - considering deletion successful',
+              );
+              firestoreDeleted = true;
+            }
           }
         } else {
-          // No local document metadata available, try traditional deletion
+          // No local document metadata available, try to find and delete from Firestore
           debugPrint(
-            '⚠️ No local document metadata, using traditional deletion...',
+            '⚠️ No local document metadata, attempting Firestore deletion...',
           );
 
           try {
-            await _documentService.deleteDocument(documentId, deletedBy);
-            debugPrint('✅ Traditional backend deletion completed successfully');
-            backendDeletionSuccessful = true;
-            deletionMethod = 'traditional_fallback';
-          } catch (deleteError) {
-            backendError = deleteError.toString();
-            debugPrint('❌ Traditional backend deletion failed: $deleteError');
+            await _firebaseService.documentsCollection.doc(documentId).delete();
+            debugPrint('✅ Firestore deletion successful (no local metadata)');
+            firestoreDeleted = true;
+          } catch (firestoreError) {
+            debugPrint('❌ Firestore deletion failed: $firestoreError');
+            backendError = firestoreError.toString();
 
-            // Handle specific error cases
-            if (deleteError.toString().contains('Document not found')) {
+            if (firestoreError.toString().contains('not found') ||
+                firestoreError.toString().contains('not-found')) {
               debugPrint(
-                'ℹ️ Document not found in backend - proceeding with local cleanup',
+                'ℹ️ Document not found in Firestore - considering deletion successful',
               );
-              backendDeletionSuccessful = true;
-              deletionMethod = 'not_found_cleanup';
-            } else if (deleteError.toString().contains('CRITICAL')) {
-              debugPrint('🚨 Critical storage deletion issue detected');
-              backendDeletionSuccessful = false;
-              deletionMethod = 'critical_error';
+              firestoreDeleted = true;
             } else {
-              // For other errors, rethrow to let the UI handle it
-              rethrow;
+              throw Exception('Failed to delete document: $firestoreError');
             }
           }
         }
-      } catch (optimizedDeleteError) {
-        debugPrint('❌ Optimized deletion service error: $optimizedDeleteError');
-        backendError = optimizedDeleteError.toString();
-        backendDeletionSuccessful = false;
-        deletionMethod = 'service_error';
 
-        // Don't rethrow here - proceed with local cleanup
+        // Log deletion results
+        debugPrint(
+          '📊 Deletion results: Storage=$storageDeleted, Firestore=$firestoreDeleted, Method=$deletionMethod',
+        );
+      } catch (deletionError) {
+        debugPrint('❌ Storage-first deletion error: $deletionError');
+        backendError = deletionError.toString();
+
+        // Handle specific error cases
+        if (deletionError.toString().contains('Document not found')) {
+          debugPrint(
+            'ℹ️ Document not found in backend - proceeding with local cleanup',
+          );
+          firestoreDeleted =
+              true; // Consider it successful for cleanup purposes
+        } else if (deletionError.toString().contains('Access denied')) {
+          throw Exception(
+            'Access denied: Only administrators can delete files',
+          );
+        } else {
+          // For other errors, still proceed with local cleanup but log the error
+          debugPrint(
+            '⚠️ Backend deletion failed, proceeding with local cleanup: $deletionError',
+          );
+        }
       }
 
       // ENHANCED DELETE FIX: Always perform local cleanup regardless of backend result
@@ -1504,7 +1523,7 @@ class DocumentProvider extends ChangeNotifier {
       }
 
       // Log final status with backend deletion details and method used
-      if (backendDeletionSuccessful) {
+      if (storageDeleted || firestoreDeleted) {
         debugPrint(
           '✅ DocumentProvider: Document removal completed successfully for ID: $documentId (Method: $deletionMethod)',
         );

@@ -215,10 +215,12 @@ class DocumentService {
     }
   }
 
-  // Delete document permanently (from both Firestore and Storage)
+  // Delete document permanently (STORAGE-FIRST: Delete from Firebase Storage first, then Firestore)
   Future<void> deleteDocument(String documentId, String deletedBy) async {
     try {
-      debugPrint('🗑️ Starting delete operation for document: $documentId');
+      debugPrint(
+        '🗑️ Starting STORAGE-FIRST delete operation for document: $documentId',
+      );
 
       // ADMIN-ONLY: Verify that the user performing deletion is an admin
       final isAdmin = await _verifyAdminStatus(deletedBy);
@@ -314,7 +316,10 @@ class DocumentService {
         }
       }
 
-      // Step 4: Delete from Firebase Storage with comprehensive approach
+      // Step 4: PRIORITY - Delete from Firebase Storage FIRST with comprehensive approach
+      debugPrint(
+        '🗑️ STEP 4: Deleting file from Firebase Storage (PRIORITY)...',
+      );
       final storageDeleted = await _deleteFromFirebaseStorage(
         document,
         documentId,
@@ -361,7 +366,8 @@ class DocumentService {
         }
       }
 
-      // Step 5: Delete from Firestore (only if document was found there)
+      // Step 5: SECONDARY - Delete from Firestore AFTER storage deletion (only if document was found there)
+      debugPrint('🗑️ STEP 5: Deleting metadata from Firestore (SECONDARY)...');
       if (documentFoundInFirestore) {
         try {
           debugPrint('🗑️ Deleting from Firestore: $documentId');
