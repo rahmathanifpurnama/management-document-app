@@ -5,6 +5,7 @@ import '../core/services/firebase_service.dart';
 import '../models/document_model.dart';
 import 'timestamp_debug_service.dart';
 import 'real_time_sync_service.dart';
+import 'cloud_functions_service.dart';
 
 /// Optimized statistics service for handling large datasets (1M+ files)
 /// Uses Cloud Functions, intelligent caching, and streaming for performance
@@ -332,13 +333,12 @@ class OptimizedStatisticsService {
 
   /// Get Firebase Authentication user count (real-time)
   /// This method queries the Firestore users collection for active users
-  /// which should correspond to actual Firebase Auth users
+  /// and ensures sync with Firebase Auth users if needed
   Future<int> _getFirebaseAuthUserCount() async {
     try {
       final firestore = _firebaseService.firestore;
 
       // Query active users from Firestore users collection
-      // This collection should only contain users who have successfully registered via Firebase Auth
       final usersSnapshot = await firestore
           .collection('users')
           .where('isActive', isEqualTo: true)
@@ -346,11 +346,36 @@ class OptimizedStatisticsService {
           .get();
 
       final userCount = usersSnapshot.count ?? 0;
-      debugPrint('📊 Active users count from Firestore: $userCount');
+
+      // Auto-sync Firebase Auth users if count seems low (less than seeded users)
+      if (userCount < 3) {
+        await _autoSyncFirebaseAuthUsers();
+
+        // Re-query after sync
+        final updatedSnapshot = await firestore
+            .collection('users')
+            .where('isActive', isEqualTo: true)
+            .count()
+            .get();
+
+        return updatedSnapshot.count ?? 0;
+      }
+
       return userCount;
     } catch (e) {
       debugPrint('❌ Error getting user count from Firestore: $e');
       return 0;
+    }
+  }
+
+  /// Auto-sync Firebase Auth users to Firestore (silent operation)
+  Future<void> _autoSyncFirebaseAuthUsers() async {
+    try {
+      final cloudFunctions = CloudFunctionsService.instance;
+      await cloudFunctions.autoSyncFirebaseAuthUsers();
+    } catch (e) {
+      // Silent fail - don't disrupt statistics if sync fails
+      debugPrint('⚠️ Auto-sync Firebase Auth users failed: $e');
     }
   }
 

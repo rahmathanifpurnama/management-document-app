@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/document_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../services/user_sync_service.dart';
 import 'firebase_providers_test_widget.dart';
 
 /// Enhanced Admin Dashboard with unlimited query capabilities
@@ -440,6 +441,11 @@ class _EnhancedAdminDashboardState extends State<EnhancedAdminDashboard> {
               _loadStatistics,
             ),
             _buildActionButton(
+              'Sync Firebase Auth Users',
+              Icons.people_alt,
+              _syncFirebaseAuthUsers,
+            ),
+            _buildActionButton(
               'Test Firebase Providers',
               Icons.science,
               _openTestWidget,
@@ -471,6 +477,40 @@ class _EnhancedAdminDashboardState extends State<EnhancedAdminDashboard> {
         ),
       ),
     );
+  }
+
+  void _syncFirebaseAuthUsers() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Syncing Firebase Auth users...'),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+
+      final userSyncService = UserSyncService.instance;
+      final result = await userSyncService.manualSync();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message'] ?? 'User sync completed'),
+            backgroundColor: result['success'] == true
+                ? AppColors.success
+                : AppColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Sync failed: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   void _openTestWidget() {

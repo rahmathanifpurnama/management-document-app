@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/services/cloud_sync_service.dart';
 import '../../widgets/common/app_bottom_navigation.dart';
+import '../../widgets/admin/user_sync_widget.dart';
 
 class SyncManagementScreen extends StatefulWidget {
   const SyncManagementScreen({super.key});
@@ -31,6 +32,8 @@ class _SyncManagementScreenState extends State<SyncManagementScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildSyncStatusCard(),
+              const SizedBox(height: 16),
+              const UserSyncWidget(),
               const SizedBox(height: 16),
               _buildSyncActionsCard(),
               const SizedBox(height: 16),

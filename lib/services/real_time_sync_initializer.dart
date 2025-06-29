@@ -6,6 +6,7 @@ import 'real_time_sync_service.dart';
 import 'optimized_statistics_service.dart';
 import 'duplicate_prevention_service.dart';
 import 'sync_edge_case_handler.dart';
+import 'user_sync_service.dart';
 
 /// REAL-TIME SYNC INITIALIZER
 /// Coordinates initialization of all real-time synchronization components
@@ -26,6 +27,7 @@ class RealTimeSyncInitializer {
   final DuplicatePreventionService _duplicateService =
       DuplicatePreventionService.instance;
   final SyncEdgeCaseHandler _edgeCaseHandler = SyncEdgeCaseHandler.instance;
+  final UserSyncService _userSyncService = UserSyncService.instance;
 
   // Initialization state
   bool _isInitialized = false;
@@ -62,19 +64,23 @@ class RealTimeSyncInitializer {
       await _initializeRealTimeSync();
       _markStepComplete('real_time_sync');
 
-      // Step 4: Initialize statistics service with real-time features
+      // Step 4: Initialize user sync service
+      await _initializeUserSyncService();
+      _markStepComplete('user_sync_service');
+
+      // Step 5: Initialize statistics service with real-time features
       await _initializeStatisticsService();
       _markStepComplete('statistics_service');
 
-      // Step 5: Initialize edge case handler
+      // Step 6: Initialize edge case handler
       await _initializeEdgeCaseHandler();
       _markStepComplete('edge_case_handler');
 
-      // Step 6: Setup health monitoring
+      // Step 7: Setup health monitoring
       await _setupHealthMonitoring();
       _markStepComplete('health_monitoring');
 
-      // Step 7: Perform initial sync check
+      // Step 8: Perform initial sync check
       await _performInitialSyncCheck();
       _markStepComplete('initial_sync_check');
 
@@ -163,6 +169,22 @@ class RealTimeSyncInitializer {
       debugPrint('❌ Real-time sync initialization failed: $e');
       _componentStatus['real_time_sync'] = false;
       rethrow;
+    }
+  }
+
+  /// Initialize user sync service
+  Future<void> _initializeUserSyncService() async {
+    debugPrint('🔄 Initializing user sync service...');
+
+    try {
+      await _userSyncService.initialize();
+
+      _componentStatus['user_sync_service'] = true;
+      debugPrint('✅ User sync service initialized');
+    } catch (e) {
+      debugPrint('❌ User sync service initialization failed: $e');
+      _componentStatus['user_sync_service'] = false;
+      // Don't rethrow - user sync is not critical for app startup
     }
   }
 
