@@ -90,10 +90,10 @@ export const onStorageFileCreated = functions.storage.object().onFinalize(
       console.log("🎉 Storage sync completed successfully");
     } catch (error) {
       console.error("❌ Error in storage file created trigger:", error);
-      
+
       // Log error for monitoring
       await logSyncActivity("sync_error", {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         source: "storage_trigger",
         filePath: object.name,
       });
@@ -157,9 +157,9 @@ export const onStorageFileDeleted = functions.storage.object().onDelete(
       console.log("🎉 Storage deletion sync completed");
     } catch (error) {
       console.error("❌ Error in storage file deleted trigger:", error);
-      
+
       await logSyncActivity("sync_error", {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         source: "storage_deletion_trigger",
         filePath: object.name,
       });
@@ -230,9 +230,9 @@ export const onAuthUserCreated = functions.auth.user().onCreate(
       console.log("🎉 Auth user sync completed successfully");
     } catch (error) {
       console.error("❌ Error in auth user created trigger:", error);
-      
+
       await logSyncActivity("sync_error", {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         source: "auth_trigger",
         userId: user.uid,
       });
@@ -278,9 +278,9 @@ export const onAuthUserDeleted = functions.auth.user().onDelete(
       console.log("🎉 Auth user deletion sync completed");
     } catch (error) {
       console.error("❌ Error in auth user deleted trigger:", error);
-      
+
       await logSyncActivity("sync_error", {
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         source: "auth_deletion_trigger",
         userId: user.uid,
       });
@@ -341,7 +341,7 @@ async function checkForExistingDocumentEnhanced(
     return { hasDuplicates: false, details: null };
   } catch (error) {
     console.error("❌ Error in duplicate check:", error);
-    return { hasDuplicates: false, details: { error: error.message } };
+    return { hasDuplicates: false, details: { error: error instanceof Error ? error.message : String(error) } };
   }
 }
 
