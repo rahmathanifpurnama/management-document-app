@@ -452,8 +452,10 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
               },
             ),
 
-            // Pagination Controls (removed vertical spacing)
-            if (totalPages > 1) ...[_buildPaginationControls(totalPages)],
+            // Pagination Controls (hidden during loading state)
+            if (totalPages > 1 && !_isTransitioning) ...[
+              _buildPaginationControls(totalPages),
+            ],
           ],
         ),
       ),
@@ -534,19 +536,62 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
 
         // PRIORITY 2: Show transition loading state (for page changes, etc.)
         if (_isTransitioning) {
+          // Responsive design implementation (same as first-time loading)
+          final screenWidth = MediaQuery.of(context).size.width;
+          final screenHeight = MediaQuery.of(context).size.height;
+          final isSmallScreen = screenWidth < 400;
+
+          // Calculate responsive values
+          final horizontalPadding = 20.0;
+          final bottomSpacing = isSmallScreen ? 10.0 : 12.0;
+          final progressIndicatorSize = isSmallScreen ? 48.0 : 56.0;
+          final textSpacing = isSmallScreen ? 12.0 : 16.0;
+          final fontSize = isSmallScreen ? 15.0 : 16.0;
+
+          // Calculate container height to extend near bottom navigation bar
+          final availableHeight = screenHeight - 200;
+          final containerHeight = availableHeight - bottomSpacing;
+
           return Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 20,
-              vertical: 10,
-            ), // Reduced vertical padding
+            height: containerHeight,
+            margin: EdgeInsets.only(bottom: bottomSpacing),
+            padding: EdgeInsets.symmetric(
+              vertical: isSmallScreen ? 40.0 : 60.0,
+              horizontal: horizontalPadding,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: AppColors.border.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
             child: Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: progressIndicatorSize,
+                    height: progressIndicatorSize,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.primary,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: textSpacing),
+                  Text(
+                    'Loading page...',
+                    style: GoogleFonts.poppins(
+                      fontSize: fontSize,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             ),
           );
@@ -994,11 +1039,53 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     );
   }
 
-  /// Navigate to specific page
-  void _goToPage(int page) {
+  /// Navigate to specific page with loading state
+  Future<void> _goToPage(int page) async {
+    if (!mounted) return;
+
+    // Set loading state for pagination transition
     setState(() {
-      _currentPage = page;
+      _isTransitioning = true;
     });
+
+    try {
+      debugPrint('🔄 HomeFileListSection: Starting pagination loading...');
+
+      // Show loading UI for 1 second (same as other loading states)
+      final minimumLoadingTime = Future.delayed(
+        const Duration(milliseconds: 1000),
+      );
+
+      // Change page immediately but keep loading state
+      final pageChangeTask = Future(() {
+        if (mounted) {
+          setState(() {
+            _currentPage = page;
+          });
+        }
+      });
+
+      // Wait for both minimum loading time and page change
+      await Future.wait([minimumLoadingTime, pageChangeTask]);
+
+      if (mounted) {
+        setState(() {
+          _isTransitioning = false;
+        });
+
+        debugPrint(
+          '✅ HomeFileListSection: Pagination loading completed - Page $page',
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ HomeFileListSection: Pagination loading failed: $e');
+      if (mounted) {
+        setState(() {
+          _isTransitioning = false;
+          _currentPage = page; // Ensure page change happens even if error
+        });
+      }
+    }
   }
 
   /// Build empty state with animation
