@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_routes.dart';
@@ -87,7 +86,9 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(
+        0xFFF5F5F5,
+      ), // Match native splash background
       body: SafeArea(
         child: Column(
           children: [
@@ -98,14 +99,11 @@ class _SplashScreenState extends State<SplashScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // App Logo
-                    SvgPicture.asset(
-                      'assets/Logo.svg',
-                      width: 380,
-                      height: 380,
-                      colorFilter: const ColorFilter.mode(
-                        AppColors.primary,
-                        BlendMode.srcIn,
-                      ),
+                    Image.asset(
+                      'assets/app_icon.png',
+                      width: 200,
+                      height: 200,
+                      fit: BoxFit.contain,
                     ),
 
                     const SizedBox(height: 30),
@@ -134,7 +132,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   const Text(
                     'Version ${AppStrings.version}',
                     style: TextStyle(
-                      color: AppColors.textWhite,
+                      color: AppColors.textPrimary,
                       fontSize: 12,
                       fontWeight: FontWeight.w300,
                     ),
@@ -143,7 +141,7 @@ class _SplashScreenState extends State<SplashScreen> {
                   Text(
                     'Powered by Flutter & Firebase',
                     style: TextStyle(
-                      color: AppColors.textWhite.withValues(alpha: 0.7),
+                      color: AppColors.textSecondary.withValues(alpha: 0.7),
                       fontSize: 10,
                       fontWeight: FontWeight.w300,
                     ),

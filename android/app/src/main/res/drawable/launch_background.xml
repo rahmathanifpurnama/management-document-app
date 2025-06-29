@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Custom splash screen background -->
+<!-- Custom splash screen background with app icon -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Background color matching app theme -->
     <item android:drawable="@color/splash_background" />
+
+    <!-- App icon in center -->
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@mipmap/ic_launcher" />
+    </item>
 </layer-list>
