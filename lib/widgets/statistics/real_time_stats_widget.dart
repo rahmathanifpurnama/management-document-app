@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/optimized_statistics_service.dart';
 import '../../services/statistics_notification_service.dart';
+import '../../services/real_time_sync_service.dart';
 
 /// Real-time statistics widget with robust fallback mechanisms
 /// Ensures statistics are always displayed with accurate, up-to-date data
@@ -30,21 +31,132 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget> {
       OptimizedStatisticsService.instance;
   final StatisticsNotificationService _notificationService =
       StatisticsNotificationService.instance;
+  final RealTimeSyncService _realTimeSyncService = RealTimeSyncService.instance;
 
   // State management
   Map<String, dynamic> _statsData = {};
   bool _isLoading = true;
   bool _hasError = false;
+  bool _isRealTimeSyncEnabled = false;
 
   // Stream subscriptions
   StreamSubscription? _statisticsSubscription;
   StreamSubscription? _fileCountSubscription;
+  StreamSubscription? _syncEventsSubscription;
 
   @override
   void initState() {
     super.initState();
-    _setupRealTimeListeners();
-    _loadStatistics();
+    _initializeRealTimeSync();
+  }
+
+  /// Initialize real-time synchronization and load statistics
+  Future<void> _initializeRealTimeSync() async {
+    try {
+      debugPrint('🔄 RealTimeStatsWidget: Initializing real-time sync...');
+
+      // Initialize real-time sync service
+      await _statsService.initializeRealTimeSync();
+
+      setState(() {
+        _isRealTimeSyncEnabled = true;
+      });
+
+      // Setup enhanced real-time listeners
+      _setupEnhancedRealTimeListeners();
+
+      // Load initial statistics
+      await _loadStatistics();
+
+      debugPrint('✅ RealTimeStatsWidget: Real-time sync initialized');
+    } catch (e) {
+      debugPrint('❌ Error initializing real-time sync: $e');
+      // Fallback to traditional loading
+      _setupRealTimeListeners();
+      _loadStatistics();
+    }
+  }
+
+  /// Setup enhanced real-time listeners with sync events
+  void _setupEnhancedRealTimeListeners() {
+    try {
+      // Listen to enhanced statistics stream
+      _statisticsSubscription = _statsService
+          .getEnhancedStatisticsStream()
+          .listen(
+            (stats) {
+              if (mounted) {
+                setState(() {
+                  _statsData = stats;
+                  _isLoading = false;
+                  _hasError = false;
+                });
+                debugPrint('📊 Real-time statistics updated: ${stats.keys}');
+              }
+            },
+            onError: (error) {
+              debugPrint('❌ Enhanced statistics stream error: $error');
+              if (mounted) {
+                setState(() {
+                  _hasError = true;
+                  _isLoading = false;
+                });
+              }
+            },
+          );
+
+      // Listen to sync events for UI feedback
+      _syncEventsSubscription = _realTimeSyncService.syncEventsStream.listen(
+        (event) {
+          if (mounted) {
+            _handleSyncEvent(event);
+          }
+        },
+        onError: (error) {
+          debugPrint('❌ Sync events stream error: $error');
+        },
+      );
+
+      debugPrint('✅ Enhanced real-time listeners setup complete');
+    } catch (e) {
+      debugPrint('❌ Error setting up enhanced listeners: $e');
+      // Fallback to traditional listeners
+      _setupRealTimeListeners();
+    }
+  }
+
+  /// Handle sync events for UI feedback
+  void _handleSyncEvent(SyncEvent event) {
+    switch (event.type) {
+      case SyncEventType.documentAdded:
+        _showSyncNotification('📄 New document detected', Colors.green);
+        break;
+      case SyncEventType.userAdded:
+        _showSyncNotification('👤 New user detected', Colors.blue);
+        break;
+      case SyncEventType.statisticsUpdated:
+        debugPrint('📊 Statistics updated via sync');
+        break;
+      case SyncEventType.error:
+        _showSyncNotification('⚠️ Sync error: ${event.message}', Colors.red);
+        break;
+      default:
+        break;
+    }
+  }
+
+  /// Show sync notification
+  void _showSyncNotification(String message, Color color) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: color,
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   void _setupRealTimeListeners() {
@@ -100,6 +212,7 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget> {
   void dispose() {
     _statisticsSubscription?.cancel();
     _fileCountSubscription?.cancel();
+    _syncEventsSubscription?.cancel();
     super.dispose();
   }
 

@@ -23,6 +23,7 @@ import '../../services/share_service.dart';
 import '../../services/bulk_operations_service.dart';
 import '../../core/services/greeting_service.dart';
 import '../../services/optimized_statistics_service.dart';
+import '../../services/real_time_sync_initializer.dart';
 import '../../core/utils/circuit_breaker.dart';
 import '../../core/utils/empty_storage_state_manager.dart';
 import '../../widgets/statistics/real_time_stats_widget.dart';
@@ -65,18 +66,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _searchController.text = homeFilterState.searchQuery;
     });
 
-    // CRITICAL FIX: Disable real-time sync service to prevent duplicate listeners
+    // ENHANCED: Initialize new real-time synchronization system
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      debugPrint(
-        '⚠️ Real-time sync service disabled to prevent duplicate listeners and excessive operations',
-      );
-      // DISABLED: Real-time sync was causing duplicate listeners and excessive Firestore operations
-      // if (FirebaseConfig.shouldEnableRealtimeSync) {
-      //   RealtimeSyncService.instance.initialize(context);
-      //   RealtimeSyncService.instance.startDocumentSync();
-      // } else {
-      //   debugPrint('Real-time sync disabled in FirebaseConfig');
-      // }
+      _initializeRealTimeSync();
     });
   }
 
@@ -213,6 +205,46 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       await authProvider.updateSessionActivity();
     });
+  }
+
+  /// Initialize real-time synchronization system
+  Future<void> _initializeRealTimeSync() async {
+    try {
+      debugPrint('🚀 HomeScreen: Initializing real-time synchronization...');
+
+      // Initialize the real-time sync system
+      await RealTimeSyncInitializer.instance.initialize();
+
+      debugPrint(
+        '✅ HomeScreen: Real-time synchronization initialized successfully',
+      );
+
+      // Show success notification to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🔄 Real-time sync enabled'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ HomeScreen: Real-time sync initialization failed: $e');
+
+      // Show error notification but don't block the app
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ Real-time sync unavailable: ${e.toString()}'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _loadData() async {

@@ -81,6 +81,13 @@ export const invalidateStatisticsCache = syncFunctions.invalidateStatisticsCache
 export const sendNotification = notificationFunctions.sendNotification;
 export const processActivityLog = notificationFunctions.processActivityLog;
 
+// Real-time Synchronization Functions
+import * as realTimeSyncFunctions from "./modules/realTimeSync";
+export const onStorageFileCreated = realTimeSyncFunctions.onStorageFileCreated;
+export const onStorageFileDeleted = realTimeSyncFunctions.onStorageFileDeleted;
+export const onAuthUserCreated = realTimeSyncFunctions.onAuthUserCreated;
+export const onAuthUserDeleted = realTimeSyncFunctions.onAuthUserDeleted;
+
 // Authentication Functions (ANR Prevention)
 export {
   handlePostLoginOperations,

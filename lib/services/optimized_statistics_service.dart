@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/services/firebase_service.dart';
 import '../models/document_model.dart';
 import 'timestamp_debug_service.dart';
+import 'real_time_sync_service.dart';
 
 /// Optimized statistics service for handling large datasets (1M+ files)
 /// Uses Cloud Functions, intelligent caching, and streaming for performance
@@ -16,6 +17,7 @@ class OptimizedStatisticsService {
   static OptimizedStatisticsService get instance => _instance;
 
   final FirebaseService _firebaseService = FirebaseService.instance;
+  final RealTimeSyncService _realTimeSyncService = RealTimeSyncService.instance;
 
   // Cache management
   Map<String, dynamic>? _cachedStats;
@@ -25,6 +27,9 @@ class OptimizedStatisticsService {
   // Stream controllers for real-time updates
   final StreamController<Map<String, dynamic>> _statsStreamController =
       StreamController<Map<String, dynamic>>.broadcast();
+
+  // Real-time sync subscription
+  StreamSubscription<Map<String, dynamic>>? _realTimeSyncSubscription;
 
   Stream<Map<String, dynamic>> get statsStream => _statsStreamController.stream;
 
@@ -363,9 +368,88 @@ class OptimizedStatisticsService {
     };
   }
 
+  /// Initialize real-time synchronization
+  Future<void> initializeRealTimeSync() async {
+    try {
+      debugPrint(
+        '🔄 OptimizedStatisticsService: Initializing real-time sync...',
+      );
+
+      // Initialize real-time sync service if not already done
+      if (!_realTimeSyncService.isInitialized) {
+        await _realTimeSyncService.initialize();
+      }
+
+      // Subscribe to real-time statistics updates
+      _realTimeSyncSubscription = _realTimeSyncService.statisticsStream.listen(
+        (stats) {
+          debugPrint('📊 Real-time statistics update received');
+          _cachedStats = stats;
+          _lastCacheTime = DateTime.now();
+          _statsStreamController.add(stats);
+        },
+        onError: (error) {
+          debugPrint('❌ Real-time statistics error: $error');
+        },
+      );
+
+      // Listen to sync events for cache invalidation
+      _realTimeSyncService.syncEventsStream.listen((event) {
+        if (event.type == SyncEventType.statisticsInvalidated ||
+            event.type == SyncEventType.documentAdded ||
+            event.type == SyncEventType.userAdded) {
+          debugPrint(
+            '🔄 Sync event detected: ${event.type} - invalidating cache',
+          );
+          _invalidateCache();
+        }
+      });
+
+      debugPrint('✅ OptimizedStatisticsService: Real-time sync initialized');
+    } catch (e) {
+      debugPrint('❌ Error initializing real-time sync: $e');
+      rethrow;
+    }
+  }
+
+  /// Invalidate local cache
+  void _invalidateCache() {
+    _cachedStats = null;
+    _lastCacheTime = null;
+    debugPrint('🔄 Local statistics cache invalidated');
+  }
+
+  /// Get enhanced statistics stream with real-time updates
+  Stream<Map<String, dynamic>> getEnhancedStatisticsStream() async* {
+    // Initialize real-time sync if not done
+    if (!_realTimeSyncService.isInitialized) {
+      await initializeRealTimeSync();
+    }
+
+    // Emit cached data immediately if available
+    if (_isCacheValid() && _cachedStats != null) {
+      yield _cachedStats!;
+    }
+
+    // Fetch fresh data if cache is invalid
+    if (!_isCacheValid()) {
+      try {
+        final freshStats = await getAggregatedStatistics(forceRefresh: true);
+        yield freshStats;
+      } catch (e) {
+        debugPrint('❌ Error fetching fresh statistics: $e');
+      }
+    }
+
+    // Listen to real-time updates
+    yield* _statsStreamController.stream;
+  }
+
   /// Dispose resources
   void dispose() {
+    _realTimeSyncSubscription?.cancel();
     _statsStreamController.close();
+    debugPrint('🔄 OptimizedStatisticsService disposed');
   }
 }
 
