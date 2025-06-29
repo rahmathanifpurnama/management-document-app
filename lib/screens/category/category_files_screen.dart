@@ -19,6 +19,7 @@ import '../../widgets/common/reusable_file_list_widget.dart';
 import '../../widgets/common/reusable_file_grid_widget.dart';
 import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/file_selection_bar.dart';
+import '../../widgets/common/isolated_file_selection_provider.dart';
 import '../../widgets/category/category_info_header_widget.dart';
 import '../../widgets/category/category_empty_state_widget.dart';
 import '../../widgets/category/no_search_results_widget.dart';
@@ -146,165 +147,169 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: CustomAppBar(
-        title: widget.category.name,
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.textWhite,
-        leading: const IOSBackButton(),
-        actions: [
-          ViewModeToggleWidget(
-            currentMode: _currentViewMode,
-            onModeChanged: (mode) {
-              setState(() {
-                _currentViewMode = mode;
-              });
-            },
-            iconColor: AppColors.textWhite,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // File selection bar (appears when files are selected)
-          FileSelectionBar(
-            onExitSelection: _onExitSelectionMode,
-            categoryId: widget.category.id,
-          ),
-          // Main content
-          Expanded(
-            child: Consumer<DocumentProvider>(
-              builder: (context, documentProvider, child) {
-                // Get category filter state
-                final categoryFilterState = FilterStateManager.getState(
-                  FilterContext.categoryFiles,
-                );
-
-                // Update search query in filter state if different
-                if (categoryFilterState.searchQuery != _searchQuery) {
-                  categoryFilterState.searchQuery = _searchQuery;
-                }
-
-                // Get all category documents first
-                final allCategoryDocuments = documentProvider
-                    .getDocumentsByCategory(widget.category.id);
-
-                // Apply context-aware filtering to category documents only
-                final filteredDocuments =
-                    ContextFilterUtils.applyContextFilters(
-                      documents: allCategoryDocuments,
-                      context: FilterContext.categoryFiles,
-                      filterState: categoryFilterState,
-                      categoryId: widget.category.id,
-                    );
-
-                debugPrint('🔍 CategoryFilesScreen Filtering Debug:');
-                debugPrint(
-                  '   Category documents: ${allCategoryDocuments.length}',
-                );
-                debugPrint(
-                  '   Filtered documents: ${filteredDocuments.length}',
-                );
-                debugPrint(
-                  '   Search query: "${categoryFilterState.searchQuery}"',
-                );
-                debugPrint(
-                  '   Selected file type: "${categoryFilterState.selectedFileType}"',
-                );
-
-                // IMPROVED: Better loading and empty state logic
-                final isInitialLoading =
-                    documentProvider.isLoading && allCategoryDocuments.isEmpty;
-                final isCategoryLoading = _isRefreshing;
-
-                debugPrint('🔍 CategoryFilesScreen Consumer rebuild:');
-                debugPrint('   Category ID: ${widget.category.id}');
-                debugPrint(
-                  '   Documents found: ${allCategoryDocuments.length}',
-                );
-                debugPrint(
-                  '   Provider loading: ${documentProvider.isLoading}',
-                );
-                debugPrint('   Is refreshing: $_isRefreshing');
-                debugPrint('   Initial loading: $isInitialLoading');
-
-                // Show empty state only if no documents exist and not loading
-                if (allCategoryDocuments.isEmpty &&
-                    !isInitialLoading &&
-                    !isCategoryLoading) {
-                  debugPrint('📭 Showing empty state widget');
-                  return CategoryEmptyStateWidget(
-                    categoryName: widget.category.name,
-                    onAddExisting: () => _navigateToAddFiles(),
-                    onUploadNew: () => _navigateToUpload(),
-                  );
-                }
-
-                debugPrint(
-                  '📋 Showing file list with ${allCategoryDocuments.length} documents',
-                );
-
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    setState(() {
-                      _isRefreshing = true;
-                    });
-
-                    try {
-                      final documentProvider = Provider.of<DocumentProvider>(
-                        context,
-                        listen: false,
-                      );
-
-                      // Force refresh folder contents from Firebase
-                      await documentProvider.refreshFolderContents();
-
-                      // Also try async Firebase query for this specific category
-                      await documentProvider.getDocumentsByCategoryAsync(
-                        widget.category.id,
-                      );
-
-                      debugPrint(
-                        '🔄 Refreshed category ${widget.category.id} from Firebase',
-                      );
-                    } finally {
-                      if (mounted) {
-                        setState(() {
-                          _isRefreshing = false;
-                        });
-                      }
-                    }
-                  },
-                  color: AppColors.primary,
-                  child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    child: Column(
-                      children: [
-                        // Category Info Header
-                        CategoryInfoHeaderWidget(
-                          category: widget.category,
-                          fileCount: allCategoryDocuments.length,
-                          onAddExisting: () => _navigateToAddFiles(),
-                          onUploadNew: () => _navigateToUpload(),
-                        ),
-                        // Search Widget
-                        _buildSearchWidget(),
-                        // Files List with Dynamic Loading Logic
-                        _buildFileListSection(
-                          allCategoryDocuments,
-                          filteredDocuments,
-                          documentProvider,
-                        ),
-                        // Add bottom spacing for better UX
-                        const SizedBox(height: 100),
-                      ],
-                    ),
-                  ),
-                );
+    return IsolatedFileSelectionProvider(
+      screenId: 'CategoryFilesScreen',
+      child: Scaffold(
+        appBar: CustomAppBar(
+          title: widget.category.name,
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.textWhite,
+          leading: const IOSBackButton(),
+          actions: [
+            ViewModeToggleWidget(
+              currentMode: _currentViewMode,
+              onModeChanged: (mode) {
+                setState(() {
+                  _currentViewMode = mode;
+                });
               },
+              iconColor: AppColors.textWhite,
             ),
-          ),
-        ],
+          ],
+        ),
+        body: Column(
+          children: [
+            // File selection bar (appears when files are selected)
+            FileSelectionBar(
+              onExitSelection: _onExitSelectionMode,
+              categoryId: widget.category.id,
+            ),
+            // Main content
+            Expanded(
+              child: Consumer<DocumentProvider>(
+                builder: (context, documentProvider, child) {
+                  // Get category filter state
+                  final categoryFilterState = FilterStateManager.getState(
+                    FilterContext.categoryFiles,
+                  );
+
+                  // Update search query in filter state if different
+                  if (categoryFilterState.searchQuery != _searchQuery) {
+                    categoryFilterState.searchQuery = _searchQuery;
+                  }
+
+                  // Get all category documents first
+                  final allCategoryDocuments = documentProvider
+                      .getDocumentsByCategory(widget.category.id);
+
+                  // Apply context-aware filtering to category documents only
+                  final filteredDocuments =
+                      ContextFilterUtils.applyContextFilters(
+                        documents: allCategoryDocuments,
+                        context: FilterContext.categoryFiles,
+                        filterState: categoryFilterState,
+                        categoryId: widget.category.id,
+                      );
+
+                  debugPrint('🔍 CategoryFilesScreen Filtering Debug:');
+                  debugPrint(
+                    '   Category documents: ${allCategoryDocuments.length}',
+                  );
+                  debugPrint(
+                    '   Filtered documents: ${filteredDocuments.length}',
+                  );
+                  debugPrint(
+                    '   Search query: "${categoryFilterState.searchQuery}"',
+                  );
+                  debugPrint(
+                    '   Selected file type: "${categoryFilterState.selectedFileType}"',
+                  );
+
+                  // IMPROVED: Better loading and empty state logic
+                  final isInitialLoading =
+                      documentProvider.isLoading &&
+                      allCategoryDocuments.isEmpty;
+                  final isCategoryLoading = _isRefreshing;
+
+                  debugPrint('🔍 CategoryFilesScreen Consumer rebuild:');
+                  debugPrint('   Category ID: ${widget.category.id}');
+                  debugPrint(
+                    '   Documents found: ${allCategoryDocuments.length}',
+                  );
+                  debugPrint(
+                    '   Provider loading: ${documentProvider.isLoading}',
+                  );
+                  debugPrint('   Is refreshing: $_isRefreshing');
+                  debugPrint('   Initial loading: $isInitialLoading');
+
+                  // Show empty state only if no documents exist and not loading
+                  if (allCategoryDocuments.isEmpty &&
+                      !isInitialLoading &&
+                      !isCategoryLoading) {
+                    debugPrint('📭 Showing empty state widget');
+                    return CategoryEmptyStateWidget(
+                      categoryName: widget.category.name,
+                      onAddExisting: () => _navigateToAddFiles(),
+                      onUploadNew: () => _navigateToUpload(),
+                    );
+                  }
+
+                  debugPrint(
+                    '📋 Showing file list with ${allCategoryDocuments.length} documents',
+                  );
+
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      setState(() {
+                        _isRefreshing = true;
+                      });
+
+                      try {
+                        final documentProvider = Provider.of<DocumentProvider>(
+                          context,
+                          listen: false,
+                        );
+
+                        // Force refresh folder contents from Firebase
+                        await documentProvider.refreshFolderContents();
+
+                        // Also try async Firebase query for this specific category
+                        await documentProvider.getDocumentsByCategoryAsync(
+                          widget.category.id,
+                        );
+
+                        debugPrint(
+                          '🔄 Refreshed category ${widget.category.id} from Firebase',
+                        );
+                      } finally {
+                        if (mounted) {
+                          setState(() {
+                            _isRefreshing = false;
+                          });
+                        }
+                      }
+                    },
+                    color: AppColors.primary,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Column(
+                        children: [
+                          // Category Info Header
+                          CategoryInfoHeaderWidget(
+                            category: widget.category,
+                            fileCount: allCategoryDocuments.length,
+                            onAddExisting: () => _navigateToAddFiles(),
+                            onUploadNew: () => _navigateToUpload(),
+                          ),
+                          // Search Widget
+                          _buildSearchWidget(),
+                          // Files List with Dynamic Loading Logic
+                          _buildFileListSection(
+                            allCategoryDocuments,
+                            filteredDocuments,
+                            documentProvider,
+                          ),
+                          // Add bottom spacing for better UX
+                          const SizedBox(height: 100),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

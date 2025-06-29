@@ -114,8 +114,14 @@ class FileSelectionProvider extends ChangeNotifier {
 
     _selectedFileIds.clear();
     // Stay in selection mode, just clear selections
+    debugPrint(
+      'FileSelectionProvider: Cleared all selections, staying in selection mode',
+    );
     notifyListeners();
   }
+
+  /// Check if we should show selection UI (true when in selection mode, regardless of selection count)
+  bool get shouldShowSelectionUI => _isSelectionMode;
 
   /// Update available files (useful when files list changes)
   /// Enhanced with better race condition prevention and state validation

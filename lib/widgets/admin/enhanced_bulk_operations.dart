@@ -32,7 +32,8 @@ class EnhancedBulkOperations extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<FileSelectionProvider>(
       builder: (context, selectionProvider, child) {
-        if (!selectionProvider.hasSelection) {
+        // Show UI when in selection mode, regardless of selection count
+        if (!selectionProvider.shouldShowSelectionUI) {
           return const SizedBox.shrink();
         }
 
@@ -102,8 +103,10 @@ class EnhancedBulkOperations extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  // Approval actions
-                  if (showApprovalActions && onApprove != null)
+                  // Approval actions (only show when files are selected)
+                  if (showApprovalActions &&
+                      onApprove != null &&
+                      selectionProvider.hasSelection)
                     _buildActionButton(
                       context: context,
                       icon: Icons.check_circle,
@@ -117,7 +120,9 @@ class EnhancedBulkOperations extends StatelessWidget {
                       ),
                     ),
 
-                  if (showApprovalActions && onReject != null)
+                  if (showApprovalActions &&
+                      onReject != null &&
+                      selectionProvider.hasSelection)
                     _buildActionButton(
                       context: context,
                       icon: Icons.cancel,
@@ -131,8 +136,10 @@ class EnhancedBulkOperations extends StatelessWidget {
                       ),
                     ),
 
-                  // File actions
-                  if (showFileActions && onDownload != null)
+                  // File actions (only show when files are selected)
+                  if (showFileActions &&
+                      onDownload != null &&
+                      selectionProvider.hasSelection)
                     _buildActionButton(
                       context: context,
                       icon: Icons.download,
@@ -142,7 +149,9 @@ class EnhancedBulkOperations extends StatelessWidget {
                           onDownload!(selectionProvider.selectedFiles),
                     ),
 
-                  if (showMoveAction && onMove != null)
+                  if (showMoveAction &&
+                      onMove != null &&
+                      selectionProvider.hasSelection)
                     _buildActionButton(
                       context: context,
                       icon: Icons.folder_open,
@@ -151,7 +160,9 @@ class EnhancedBulkOperations extends StatelessWidget {
                       onPressed: () => onMove!(selectionProvider.selectedFiles),
                     ),
 
-                  if (showFileActions && onDelete != null)
+                  if (showFileActions &&
+                      onDelete != null &&
+                      selectionProvider.hasSelection)
                     _buildActionButton(
                       context: context,
                       icon: Icons.delete,
@@ -165,13 +176,13 @@ class EnhancedBulkOperations extends StatelessWidget {
                       ),
                     ),
 
-                  // Clear selection
+                  // Exit selection mode button (always show when in selection mode)
                   _buildActionButton(
                     context: context,
-                    icon: Icons.clear,
-                    label: 'Clear',
+                    icon: Icons.close,
+                    label: 'Exit',
                     color: AppColors.textSecondary,
-                    onPressed: () => selectionProvider.clearSelection(),
+                    onPressed: () => selectionProvider.exitSelectionMode(),
                   ),
                 ],
               ),
@@ -253,7 +264,8 @@ class CompactBulkOperations extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<FileSelectionProvider>(
       builder: (context, selectionProvider, child) {
-        if (!selectionProvider.hasSelection) {
+        // Show UI when in selection mode, regardless of selection count
+        if (!selectionProvider.shouldShowSelectionUI) {
           return const SizedBox.shrink();
         }
 

@@ -15,6 +15,7 @@ import '../../widgets/common/reusable_file_list_widget.dart';
 import '../../widgets/admin/enhanced_bulk_operations.dart';
 import '../../widgets/common/advanced_search_filter.dart';
 import '../../widgets/notification/notification_badge.dart';
+import '../../widgets/common/isolated_file_selection_provider.dart';
 import '../../core/utils/document_filter_utils.dart';
 
 class FileApprovalScreen extends StatefulWidget {
@@ -299,84 +300,95 @@ class _FileApprovalScreenState extends State<FileApprovalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer3<AuthProvider, DocumentProvider, FileSelectionProvider>(
-      builder:
-          (context, authProvider, documentProvider, selectionProvider, child) {
-            return FutureBuilder<bool>(
-              future: authProvider.isCurrentUserAdmin,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                }
+    return IsolatedFileSelectionProvider(
+      screenId: 'FileApprovalScreen',
+      child: Consumer3<AuthProvider, DocumentProvider, FileSelectionProvider>(
+        builder:
+            (
+              context,
+              authProvider,
+              documentProvider,
+              selectionProvider,
+              child,
+            ) {
+              return FutureBuilder<bool>(
+                future: authProvider.isCurrentUserAdmin,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Scaffold(
+                      body: Center(child: CircularProgressIndicator()),
+                    );
+                  }
 
-                if (!snapshot.hasData || !snapshot.data!) {
-                  return _buildAccessDenied();
-                }
+                  if (!snapshot.hasData || !snapshot.data!) {
+                    return _buildAccessDenied();
+                  }
 
-                return AppScaffoldWithNavigation(
-                  title: 'File Approval',
-                  currentNavIndex: -1,
-                  showAppBar: true,
-                  actions: [
-                    // Notification icon with badge using reusable component
-                    NotificationIcon(
-                      onTap: () => Navigator.pushNamed(
-                        context,
-                        AppRoutes.notificationCenter,
+                  return AppScaffoldWithNavigation(
+                    title: 'File Approval',
+                    currentNavIndex: -1,
+                    showAppBar: true,
+                    actions: [
+                      // Notification icon with badge using reusable component
+                      NotificationIcon(
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          AppRoutes.notificationCenter,
+                        ),
+                        showBadge: true,
                       ),
-                      showBadge: true,
-                    ),
-                  ],
-                  body: Stack(
-                    children: [
-                      RefreshIndicator(
-                        onRefresh: _handleRefresh,
-                        child: CustomScrollView(
-                          slivers: [
-                            // Statistics Card
-                            if (_approvalStats.isNotEmpty)
+                    ],
+                    body: Stack(
+                      children: [
+                        RefreshIndicator(
+                          onRefresh: _handleRefresh,
+                          child: CustomScrollView(
+                            slivers: [
+                              // Statistics Card
+                              if (_approvalStats.isNotEmpty)
+                                SliverToBoxAdapter(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: _buildStatisticsCard(),
+                                  ),
+                                ),
+
+                              // Search and Filter
                               SliverToBoxAdapter(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: _buildStatisticsCard(),
+                                child: _buildSearchAndFilter(),
+                              ),
+
+                              // Enhanced Bulk Operations
+                              SliverToBoxAdapter(
+                                child: EnhancedBulkOperations(
+                                  onApprove: (documents, reason) =>
+                                      _handleBulkApproval(documents),
+                                  onReject: (documents, reason) =>
+                                      _handleBulkRejection(documents, reason),
+                                  onDelete: (documents) =>
+                                      _handleBulkDeletion(documents),
+                                  showApprovalActions: true,
+                                  showFileActions: false,
                                 ),
                               ),
 
-                            // Search and Filter
-                            SliverToBoxAdapter(child: _buildSearchAndFilter()),
-
-                            // Enhanced Bulk Operations
-                            SliverToBoxAdapter(
-                              child: EnhancedBulkOperations(
-                                onApprove: (documents, reason) =>
-                                    _handleBulkApproval(documents),
-                                onReject: (documents, reason) =>
-                                    _handleBulkRejection(documents, reason),
-                                onDelete: (documents) =>
-                                    _handleBulkDeletion(documents),
-                                showApprovalActions: true,
-                                showFileActions: false,
+                              // Document List
+                              SliverToBoxAdapter(
+                                child: _buildDocumentList(selectionProvider),
                               ),
-                            ),
-
-                            // Document List
-                            SliverToBoxAdapter(
-                              child: _buildDocumentList(selectionProvider),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
 
-                      // Bulk operation progress overlay
-                      if (_isBulkProcessing) _buildBulkProgressOverlay(),
-                    ],
-                  ),
-                );
-              },
-            );
-          },
+                        // Bulk operation progress overlay
+                        if (_isBulkProcessing) _buildBulkProgressOverlay(),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+      ),
     );
   }
 

@@ -15,6 +15,7 @@ import '../../widgets/common/app_bottom_navigation.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/file_selection_bar.dart';
+import '../../widgets/common/isolated_file_selection_provider.dart';
 import '../../models/document_model.dart';
 import '../../core/utils/context_filter_utils.dart';
 import '../../services/ui_refresh_service.dart';
@@ -300,49 +301,52 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        if (authProvider.currentUser == null) {
-          return const PageLoadingWidget(message: 'Memuat data pengguna...');
-        }
-
-        // Load data after user is authenticated
-        if (!_dataLoaded) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _loadData();
-          });
-        }
-
-        // ADDITIONAL TRIGGER: Ensure documents are loaded even if _dataLoaded is true
-        // This handles cases where data loading completed but documents are still empty
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final documentProvider = Provider.of<DocumentProvider>(
-            context,
-            listen: false,
-          );
-          if (documentProvider.allDocuments.isEmpty &&
-              !documentProvider.isLoading) {
-            debugPrint(
-              '🏠 Home screen: Additional trigger - documents empty, loading...',
-            );
-            documentProvider.loadDocuments();
+    return IsolatedFileSelectionProvider(
+      screenId: 'HomeScreen',
+      child: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
+          if (authProvider.currentUser == null) {
+            return const PageLoadingWidget(message: 'Memuat data pengguna...');
           }
-        });
 
-        return AppScaffoldWithNavigation(
-          title: 'Beranda',
-          currentNavIndex: 0, // Home is index 0
-          showAppBar: true, // Use standard app bar like other pages
-          body: Column(
-            children: [
-              // File selection bar (appears when files are selected)
-              FileSelectionBar(onExitSelection: _onExitSelectionMode),
-              // Main dashboard content
-              Expanded(child: _buildDashboard()),
-            ],
-          ),
-        );
-      },
+          // Load data after user is authenticated
+          if (!_dataLoaded) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _loadData();
+            });
+          }
+
+          // ADDITIONAL TRIGGER: Ensure documents are loaded even if _dataLoaded is true
+          // This handles cases where data loading completed but documents are still empty
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final documentProvider = Provider.of<DocumentProvider>(
+              context,
+              listen: false,
+            );
+            if (documentProvider.allDocuments.isEmpty &&
+                !documentProvider.isLoading) {
+              debugPrint(
+                '🏠 Home screen: Additional trigger - documents empty, loading...',
+              );
+              documentProvider.loadDocuments();
+            }
+          });
+
+          return AppScaffoldWithNavigation(
+            title: 'Beranda',
+            currentNavIndex: 0, // Home is index 0
+            showAppBar: true, // Use standard app bar like other pages
+            body: Column(
+              children: [
+                // File selection bar (appears when files are selected)
+                FileSelectionBar(onExitSelection: _onExitSelectionMode),
+                // Main dashboard content
+                Expanded(child: _buildDashboard()),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 

@@ -114,27 +114,25 @@ class _FileSelectionBarState extends State<FileSelectionBar> {
                 ),
               ),
 
-              // Select All / Clear Selection
-              if (selectionProvider.hasSelection) ...[
-                TextButton(
-                  onPressed: selectionProvider.isAllSelected
-                      ? selectionProvider.clearSelection
-                      : selectionProvider.selectAll,
-                  child: Text(
-                    selectionProvider.isAllSelected
-                        ? 'Clear All'
-                        : 'Select All',
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.primary,
-                    ),
+              // Select All / Clear Selection (always show when in selection mode)
+              TextButton(
+                onPressed: selectionProvider.isAllSelected
+                    ? selectionProvider.clearSelection
+                    : selectionProvider.selectAll,
+                child: Text(
+                  selectionProvider.isAllSelected ? 'Clear All' : 'Select All',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.primary,
                   ),
                 ),
+              ),
 
-                const SizedBox(width: 8),
+              const SizedBox(width: 8),
 
-                // Bulk operations button
+              // Bulk operations button (only show when files are selected)
+              if (selectionProvider.hasSelection)
                 IconButton(
                   onPressed: () =>
                       _showBulkOperations(context, selectionProvider),
@@ -142,7 +140,6 @@ class _FileSelectionBarState extends State<FileSelectionBar> {
                   color: AppColors.primary,
                   tooltip: 'Bulk Operations',
                 ),
-              ],
             ],
           ),
         );
