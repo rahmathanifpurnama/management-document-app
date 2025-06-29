@@ -7,6 +7,7 @@ class AppScaffoldWithNavigation extends StatelessWidget {
   final Widget body;
   final int currentNavIndex;
   final bool showAppBar;
+  final bool showBackButton;
   final List<Widget>? actions;
   final Widget? floatingActionButton;
   final FloatingActionButtonLocation? floatingActionButtonLocation;
@@ -17,6 +18,7 @@ class AppScaffoldWithNavigation extends StatelessWidget {
     required this.body,
     required this.currentNavIndex,
     this.showAppBar = true,
+    this.showBackButton = true,
     this.actions,
     this.floatingActionButton,
     this.floatingActionButtonLocation,
@@ -31,15 +33,18 @@ class AppScaffoldWithNavigation extends StatelessWidget {
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               actions: actions,
-              leading: IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(
-                  Icons.chevron_left,
-                  size: 28,
-                  color: Colors.white,
-                ),
-                tooltip: 'Back',
-              ),
+              automaticallyImplyLeading: false,
+              leading: showBackButton
+                  ? IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(
+                        Icons.chevron_left,
+                        size: 28,
+                        color: Colors.white,
+                      ),
+                      tooltip: 'Back',
+                    )
+                  : null,
             )
           : null,
       body: body,

@@ -37,7 +37,7 @@ class ProfileScreen extends StatelessWidget {
         return AppScaffoldWithNavigation(
           title: 'Profile',
           currentNavIndex: currentNavIndex,
-          showAppBar: true, // Ensure app bar is shown
+          showAppBar: true, // Ensure app bar is show
           body: Container(
             color: AppColors.background,
             child: SingleChildScrollView(
