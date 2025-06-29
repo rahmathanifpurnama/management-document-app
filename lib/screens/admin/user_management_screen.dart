@@ -115,6 +115,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             foregroundColor: Colors.white,
             automaticallyImplyLeading: false,
             elevation: 0,
+            centerTitle: true,
             actions: [
               IconButton(
                 icon: const Icon(Icons.filter_list),

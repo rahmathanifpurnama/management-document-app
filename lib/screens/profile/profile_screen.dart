@@ -47,6 +47,7 @@ class ProfileScreen extends StatelessWidget {
                 foregroundColor: Colors.white,
                 automaticallyImplyLeading: false,
                 elevation: 0,
+                centerTitle: true,
               ),
               // Main content
               Expanded(
