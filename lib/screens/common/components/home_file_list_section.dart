@@ -558,7 +558,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                   ),
                   SizedBox(height: textSpacing),
                   Text(
-                    'Loading your files...',
+                    'Loading files...',
                     style: GoogleFonts.poppins(
                       fontSize: fontSize,
                       fontWeight: FontWeight.w500,
