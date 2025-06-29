@@ -46,18 +46,11 @@ class RealTimeSyncService {
   /// Initialize real-time synchronization
   Future<void> initialize() async {
     try {
-      debugPrint('🔄 RealTimeSyncService: Initializing real-time sync...');
-
       await _setupDocumentListener();
       await _setupUserListener();
       await _setupActivityListener();
       await _setupStatisticsCacheListener();
-
-      debugPrint(
-        '✅ RealTimeSyncService: Real-time sync initialized successfully',
-      );
     } catch (e) {
-      debugPrint('❌ RealTimeSyncService: Error initializing sync - $e');
       rethrow;
     }
   }

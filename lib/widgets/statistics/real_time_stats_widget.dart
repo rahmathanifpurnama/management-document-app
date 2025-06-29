@@ -53,8 +53,6 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget> {
   /// Initialize real-time synchronization and load statistics
   Future<void> _initializeRealTimeSync() async {
     try {
-      debugPrint('🔄 RealTimeStatsWidget: Initializing real-time sync...');
-
       // Initialize real-time sync service
       await _statsService.initializeRealTimeSync();
 
@@ -67,10 +65,7 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget> {
 
       // Load initial statistics
       await _loadStatistics();
-
-      debugPrint('✅ RealTimeStatsWidget: Real-time sync initialized');
     } catch (e) {
-      debugPrint('❌ Error initializing real-time sync: $e');
       // Fallback to traditional loading
       _setupRealTimeListeners();
       _loadStatistics();
@@ -91,7 +86,6 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget> {
                   _isLoading = false;
                   _hasError = false;
                 });
-                debugPrint('📊 Real-time statistics updated: ${stats.keys}');
               }
             },
             onError: (error) {
@@ -127,35 +121,14 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget> {
 
   /// Handle sync events for UI feedback
   void _handleSyncEvent(SyncEvent event) {
+    // Silently handle sync events without notifications
     switch (event.type) {
       case SyncEventType.documentAdded:
-        _showSyncNotification('📄 New document detected', Colors.green);
-        break;
       case SyncEventType.userAdded:
-        _showSyncNotification('👤 New user detected', Colors.blue);
-        break;
       case SyncEventType.statisticsUpdated:
-        debugPrint('📊 Statistics updated via sync');
-        break;
       case SyncEventType.error:
-        _showSyncNotification('⚠️ Sync error: ${event.message}', Colors.red);
-        break;
       default:
         break;
-    }
-  }
-
-  /// Show sync notification
-  void _showSyncNotification(String message, Color color) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: color,
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
     }
   }
 
@@ -164,7 +137,6 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget> {
     _statisticsSubscription = _notificationService.statisticsUpdates.listen((
       event,
     ) {
-      debugPrint('📊 Real-time stats update: ${event.type}');
       _loadStatistics();
     });
 
@@ -172,7 +144,6 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget> {
     _fileCountSubscription = _notificationService.fileCountUpdates.listen((
       event,
     ) {
-      debugPrint('📊 File count update: ${event.type}');
       _loadStatistics();
     });
   }
@@ -197,8 +168,6 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget> {
         });
       }
     } catch (e) {
-      debugPrint('❌ Statistics service failed completely: $e');
-
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -339,7 +308,7 @@ class _RealTimeStatsWidgetState extends State<RealTimeStatsWidget> {
   }
 
   Widget _buildErrorState() {
-    return Container(
+    return SizedBox(
       height: 80,
       child: Center(
         child: Column(

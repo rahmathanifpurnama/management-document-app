@@ -145,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         categoryProvider.refreshCategories(),
       ]);
 
-      // FIXED: Refresh statistics as part of the main RefreshIndicator
+      // Refresh statistics as part of the main RefreshIndicator
       final statisticsService = OptimizedStatisticsService.instance;
       await statisticsService.invalidateCache(reason: 'Pull to refresh');
 
@@ -210,26 +210,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Initialize real-time synchronization system
   Future<void> _initializeRealTimeSync() async {
     try {
-      debugPrint('🚀 HomeScreen: Initializing real-time synchronization...');
-
       // Initialize the real-time sync system
       await RealTimeSyncInitializer.instance.initialize();
-
-      debugPrint(
-        '✅ HomeScreen: Real-time synchronization initialized successfully',
-      );
-
-      // Show success notification to user
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🔄 Real-time sync enabled'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
     } catch (e) {
       debugPrint('❌ HomeScreen: Real-time sync initialization failed: $e');
 
