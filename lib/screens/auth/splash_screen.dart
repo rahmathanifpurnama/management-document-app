@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_routes.dart';
@@ -99,11 +100,14 @@ class _SplashScreenState extends State<SplashScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // App Logo
-                    Image.asset(
-                      'assets/app_icon.png',
+                    SvgPicture.asset(
+                      'assets/Logo.svg',
                       width: 200,
                       height: 200,
-                      fit: BoxFit.contain,
+                      colorFilter: const ColorFilter.mode(
+                        AppColors.primary,
+                        BlendMode.srcIn,
+                      ),
                     ),
 
                     const SizedBox(height: 30),
