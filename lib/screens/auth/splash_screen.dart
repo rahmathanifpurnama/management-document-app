@@ -92,32 +92,37 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           children: [
             Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // App Logo
-                  SvgPicture.asset(
-                    'assets/Logo.svg',
-                    width: 380,
-                    height: 380,
-                    colorFilter: const ColorFilter.mode(
-                      AppColors.primary,
-                      BlendMode.srcIn,
-                    ),
-                  ),
-
-                  // Loading Indicator - Standard CircularProgressIndicator
-                  const SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // App Logo
+                    SvgPicture.asset(
+                      'assets/Logo.svg',
+                      width: 380,
+                      height: 380,
+                      colorFilter: const ColorFilter.mode(
                         AppColors.primary,
+                        BlendMode.srcIn,
                       ),
-                      strokeWidth: 3.0,
                     ),
-                  ),
-                ],
+
+                    const SizedBox(height: 30),
+
+                    // Loading Indicator - Standard CircularProgressIndicator
+                    const SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.primary,
+                        ),
+                        strokeWidth: 3.0,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
 
