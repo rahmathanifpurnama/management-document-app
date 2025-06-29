@@ -1109,7 +1109,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     }
   }
 
-  /// Build empty state with animation
+  /// Build empty state with animation (no container, same style as loading state)
   Widget _buildEmptyState() {
     final emptyStateManager = EmptyStorageStateManager.instance;
     final isEmptyStateConfirmed = emptyStateManager.shouldShowEmptyUI();
@@ -1117,9 +1117,15 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     final emptyMessage = isEmptyStateConfirmed
         ? 'No files in storage'
         : 'No files found';
-    final emptySubMessage = isEmptyStateConfirmed
-        ? 'Upload files to see them here'
-        : 'Files will appear here once uploaded';
+
+    // Responsive design implementation (same as loading state)
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+
+    // Calculate responsive values (same as loading state)
+    final iconSize = isSmallScreen ? 48.0 : 56.0;
+    final textSpacing = isSmallScreen ? 12.0 : 16.0;
+    final fontSize = isSmallScreen ? 15.0 : 16.0;
 
     return TweenAnimationBuilder<double>(
       duration: const Duration(milliseconds: 600),
@@ -1128,35 +1134,29 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
       builder: (context, value, child) {
         // Ensure animation value is valid and not NaN
         if (value.isNaN || value.isInfinite) {
-          return Container(
-            padding: const EdgeInsets.symmetric(
-              vertical: 20,
-              horizontal: 20,
-            ), // Reduced vertical padding
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: AppColors.border.withValues(alpha: 0.3),
-                width: 1,
-              ),
+          return Padding(
+            padding: EdgeInsets.symmetric(
+              vertical: isSmallScreen ? 60.0 : 80.0,
             ),
             child: Center(
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    Icons.folder_open,
-                    size: 48,
-                    color: AppColors.textSecondary.withValues(alpha: 0.5),
+                    isEmptyStateConfirmed ? Icons.cloud_off : Icons.folder_open,
+                    size: iconSize,
+                    color: AppColors.textSecondary,
                   ),
-                  const SizedBox(height: 8), // Reduced spacing
+                  SizedBox(height: textSpacing),
                   Text(
-                    'No files found',
+                    emptyMessage,
                     style: GoogleFonts.poppins(
-                      fontSize: 14,
+                      fontSize: fontSize,
                       fontWeight: FontWeight.w500,
                       color: AppColors.textSecondary,
                     ),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
@@ -1172,46 +1172,31 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           offset: Offset(0, 20 * safeTranslateValue),
           child: Opacity(
             opacity: safeOpacity,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                vertical: 20,
-                horizontal: 20,
-              ), // Reduced vertical padding
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: AppColors.border.withValues(alpha: 0.3),
-                  width: 1,
-                ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                vertical: isSmallScreen ? 60.0 : 80.0,
               ),
               child: Center(
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       isEmptyStateConfirmed
                           ? Icons.cloud_off
                           : Icons.folder_open,
-                      size: 48,
-                      color: AppColors.textSecondary.withValues(alpha: 0.5),
+                      size: iconSize,
+                      color: AppColors.textSecondary,
                     ),
-                    const SizedBox(height: 8), // Reduced spacing
+                    SizedBox(height: textSpacing),
                     Text(
                       emptyMessage,
                       style: GoogleFonts.poppins(
-                        fontSize: 14,
+                        fontSize: fontSize,
                         fontWeight: FontWeight.w500,
                         color: AppColors.textSecondary,
                       ),
-                    ),
-                    const SizedBox(height: 4), // Reduced spacing
-                    Text(
-                      emptySubMessage,
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.textSecondary.withValues(alpha: 0.7),
-                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),

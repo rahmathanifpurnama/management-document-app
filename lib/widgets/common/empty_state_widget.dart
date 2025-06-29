@@ -29,7 +29,8 @@ class EmptyStateWidget extends StatelessWidget {
     Widget? actionButton,
     EdgeInsets? padding,
     EdgeInsets? margin,
-    bool showContainer = true,
+    bool showContainer =
+        false, // Default to no container (same as loading state)
   }) {
     return EmptyStateWidget(
       icon: Icons.folder_open,
@@ -46,7 +47,8 @@ class EmptyStateWidget extends StatelessWidget {
     Widget? actionButton,
     EdgeInsets? padding,
     EdgeInsets? margin,
-    bool showContainer = true,
+    bool showContainer =
+        false, // Default to no container (same as loading state)
   }) {
     return EmptyStateWidget(
       icon: Icons.folder_open,
@@ -63,12 +65,14 @@ class EmptyStateWidget extends StatelessWidget {
     Widget? actionButton,
     EdgeInsets? padding,
     EdgeInsets? margin,
-    bool showContainer = true,
+    bool showContainer =
+        false, // Default to no container (same as loading state)
   }) {
     return EmptyStateWidget(
       icon: Icons.folder_open,
       title: 'No available files found',
-      subtitle: 'All files are already in categories or try adjusting your search',
+      subtitle:
+          'All files are already in categories or try adjusting your search',
       actionButton: actionButton,
       padding: padding,
       margin: margin,
@@ -120,7 +124,7 @@ class EmptyStateWidget extends StatelessWidget {
     return EmptyStateWidget(
       icon: Icons.search_off,
       title: 'No results found',
-      subtitle: searchQuery != null 
+      subtitle: searchQuery != null
           ? 'No results for "$searchQuery". Try different keywords'
           : 'Try adjusting your search criteria',
       actionButton: actionButton,
@@ -132,36 +136,48 @@ class EmptyStateWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Responsive design implementation (same as loading state)
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+
+    // Calculate responsive values (same as loading state)
+    final responsiveIconSize = isSmallScreen ? 48.0 : 56.0;
+    final textSpacing = isSmallScreen ? 12.0 : 16.0;
+    final fontSize = isSmallScreen ? 15.0 : 16.0;
+    final subtitleFontSize = isSmallScreen ? 13.0 : 14.0;
+
     final content = Column(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
           icon,
-          size: iconSize,
-          color: AppColors.textSecondary.withValues(alpha: 0.5),
+          size: responsiveIconSize,
+          color: AppColors.textSecondary, // Same color as loading state
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: textSpacing),
         Text(
           title,
           style: GoogleFonts.poppins(
-            fontSize: 16,
+            fontSize: fontSize,
             fontWeight: FontWeight.w500,
-            color: AppColors.textSecondary,
+            color: AppColors.textSecondary, // Same color as loading state
           ),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 8),
-        Text(
-          subtitle,
-          style: GoogleFonts.poppins(
-            fontSize: 14,
-            color: AppColors.textSecondary.withValues(alpha: 0.7),
+        if (subtitle.isNotEmpty) ...[
+          SizedBox(height: textSpacing / 2),
+          Text(
+            subtitle,
+            style: GoogleFonts.poppins(
+              fontSize: subtitleFontSize,
+              color: AppColors.textSecondary.withValues(alpha: 0.7),
+            ),
+            textAlign: TextAlign.center,
           ),
-          textAlign: TextAlign.center,
-        ),
+        ],
         if (actionButton != null) ...[
-          const SizedBox(height: 24),
+          SizedBox(height: textSpacing * 1.5),
           actionButton!,
         ],
       ],
@@ -169,14 +185,17 @@ class EmptyStateWidget extends StatelessWidget {
 
     if (!showContainer) {
       return Padding(
-        padding: padding ?? const EdgeInsets.all(32),
-        child: content,
+        padding:
+            padding ??
+            EdgeInsets.symmetric(vertical: isSmallScreen ? 60.0 : 80.0),
+        child: Center(child: content),
       );
     }
 
     return Container(
       width: double.infinity,
-      padding: padding ?? const EdgeInsets.symmetric(vertical: 60, horizontal: 32),
+      padding:
+          padding ?? const EdgeInsets.symmetric(vertical: 60, horizontal: 32),
       margin: margin ?? const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -209,37 +228,52 @@ class FileTableEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 32),
+    // Responsive design implementation (same as loading state)
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isSmallScreen = screenWidth < 400;
+
+    // Calculate responsive values (same as loading state)
+    final iconSize = isSmallScreen ? 48.0 : 56.0;
+    final textSpacing = isSmallScreen ? 12.0 : 16.0;
+    final fontSize = isSmallScreen ? 15.0 : 16.0;
+    final subtitleFontSize = isSmallScreen ? 13.0 : 14.0;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: isSmallScreen ? 60.0 : 80.0),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               Icons.folder_open,
-              size: 64,
-              color: AppColors.textSecondary.withValues(alpha: 0.5),
+              size: iconSize,
+              color: AppColors.textSecondary, // Same color as loading state
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: textSpacing),
             Text(
               customTitle ?? 'No files found',
               style: GoogleFonts.poppins(
-                fontSize: 16,
+                fontSize: fontSize,
                 fontWeight: FontWeight.w500,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              customSubtitle ?? 'Files will appear here when available',
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                color: AppColors.textSecondary.withValues(alpha: 0.7),
+                color: AppColors.textSecondary, // Same color as loading state
               ),
               textAlign: TextAlign.center,
             ),
+            if ((customSubtitle ?? 'Files will appear here when available')
+                .isNotEmpty) ...[
+              SizedBox(height: textSpacing / 2),
+              Text(
+                customSubtitle ?? 'Files will appear here when available',
+                style: GoogleFonts.poppins(
+                  fontSize: subtitleFontSize,
+                  color: AppColors.textSecondary.withValues(alpha: 0.7),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
             if (actionButton != null) ...[
-              const SizedBox(height: 24),
+              SizedBox(height: textSpacing * 1.5),
               actionButton!,
             ],
           ],
