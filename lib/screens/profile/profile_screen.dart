@@ -37,68 +37,84 @@ class ProfileScreen extends StatelessWidget {
         return AppScaffoldWithNavigation(
           title: 'Profile',
           currentNavIndex: currentNavIndex,
-          showAppBar: true, // Ensure app bar is show
-          body: Container(
-            color: AppColors.background,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Profile Section
-                  _buildProfileSection(context, user),
-
-                  const SizedBox(height: 40),
-
-                  // Menu Items
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.person_outline,
-                    title: 'Personal Information',
-                    onTap: () => _navigateToPersonalInfo(context),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Admin-only File Approval menu item with notification badge
-                  if (authProvider.isAdmin) ...[
-                    Consumer<NotificationProvider>(
-                      builder: (context, notificationProvider, child) {
-                        final pendingCount = notificationProvider.unreadCount;
-                        return _buildMenuItemWithBadge(
-                          context,
-                          icon: Icons.approval_outlined,
-                          title: 'File Approval',
-                          subtitle: pendingCount > 0
-                              ? '$pendingCount pending approvals'
-                              : 'No pending approvals',
-                          badgeCount: pendingCount,
-                          onTap: () => _navigateToFileApproval(context),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.settings_outlined,
-                    title: 'Settings',
-                    onTap: () => _navigateToSettings(context),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.logout_outlined,
-                    title: 'Log Out',
-                    onTap: () => _showLogoutDialog(context),
-                    isDestructive: true,
-                  ),
-                ],
+          showAppBar: false, // Hide default app bar
+          body: Column(
+            children: [
+              // Custom AppBar without back button
+              AppBar(
+                title: const Text('Profile'),
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                automaticallyImplyLeading: false,
+                elevation: 0,
               ),
-            ),
+              // Main content
+              Expanded(
+                child: Container(
+                  color: AppColors.background,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Profile Section
+                        _buildProfileSection(context, user),
+
+                        const SizedBox(height: 40),
+
+                        // Menu Items
+                        _buildMenuItem(
+                          context,
+                          icon: Icons.person_outline,
+                          title: 'Personal Information',
+                          onTap: () => _navigateToPersonalInfo(context),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Admin-only File Approval menu item with notification badge
+                        if (authProvider.isAdmin) ...[
+                          Consumer<NotificationProvider>(
+                            builder: (context, notificationProvider, child) {
+                              final pendingCount =
+                                  notificationProvider.unreadCount;
+                              return _buildMenuItemWithBadge(
+                                context,
+                                icon: Icons.approval_outlined,
+                                title: 'File Approval',
+                                subtitle: pendingCount > 0
+                                    ? '$pendingCount pending approvals'
+                                    : 'No pending approvals',
+                                badgeCount: pendingCount,
+                                onTap: () => _navigateToFileApproval(context),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        _buildMenuItem(
+                          context,
+                          icon: Icons.settings_outlined,
+                          title: 'Settings',
+                          onTap: () => _navigateToSettings(context),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        _buildMenuItem(
+                          context,
+                          icon: Icons.logout_outlined,
+                          title: 'Log Out',
+                          onTap: () => _showLogoutDialog(context),
+                          isDestructive: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },

@@ -11,6 +11,7 @@ class AppScaffoldWithNavigation extends StatelessWidget {
   final List<Widget>? actions;
   final Widget? floatingActionButton;
   final FloatingActionButtonLocation? floatingActionButtonLocation;
+  final PreferredSizeWidget? customAppBar;
 
   const AppScaffoldWithNavigation({
     super.key,
@@ -22,30 +23,32 @@ class AppScaffoldWithNavigation extends StatelessWidget {
     this.actions,
     this.floatingActionButton,
     this.floatingActionButtonLocation,
+    this.customAppBar,
   });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: showAppBar
-          ? AppBar(
-              title: Text(title),
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              actions: actions,
-              automaticallyImplyLeading: false,
-              leading: showBackButton
-                  ? IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(
-                        Icons.chevron_left,
-                        size: 28,
-                        color: Colors.white,
-                      ),
-                      tooltip: 'Back',
-                    )
-                  : null,
-            )
+          ? (customAppBar ??
+                AppBar(
+                  title: Text(title),
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  actions: actions,
+                  automaticallyImplyLeading: false,
+                  leading: showBackButton
+                      ? IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(
+                            Icons.chevron_left,
+                            size: 28,
+                            color: Colors.white,
+                          ),
+                          tooltip: 'Back',
+                        )
+                      : null,
+                ))
           : null,
       body: body,
       floatingActionButton: floatingActionButton,

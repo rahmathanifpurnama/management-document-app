@@ -105,204 +105,228 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     return AppScaffoldWithNavigation(
       title: 'User Management',
       currentNavIndex: 3, // Add User is index 3 for admin
-      showAppBar: true, // Ensure app bar is shown
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.filter_list),
-          onPressed: _showFilterDialog,
-        ),
-      ],
-      body: Consumer2<UserProvider, AuthProvider>(
-        builder: (context, userProvider, authProvider, child) {
-          if (userProvider.isLoading) {
-            return const Center(
-              child: OptimizedLoadingWidget(
-                message: 'Loading users...',
-                color: AppColors.primary,
-                size: 50,
-                showMessage: true,
-              ),
-            );
-          }
-
-          if (userProvider.errorMessage != null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: AppColors.error),
-                  const SizedBox(height: 16),
-                  Text(
-                    userProvider.errorMessage!,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: AppColors.textSecondary,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _loadUsers,
-                    child: const Text('Try Again'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final users = userProvider.users;
-
-          if (users.isEmpty) {
-            return EmptyStateWidget.noUsers(
-              actionButton: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).pushNamed(AppRoutes.createUser);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 16,
-                  ),
-                ),
-                icon: const Icon(Icons.add),
-                label: const Text('Add User'),
-              ),
-            );
-          }
-
-          return Column(
-            children: [
-              // Combined Search and Add User Section
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.border.withValues(alpha: 0.3),
-                    width: 1,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      // Search Widget
-                      ReusableSearchWidget(
-                        controller: _searchController,
-                        hintText: 'Search users by name or email...',
-                        onChanged: _onSearchChanged,
-                        onClear: _clearSearch,
-                        margin: EdgeInsets
-                            .zero, // Remove margin since we're inside a container
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Add User Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.of(
-                              context,
-                            ).pushNamed(AppRoutes.createUser).then((_) {
-                              _loadUsers(); // Refresh list after creating user
-                            });
-                          },
-                          icon: const Icon(Icons.person_add),
-                          label: const Text('Add New User'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: AppColors.textWhite,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Active Filters
-              if (userProvider.searchQuery.isNotEmpty ||
-                  userProvider.selectedRole != 'all' ||
-                  userProvider.selectedStatus != 'all')
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  color: AppColors.primaryLight.withValues(alpha: 0.1),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.filter_list,
-                        size: 16,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _getActiveFiltersText(userProvider),
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          userProvider.clearFilters();
-                          _searchController.clear();
-                          _selectedRole = 'all';
-                          _selectedStatus = 'all';
-                        },
-                        child: const Text(
-                          'Clear Filters',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              // Users List
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: _loadUsers,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: users.length,
-                    itemBuilder: (context, index) {
-                      final user = users[index];
-                      return UserCard(
-                        user: user,
-                        onTap: () => _showUserDetails(user),
-                        onEdit: () => _editUser(user),
-                        onDelete: () => _deleteUser(user),
-                        onToggleStatus: () => _toggleUserStatus(user),
-                        currentUserId: authProvider.currentUser?.id,
-                      );
-                    },
-                  ),
-                ),
+      showAppBar: false, // Hide default app bar
+      body: Column(
+        children: [
+          // Custom AppBar without back button
+          AppBar(
+            title: const Text('User Management'),
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            automaticallyImplyLeading: false,
+            elevation: 0,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.filter_list),
+                onPressed: _showFilterDialog,
               ),
             ],
-          );
-        },
+          ),
+          // Main content
+          Expanded(
+            child: Consumer2<UserProvider, AuthProvider>(
+              builder: (context, userProvider, authProvider, child) {
+                if (userProvider.isLoading) {
+                  return const Center(
+                    child: OptimizedLoadingWidget(
+                      message: 'Loading users...',
+                      color: AppColors.primary,
+                      size: 50,
+                      showMessage: true,
+                    ),
+                  );
+                }
+
+                if (userProvider.errorMessage != null) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: AppColors.error,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          userProvider.errorMessage!,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: AppColors.textSecondary,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadUsers,
+                          child: const Text('Try Again'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final users = userProvider.users;
+
+                if (users.isEmpty) {
+                  return EmptyStateWidget.noUsers(
+                    actionButton: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pushNamed(AppRoutes.createUser);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 16,
+                        ),
+                      ),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add User'),
+                    ),
+                  );
+                }
+
+                return Column(
+                  children: [
+                    // Combined Search and Add User Section
+                    Container(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.border.withValues(alpha: 0.3),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            // Search Widget
+                            ReusableSearchWidget(
+                              controller: _searchController,
+                              hintText: 'Search users by name or email...',
+                              onChanged: _onSearchChanged,
+                              onClear: _clearSearch,
+                              margin: EdgeInsets
+                                  .zero, // Remove margin since we're inside a container
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // Add User Button
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () {
+                                  Navigator.of(
+                                    context,
+                                  ).pushNamed(AppRoutes.createUser).then((_) {
+                                    _loadUsers(); // Refresh list after creating user
+                                  });
+                                },
+                                icon: const Icon(Icons.person_add),
+                                label: const Text('Add New User'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.primary,
+                                  foregroundColor: AppColors.textWhite,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    // Active Filters
+                    if (userProvider.searchQuery.isNotEmpty ||
+                        userProvider.selectedRole != 'all' ||
+                        userProvider.selectedStatus != 'all')
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        color: AppColors.primaryLight.withValues(alpha: 0.1),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.filter_list,
+                              size: 16,
+                              color: AppColors.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                _getActiveFiltersText(userProvider),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                userProvider.clearFilters();
+                                _searchController.clear();
+                                _selectedRole = 'all';
+                                _selectedStatus = 'all';
+                              },
+                              child: const Text(
+                                'Clear Filters',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Users List
+                    Expanded(
+                      child: RefreshIndicator(
+                        onRefresh: _loadUsers,
+                        child: ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: users.length,
+                          itemBuilder: (context, index) {
+                            final user = users[index];
+                            return UserCard(
+                              user: user,
+                              onTap: () => _showUserDetails(user),
+                              onEdit: () => _editUser(user),
+                              onDelete: () => _deleteUser(user),
+                              onToggleStatus: () => _toggleUserStatus(user),
+                              currentUserId: authProvider.currentUser?.id,
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
