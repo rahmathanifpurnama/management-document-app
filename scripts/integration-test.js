@@ -7,30 +7,13 @@
  * with the new database structure and admin-only hard delete operations.
  */
 
-const admin = require('firebase-admin');
+const { initializeFirebase, getEnvironmentInfo, validateConnection } = require('./firebase-config');
 
-// Initialize Firebase Admin SDK
-function initializeFirebase() {
-  if (!admin.apps.length) {
-    const isEmulator = process.env.FIRESTORE_EMULATOR_HOST || process.env.NODE_ENV === 'development';
-    
-    if (isEmulator) {
-      console.log('🔧 Using Firebase Emulator for testing');
-      admin.initializeApp({
-        projectId: 'document-management-c5a96'
-      });
-      
-      // Connect to emulators
-      process.env.FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
-      process.env.FIREBASE_AUTH_EMULATOR_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9099';
-      process.env.FIREBASE_STORAGE_EMULATOR_HOST = process.env.FIREBASE_STORAGE_EMULATOR_HOST || '127.0.0.1:9199';
-    } else {
-      console.log('🔥 Using Production Firebase');
-      console.log('❌ Production testing requires service account configuration');
-      process.exit(1);
-    }
-  }
-}
+// Initialize Firebase with production support
+const admin = initializeFirebase({
+  scriptName: 'Integration Test',
+  requireProduction: false
+});
 
 // Test results tracking
 let testResults = {
@@ -419,7 +402,16 @@ async function runIntegrationTests() {
 // Main function
 async function main() {
   try {
-    initializeFirebase();
+    const envInfo = getEnvironmentInfo();
+    console.log(`🌍 Environment: ${envInfo.mode}`);
+
+    // Validate connection
+    const isConnected = await validateConnection('Integration Test');
+    if (!isConnected) {
+      console.log('❌ Cannot proceed without valid Firebase connection');
+      process.exit(1);
+    }
+
     const success = await runIntegrationTests();
     process.exit(success ? 0 : 1);
   } catch (error) {

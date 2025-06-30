@@ -1,6 +1,17 @@
-# Production Database Seeder Setup
+# Production Scripts Setup
 
-Panduan lengkap untuk mengkonfigurasi database seeder untuk production Firebase.
+Panduan lengkap untuk mengkonfigurasi semua scripts untuk production Firebase.
+
+## 📋 Scripts yang Mendukung Production
+
+Semua scripts berikut telah dikonfigurasi untuk mendukung production:
+
+1. **`database-seeder.js`** - Database seeding untuk production
+2. **`integration-test.js`** - Testing di production environment
+3. **`setup-admin.js`** - Setup admin users di production
+4. **`system-monitor.js`** - Monitoring sistem production
+5. **`validate-rules.js`** - Validasi security rules production
+6. **`firebase-config.js`** - Helper konfigurasi Firebase (shared)
 
 ## 📋 Prerequisites
 
@@ -61,7 +72,7 @@ git status
 # Service account key tidak boleh muncul di list
 ```
 
-## 🚀 Step 4: Menjalankan Seeder Production
+## 🚀 Step 4: Menjalankan Scripts Production
 
 ### 4.1 Install Dependencies
 ```bash
@@ -78,10 +89,32 @@ unset NODE_ENV
 export NODE_ENV=production
 ```
 
-### 4.3 Jalankan Seeder
+### 4.3 Menjalankan Scripts
+
+**Database Seeder:**
 ```bash
 cd scripts
 node database-seeder.js
+```
+
+**Integration Tests:**
+```bash
+node integration-test.js
+```
+
+**Admin Setup:**
+```bash
+node setup-admin.js
+```
+
+**System Monitor:**
+```bash
+node system-monitor.js
+```
+
+**Rules Validation:**
+```bash
+node validate-rules.js
 ```
 
 ## ⚠️ Step 5: Permissions yang Diperlukan

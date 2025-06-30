@@ -7,37 +7,14 @@
  * It provides instructions and utilities for creating admin users.
  */
 
-const admin = require('firebase-admin');
+const { initializeFirebase, getEnvironmentInfo, validateConnection, admin: getAdmin } = require('./firebase-config');
 const readline = require('readline');
 
-// Initialize Firebase Admin SDK
-function initializeFirebase() {
-  if (!admin.apps.length) {
-    // For production, use service account key
-    // For development/emulator, use project ID
-    const isEmulator = process.env.FIRESTORE_EMULATOR_HOST || process.env.NODE_ENV === 'development';
-    
-    if (isEmulator) {
-      console.log('🔧 Using Firebase Emulator');
-      admin.initializeApp({
-        projectId: 'document-management-c5a96'
-      });
-      
-      // Connect to emulators
-      process.env.FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
-      process.env.FIREBASE_AUTH_EMULATOR_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9099';
-    } else {
-      console.log('🔥 Using Production Firebase');
-      // For production, you would initialize with service account
-      // admin.initializeApp({
-      //   credential: admin.credential.cert(serviceAccount),
-      //   projectId: 'your-project-id'
-      // });
-      console.log('❌ Production setup requires service account configuration');
-      process.exit(1);
-    }
-  }
-}
+// Initialize Firebase with production support
+const admin = initializeFirebase({
+  scriptName: 'Admin Setup',
+  requireProduction: false
+});
 
 // Create readline interface
 const rl = readline.createInterface({
@@ -229,8 +206,17 @@ async function main() {
   try {
     console.log('🚀 Document Management System - Admin Setup');
     console.log('============================================');
-    
-    initializeFirebase();
+
+    const envInfo = getEnvironmentInfo();
+    console.log(`🌍 Environment: ${envInfo.mode}`);
+
+    // Validate connection
+    const isConnected = await validateConnection('Admin Setup');
+    if (!isConnected) {
+      console.log('❌ Cannot proceed without valid Firebase connection');
+      rl.close();
+      process.exit(1);
+    }
     
     while (true) {
       const choice = await showMenu();

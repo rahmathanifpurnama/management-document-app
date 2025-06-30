@@ -7,30 +7,13 @@
  * are working correctly with the new database structure.
  */
 
-const admin = require('firebase-admin');
+const { initializeFirebase, getEnvironmentInfo, validateConnection } = require('./firebase-config');
 
-// Initialize Firebase Admin SDK
-function initializeFirebase() {
-  if (!admin.apps.length) {
-    const isEmulator = process.env.FIRESTORE_EMULATOR_HOST || process.env.NODE_ENV === 'development';
-    
-    if (isEmulator) {
-      console.log('🔧 Using Firebase Emulator for validation');
-      admin.initializeApp({
-        projectId: 'document-management-c5a96'
-      });
-      
-      // Connect to emulators
-      process.env.FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
-      process.env.FIREBASE_AUTH_EMULATOR_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9099';
-      process.env.FIREBASE_STORAGE_EMULATOR_HOST = process.env.FIREBASE_STORAGE_EMULATOR_HOST || '127.0.0.1:9199';
-    } else {
-      console.log('🔥 Using Production Firebase');
-      console.log('❌ Production validation requires service account configuration');
-      process.exit(1);
-    }
-  }
-}
+// Initialize Firebase with production support
+const admin = initializeFirebase({
+  scriptName: 'Rules Validator',
+  requireProduction: false
+});
 
 // Test data structure validation
 async function validateUserStructure() {
@@ -324,8 +307,16 @@ async function main() {
   try {
     console.log('🚀 Database Structure Validation Tool');
     console.log('====================================');
-    
-    initializeFirebase();
+
+    const envInfo = getEnvironmentInfo();
+    console.log(`🌍 Environment: ${envInfo.mode}`);
+
+    // Validate connection
+    const isConnected = await validateConnection('Rules Validator');
+    if (!isConnected) {
+      console.log('❌ Cannot proceed without valid Firebase connection');
+      process.exit(1);
+    }
     
     const success = await runAllValidations();
     process.exit(success ? 0 : 1);

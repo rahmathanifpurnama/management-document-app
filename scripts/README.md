@@ -1,6 +1,10 @@
 # Database Management Scripts
 
-This directory contains utility scripts for managing the Document Management System database and initial setup.
+This directory contains utility scripts for managing the Document Management System database and initial setup with full production support.
+
+## 🔥 Production Support
+
+All scripts now support both development (emulator) and production environments with automatic service account configuration.
 
 ## Prerequisites
 
@@ -17,31 +21,104 @@ npm install
 
 ## Scripts Overview
 
-### 1. Admin Setup Script (`setup-admin.js`)
+### 🔧 Core Configuration
 
-Creates and manages admin users for the system.
+#### `firebase-config.js`
+Shared Firebase configuration helper for all scripts.
 
 **Features:**
+- Automatic environment detection (emulator vs production)
+- Service account key loading from multiple locations
+- Connection validation
+- Consistent error handling
+
+### 📋 Available Scripts
+
+#### 1. `database-seeder.js`
+Seeds the database with initial data.
+
+**Features:**
+- ✅ Production support with service account
+- Creates sample users, categories, documents
+- Includes `isActive` field for user account management
+- Interactive menu for selective seeding
+
+#### 2. `setup-admin.js`
+Creates and manages admin users.
+
+**Features:**
+- ✅ Production support with service account
 - Create new admin users in Firebase Auth
 - Upgrade existing users to admin role
 - List existing admin users
 - Set proper permissions and custom claims
 
-**Usage:**
-```bash
-# Interactive mode
-npm run setup-admin:emulator
+#### 3. `integration-test.js`
+Comprehensive testing suite.
 
-# Or run directly
-node setup-admin.js
+**Features:**
+- ✅ Production support with service account
+- Tests user creation and permissions
+- Validates data structure
+- Tests hard delete operations
+
+#### 4. `system-monitor.js`
+System health monitoring and maintenance.
+
+**Features:**
+- ✅ Production support with service account
+- Health checks for Firestore, Auth, Storage
+- Performance metrics
+- Maintenance tasks (cleanup old activities)
+
+#### 5. `validate-rules.js`
+Security rules validation.
+
+**Features:**
+- ✅ Production support with service account
+- Validates Firestore security rules
+- Tests user data structure
+- Checks permission enforcement
+
+## 🚀 Production Usage
+
+### Quick Setup
+```bash
+# 1. Setup production environment
+./setup-production.sh
+
+# 2. Run production scripts
+./run-production.sh
 ```
 
-**Options:**
-1. Create new admin user
-2. Upgrade existing user to admin
-3. List existing admin users
-4. Show manual setup instructions
-5. Exit
+### Manual Setup
+```bash
+# 1. Place service account key
+mkdir -p config
+mv /path/to/service-account-key.json config/service-account-key.json
+
+# 2. Set production environment
+export NODE_ENV=production
+unset FIRESTORE_EMULATOR_HOST
+
+# 3. Run any script
+node database-seeder.js
+node integration-test.js
+node setup-admin.js
+node system-monitor.js
+node validate-rules.js
+```
+
+## 🔧 Development Usage
+
+### Emulator Mode
+```bash
+# Start Firebase emulators
+firebase emulators:start
+
+# Run scripts (will auto-detect emulator)
+node database-seeder.js
+```
 
 ### 2. Database Seeder (`database-seeder.js`)
 

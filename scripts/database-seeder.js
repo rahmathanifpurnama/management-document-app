@@ -8,82 +8,14 @@
  * and supporting hard delete operations for data management.
  */
 
-const admin = require('firebase-admin');
+const { initializeFirebase, getEnvironmentInfo, validateConnection } = require('./firebase-config');
 const readline = require('readline');
-const path = require('path');
 
-// Initialize Firebase Admin SDK
-function initializeFirebase() {
-  if (!admin.apps.length) {
-    const isEmulator = process.env.FIRESTORE_EMULATOR_HOST || process.env.NODE_ENV === 'development';
-
-    if (isEmulator) {
-      console.log('🔧 Using Firebase Emulator');
-      admin.initializeApp({
-        projectId: 'document-management-c5a96'
-      });
-
-      // Connect to emulators
-      process.env.FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
-      process.env.FIREBASE_AUTH_EMULATOR_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9099';
-      process.env.FIREBASE_STORAGE_EMULATOR_HOST = process.env.FIREBASE_STORAGE_EMULATOR_HOST || '127.0.0.1:9199';
-    } else {
-      console.log('🔥 Using Production Firebase');
-
-      // Try to load service account from multiple possible locations
-      const possiblePaths = [
-        path.join(__dirname, 'config', 'service-account-key.json'),
-        path.join(__dirname, '..', 'config', 'service-account-key.json'),
-        process.env.GOOGLE_APPLICATION_CREDENTIALS,
-        './service-account-key.json'
-      ].filter(Boolean);
-
-      let serviceAccountPath = null;
-      const fs = require('fs');
-
-      for (const possiblePath of possiblePaths) {
-        if (fs.existsSync(possiblePath)) {
-          serviceAccountPath = possiblePath;
-          break;
-        }
-      }
-
-      if (!serviceAccountPath) {
-        console.log('❌ Service account key not found!');
-        console.log('📋 Please ensure one of the following:');
-        console.log('   1. Place service-account-key.json in scripts/config/');
-        console.log('   2. Set GOOGLE_APPLICATION_CREDENTIALS environment variable');
-        console.log('   3. Place service-account-key.json in project root');
-        console.log('');
-        console.log('🔗 Get service account key from:');
-        console.log('   Firebase Console > Project Settings > Service Accounts > Generate new private key');
-        process.exit(1);
-      }
-
-      try {
-        const serviceAccount = require(serviceAccountPath);
-        admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount),
-          projectId: serviceAccount.project_id,
-          storageBucket: `${serviceAccount.project_id}.appspot.com`
-        });
-
-        console.log(`✅ Production Firebase initialized with service account`);
-        console.log(`📁 Service account: ${serviceAccountPath}`);
-        console.log(`🏗️  Project ID: ${serviceAccount.project_id}`);
-      } catch (error) {
-        console.log('❌ Failed to initialize Firebase with service account');
-        console.log('💡 Error:', error.message);
-        console.log('');
-        console.log('🔍 Please check:');
-        console.log('   1. Service account key file is valid JSON');
-        console.log('   2. Service account has proper permissions');
-        console.log('   3. Project ID matches your Firebase project');
-        process.exit(1);
-      }
-    }
-  }
-}
+// Initialize Firebase with production support
+const admin = initializeFirebase({
+  scriptName: 'Database Seeder',
+  requireProduction: false
+});
 
 // Create readline interface
 const rl = readline.createInterface({
@@ -528,7 +460,16 @@ async function main() {
     console.log('🚀 Document Management System - Database Seeder');
     console.log('================================================');
 
-    initializeFirebase();
+    const envInfo = getEnvironmentInfo();
+    console.log(`🌍 Environment: ${envInfo.mode}`);
+
+    // Validate connection
+    const isConnected = await validateConnection('Database Seeder');
+    if (!isConnected) {
+      console.log('❌ Cannot proceed without valid Firebase connection');
+      rl.close();
+      process.exit(1);
+    }
 
     while (true) {
       const choice = await showMenu();

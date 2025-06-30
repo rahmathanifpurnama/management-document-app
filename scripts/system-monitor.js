@@ -6,30 +6,13 @@
  * Monitors the Document Management System health and performs maintenance tasks.
  */
 
-const admin = require('firebase-admin');
+const { initializeFirebase, getEnvironmentInfo, validateConnection } = require('./firebase-config');
 
-// Initialize Firebase Admin SDK
-function initializeFirebase() {
-  if (!admin.apps.length) {
-    const isEmulator = process.env.FIRESTORE_EMULATOR_HOST || process.env.NODE_ENV === 'development';
-    
-    if (isEmulator) {
-      console.log('🔧 Using Firebase Emulator for monitoring');
-      admin.initializeApp({
-        projectId: 'document-management-c5a96'
-      });
-      
-      // Connect to emulators
-      process.env.FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080';
-      process.env.FIREBASE_AUTH_EMULATOR_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST || '127.0.0.1:9099';
-      process.env.FIREBASE_STORAGE_EMULATOR_HOST = process.env.FIREBASE_STORAGE_EMULATOR_HOST || '127.0.0.1:9199';
-    } else {
-      console.log('🔥 Using Production Firebase');
-      console.log('❌ Production monitoring requires service account configuration');
-      process.exit(1);
-    }
-  }
-}
+// Initialize Firebase with production support
+const admin = initializeFirebase({
+  scriptName: 'System Monitor',
+  requireProduction: false
+});
 
 // System health check
 async function checkSystemHealth() {
@@ -378,8 +361,16 @@ async function main() {
   try {
     console.log('🚀 Document Management System - Monitor & Maintenance');
     console.log('=====================================================');
-    
-    initializeFirebase();
+
+    const envInfo = getEnvironmentInfo();
+    console.log(`🌍 Environment: ${envInfo.mode}`);
+
+    // Validate connection
+    const isConnected = await validateConnection('System Monitor');
+    if (!isConnected) {
+      console.log('❌ Cannot proceed without valid Firebase connection');
+      process.exit(1);
+    }
     
     while (true) {
       const choice = await showMenu();
