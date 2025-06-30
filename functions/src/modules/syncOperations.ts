@@ -56,7 +56,7 @@ const syncStorageWithFirestore = functions.https.onCall(
           // Check if document already exists in Firestore
           const existingDoc = await admin
             .firestore()
-            .collection("document-metadata")
+            .collection("documents")
             .doc(documentId)
             .get();
 
@@ -88,7 +88,7 @@ const syncStorageWithFirestore = functions.https.onCall(
             };
 
             batch.set(
-              admin.firestore().collection("document-metadata").doc(documentId),
+              admin.firestore().collection("documents").doc(documentId),
               documentData
             );
             batchCount++;
@@ -195,7 +195,7 @@ const manualCleanupOrphanedMetadata = functions.https.onCall(
       // Get all documents from Firestore
       const documentsSnapshot = await admin
         .firestore()
-        .collection("document-metadata")
+        .collection("documents")
         .get();
 
       const batchSize = 500;
@@ -508,7 +508,7 @@ async function updateCategoryDocumentCounts() {
     // Count documents in this category
     const documentsSnapshot = await admin
       .firestore()
-      .collection("document-metadata")
+      .collection("documents")
       .where("category", "==", categoryId)
       .get();
 
@@ -541,7 +541,7 @@ async function updateUserStatistics() {
     // Count documents uploaded by this user
     const documentsSnapshot = await admin
       .firestore()
-      .collection("document-metadata")
+      .collection("documents")
       .where("uploadedBy", "==", userId)
       .where("isActive", "==", true)
       .get();
@@ -655,7 +655,7 @@ async function calculateFreshStatistics(): Promise<any> {
     // Total active files - simple single-field query
     admin
       .firestore()
-      .collection("document-metadata")
+      .collection("documents")
       .where("isActive", "==", true)
       .count()
       .get(),
@@ -691,7 +691,7 @@ async function calculateFreshStatistics(): Promise<any> {
 
     const recentFilesSnapshot = await admin
       .firestore()
-      .collection("document-metadata")
+      .collection("documents")
       .where("isActive", "==", true)
       .where("uploadedAt", ">=", sevenDaysAgo)
       .limit(1000) // Limit to prevent excessive reads
@@ -737,7 +737,7 @@ async function getFileTypeStatistics(): Promise<Record<string, number>> {
     // For performance, limit to recent files or use sampling
     const recentFilesSnapshot = await admin
       .firestore()
-      .collection("document-metadata")
+      .collection("documents")
       .where("isActive", "==", true)
       .orderBy("uploadedAt", "desc")
       .limit(10000) // Sample recent files for type distribution
@@ -770,7 +770,7 @@ async function getOptimizedStorageSize(): Promise<number> {
     // For now, use a limited sample to estimate
     const sampleSnapshot = await admin
       .firestore()
-      .collection("document-metadata")
+      .collection("documents")
       .where("isActive", "==", true)
       .limit(1000)
       .get();
@@ -784,7 +784,7 @@ async function getOptimizedStorageSize(): Promise<number> {
     // Estimate total size based on sample
     const totalFilesSnapshot = await admin
       .firestore()
-      .collection("document-metadata")
+      .collection("documents")
       .where("isActive", "==", true)
       .count()
       .get();
@@ -873,7 +873,7 @@ export const getPaginatedFileStats = functions.https.onCall(
 
       let query = admin
         .firestore()
-        .collection("document-metadata")
+        .collection("documents")
         .where("isActive", "==", true);
 
       // Add filters
@@ -893,7 +893,7 @@ export const getPaginatedFileStats = functions.https.onCall(
         // Get the last document for cursor pagination
         const lastDocRef = admin
           .firestore()
-          .collection("document-metadata")
+          .collection("documents")
           .doc(cursorDocumentId);
         const lastDocSnapshot = await lastDocRef.get();
 
@@ -922,7 +922,7 @@ export const getPaginatedFileStats = functions.https.onCall(
       // Get total count for pagination info
       let countQuery = admin
         .firestore()
-        .collection("document-metadata")
+        .collection("documents")
         .where("isActive", "==", true);
 
       if (category) {
@@ -983,7 +983,7 @@ export const checkDataIntegrity = functions.https.onCall(
       // Get all active documents from Firestore
       const firestoreSnapshot = await admin
         .firestore()
-        .collection("document-metadata")
+        .collection("documents")
         .where("isActive", "==", true)
         .get();
 
@@ -1107,7 +1107,7 @@ async function checkFileExistsInFirestore(filePath: string): Promise<boolean> {
   try {
     const querySnapshot = await admin
       .firestore()
-      .collection('document-metadata')
+      .collection('documents')
       .where('filePath', '==', filePath)
       .limit(1)
       .get();
@@ -1123,7 +1123,7 @@ async function createFirestoreRecordForStorageFile(
   file: StorageFileInfo,
   adminUserId: string
 ): Promise<void> {
-  const documentId = admin.firestore().collection('document-metadata').doc().id;
+  const documentId = admin.firestore().collection('documents').doc().id;
 
   // Generate download URL for the file
   let downloadUrl: string | null = null;
@@ -1168,8 +1168,8 @@ async function createFirestoreRecordForStorageFile(
   // ENHANCED: Use atomic transaction to ensure both collections are updated together
   const batch = admin.firestore().batch();
 
-  // Add document-metadata record to batch
-  const docRef = admin.firestore().collection('document-metadata').doc(documentId);
+  // Add documents record to batch
+  const docRef = admin.firestore().collection('documents').doc(documentId);
   batch.set(docRef, documentData);
 
   // Add activity log to batch
@@ -1233,8 +1233,8 @@ function getFileTypeFromName(fileName: string): string {
 }
 
 /**
- * Monitor sync consistency between document-metadata and activities collections
- * Detects files recorded in activities but missing from document-metadata
+ * Monitor sync consistency between documents and activities collections
+ * Detects files recorded in activities but missing from documents
  */
 const monitorSyncConsistency = functions.https.onCall(
   async (data: any, context) => {
@@ -1293,10 +1293,10 @@ const monitorSyncConsistency = functions.https.onCall(
             continue;
           }
 
-          // Check if corresponding document exists in document-metadata
+          // Check if corresponding document exists in documents
           const docSnapshot = await admin
             .firestore()
-            .collection("document-metadata")
+            .collection("documents")
             .doc(documentId)
             .get();
 
@@ -1307,7 +1307,7 @@ const monitorSyncConsistency = functions.https.onCall(
               timestamp: activityData.timestamp,
               details: activityData.details,
               userId: activityData.userId,
-              issue: "Document exists in activities but not in document-metadata",
+              issue: "Document exists in activities but not in documents",
             });
           }
 
@@ -1320,7 +1320,7 @@ const monitorSyncConsistency = functions.https.onCall(
       // Also check for documents without corresponding activities
       const documentsSnapshot = await admin
         .firestore()
-        .collection("document-metadata")
+        .collection("documents")
         .where("isActive", "==", true)
         .orderBy("uploadedAt", "desc")
         .limit(1000)
@@ -1349,7 +1349,7 @@ const monitorSyncConsistency = functions.https.onCall(
               fileName: docData.fileName,
               uploadedAt: docData.uploadedAt,
               uploadedBy: docData.uploadedBy,
-              issue: "Document exists in document-metadata but no corresponding activity",
+              issue: "Document exists in documents but no corresponding activity",
             });
           }
         } catch (error) {

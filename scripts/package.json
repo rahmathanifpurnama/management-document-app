@@ -1,0 +1,34 @@
+{
+  "name": "document-management-scripts",
+  "version": "1.0.0",
+  "description": "Utility scripts for Document Management System",
+  "main": "setup-admin.js",
+  "scripts": {
+    "setup-admin": "node setup-admin.js",
+    "setup-admin:emulator": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 node setup-admin.js",
+    "seed": "node database-seeder.js",
+    "seed:emulator": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199 node database-seeder.js",
+    "seed:full": "npm run seed:emulator",
+    "seed:categories": "npm run seed:emulator",
+    "seed:users": "npm run seed:emulator",
+    "clear-data": "npm run seed:emulator",
+    "validate": "node validate-rules.js",
+    "validate:emulator": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199 node validate-rules.js",
+    "test": "node integration-test.js",
+    "test:emulator": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199 node integration-test.js",
+    "test:full": "npm run seed:emulator && npm run validate:emulator && npm run test:emulator",
+    "test:quick": "npm run validate:emulator && npm run test:emulator",
+    "monitor": "node system-monitor.js",
+    "monitor:emulator": "FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 FIREBASE_STORAGE_EMULATOR_HOST=127.0.0.1:9199 node system-monitor.js",
+    "health-check": "npm run monitor:emulator",
+    "maintenance": "npm run monitor:emulator"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.5.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "Document Management System",
+  "license": "MIT"
+}

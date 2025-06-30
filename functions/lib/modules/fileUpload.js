@@ -170,7 +170,7 @@ async function checkForDuplicates(fileHash, fileName, fileSize, uploadedBy) {
         const firestore = admin.firestore();
         // First check by hash (most reliable)
         const hashQuery = await firestore
-            .collection("document-metadata")
+            .collection("documents")
             .where("metadata.fileHash", "==", fileHash)
             .where("isActive", "==", true)
             .limit(1)
@@ -185,7 +185,7 @@ async function checkForDuplicates(fileHash, fileName, fileSize, uploadedBy) {
         }
         // Secondary check by filename and size (less reliable but useful)
         const nameQuery = await firestore
-            .collection("document-metadata")
+            .collection("documents")
             .where("fileName", "==", fileName)
             .where("fileSize", "==", fileSize)
             .where("uploadedBy", "==", uploadedBy)
