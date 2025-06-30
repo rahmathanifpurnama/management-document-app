@@ -43,3 +43,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase Service Account Keys (Security)
+**/service-account-key.json
+**/config/service-account-key.json
+scripts/config/
+firebase-adminsdk-*.json
