@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_service.dart';
 import '../../models/document_model.dart';
 
@@ -129,6 +130,15 @@ class UnifiedIdSystem {
 
       debugPrint('🆔 UnifiedIdSystem: Creating document with ID: $documentId');
 
+      // Debug authentication info
+      final currentUser = FirebaseAuth.instance.currentUser;
+      debugPrint('🔍 FIRESTORE DEBUG - Authentication Info:');
+      debugPrint('   Current user: ${currentUser?.email}');
+      debugPrint('   User UID: ${currentUser?.uid}');
+      debugPrint('   Email verified: ${currentUser?.emailVerified}');
+      debugPrint('   uploadedBy parameter: $uploadedBy');
+      debugPrint('   Match: ${currentUser?.uid == uploadedBy}');
+
       // Create document data
       final documentData = {
         'id': documentId, // Store ID in document for consistency
@@ -139,6 +149,7 @@ class UnifiedIdSystem {
         'fileSize': fileSize,
         'fileType': fileType,
         'uploadedAt': FieldValue.serverTimestamp(),
+        'status': 'active', // Add status field for Firestore Rules compliance
         'isActive': true,
         'permissions': [uploadedBy],
         'metadata': {
@@ -149,6 +160,16 @@ class UnifiedIdSystem {
           ...?additionalMetadata,
         },
       };
+
+      // Debug document data before creation
+      debugPrint('📋 Document data to create:');
+      debugPrint('   ID: $documentId');
+      debugPrint('   fileName: $fileName');
+      debugPrint('   uploadedBy: $uploadedBy');
+      debugPrint('   status: ${documentData['status']}');
+      debugPrint(
+        '   Required fields present: ${['id', 'fileName', 'uploadedAt'].every((field) => documentData.containsKey(field))}',
+      );
 
       // Create document in Firestore with the generated ID
       await _firebaseService.documentsCollection
@@ -165,6 +186,18 @@ class UnifiedIdSystem {
       return documentId;
     } catch (e) {
       debugPrint('❌ UnifiedIdSystem: Error creating document: $e');
+      debugPrint('   Error type: ${e.runtimeType}');
+      if (e.toString().contains('permission-denied')) {
+        debugPrint(
+          '🚫 PERMISSION DENIED - Check user authentication and Firestore Rules',
+        );
+        debugPrint(
+          '   Current user authenticated: ${FirebaseAuth.instance.currentUser != null}',
+        );
+        debugPrint(
+          '   User email: ${FirebaseAuth.instance.currentUser?.email}',
+        );
+      }
       rethrow;
     }
   }
