@@ -85,28 +85,18 @@ const createUser = functions.https.onCall(
         emailVerified: true,
       });
 
-      // Set default permissions based on role
+      // Set default permissions based on role - FIXED: Use array structure for Storage Rules compatibility
       const defaultPermissions =
         role === "admin"
           ? {
-            canCreateUsers: true,
-            canDeleteUsers: true,
-            canManageCategories: true,
-            canApproveDocuments: true,
-            canViewAllDocuments: true,
-            canDownloadDocuments: true,
-            canUploadDocuments: true,
-            canManagePermissions: true,
+            documents: ["view", "upload", "delete", "approve"],
+            categories: [],
+            system: ["user_management", "analytics"],
           }
           : {
-            canCreateUsers: false,
-            canDeleteUsers: false,
-            canManageCategories: false,
-            canApproveDocuments: false,
-            canViewAllDocuments: false,
-            canDownloadDocuments: true,
-            canUploadDocuments: true,
-            canManagePermissions: false,
+            documents: ["view", "upload"],
+            categories: [],
+            system: [],
           };
 
       // Create user document in Firestore
@@ -598,12 +588,9 @@ const autoSyncFirebaseAuthUsers = functions.https.onCall(async (data, context) =
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           permissions: {
-            canViewFiles: true,
-            canUploadFiles: true,
-            canDeleteFiles: false,
-            canManageUsers: false,
-            canManageCategories: false,
-            canViewAnalytics: false,
+            documents: ["view", "upload"],
+            categories: [],
+            system: [],
           },
           lastLogin: authUser.metadata.lastSignInTime ?
             admin.firestore.Timestamp.fromDate(new Date(authUser.metadata.lastSignInTime)) : null,

@@ -17,9 +17,18 @@ service firebase.storage {
     }
 
     // Helper function to check if user has specific document permission
+    // FIXED: Support both new array structure and legacy boolean structure for backward compatibility
     function hasDocumentPermission(permission) {
       return isActiveUser() &&
-             permission in firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.permissions.documents;
+             (
+               // New array-based permission structure
+               (firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.permissions.documents != null &&
+                permission in firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.permissions.documents) ||
+               // Legacy boolean permission structure fallback
+               (permission == 'view' && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.permissions.get('canViewFiles', false) == true) ||
+               (permission == 'upload' && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.permissions.get('canUploadFiles', false) == true) ||
+               (permission == 'delete' && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.permissions.get('canDeleteFiles', false) == true)
+             );
     }
 
     // Default deny all

@@ -76,27 +76,17 @@ const createUser = functions.https.onCall(async (data, context) => {
             displayName: fullName,
             emailVerified: true,
         });
-        // Set default permissions based on role
+        // Set default permissions based on role - FIXED: Use array structure for Storage Rules compatibility
         const defaultPermissions = role === "admin"
             ? {
-                canCreateUsers: true,
-                canDeleteUsers: true,
-                canManageCategories: true,
-                canApproveDocuments: true,
-                canViewAllDocuments: true,
-                canDownloadDocuments: true,
-                canUploadDocuments: true,
-                canManagePermissions: true,
+                documents: ["view", "upload", "delete", "approve"],
+                categories: [],
+                system: ["user_management", "analytics"],
             }
             : {
-                canCreateUsers: false,
-                canDeleteUsers: false,
-                canManageCategories: false,
-                canApproveDocuments: false,
-                canViewAllDocuments: false,
-                canDownloadDocuments: true,
-                canUploadDocuments: true,
-                canManagePermissions: false,
+                documents: ["view", "upload"],
+                categories: [],
+                system: [],
             };
         // Create user document in Firestore
         const userData = {
@@ -406,7 +396,7 @@ const setAdminClaims = functions.https.onCall(async (data, context) => {
  * Auto-sync all Firebase Auth users to Firestore (Admin only)
  */
 const autoSyncFirebaseAuthUsers = functions.https.onCall(async (data, context) => {
-    var _a, _b;
+    var _a;
     // Verify authentication and admin privileges
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
@@ -439,7 +429,6 @@ const autoSyncFirebaseAuthUsers = functions.https.onCall(async (data, context) =
             try {
                 // Generate a safe fullName with proper fallbacks
                 let fullName = authUser.displayName || '';
-
                 // If displayName is empty, extract from email
                 if (!fullName.trim() && authUser.email) {
                     const emailPart = authUser.email.split('@')[0];
@@ -450,12 +439,10 @@ const autoSyncFirebaseAuthUsers = functions.https.onCall(async (data, context) =
                         .filter(word => word.length > 0)
                         .join(' ');
                 }
-
                 // Final fallback if all else fails
                 if (!fullName.trim()) {
                     fullName = 'Unknown User';
                 }
-
                 const userData = {
                     id: authUser.uid,
                     fullName: fullName,
@@ -466,12 +453,9 @@ const autoSyncFirebaseAuthUsers = functions.https.onCall(async (data, context) =
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                     permissions: {
-                        canViewFiles: true,
-                        canUploadFiles: true,
-                        canDeleteFiles: false,
-                        canManageUsers: false,
-                        canManageCategories: false,
-                        canViewAnalytics: false,
+                        documents: ["view", "upload"],
+                        categories: [],
+                        system: [],
                     },
                     lastLogin: authUser.metadata.lastSignInTime ?
                         admin.firestore.Timestamp.fromDate(new Date(authUser.metadata.lastSignInTime)) : null,

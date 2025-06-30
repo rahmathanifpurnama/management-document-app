@@ -72,7 +72,9 @@ const kernel = {
   cubic: 'cubic',
   mitchell: 'mitchell',
   lanczos2: 'lanczos2',
-  lanczos3: 'lanczos3'
+  lanczos3: 'lanczos3',
+  mks2013: 'mks2013',
+  mks2021: 'mks2021'
 };
 
 /**
@@ -105,7 +107,7 @@ const mapFitToCanvas = {
  * @private
  */
 function isRotationExpected (options) {
-  return (options.angle % 360) !== 0 || options.useExifOrientation === true || options.rotationAngle !== 0;
+  return (options.angle % 360) !== 0 || options.input.autoOrient === true || options.rotationAngle !== 0;
 }
 
 /**
@@ -127,7 +129,7 @@ function isResizeExpected (options) {
  *
  * Some of these values are based on the [object-fit](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit) CSS property.
  *
- * <img alt="Examples of various values for the fit property when resizing" width="100%" style="aspect-ratio: 998/243" src="https://cdn.jsdelivr.net/gh/lovell/sharp@main/docs/image/api-resize-fit.svg">
+ * <img alt="Examples of various values for the fit property when resizing" width="100%" style="aspect-ratio: 998/243" src="/api-resize-fit.svg">
  *
  * When using a **fit** of `cover` or `contain`, the default **position** is `centre`. Other options are:
  * - `sharp.position`: `top`, `right top`, `right`, `right bottom`, `bottom`, `left bottom`, `left`, `left top`.
@@ -569,6 +571,7 @@ function trim (options) {
 
 /**
  * Decorate the Sharp prototype with resize-related functions.
+ * @module Sharp
  * @private
  */
 module.exports = function (Sharp) {

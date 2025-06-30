@@ -558,7 +558,7 @@ const getStorageQuota = functions.https.onCall(async (_data, context) => {
         // This is a simplified implementation - in production, you might want to
         // track usage in Firestore or use Cloud Monitoring APIs
         const used = 0; // Would need to calculate actual usage
-        const limit = 5 * 1024 * 1024 * 1024; // 5GB default limit
+        const limit = 1024 * 1024 * 1024 * 1024; // 1TB limit for Blaze plan (effectively unlimited)
         return {
             success: true,
             used,

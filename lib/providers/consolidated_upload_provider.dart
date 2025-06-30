@@ -385,7 +385,7 @@ class ConsolidatedUploadProvider with ChangeNotifier {
       return 'Authentication error - please log in again and try again';
     } else if (errorString.contains('storage') ||
         errorString.contains('quota')) {
-      return 'Storage error - you may have reached your storage limit';
+      return 'Storage error - please try again later';
     } else if (errorString.contains('file too large') ||
         errorString.contains('size')) {
       return 'File too large - please choose a smaller file';
