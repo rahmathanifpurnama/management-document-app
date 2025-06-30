@@ -66,10 +66,43 @@ class ConsolidatedUploadService {
     try {
       debugPrint('🔄 Starting consolidated file upload: ${file.fileName}');
 
-      // Step 1: Authentication check
+      // Step 1: Enhanced Authentication check with debug
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) {
+        debugPrint('❌ UPLOAD FAILED: User not authenticated');
         throw Exception('User not authenticated');
+      }
+
+      // Debug current user info
+      debugPrint('🔍 UPLOAD DEBUG - Current User Info:');
+      debugPrint('   Email: ${currentUser.email}');
+      debugPrint('   UID: ${currentUser.uid}');
+      debugPrint('   Email Verified: ${currentUser.emailVerified}');
+
+      // Check and refresh token if needed
+      try {
+        final tokenResult = await currentUser.getIdTokenResult();
+        final now = DateTime.now();
+        final isTokenExpired =
+            tokenResult.expirationTime?.isBefore(now) ?? true;
+
+        debugPrint('🔑 Token Info:');
+        debugPrint('   Issued: ${tokenResult.issuedAtTime}');
+        debugPrint('   Expires: ${tokenResult.expirationTime}');
+        debugPrint('   Expired: $isTokenExpired');
+
+        if (isTokenExpired) {
+          debugPrint('⚠️ Token expired, refreshing...');
+          await currentUser.getIdToken(true); // Force refresh
+          debugPrint('✅ Token refreshed successfully');
+        }
+
+        // Get fresh token for upload
+        final freshToken = await currentUser.getIdToken(true);
+        debugPrint('🔑 Fresh token length: ${freshToken?.length ?? 0}');
+      } catch (tokenError) {
+        debugPrint('❌ TOKEN ERROR: $tokenError');
+        throw Exception('Token authentication failed: $tokenError');
       }
 
       // Step 2: Client-side validation
@@ -280,7 +313,13 @@ class ConsolidatedUploadService {
     while (retryCount < maxRetries) {
       try {
         final storagePath = _getStoragePath(fileName, userId, categoryId);
+        debugPrint('🔍 STORAGE DEBUG - Upload attempt ${retryCount + 1}:');
+        debugPrint('   Storage path: $storagePath');
+        debugPrint('   User ID: $userId');
+        debugPrint('   File name: $fileName');
+
         final ref = _storage.ref().child(storagePath);
+        debugPrint('   Storage ref: ${ref.fullPath}');
 
         final uploadTask = ref.putFile(
           file,
@@ -304,7 +343,26 @@ class ConsolidatedUploadService {
         return await snapshot.ref.getDownloadURL();
       } catch (e) {
         retryCount++;
+        debugPrint('❌ UPLOAD ERROR (attempt $retryCount): $e');
+        debugPrint('   Error type: ${e.runtimeType}');
+
+        // Check if it's a Firebase Storage error
+        if (e.toString().contains('firebase_storage')) {
+          debugPrint('🔥 Firebase Storage specific error detected');
+          if (e.toString().contains('unauthorized')) {
+            debugPrint(
+              '🚫 AUTHORIZATION ERROR - Check Storage Rules and user permissions',
+            );
+          }
+          if (e.toString().contains('-13040')) {
+            debugPrint(
+              '🚫 ERROR CODE -13040 - Operation cancelled/unauthorized',
+            );
+          }
+        }
+
         if (retryCount >= maxRetries) {
+          debugPrint('❌ FINAL UPLOAD FAILURE after $maxRetries attempts');
           throw Exception('Upload failed after $maxRetries attempts: $e');
         }
 

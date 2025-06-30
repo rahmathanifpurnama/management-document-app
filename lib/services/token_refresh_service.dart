@@ -173,6 +173,120 @@ class TokenRefreshService {
     }
   }
 
+  /// Check all upload criteria and debug issues
+  Future<Map<String, dynamic>> checkUploadCriteria() async {
+    final result = <String, dynamic>{
+      'canUpload': false,
+      'issues': <String>[],
+      'userInfo': <String, dynamic>{},
+    };
+
+    try {
+      debugPrint('🔍 === CHECKING UPLOAD CRITERIA ===');
+
+      // 1. Check if user is logged in
+      final currentUser = _firebaseService.auth.currentUser;
+      if (currentUser == null) {
+        result['issues'].add('❌ User belum login');
+        debugPrint('❌ User belum login');
+        return result;
+      }
+
+      debugPrint('✅ User sudah login: ${currentUser.email}');
+      result['userInfo']['email'] = currentUser.email;
+      result['userInfo']['uid'] = currentUser.uid;
+      result['userInfo']['emailVerified'] = currentUser.emailVerified;
+
+      // 2. Check if user document exists in Firestore
+      final userDoc = await _firebaseService.firestore
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (!userDoc.exists) {
+        result['issues'].add('❌ User document tidak ada di Firestore');
+        debugPrint('❌ User document tidak ada di Firestore');
+        return result;
+      }
+
+      debugPrint('✅ User document ada di Firestore');
+      final userData = userDoc.data() as Map<String, dynamic>;
+      result['userInfo']['firestoreData'] = userData;
+
+      // 3. Check if user status is 'active'
+      final userStatus = userData['status'] as String?;
+      if (userStatus != 'active') {
+        result['issues'].add('❌ User status bukan active: $userStatus');
+        debugPrint('❌ User status bukan active: $userStatus');
+        return result;
+      }
+
+      debugPrint('✅ User status adalah active');
+
+      // 4. Check if user has upload permission
+      final permissions = userData['permissions'] as Map<String, dynamic>?;
+      final documentPermissions = permissions?['documents'] as List<dynamic>?;
+
+      bool hasUploadPermission = false;
+      if (documentPermissions != null) {
+        hasUploadPermission = documentPermissions.contains('upload');
+      }
+
+      // Also check if user is admin (admin has all permissions)
+      final userRole = userData['role'] as String?;
+      final isAdmin = userRole == 'admin';
+
+      if (!hasUploadPermission && !isAdmin) {
+        result['issues'].add('❌ User tidak punya permission upload');
+        debugPrint('❌ User tidak punya permission upload');
+        debugPrint('   Permissions: $documentPermissions');
+        debugPrint('   Role: $userRole');
+        return result;
+      }
+
+      if (isAdmin) {
+        debugPrint('✅ User adalah admin (punya semua permission)');
+      } else {
+        debugPrint('✅ User punya permission upload');
+      }
+
+      // 5. Check token validity
+      try {
+        final tokenResult = await currentUser.getIdTokenResult();
+        final now = DateTime.now();
+        final isTokenExpired =
+            tokenResult.expirationTime?.isBefore(now) ?? true;
+
+        if (isTokenExpired) {
+          result['issues'].add('⚠️ Token expired, perlu refresh');
+          debugPrint('⚠️ Token expired, akan di-refresh otomatis');
+
+          // Try to refresh token
+          await currentUser.getIdToken(true);
+          debugPrint('✅ Token berhasil di-refresh');
+        } else {
+          debugPrint('✅ Token masih valid');
+        }
+      } catch (tokenError) {
+        result['issues'].add('❌ Token error: $tokenError');
+        debugPrint('❌ Token error: $tokenError');
+      }
+
+      // If we reach here, all criteria are met
+      if (result['issues'].isEmpty) {
+        result['canUpload'] = true;
+        debugPrint('🎉 SEMUA KRITERIA TERPENUHI - UPLOAD SEHARUSNYA BERHASIL');
+      }
+
+      debugPrint('🔍 === END UPLOAD CRITERIA CHECK ===');
+      return result;
+    } catch (e) {
+      result['issues'].add('❌ Error checking criteria: $e');
+      debugPrint('❌ Error checking upload criteria: $e');
+      return result;
+    }
+  }
+
   /// Debug current authentication state
   Future<void> debugAuthState() async {
     try {
