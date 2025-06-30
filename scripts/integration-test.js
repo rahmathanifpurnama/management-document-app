@@ -216,44 +216,49 @@ async function testPermissionStructure() {
   try {
     // Get existing users and check their permission structure
     const usersSnapshot = await admin.firestore().collection('users').limit(5).get();
-    
+
     if (usersSnapshot.empty) {
       console.log('No users found for permission testing');
       return false;
     }
-    
+
     for (const doc of usersSnapshot.docs) {
       const userData = doc.data();
-      
+      console.log(`Checking permissions for user ${doc.id}:`, JSON.stringify(userData.permissions, null, 2));
+
       // Check required permission fields
       if (!userData.permissions || typeof userData.permissions !== 'object') {
+        console.log(`Missing or invalid permissions object for user ${doc.id}`);
         return false;
       }
-      
+
       const requiredFields = ['documents', 'categories', 'system'];
       for (const field of requiredFields) {
         if (!Array.isArray(userData.permissions[field])) {
+          console.log(`Missing or invalid ${field} array for user ${doc.id}`);
           return false;
         }
       }
-      
+
       // Validate permission values
       const validDocumentPermissions = ['view', 'upload', 'delete', 'approve'];
       const validSystemPermissions = ['user_management', 'analytics'];
-      
+
       for (const permission of userData.permissions.documents) {
         if (!validDocumentPermissions.includes(permission)) {
+          console.log(`Invalid document permission '${permission}' for user ${doc.id}`);
           return false;
         }
       }
-      
+
       for (const permission of userData.permissions.system) {
         if (!validSystemPermissions.includes(permission)) {
+          console.log(`Invalid system permission '${permission}' for user ${doc.id}`);
           return false;
         }
       }
     }
-    
+
     return true;
   } catch (error) {
     console.error('Permission structure test failed:', error.message);
@@ -332,26 +337,51 @@ async function testDocumentStructure() {
   }
 }
 
-// Test 7: No isActive Field Check
-async function testNoIsActiveField() {
+// Test 7: isActive Field Validation for Users
+async function testIsActiveFieldValidation() {
   try {
-    const collections = ['users', 'categories', 'documents'];
-    
-    for (const collectionName of collections) {
-      const snapshot = await admin.firestore().collection(collectionName).limit(10).get();
-      
+    // Check that users collection has isActive field (for account management)
+    const usersSnapshot = await admin.firestore().collection('users').limit(5).get();
+
+    if (usersSnapshot.empty) {
+      console.log('No users found for isActive field testing');
+      return false;
+    }
+
+    for (const doc of usersSnapshot.docs) {
+      const userData = doc.data();
+
+      // Users should have isActive field for account management
+      if (!('isActive' in userData)) {
+        console.log(`Missing isActive field in users/${doc.id}`);
+        return false;
+      }
+
+      // isActive should be boolean
+      if (typeof userData.isActive !== 'boolean') {
+        console.log(`Invalid isActive field type in users/${doc.id}`);
+        return false;
+      }
+    }
+
+    // Check that other collections don't have isActive field (not used for soft delete)
+    const otherCollections = ['categories', 'documents'];
+
+    for (const collectionName of otherCollections) {
+      const snapshot = await admin.firestore().collection(collectionName).limit(5).get();
+
       for (const doc of snapshot.docs) {
         const data = doc.data();
         if ('isActive' in data) {
-          console.log(`Found deprecated isActive field in ${collectionName}/${doc.id}`);
+          console.log(`Found unexpected isActive field in ${collectionName}/${doc.id}`);
           return false;
         }
       }
     }
-    
+
     return true;
   } catch (error) {
-    console.error('isActive field check failed:', error.message);
+    console.error('isActive field validation failed:', error.message);
     return false;
   }
 }
@@ -371,7 +401,7 @@ async function runIntegrationTests() {
   await runTest('Permission Structure Validation', testPermissionStructure);
   await runTest('Category Structure Validation', testCategoryStructure);
   await runTest('Document Structure Validation', testDocumentStructure);
-  await runTest('No isActive Field Check', testNoIsActiveField);
+  await runTest('isActive Field Validation', testIsActiveFieldValidation);
   
   // Print summary
   console.log('\n📊 Integration Test Results');
@@ -433,5 +463,5 @@ module.exports = {
   testPermissionStructure,
   testCategoryStructure,
   testDocumentStructure,
-  testNoIsActiveField
+  testIsActiveFieldValidation
 };

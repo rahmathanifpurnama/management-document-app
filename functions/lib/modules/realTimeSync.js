@@ -151,7 +151,7 @@ exports.onStorageFileDeleted = functions.storage.object().onDelete(async (object
             batch.delete(doc.ref);
         });
         await batch.commit();
-        console.log(`✅ Marked ${querySnapshot.docs.length} documents as inactive`);
+        console.log(`✅ Deleted ${querySnapshot.docs.length} documents`);
         // Log activity
         await logSyncActivity("document_deleted", {
             filePath: filePath,

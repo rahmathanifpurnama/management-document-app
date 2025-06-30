@@ -9,10 +9,7 @@ service cloud.firestore {
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active';
     }
 
-    // Helper function to check if user is authenticated and active
-    function isAuthenticated() {
-      return request.auth != null;
-    }
+
 
     // Helper function to check if user is active
     function isActiveUser() {
@@ -27,11 +24,7 @@ service cloud.firestore {
              permission in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions.documents;
     }
 
-    // Helper function to check if user has specific system permission
-    function hasSystemPermission(permission) {
-      return isActiveUser() &&
-             permission in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions.system;
-    }
+
 
     // Helper function to validate user data structure
     function isValidUserData(data) {

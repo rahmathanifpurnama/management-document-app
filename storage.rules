@@ -4,22 +4,22 @@ service firebase.storage {
     // Helper function to check if user is admin
     function isAdmin() {
       return request.auth != null &&
-             exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
-             get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
-             get(/databases/(default)/documents/users/$(request.auth.uid)).data.status == 'active';
+             firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.status == 'active';
     }
 
     // Helper function to check if user is active
     function isActiveUser() {
       return request.auth != null &&
-             exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
-             get(/databases/(default)/documents/users/$(request.auth.uid)).data.status == 'active';
+             firestore.exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.status == 'active';
     }
 
     // Helper function to check if user has specific document permission
     function hasDocumentPermission(permission) {
       return isActiveUser() &&
-             permission in get(/databases/(default)/documents/users/$(request.auth.uid)).data.permissions.documents;
+             permission in firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.permissions.documents;
     }
 
     // Default deny all

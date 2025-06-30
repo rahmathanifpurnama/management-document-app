@@ -76,7 +76,7 @@ const syncStorageWithFirestore = functions.https.onCall(async (data, context) =>
                 // Check if document already exists in Firestore
                 const existingDoc = await admin
                     .firestore()
-                    .collection("document-metadata")
+                    .collection("documents")
                     .doc(documentId)
                     .get();
                 if (!existingDoc.exists) {
@@ -103,7 +103,7 @@ const syncStorageWithFirestore = functions.https.onCall(async (data, context) =>
                         status: "approved", // Default for synced files
                         syncedAt: admin.firestore.FieldValue.serverTimestamp(),
                     };
-                    batch.set(admin.firestore().collection("document-metadata").doc(documentId), documentData);
+                    batch.set(admin.firestore().collection("documents").doc(documentId), documentData);
                     batchCount++;
                     processed++;
                     // Commit batch when it reaches the limit
@@ -186,7 +186,7 @@ const manualCleanupOrphanedMetadata = functions.https.onCall(async (data, contex
         // Get all documents from Firestore
         const documentsSnapshot = await admin
             .firestore()
-            .collection("document-metadata")
+            .collection("documents")
             .get();
         const batchSize = 500;
         let batch = admin.firestore().batch();
@@ -418,7 +418,7 @@ async function updateCategoryDocumentCounts() {
         // Count documents in this category
         const documentsSnapshot = await admin
             .firestore()
-            .collection("document-metadata")
+            .collection("documents")
             .where("category", "==", categoryId)
             .get();
         batch.update(categoryDoc.ref, {
@@ -719,7 +719,7 @@ exports.getPaginatedFileStats = functions.https.onCall(async (data, context) => 
             // Get the last document for cursor pagination
             const lastDocRef = admin
                 .firestore()
-                .collection("document-metadata")
+                .collection("documents")
                 .doc(cursorDocumentId);
             const lastDocSnapshot = await lastDocRef.get();
             if (lastDocSnapshot.exists) {
@@ -873,7 +873,7 @@ async function checkFileExistsInFirestore(filePath) {
     try {
         const querySnapshot = await admin
             .firestore()
-            .collection('document-metadata')
+            .collection('documents')
             .where('filePath', '==', filePath)
             .limit(1)
             .get();
@@ -885,7 +885,7 @@ async function checkFileExistsInFirestore(filePath) {
     }
 }
 async function createFirestoreRecordForStorageFile(file, adminUserId) {
-    const documentId = admin.firestore().collection('document-metadata').doc().id;
+    const documentId = admin.firestore().collection('documents').doc().id;
     // Generate download URL for the file
     let downloadUrl = null;
     try {
@@ -926,8 +926,8 @@ async function createFirestoreRecordForStorageFile(file, adminUserId) {
     };
     // ENHANCED: Use atomic transaction to ensure both collections are updated together
     const batch = admin.firestore().batch();
-    // Add document-metadata record to batch
-    const docRef = admin.firestore().collection('document-metadata').doc(documentId);
+    // Add documents record to batch
+    const docRef = admin.firestore().collection('documents').doc(documentId);
     batch.set(docRef, documentData);
     // Add activity log to batch
     const activityRef = admin.firestore().collection('activities').doc();
@@ -988,8 +988,8 @@ function getFileTypeFromName(fileName) {
     }
 }
 /**
- * Monitor sync consistency between document-metadata and activities collections
- * Detects files recorded in activities but missing from document-metadata
+ * Monitor sync consistency between documents and activities collections
+ * Detects files recorded in activities but missing from documents
  */
 const monitorSyncConsistency = functions.https.onCall(async (data, context) => {
     if (!context.auth) {
@@ -1032,10 +1032,10 @@ const monitorSyncConsistency = functions.https.onCall(async (data, context) => {
                     });
                     continue;
                 }
-                // Check if corresponding document exists in document-metadata
+                // Check if corresponding document exists in documents
                 const docSnapshot = await admin
                     .firestore()
-                    .collection("document-metadata")
+                    .collection("documents")
                     .doc(documentId)
                     .get();
                 if (!docSnapshot.exists) {
@@ -1045,7 +1045,7 @@ const monitorSyncConsistency = functions.https.onCall(async (data, context) => {
                         timestamp: activityData.timestamp,
                         details: activityData.details,
                         userId: activityData.userId,
-                        issue: "Document exists in activities but not in document-metadata",
+                        issue: "Document exists in activities but not in documents",
                     });
                 }
                 checkedCount++;
@@ -1080,7 +1080,7 @@ const monitorSyncConsistency = functions.https.onCall(async (data, context) => {
                         fileName: docData.fileName,
                         uploadedAt: docData.uploadedAt,
                         uploadedBy: docData.uploadedBy,
-                        issue: "Document exists in document-metadata but no corresponding activity",
+                        issue: "Document exists in documents but no corresponding activity",
                     });
                 }
             }

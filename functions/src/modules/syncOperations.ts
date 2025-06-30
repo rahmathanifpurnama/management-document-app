@@ -857,7 +857,7 @@ export const getPaginatedFileStats = functions.https.onCall(
 
       console.log(`📄 Getting paginated stats: page=${page}, limit=${limit}, cursor=${cursorDocumentId}`);
 
-      let query = admin
+      let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = admin
         .firestore()
         .collection("documents");
 
@@ -905,7 +905,7 @@ export const getPaginatedFileStats = functions.https.onCall(
       }));
 
       // Get total count for pagination info
-      let countQuery = admin
+      let countQuery: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = admin
         .firestore()
         .collection("documents");
 
