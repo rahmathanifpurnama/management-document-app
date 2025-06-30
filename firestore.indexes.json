@@ -1,35 +1,7 @@
 {
   "indexes": [
     {
-      "collectionGroup": "document-metadata",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "isActive",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "uploadedAt",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "document-metadata",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "isActive",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "uploadedAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "document-metadata",
+      "collectionGroup": "documents",
       "queryScope": "COLLECTION",
       "fields": [
         {
@@ -43,45 +15,9 @@
       ]
     },
     {
-      "collectionGroup": "document-metadata",
+      "collectionGroup": "documents",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "isActive",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "category",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "uploadedAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "document-metadata",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "fileName",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "uploadedAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "document-metadata",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "isActive",
-          "order": "ASCENDING"
-        },
         {
           "fieldPath": "fileName",
           "order": "ASCENDING"
@@ -97,10 +33,6 @@
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "isActive",
-          "order": "ASCENDING"
-        },
-        {
           "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
@@ -110,10 +42,6 @@
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "isActive",
-          "order": "ASCENDING"
-        },
         {
           "fieldPath": "createdAt",
           "order": "DESCENDING"

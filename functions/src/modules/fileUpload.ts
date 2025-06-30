@@ -199,7 +199,7 @@ async function checkForDuplicates(
 
     // First check by hash (most reliable)
     const hashQuery = await firestore
-      .collection("document-metadata")
+      .collection("documents")
       .where("metadata.fileHash", "==", fileHash)
       .where("isActive", "==", true)
       .limit(1)
@@ -216,7 +216,7 @@ async function checkForDuplicates(
 
     // Secondary check by filename and size (less reliable but useful)
     const nameQuery = await firestore
-      .collection("document-metadata")
+      .collection("documents")
       .where("fileName", "==", fileName)
       .where("fileSize", "==", fileSize)
       .where("uploadedBy", "==", uploadedBy)
@@ -335,7 +335,7 @@ const processFileUpload = functions.https.onCall(
       }
 
       // UNIFIED ID SYSTEM: Use Firestore auto-generated ID as single source of truth
-      const docRef = admin.firestore().collection("document-metadata").doc();
+      const docRef = admin.firestore().collection("documents").doc();
       const documentId = docRef.id; // Use Firestore's auto-generated ID
 
       console.log(`🆔 Using unified document ID: ${documentId}`);
@@ -385,7 +385,7 @@ const processFileUpload = functions.https.onCall(
       // ENHANCED: Use atomic transaction to ensure both collections are updated together
       const batch = admin.firestore().batch();
 
-      // Add document-metadata write to batch
+      // Add documents write to batch
       batch.set(docRef, documentData);
 
       // Add activity log to batch
@@ -400,7 +400,7 @@ const processFileUpload = functions.https.onCall(
 
       // Commit both operations atomically
       await batch.commit();
-      console.log(`✅ Atomic transaction completed: document-metadata and activities updated for ${documentId}`);
+      console.log(`✅ Atomic transaction completed: documents and activities updated for ${documentId}`);
 
       console.log(`File upload processed successfully: ${documentId}`);
 
@@ -885,7 +885,7 @@ const cleanupOrphanedFiles = functions.https.onCall(async (_data, context) => {
     const [files] = await bucket.getFiles({ prefix: "documents/" });
 
     // Get all document records from Firestore
-    const documentsSnapshot = await firestore.collection("document-metadata").get();
+    const documentsSnapshot = await firestore.collection("documents").get();
     const documentPaths = new Set(
       documentsSnapshot.docs.map((doc) => doc.data().filePath)
     );
@@ -950,7 +950,7 @@ const checkDuplicateFile = functions.https.onCall(
       console.log(`Checking for duplicate file: ${fileName}`);
 
       // Query Firestore for potential duplicates
-      const documentsRef = admin.firestore().collection("document-metadata");
+      const documentsRef = admin.firestore().collection("documents");
 
       // First check by filename and size
       const nameAndSizeQuery = await documentsRef

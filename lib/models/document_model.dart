@@ -72,7 +72,6 @@ class DocumentModel {
       'category': category,
       'permissions': permissions,
       'metadata': metadata.toMap(),
-      'isActive': true, // All files are active by default
     };
   }
 
@@ -89,7 +88,6 @@ class DocumentModel {
       'category': category,
       'permissions': permissions,
       'metadata': metadata.toMap(),
-      'isActive': true, // All files are active by default
     };
   }
 

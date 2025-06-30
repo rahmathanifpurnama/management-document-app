@@ -105,7 +105,6 @@ const createUser = functions.https.onCall(async (data, context) => {
             email,
             role,
             status: "active",
-            isActive: true,
             createdBy: context.auth.uid,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -316,7 +315,6 @@ const bulkUserOperations = functions.https.onCall(async (data, context) => {
                     switch (operation) {
                         case "activate":
                             batch.update(userRef, {
-                                isActive: true,
                                 status: "active",
                                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                                 updatedBy: context.auth.uid,
@@ -326,7 +324,6 @@ const bulkUserOperations = functions.https.onCall(async (data, context) => {
                             break;
                         case "deactivate":
                             batch.update(userRef, {
-                                isActive: false,
                                 status: "inactive",
                                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                                 updatedBy: context.auth.uid,
@@ -335,15 +332,10 @@ const bulkUserOperations = functions.https.onCall(async (data, context) => {
                             await admin.auth().updateUser(userId, { disabled: true });
                             break;
                         case "delete":
-                            batch.update(userRef, {
-                                isActive: false,
-                                status: "deleted",
-                                deletedBy: context.auth.uid,
-                                deletedAt: admin.firestore.FieldValue.serverTimestamp(),
-                                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                            });
-                            // Disable in Firebase Auth
-                            await admin.auth().updateUser(userId, { disabled: true });
+                            // Hard delete: Remove from Firestore and Firebase Auth
+                            batch.delete(userRef);
+                            // Delete from Firebase Auth
+                            await admin.auth().deleteUser(userId);
                             break;
                     }
                     results.success++;
@@ -450,8 +442,7 @@ const autoSyncFirebaseAuthUsers = functions.https.onCall(async (data, context) =
                     fullName: authUser.displayName || ((_b = authUser.email) === null || _b === void 0 ? void 0 : _b.split('@')[0]) || 'Unknown User',
                     email: authUser.email || '',
                     role: "user", // Default role
-                    status: "active",
-                    isActive: !authUser.disabled,
+                    status: authUser.disabled ? "inactive" : "active",
                     createdBy: context.auth.uid,
                     createdAt: admin.firestore.FieldValue.serverTimestamp(),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),

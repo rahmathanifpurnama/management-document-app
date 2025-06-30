@@ -19,7 +19,8 @@ class SyncEdgeCaseHandler {
 
   final FirebaseService _firebaseService = FirebaseService.instance;
   final RealTimeSyncService _realTimeSyncService = RealTimeSyncService.instance;
-  final DuplicatePreventionService _duplicateService = DuplicatePreventionService.instance;
+  final DuplicatePreventionService _duplicateService =
+      DuplicatePreventionService.instance;
 
   // Error tracking
   final Map<String, int> _errorCounts = {};
@@ -33,11 +34,13 @@ class SyncEdgeCaseHandler {
   Future<void> handleConsoleFileAddition(String filePath) async {
     try {
       debugPrint('🔧 Handling console file addition: $filePath');
-      
+
       // Check if this is a legitimate console addition
       final isConsoleAddition = await _verifyConsoleAddition(filePath);
       if (!isConsoleAddition) {
-        debugPrint('⚠️ File addition not from console, skipping special handling');
+        debugPrint(
+          '⚠️ File addition not from console, skipping special handling',
+        );
         return;
       }
 
@@ -53,7 +56,7 @@ class SyncEdgeCaseHandler {
 
       // Create metadata for console-added file
       await _createMetadataForConsoleFile(filePath);
-      
+
       debugPrint('✅ Console file addition handled successfully');
     } catch (e) {
       await _handleError('console_file_addition', e, {'filePath': filePath});
@@ -64,7 +67,7 @@ class SyncEdgeCaseHandler {
   Future<void> handleConsoleUserAddition(String uid) async {
     try {
       debugPrint('🔧 Handling console user addition: $uid');
-      
+
       // Check if user already exists
       final userExists = await _duplicateService.userExists(uid);
       if (userExists) {
@@ -74,7 +77,7 @@ class SyncEdgeCaseHandler {
 
       // Create user profile for console-added user
       await _createProfileForConsoleUser(uid);
-      
+
       debugPrint('✅ Console user addition handled successfully');
     } catch (e) {
       await _handleError('console_user_addition', e, {'uid': uid});
@@ -82,13 +85,17 @@ class SyncEdgeCaseHandler {
   }
 
   /// Handle sync failures and implement retry logic
-  Future<void> handleSyncFailure(String operation, dynamic error, Map<String, dynamic> context) async {
+  Future<void> handleSyncFailure(
+    String operation,
+    dynamic error,
+    Map<String, dynamic> context,
+  ) async {
     try {
       debugPrint('🔧 Handling sync failure: $operation');
-      
+
       final errorKey = '$operation:${context.toString()}';
       final currentCount = _errorCounts[errorKey] ?? 0;
-      
+
       if (currentCount >= _maxRetryAttempts) {
         debugPrint('❌ Max retry attempts reached for: $operation');
         await _escalateError(operation, error, context);
@@ -97,17 +104,18 @@ class SyncEdgeCaseHandler {
 
       // Implement exponential backoff
       final delay = Duration(seconds: (currentCount + 1) * 2);
-      debugPrint('⏳ Retrying $operation in ${delay.inSeconds} seconds (attempt ${currentCount + 1})');
-      
+      debugPrint(
+        '⏳ Retrying $operation in ${delay.inSeconds} seconds (attempt ${currentCount + 1})',
+      );
+
       await Future.delayed(delay);
-      
+
       // Increment error count
       _errorCounts[errorKey] = currentCount + 1;
       _lastErrorTimes[errorKey] = DateTime.now();
-      
+
       // Retry the operation based on type
       await _retryOperation(operation, context);
-      
     } catch (e) {
       await _handleError('sync_failure_handler', e, context);
     }
@@ -117,13 +125,13 @@ class SyncEdgeCaseHandler {
   Future<void> handleNetworkIssues() async {
     try {
       debugPrint('🔧 Handling network connectivity issues');
-      
+
       // Implement offline queue for pending operations
       await _queuePendingOperations();
-      
+
       // Setup network recovery listener
       _setupNetworkRecoveryListener();
-      
+
       debugPrint('✅ Network issue handling setup complete');
     } catch (e) {
       debugPrint('❌ Error handling network issues: $e');
@@ -131,10 +139,13 @@ class SyncEdgeCaseHandler {
   }
 
   /// Handle Firestore permission errors
-  Future<void> handlePermissionErrors(String operation, Map<String, dynamic> context) async {
+  Future<void> handlePermissionErrors(
+    String operation,
+    Map<String, dynamic> context,
+  ) async {
     try {
       debugPrint('🔧 Handling permission errors for: $operation');
-      
+
       // Check if user has required permissions
       final hasPermissions = await _verifyUserPermissions(operation);
       if (!hasPermissions) {
@@ -145,23 +156,28 @@ class SyncEdgeCaseHandler {
 
       // Check if it's a temporary permission issue
       await _handleTemporaryPermissionIssue(operation, context);
-      
     } catch (e) {
       await _handleError('permission_handler', e, context);
     }
   }
 
   /// Handle Cloud Function timeout errors
-  Future<void> handleCloudFunctionTimeout(String functionName, Map<String, dynamic> parameters) async {
+  Future<void> handleCloudFunctionTimeout(
+    String functionName,
+    Map<String, dynamic> parameters,
+  ) async {
     try {
       debugPrint('🔧 Handling Cloud Function timeout: $functionName');
-      
+
       // Implement direct Firestore fallback
       await _executeDirectFirestoreFallback(functionName, parameters);
-      
+
       debugPrint('✅ Cloud Function timeout handled with fallback');
     } catch (e) {
-      await _handleError('cloud_function_timeout', e, {'function': functionName, 'params': parameters});
+      await _handleError('cloud_function_timeout', e, {
+        'function': functionName,
+        'params': parameters,
+      });
     }
   }
 
@@ -172,9 +188,12 @@ class SyncEdgeCaseHandler {
       final recentActivities = await _firebaseService.firestore
           .collection('activities')
           .where('type', isEqualTo: 'document_uploaded')
-          .where('timestamp', isGreaterThan: Timestamp.fromDate(
-            DateTime.now().subtract(const Duration(minutes: 5))
-          ))
+          .where(
+            'timestamp',
+            isGreaterThan: Timestamp.fromDate(
+              DateTime.now().subtract(const Duration(minutes: 5)),
+            ),
+          )
           .get();
 
       // If no recent upload activity, likely from console
@@ -195,7 +214,7 @@ class SyncEdgeCaseHandler {
     try {
       final fileName = filePath.split('/').last;
       final documentId = _duplicateService.generateDocumentId(filePath);
-      
+
       final metadata = {
         'id': documentId,
         'fileName': fileName,
@@ -212,7 +231,7 @@ class SyncEdgeCaseHandler {
       };
 
       await _firebaseService.firestore
-          .collection('document-metadata')
+          .collection('documents')
           .doc(documentId)
           .set(metadata);
 
@@ -253,7 +272,10 @@ class SyncEdgeCaseHandler {
   }
 
   /// Retry operation based on type
-  Future<void> _retryOperation(String operation, Map<String, dynamic> context) async {
+  Future<void> _retryOperation(
+    String operation,
+    Map<String, dynamic> context,
+  ) async {
     switch (operation) {
       case 'document_sync':
         await _retryDocumentSync(context);
@@ -295,7 +317,11 @@ class SyncEdgeCaseHandler {
   }
 
   /// Handle generic errors
-  Future<void> _handleError(String operation, dynamic error, Map<String, dynamic> context) async {
+  Future<void> _handleError(
+    String operation,
+    dynamic error,
+    Map<String, dynamic> context,
+  ) async {
     final syncError = SyncError(
       operation: operation,
       error: error.toString(),
@@ -304,43 +330,43 @@ class SyncEdgeCaseHandler {
     );
 
     _recentErrors.add(syncError);
-    
+
     // Keep only recent errors
     if (_recentErrors.length > _maxErrorHistory) {
       _recentErrors.removeAt(0);
     }
 
     debugPrint('❌ Sync error recorded: $operation - ${error.toString()}');
-    
+
     // Log to Firestore for monitoring
     try {
-      await _firebaseService.firestore
-          .collection('sync-errors')
-          .add({
-            'operation': operation,
-            'error': error.toString(),
-            'context': context,
-            'timestamp': FieldValue.serverTimestamp(),
-          });
+      await _firebaseService.firestore.collection('sync-errors').add({
+        'operation': operation,
+        'error': error.toString(),
+        'context': context,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
     } catch (e) {
       debugPrint('❌ Failed to log error to Firestore: $e');
     }
   }
 
   /// Escalate error when max retries reached
-  Future<void> _escalateError(String operation, dynamic error, Map<String, dynamic> context) async {
+  Future<void> _escalateError(
+    String operation,
+    dynamic error,
+    Map<String, dynamic> context,
+  ) async {
     debugPrint('🚨 Escalating error for: $operation');
-    
+
     // Log critical error
-    await _firebaseService.firestore
-        .collection('critical-errors')
-        .add({
-          'operation': operation,
-          'error': error.toString(),
-          'context': context,
-          'timestamp': FieldValue.serverTimestamp(),
-          'retryAttempts': _maxRetryAttempts,
-        });
+    await _firebaseService.firestore.collection('critical-errors').add({
+      'operation': operation,
+      'error': error.toString(),
+      'context': context,
+      'timestamp': FieldValue.serverTimestamp(),
+      'retryAttempts': _maxRetryAttempts,
+    });
   }
 
   /// Queue pending operations for offline handling
@@ -362,17 +388,26 @@ class SyncEdgeCaseHandler {
   }
 
   /// Notify permission issue
-  Future<void> _notifyPermissionIssue(String operation, Map<String, dynamic> context) async {
+  Future<void> _notifyPermissionIssue(
+    String operation,
+    Map<String, dynamic> context,
+  ) async {
     debugPrint('🚫 Permission issue notification: $operation');
   }
 
   /// Handle temporary permission issues
-  Future<void> _handleTemporaryPermissionIssue(String operation, Map<String, dynamic> context) async {
+  Future<void> _handleTemporaryPermissionIssue(
+    String operation,
+    Map<String, dynamic> context,
+  ) async {
     debugPrint('⏳ Handling temporary permission issue: $operation');
   }
 
   /// Execute direct Firestore fallback
-  Future<void> _executeDirectFirestoreFallback(String functionName, Map<String, dynamic> parameters) async {
+  Future<void> _executeDirectFirestoreFallback(
+    String functionName,
+    Map<String, dynamic> parameters,
+  ) async {
     debugPrint('🔄 Executing direct Firestore fallback for: $functionName');
   }
 
@@ -380,12 +415,24 @@ class SyncEdgeCaseHandler {
   String _getFileTypeFromPath(String filePath) {
     final extension = filePath.split('.').last.toLowerCase();
     switch (extension) {
-      case 'pdf': return 'pdf';
-      case 'jpg': case 'jpeg': case 'png': case 'gif': return 'image';
-      case 'doc': case 'docx': return 'document';
-      case 'xls': case 'xlsx': return 'spreadsheet';
-      case 'ppt': case 'pptx': return 'presentation';
-      default: return 'other';
+      case 'pdf':
+        return 'pdf';
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+        return 'image';
+      case 'doc':
+      case 'docx':
+        return 'document';
+      case 'xls':
+      case 'xlsx':
+        return 'spreadsheet';
+      case 'ppt':
+      case 'pptx':
+        return 'presentation';
+      default:
+        return 'other';
     }
   }
 
@@ -419,9 +466,13 @@ class SyncEdgeCaseHandler {
   }
 
   double _calculateRecentErrorRate() {
-    final recentErrors = _recentErrors.where((error) =>
-      DateTime.now().difference(error.timestamp) < const Duration(hours: 1)
-    ).length;
+    final recentErrors = _recentErrors
+        .where(
+          (error) =>
+              DateTime.now().difference(error.timestamp) <
+              const Duration(hours: 1),
+        )
+        .length;
     return recentErrors / 60.0; // Errors per minute in last hour
   }
 }

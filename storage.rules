@@ -1,18 +1,39 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null &&
+             exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+             get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
+             get(/databases/(default)/documents/users/$(request.auth.uid)).data.status == 'active';
+    }
+
+    // Helper function to check if user is active
+    function isActiveUser() {
+      return request.auth != null &&
+             exists(/databases/(default)/documents/users/$(request.auth.uid)) &&
+             get(/databases/(default)/documents/users/$(request.auth.uid)).data.status == 'active';
+    }
+
+    // Helper function to check if user has specific document permission
+    function hasDocumentPermission(permission) {
+      return isActiveUser() &&
+             permission in get(/databases/(default)/documents/users/$(request.auth.uid)).data.permissions.documents;
+    }
+
     // Default deny all
     match /{allPaths=**} {
       allow read, write: if false;
     }
 
-    // Documents storage with optimized validation (removed Firestore lookups to prevent ANR)
+    // Documents storage with enhanced permission-based validation
     match /documents/{allPaths=**} {
-      // Allow read for authenticated users
-      allow read: if request.auth != null;
+      // Allow read for users with view permission or admin
+      allow read: if hasDocumentPermission('view') || isAdmin();
 
-      // Allow create with validation (simplified to prevent ANR)
-      allow create: if request.auth != null
+      // Allow create with validation for users with upload permission
+      allow create: if hasDocumentPermission('upload')
                     && request.resource.size <= 15 * 1024 * 1024 // 15MB limit
                     && request.resource.contentType.matches(
                         // Document formats
@@ -22,43 +43,61 @@ service firebase.storage {
                         // Presentation formats
                         'application/vnd.openxmlformats-officedocument.presentationml.presentation|application/vnd.ms-powerpoint|' +
                         // Image formats
-                        'image/jpeg|image/png|image/gif'
+                        'image/jpeg|image/png|image/gif|image/webp|image/bmp|image/tiff'
                       )
                     && request.resource.metadata.uploadedBy == request.auth.uid;
 
-      // Allow update for document owner (admin check moved to client-side to prevent ANR)
-      allow update: if request.auth != null
-                    && resource.metadata.uploadedBy == request.auth.uid;
+      // Allow update for document owner with upload permission or admin
+      allow update: if (isActiveUser()
+                       && resource.metadata.uploadedBy == request.auth.uid
+                       && hasDocumentPermission('upload'))
+                    || isAdmin();
 
-      // ADMIN-ONLY DELETE RULES: Only admin users can delete files
-      allow delete: if request.auth != null
-                    && request.auth.token.admin == true;
+      // ADMIN-ONLY HARD DELETE: Only administrators can permanently delete files
+      // This enforces the admin-only file deletion policy preference
+      allow delete: if isAdmin();
     }
 
-    // User-specific documents folder (new structure)
+    // User-specific documents folder with enhanced permission control
     match /documents/{userId}/{fileName} {
-      // Allow read for authenticated users
-      allow read: if request.auth != null;
+      // Allow read for users with view permission or admin
+      allow read: if hasDocumentPermission('view') || isAdmin();
 
-      // Allow create/update for the file owner
-      allow create, update: if request.auth != null
-                            && request.auth.uid == userId;
+      // Allow create/update for the file owner with upload permission or admin
+      allow create, update: if (isActiveUser()
+                               && request.auth.uid == userId
+                               && hasDocumentPermission('upload'))
+                            || isAdmin();
 
-      // Allow delete ONLY for admin users
-      allow delete: if request.auth != null
-                    && request.auth.token.admin == true;
+      // ADMIN-ONLY HARD DELETE: Only administrators can permanently delete files
+      allow delete: if isAdmin();
     }
 
-    // Profile images storage
+    // Profile images storage with enhanced security
     match /profile_images/{userId}/{allPaths=**} {
-      // Allow read for authenticated users
-      allow read: if request.auth != null;
+      // Allow read for active users
+      allow read: if isActiveUser();
 
-      // Allow write for the user's own profile image
-      allow write: if request.auth != null
+      // Allow write for the user's own profile image (active users only)
+      allow write: if isActiveUser()
                    && request.auth.uid == userId
                    && request.resource.size <= 2 * 1024 * 1024 // 2MB limit
-                   && request.resource.contentType.matches('image/jpeg|image/png|image/gif');
+                   && request.resource.contentType.matches('image/jpeg|image/png|image/gif|image/webp');
+
+      // Allow admin to manage all profile images
+      allow read, write, delete: if isAdmin();
+    }
+
+    // Temporary upload storage for processing
+    match /temp/{userId}/{allPaths=**} {
+      // Allow read/write for the user's own temp files (active users only)
+      allow read, write: if isActiveUser() && request.auth.uid == userId;
+
+      // Allow admin full access to temp storage
+      allow read, write, delete: if isAdmin();
+
+      // Auto-cleanup: Allow delete for files older than 24 hours (handled by Cloud Functions)
+      allow delete: if isActiveUser() && request.auth.uid == userId;
     }
   }
 }

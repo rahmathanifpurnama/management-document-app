@@ -32,8 +32,7 @@ class DocumentService {
       final querySnapshot = await networkService.executeFirestoreOperation(
         () async {
           Query query = _firebaseService.firestore
-              .collection('document-metadata')
-              .where('isActive', isEqualTo: true)
+              .collection('documents')
               .orderBy('uploadedAt', descending: true);
 
           if (startAfter != null) {
@@ -455,7 +454,6 @@ class DocumentService {
       final querySnapshot = await networkService.executeFirestoreOperation(
         () async {
           Query query = _firebaseService.documentsCollection
-              .where('isActive', isEqualTo: true) // Add isActive filter
               .where('category', isEqualTo: categoryId)
               .orderBy('uploadedAt', descending: true);
 
@@ -533,10 +531,6 @@ class DocumentService {
       final querySnapshot = await networkService.executeFirestoreOperation(
         () async {
           Query searchQuery = _firebaseService.documentsCollection
-              .where(
-                'isActive',
-                isEqualTo: true,
-              ) // Only search active documents
               .where('fileName', isGreaterThanOrEqualTo: query)
               .where('fileName', isLessThanOrEqualTo: '$query\uf8ff')
               .orderBy('fileName')
@@ -582,9 +576,10 @@ class DocumentService {
 
       final querySnapshot = await networkService.executeFirestoreOperation(
         () async {
-          Query query = _firebaseService.documentsCollection
-              .where('isActive', isEqualTo: true) // Only get active documents
-              .orderBy('uploadedAt', descending: true);
+          Query query = _firebaseService.documentsCollection.orderBy(
+            'uploadedAt',
+            descending: true,
+          );
 
           if (startAfter != null) {
             query = query.startAfterDocument(startAfter);

@@ -148,12 +148,7 @@ exports.onStorageFileDeleted = functions.storage.object().onDelete(async (object
         }
         const batch = admin.firestore().batch();
         querySnapshot.docs.forEach((doc) => {
-            batch.update(doc.ref, {
-                isActive: false,
-                deletedAt: admin.firestore.FieldValue.serverTimestamp(),
-                deletedBy: "system",
-                source: "storage_deletion_trigger",
-            });
+            batch.delete(doc.ref);
         });
         await batch.commit();
         console.log(`✅ Marked ${querySnapshot.docs.length} documents as inactive`);
@@ -251,12 +246,8 @@ exports.onAuthUserDeleted = functions.auth.user().onDelete(async (user) => {
         const userRef = admin.firestore().collection(USERS_COLLECTION).doc(user.uid);
         const userDoc = await userRef.get();
         if (userDoc.exists) {
-            await userRef.update({
-                isActive: false,
-                deletedAt: admin.firestore.FieldValue.serverTimestamp(),
-                source: "auth_deletion_trigger",
-            });
-            console.log("✅ Marked user as inactive:", user.uid);
+            await userRef.delete();
+            console.log("✅ Deleted user document:", user.uid);
         }
         else {
             console.log("⚠️ User document not found:", user.uid);

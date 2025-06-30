@@ -83,7 +83,6 @@ const syncStorageWithFirestore = functions.https.onCall(
               uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
               category: metadata.metadata?.categoryId || "uncategorized",
               status: "approved", // Default for synced files
-              isActive: true,
               syncedAt: admin.firestore.FieldValue.serverTimestamp(),
             };
 
@@ -216,13 +215,8 @@ const manualCleanupOrphanedMetadata = functions.https.onCall(
           const [exists] = await file.exists();
 
           if (!exists) {
-            // Mark document as orphaned
-            batch.update(doc.ref, {
-              isActive: false,
-              orphanedAt: admin.firestore.FieldValue.serverTimestamp(),
-              orphanedBy: context.auth.uid,
-              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
+            // Delete orphaned document
+            batch.delete(doc.ref);
 
             batchCount++;
             processed++;
@@ -530,7 +524,6 @@ async function updateUserStatistics() {
   const usersSnapshot = await admin
     .firestore()
     .collection("users")
-    .where("isActive", "==", true)
     .get();
 
   const batch = admin.firestore().batch();
@@ -543,7 +536,6 @@ async function updateUserStatistics() {
       .firestore()
       .collection("documents")
       .where("uploadedBy", "==", userId)
-      .where("isActive", "==", true)
       .get();
 
     batch.update(userDoc.ref, {
@@ -652,19 +644,17 @@ async function calculateFreshStatistics(): Promise<any> {
     fileTypeStatsResult,
     storageSizeResult
   ] = await Promise.all([
-    // Total active files - simple single-field query
+    // Total files - simple count query
     admin
       .firestore()
       .collection("documents")
-      .where("isActive", "==", true)
       .count()
       .get(),
 
-    // Active users - simple single-field query
+    // Total users - simple count query
     admin
       .firestore()
       .collection("users")
-      .where("isActive", "==", true)
       .count()
       .get(),
 
@@ -692,7 +682,6 @@ async function calculateFreshStatistics(): Promise<any> {
     const recentFilesSnapshot = await admin
       .firestore()
       .collection("documents")
-      .where("isActive", "==", true)
       .where("uploadedAt", ">=", sevenDaysAgo)
       .limit(1000) // Limit to prevent excessive reads
       .get();
@@ -738,7 +727,6 @@ async function getFileTypeStatistics(): Promise<Record<string, number>> {
     const recentFilesSnapshot = await admin
       .firestore()
       .collection("documents")
-      .where("isActive", "==", true)
       .orderBy("uploadedAt", "desc")
       .limit(10000) // Sample recent files for type distribution
       .get();
@@ -771,7 +759,6 @@ async function getOptimizedStorageSize(): Promise<number> {
     const sampleSnapshot = await admin
       .firestore()
       .collection("documents")
-      .where("isActive", "==", true)
       .limit(1000)
       .get();
 
@@ -785,7 +772,6 @@ async function getOptimizedStorageSize(): Promise<number> {
     const totalFilesSnapshot = await admin
       .firestore()
       .collection("documents")
-      .where("isActive", "==", true)
       .count()
       .get();
 
@@ -873,8 +859,7 @@ export const getPaginatedFileStats = functions.https.onCall(
 
       let query = admin
         .firestore()
-        .collection("documents")
-        .where("isActive", "==", true);
+        .collection("documents");
 
       // Add filters
       if (category) {
@@ -922,8 +907,7 @@ export const getPaginatedFileStats = functions.https.onCall(
       // Get total count for pagination info
       let countQuery = admin
         .firestore()
-        .collection("documents")
-        .where("isActive", "==", true);
+        .collection("documents");
 
       if (category) {
         countQuery = countQuery.where("category", "==", category);
@@ -980,14 +964,13 @@ export const checkDataIntegrity = functions.https.onCall(
 
       const bucket = admin.storage().bucket();
 
-      // Get all active documents from Firestore
+      // Get all documents from Firestore
       const firestoreSnapshot = await admin
         .firestore()
         .collection("documents")
-        .where("isActive", "==", true)
         .get();
 
-      console.log(`📊 Found ${firestoreSnapshot.docs.length} active documents in Firestore`);
+      console.log(`📊 Found ${firestoreSnapshot.docs.length} documents in Firestore`);
 
       // Get all files from Storage
       const [storageFiles] = await bucket.getFiles();
@@ -1150,7 +1133,6 @@ async function createFirestoreRecordForStorageFile(
     downloadUrl: downloadUrl,
     category: extractCategoryFromPath(file.path),
     status: 'active',
-    isActive: true,
     permissions: [adminUserId],
     metadata: {
       description: 'Auto-synced from Storage',
@@ -1321,7 +1303,6 @@ const monitorSyncConsistency = functions.https.onCall(
       const documentsSnapshot = await admin
         .firestore()
         .collection("documents")
-        .where("isActive", "==", true)
         .orderBy("uploadedAt", "desc")
         .limit(1000)
         .get();

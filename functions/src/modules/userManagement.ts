@@ -116,7 +116,6 @@ const createUser = functions.https.onCall(
         email,
         role,
         status: "active",
-        isActive: true,
         createdBy: context.auth.uid,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -408,7 +407,6 @@ const bulkUserOperations = functions.https.onCall(
             switch (operation) {
             case "activate":
               batch.update(userRef, {
-                isActive: true,
                 status: "active",
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedBy: context.auth.uid,
@@ -419,7 +417,6 @@ const bulkUserOperations = functions.https.onCall(
 
             case "deactivate":
               batch.update(userRef, {
-                isActive: false,
                 status: "inactive",
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedBy: context.auth.uid,
@@ -429,15 +426,10 @@ const bulkUserOperations = functions.https.onCall(
               break;
 
             case "delete":
-              batch.update(userRef, {
-                isActive: false,
-                status: "deleted",
-                deletedBy: context.auth.uid,
-                deletedAt: admin.firestore.FieldValue.serverTimestamp(),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-              });
-              // Disable in Firebase Auth
-              await admin.auth().updateUser(userId, { disabled: true });
+              // Hard delete: Remove from Firestore and Firebase Auth
+              batch.delete(userRef);
+              // Delete from Firebase Auth
+              await admin.auth().deleteUser(userId);
               break;
             }
 
@@ -582,8 +574,7 @@ const autoSyncFirebaseAuthUsers = functions.https.onCall(async (data, context) =
           fullName: authUser.displayName || authUser.email?.split('@')[0] || 'Unknown User',
           email: authUser.email || '',
           role: "user", // Default role
-          status: "active",
-          isActive: !authUser.disabled,
+          status: authUser.disabled ? "inactive" : "active",
           createdBy: context.auth.uid,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),

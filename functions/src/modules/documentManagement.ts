@@ -40,7 +40,7 @@ const approveDocument = functions.https.onCall(async (data: any, context) => {
     // Update document
     await admin
       .firestore()
-      .collection("document-metadata")
+      .collection("documents")
       .doc(documentId)
       .update({
         approvedBy: context.auth.uid,
@@ -112,7 +112,7 @@ const rejectDocument = functions.https.onCall(async (data: any, context) => {
     // Update document
     await admin
       .firestore()
-      .collection("document-metadata")
+      .collection("documents")
       .doc(documentId)
       .update({
         rejectedBy: context.auth.uid,
@@ -194,7 +194,7 @@ const bulkDocumentOperations = functions.https.onCall(async (data: any, context)
 
     for (const documentId of documentIds) {
       try {
-        const docRef = admin.firestore().collection("document-metadata").doc(documentId);
+        const docRef = admin.firestore().collection("documents").doc(documentId);
         
         switch (operation) {
         case "approve":
@@ -456,7 +456,7 @@ const deleteDocument = functions.https.onCall(async (data: any, context) => {
     console.log(`✅ Admin permission verified for user: ${context.auth.uid}`);
 
     // Get document metadata from Firestore
-    const docRef = admin.firestore().collection("document-metadata").doc(documentId);
+    const docRef = admin.firestore().collection("documents").doc(documentId);
     const docSnapshot = await docRef.get();
 
     if (!docSnapshot.exists) {

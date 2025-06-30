@@ -5,109 +5,163 @@ service cloud.firestore {
     function isAdmin() {
       return request.auth != null &&
              exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active';
     }
 
-    // Helper function to check if user is authenticated
+    // Helper function to check if user is authenticated and active
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Users collection with optimized pagination
-    match /users/{userId} {
-      // Allow read/write for own user document
-      allow read, write: if isAuthenticated()
-        && request.auth.uid == userId;
+    // Helper function to check if user is active
+    function isActiveUser() {
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'active';
+    }
 
-      // Allow admin to read all users (remove pagination limit restriction)
+    // Helper function to check if user has specific document permission
+    function hasDocumentPermission(permission) {
+      return isActiveUser() &&
+             permission in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions.documents;
+    }
+
+    // Helper function to check if user has specific system permission
+    function hasSystemPermission(permission) {
+      return isActiveUser() &&
+             permission in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions.system;
+    }
+
+    // Helper function to validate user data structure
+    function isValidUserData(data) {
+      return data.keys().hasAll(['id', 'fullName', 'email', 'role', 'status', 'permissions']) &&
+             data.role in ['admin', 'user'] &&
+             data.status in ['active', 'inactive'] &&
+             data.permissions.keys().hasAll(['documents', 'categories', 'system']) &&
+             data.permissions.documents is list &&
+             data.permissions.categories is list &&
+             data.permissions.system is list;
+    }
+
+    // Users collection with enhanced security and structure validation
+    match /users/{userId} {
+      // Allow read for own user document (active users only)
+      allow read: if isActiveUser() && request.auth.uid == userId;
+
+      // Allow admin to read all users (unlimited pagination)
       allow read: if isAdmin();
 
-      // Allow admin to write user data
-      allow write: if isAdmin();
+      // Allow users to update their own profile (limited fields)
+      allow update: if isActiveUser()
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fullName', 'profileImageUrl', 'lastLogin', 'updatedAt']);
 
-      // Allow reading users collection for authenticated users
-      allow list: if isAuthenticated();
+      // Allow admin to create/update/delete user data with structure validation
+      allow create: if isAdmin()
+        && isValidUserData(request.resource.data)
+        && request.resource.data.id == userId;
+
+      allow update: if isAdmin()
+        && isValidUserData(request.resource.data)
+        && request.resource.data.id == userId;
+
+      // ADMIN-ONLY HARD DELETE: Only admin can permanently delete users
+      allow delete: if isAdmin();
+
+      // Allow reading users collection for authenticated active users
+      allow list: if isActiveUser();
+
+      // Allow admin unlimited user queries
+      allow list: if isAdmin();
     }
     
-    // Documents collection with enhanced role-based access and unlimited queries
-    match /document-metadata/{documentId} {
-      // Allow single document read for authenticated users
-      allow get: if isAuthenticated();
+    // Documents collection with enhanced permission-based access
+    match /documents/{documentId} {
+      // Allow single document read for users with view permission
+      allow get: if hasDocumentPermission('view') || isAdmin();
 
       // ENHANCED: Allow unlimited queries for admin users
       allow list: if isAdmin();
 
-      // Allow collection queries for regular users with reasonable limits
-      allow list: if isAuthenticated()
+      // Allow collection queries for users with view permission (with limits)
+      allow list: if hasDocumentPermission('view')
         && !isAdmin()
         && request.query.limit <= 100;
 
-      // Allow write for document owner or admin with unified ID validation
-      allow write: if isAuthenticated()
-        && (request.auth.uid == resource.data.uploadedBy || isAdmin())
+      // Allow update for document owner with edit permission or admin
+      allow update: if (isActiveUser()
+        && request.auth.uid == resource.data.uploadedBy
+        && hasDocumentPermission('upload'))
+        || isAdmin()
         && (
-          // If updating, ensure ID consistency is maintained
+          // Ensure ID consistency is maintained
           !('id' in request.resource.data) ||
           request.resource.data.id == documentId
         );
 
-      // Allow create for authenticated users with enhanced validation for unified ID system
-      allow create: if isAuthenticated()
+      // Allow create for users with upload permission
+      allow create: if hasDocumentPermission('upload')
         && request.auth.uid == request.resource.data.uploadedBy
-        && request.resource.data.keys().hasAll(['id', 'fileName', 'uploadedAt', 'isActive'])
+        && request.resource.data.keys().hasAll(['id', 'fileName', 'uploadedAt'])
         && request.resource.data.id == documentId  // Ensure unified ID consistency
-        && request.resource.data.isActive == true
-        && request.resource.data.status in ['active', 'pending']
+        && request.resource.data.status in ['active', 'pending', 'approved', 'rejected']
         && request.resource.data.fileName is string
         && request.resource.data.fileName.size() > 0
         && request.resource.data.fileName.size() <= 255;
 
-      // ENHANCED: Unlimited batch operations for admin users
-      allow list: if isAdmin()
-        && 'isActive' in request.query.where
-        && request.query.where.isActive == true;
+      // Document approval - only users with approve permission or admin
+      allow update: if (hasDocumentPermission('approve') || isAdmin())
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'approvedBy', 'approvedAt', 'rejectionReason', 'updatedAt']);
 
-      // Regular users batch operations with limits
-      allow list: if isAuthenticated()
-        && !isAdmin()
-        && request.query.limit <= 50
-        && 'isActive' in request.query.where
-        && request.query.where.isActive == true;
-
-      // ADMIN-ONLY DELETE POLICY: Only administrators can delete documents
-      // This enforces the admin-only file deletion policy preference
+      // ADMIN-ONLY HARD DELETE: Only administrators can permanently delete documents
+      // This enforces the admin-only hard delete policy preference
       allow delete: if isAdmin();
     }
     
-    // Categories collection with unlimited access
+    // Categories collection with enhanced access control
     match /categories/{categoryId} {
-      // Allow single document read for authenticated users
-      allow get: if isAuthenticated();
+      // Allow single document read for active users
+      allow get: if isActiveUser();
 
-      // ENHANCED: Allow unlimited queries for categories (small dataset)
-      allow list: if isAuthenticated();
+      // Allow unlimited queries for categories (small dataset) for active users
+      allow list: if isActiveUser();
 
-      // Only admin can create/update categories
-      allow create, update: if isAdmin();
+      // Only admin can create/update categories with validation
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasAll(['id', 'name', 'description'])
+        && request.resource.data.id == categoryId
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 100;
 
-      // ADMIN HARD DELETE: Only admin can permanently delete categories
+      allow update: if isAdmin()
+        && request.resource.data.id == categoryId;
+
+      // ADMIN-ONLY HARD DELETE: Only admin can permanently delete categories
       allow delete: if isAdmin();
     }
 
-    // Activities collection with time-based cleanup support
+    // Activities collection with enhanced access control
     match /activities/{activityId} {
-      // Allow single document read for authenticated users
-      allow get: if isAuthenticated();
+      // Allow single document read for active users
+      allow get: if isActiveUser();
 
-      // Allow collection queries for recent activities only with pagination
-      allow list: if isAuthenticated()
-        && request.query.limit <= 20
-        && request.query.orderBy == 'timestamp';
+      // Allow collection queries for recent activities with pagination
+      allow list: if isActiveUser()
+        && request.query.limit <= 50;
 
-      // Allow create for authenticated users
-      allow create: if isAuthenticated();
+      // Allow unlimited activity queries for admin
+      allow list: if isAdmin();
 
-      // Allow admin to delete old activities (for cleanup)
+      // Allow create for active users with validation
+      allow create: if isActiveUser()
+        && request.resource.data.keys().hasAll(['type', 'userId', 'timestamp'])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.type is string
+        && request.resource.data.type.size() > 0;
+
+      // ADMIN-ONLY HARD DELETE: Only admin can delete activities (for cleanup)
       allow delete: if isAdmin();
     }
 
@@ -116,14 +170,14 @@ service cloud.firestore {
 
     // Upload statistics collection for real-time file count tracking (Backend)
     match /upload-statistics/{statId} {
-      // Allow read for authenticated users
-      allow read: if isAuthenticated();
+      // Allow read for active users
+      allow read: if isActiveUser();
 
-      // Allow write for authenticated users (for real-time updates)
-      allow write: if isAuthenticated();
+      // Allow write for active users (for real-time updates)
+      allow write: if isActiveUser();
 
       // Allow admin full access
-      allow read, write: if isAdmin();
+      allow read, write, delete: if isAdmin();
     }
 
     // File validation logs collection for security monitoring (Backend)
@@ -131,53 +185,53 @@ service cloud.firestore {
       // Allow read for admin only
       allow read: if isAdmin();
 
-      // Allow create for authenticated users (for logging validation results)
-      allow create: if isAuthenticated();
+      // Allow create for active users (for logging validation results)
+      allow create: if isActiveUser();
 
-      // Allow admin to delete old logs
+      // ADMIN-ONLY HARD DELETE: Only admin can delete old logs
       allow delete: if isAdmin();
     }
 
     // Duplicate file detection cache (Backend)
     match /duplicate-cache/{cacheId} {
-      // Allow read/write for authenticated users (for duplicate detection)
-      allow read, write: if isAuthenticated();
+      // Allow read/write for active users (for duplicate detection)
+      allow read, write: if isActiveUser();
 
-      // Allow admin full access
+      // Allow admin full access including hard delete
       allow read, write, delete: if isAdmin();
     }
 
-    // Real-time sync system collections
+    // System collections with enhanced security
     match /system-logs/{logId} {
       // Allow read for admin only
       allow read: if isAdmin();
 
-      // Allow create for authenticated users (for system logging)
-      allow create: if isAuthenticated();
+      // Allow create for active users (for system logging)
+      allow create: if isActiveUser();
 
-      // Allow admin to delete old logs
+      // ADMIN-ONLY HARD DELETE: Only admin can delete old logs
       allow delete: if isAdmin();
     }
 
     match /statistics-cache/{cacheId} {
-      // Allow read for authenticated users
-      allow read: if isAuthenticated();
+      // Allow read for active users
+      allow read: if isActiveUser();
 
-      // Allow write/delete for authenticated users (for cache management)
-      allow write, delete: if isAuthenticated();
+      // Allow write for active users (for cache management)
+      allow write: if isActiveUser();
 
-      // Allow admin full access
-      allow read, write, delete: if isAdmin();
+      // ADMIN-ONLY HARD DELETE: Only admin can delete cache entries
+      allow delete: if isAdmin();
     }
 
     match /sync-operations/{syncId} {
-      // Allow read for authenticated users
-      allow read: if isAuthenticated();
+      // Allow read for active users
+      allow read: if isActiveUser();
 
-      // Allow write for authenticated users (for sync operations)
-      allow write: if isAuthenticated();
+      // Allow write for active users (for sync operations)
+      allow write: if isActiveUser();
 
-      // Allow admin full access
+      // Allow admin full access including hard delete
       allow read, write, delete: if isAdmin();
     }
 
@@ -185,10 +239,10 @@ service cloud.firestore {
       // Allow read for admin only
       allow read: if isAdmin();
 
-      // Allow create for authenticated users (for error logging)
-      allow create: if isAuthenticated();
+      // Allow create for active users (for error logging)
+      allow create: if isActiveUser();
 
-      // Allow admin to delete old errors
+      // ADMIN-ONLY HARD DELETE: Only admin can delete old errors
       allow delete: if isAdmin();
     }
 
@@ -196,18 +250,18 @@ service cloud.firestore {
       // Allow read for admin only
       allow read: if isAdmin();
 
-      // Allow create for authenticated users (for critical error logging)
-      allow create: if isAuthenticated();
+      // Allow create for active users (for critical error logging)
+      allow create: if isActiveUser();
 
-      // Allow admin to delete old errors
+      // ADMIN-ONLY HARD DELETE: Only admin can delete old errors
       allow delete: if isAdmin();
     }
 
     match /_health_check/{checkId} {
-      // Allow read/write for authenticated users (for health monitoring)
-      allow read, write: if isAuthenticated();
+      // Allow read/write for active users (for health monitoring)
+      allow read, write: if isActiveUser();
 
-      // Allow admin full access
+      // Allow admin full access including hard delete
       allow read, write, delete: if isAdmin();
     }
   }
