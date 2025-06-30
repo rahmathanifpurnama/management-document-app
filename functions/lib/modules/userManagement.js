@@ -243,14 +243,8 @@ const deleteUser = functions.https.onCall(async (data, context) => {
             throw new functions.https.HttpsError("not-found", "User not found");
         }
         const userData = userDoc.data();
-        // Soft delete in Firestore
-        await admin.firestore().collection("users").doc(userId).update({
-            isActive: false,
-            status: "deleted",
-            deletedBy: context.auth.uid,
-            deletedAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        // ADMIN HARD DELETE: Permanently delete user document for admin operations
+        await admin.firestore().collection("users").doc(userId).delete();
         // Disable user in Firebase Auth
         await admin.auth().updateUser(userId, {
             disabled: true,

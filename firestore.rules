@@ -87,8 +87,11 @@ service cloud.firestore {
       // ENHANCED: Allow unlimited queries for categories (small dataset)
       allow list: if isAuthenticated();
 
-      // Only admin can write categories
-      allow write: if isAdmin();
+      // Only admin can create/update categories
+      allow create, update: if isAdmin();
+
+      // ADMIN HARD DELETE: Only admin can permanently delete categories
+      allow delete: if isAdmin();
     }
 
     // Activities collection with time-based cleanup support

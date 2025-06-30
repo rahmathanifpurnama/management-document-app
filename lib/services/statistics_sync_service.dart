@@ -60,14 +60,12 @@ class StatisticsSyncService {
       // Listen to users collection changes
       _usersListener = _firebaseService.firestore
           .collection('users')
-          .where('isActive', isEqualTo: true)
           .snapshots()
           .listen(_onUsersCollectionChanged, onError: _onUsersListenerError);
 
       // Listen to categories collection changes
       _categoriesListener = _firebaseService.firestore
           .collection('categories')
-          .where('isActive', isEqualTo: true)
           .snapshots()
           .listen(
             _onCategoriesCollectionChanged,

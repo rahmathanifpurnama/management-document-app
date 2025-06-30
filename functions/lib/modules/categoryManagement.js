@@ -215,13 +215,8 @@ const deleteCategory = functions.https.onCall(async (data, context) => {
             });
             await batch.commit();
         }
-        // Soft delete category
-        await categoryRef.update({
-            isActive: false,
-            deletedBy,
-            deletedAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        // ADMIN HARD DELETE: Permanently delete category for admin users
+        await categoryRef.delete();
         // Log activity
         await admin
             .firestore()

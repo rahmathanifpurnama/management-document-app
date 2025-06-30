@@ -196,7 +196,6 @@ const manualCleanupOrphanedMetadata = functions.https.onCall(
       const documentsSnapshot = await admin
         .firestore()
         .collection("document-metadata")
-        .where("isActive", "==", true)
         .get();
 
       const batchSize = 500;
@@ -499,7 +498,6 @@ async function updateCategoryDocumentCounts() {
   const categoriesSnapshot = await admin
     .firestore()
     .collection("categories")
-    .where("isActive", "==", true)
     .get();
 
   const batch = admin.firestore().batch();
@@ -512,7 +510,6 @@ async function updateCategoryDocumentCounts() {
       .firestore()
       .collection("document-metadata")
       .where("category", "==", categoryId)
-      .where("isActive", "==", true)
       .get();
 
     batch.update(categoryDoc.ref, {

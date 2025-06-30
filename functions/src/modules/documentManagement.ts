@@ -213,12 +213,8 @@ const bulkDocumentOperations = functions.https.onCall(async (data: any, context)
           });
           break;
         case "delete":
-          batch.update(docRef, {
-            isActive: false,
-            deletedBy: context.auth.uid,
-            deletedAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
+          // ADMIN HARD DELETE: Permanently delete document for admin operations
+          batch.delete(docRef);
           break;
         }
 

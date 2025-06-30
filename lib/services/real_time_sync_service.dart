@@ -60,7 +60,6 @@ class RealTimeSyncService {
     try {
       _documentsSubscription = _firebaseService.firestore
           .collection('document-metadata')
-          .where('isActive', isEqualTo: true)
           .orderBy('uploadedAt', descending: true)
           .snapshots()
           .listen(
@@ -86,7 +85,6 @@ class RealTimeSyncService {
     try {
       _usersSubscription = _firebaseService.firestore
           .collection('users')
-          .where('isActive', isEqualTo: true)
           .snapshots()
           .listen(
             (snapshot) => _handleUserChanges(snapshot),
