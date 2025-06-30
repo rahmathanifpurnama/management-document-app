@@ -30,10 +30,40 @@ class UserModel {
     try {
       Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
+      // Safely extract and validate fullName
+      String fullName = data['fullName']?.toString() ?? '';
+      String email = data['email']?.toString() ?? '';
+
+      // Ensure fullName is never empty - use fallbacks
+      if (fullName.trim().isEmpty) {
+        if (email.isNotEmpty) {
+          // Extract name from email (part before @)
+          fullName = email
+              .split('@')[0]
+              .replaceAll('.', ' ')
+              .replaceAll('_', ' ');
+          // Capitalize each word
+          fullName = fullName
+              .split(' ')
+              .map(
+                (word) => word.isNotEmpty
+                    ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
+                    : '',
+              )
+              .where((word) => word.isNotEmpty)
+              .join(' ');
+        }
+
+        // Final fallback if email parsing fails
+        if (fullName.trim().isEmpty) {
+          fullName = 'Unknown User';
+        }
+      }
+
       return UserModel(
         id: doc.id,
-        fullName: data['fullName']?.toString() ?? '',
-        email: data['email']?.toString() ?? '',
+        fullName: fullName,
+        email: email,
         role: data['role']?.toString() ?? 'user',
         status: data['status']?.toString() ?? 'active',
         createdBy: data['createdBy']?.toString(),
@@ -82,10 +112,40 @@ class UserModel {
   // Factory constructor from Map
   factory UserModel.fromMap(Map<String, dynamic> map) {
     try {
+      // Safely extract and validate fullName
+      String fullName = map['fullName']?.toString() ?? '';
+      String email = map['email']?.toString() ?? '';
+
+      // Ensure fullName is never empty - use fallbacks
+      if (fullName.trim().isEmpty) {
+        if (email.isNotEmpty) {
+          // Extract name from email (part before @)
+          fullName = email
+              .split('@')[0]
+              .replaceAll('.', ' ')
+              .replaceAll('_', ' ');
+          // Capitalize each word
+          fullName = fullName
+              .split(' ')
+              .map(
+                (word) => word.isNotEmpty
+                    ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
+                    : '',
+              )
+              .where((word) => word.isNotEmpty)
+              .join(' ');
+        }
+
+        // Final fallback if email parsing fails
+        if (fullName.trim().isEmpty) {
+          fullName = 'Unknown User';
+        }
+      }
+
       return UserModel(
         id: map['id']?.toString() ?? '',
-        fullName: map['fullName']?.toString() ?? '',
-        email: map['email']?.toString() ?? '',
+        fullName: fullName,
+        email: email,
         role: map['role']?.toString() ?? 'user',
         status: map['status']?.toString() ?? 'active',
         createdBy: map['createdBy']?.toString(),

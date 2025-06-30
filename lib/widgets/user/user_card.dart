@@ -46,7 +46,7 @@ class UserCard extends StatelessWidget {
                         : null,
                     child: user.profileImage == null
                         ? Text(
-                            user.fullName.substring(0, 1).toUpperCase(),
+                            _getInitials(user.fullName),
                             style: const TextStyle(
                               color: AppColors.primary,
                               fontWeight: FontWeight.bold,
@@ -315,6 +315,31 @@ class UserCard extends StatelessWidget {
       return '${difference.inMinutes} minute${difference.inMinutes > 1 ? 's' : ''} ago';
     } else {
       return 'Just now';
+    }
+  }
+
+  /// Safely get initials from fullName, handling empty/null values
+  String _getInitials(String fullName) {
+    if (fullName.trim().isEmpty) {
+      return '?'; // Fallback for empty names
+    }
+
+    final trimmedName = fullName.trim();
+    final words = trimmedName
+        .split(' ')
+        .where((word) => word.isNotEmpty)
+        .toList();
+
+    if (words.isEmpty) {
+      return '?'; // Fallback if no valid words
+    }
+
+    if (words.length == 1) {
+      // Single word - take first character
+      return words[0][0].toUpperCase();
+    } else {
+      // Multiple words - take first character of first and last word
+      return '${words.first[0]}${words.last[0]}'.toUpperCase();
     }
   }
 }

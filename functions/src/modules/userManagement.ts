@@ -569,9 +569,28 @@ const autoSyncFirebaseAuthUsers = functions.https.onCall(async (data, context) =
     // Sync each missing user
     for (const authUser of usersToSync) {
       try {
+        // Generate a safe fullName with proper fallbacks
+        let fullName = authUser.displayName || '';
+
+        // If displayName is empty, extract from email
+        if (!fullName.trim() && authUser.email) {
+          const emailPart = authUser.email.split('@')[0];
+          fullName = emailPart
+            .replace(/[._]/g, ' ')
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .filter(word => word.length > 0)
+            .join(' ');
+        }
+
+        // Final fallback if all else fails
+        if (!fullName.trim()) {
+          fullName = 'Unknown User';
+        }
+
         const userData = {
           id: authUser.uid,
-          fullName: authUser.displayName || authUser.email?.split('@')[0] || 'Unknown User',
+          fullName: fullName,
           email: authUser.email || '',
           role: "user", // Default role
           status: authUser.disabled ? "inactive" : "active",
