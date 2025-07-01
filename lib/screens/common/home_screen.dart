@@ -25,9 +25,11 @@ import '../../services/bulk_operations_service.dart';
 import '../../core/services/greeting_service.dart';
 import '../../services/optimized_statistics_service.dart';
 import '../../services/real_time_sync_initializer.dart';
+import '../../services/statistics_notification_service.dart';
 import '../../core/utils/circuit_breaker.dart';
 import '../../core/utils/empty_storage_state_manager.dart';
 import '../../widgets/statistics/real_time_stats_widget.dart';
+import '../../main.dart' show routeObserver;
 part 'components/home_greeting_section.dart';
 part 'components/home_search_section.dart';
 part 'components/home_file_list_section.dart';
@@ -39,7 +41,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends State<HomeScreen>
+    with WidgetsBindingObserver, RouteAware {
   bool _dataLoaded = false;
   final TextEditingController _searchController = TextEditingController();
   final ShareService _shareService = ShareService();
@@ -74,8 +77,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Subscribe to route changes
+    final route = ModalRoute.of(context);
+    if (route is PageRoute) {
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    routeObserver.unsubscribe(this);
     _searchController.dispose();
     _searchTimer?.cancel();
     _refreshTimer?.cancel();
@@ -95,6 +109,43 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
       // Refresh other providers
       UIRefreshService.refreshAllProviders(context);
+    }
+  }
+
+  // RouteAware methods for detecting when user returns to home screen
+  @override
+  void didPopNext() {
+    // Called when a route has been popped off, and the current route shows up
+    // This means user came back to home screen from another screen
+    debugPrint('🔄 Home screen became visible - refreshing statistics');
+    _refreshStatisticsOnReturn();
+  }
+
+  @override
+  void didPushNext() {
+    // Called when the current route has been pushed to a new route
+    // User navigated away from home screen
+    debugPrint('📱 User navigated away from home screen');
+  }
+
+  /// Refresh statistics when user returns to home screen
+  void _refreshStatisticsOnReturn() {
+    if (!mounted) return;
+
+    try {
+      // Refresh statistics service
+      final statisticsService = OptimizedStatisticsService.instance;
+      statisticsService.invalidateCache(reason: 'Returned to home screen');
+
+      // Trigger statistics update notification
+      final notificationService = StatisticsNotificationService.instance;
+      notificationService.requestStatisticsRefresh(
+        reason: 'User returned to home screen',
+      );
+
+      debugPrint('✅ Statistics refreshed on home screen return');
+    } catch (e) {
+      debugPrint('❌ Error refreshing statistics on return: $e');
     }
   }
 
@@ -149,6 +200,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // Refresh statistics as part of the main RefreshIndicator
       final statisticsService = OptimizedStatisticsService.instance;
       await statisticsService.invalidateCache(reason: 'Pull to refresh');
+
+      // Force refresh real-time statistics widget if it exists
+      if (mounted) {
+        // Trigger statistics update through notification service
+        final notificationService = StatisticsNotificationService.instance;
+        notificationService.requestStatisticsRefresh(
+          reason: 'Pull-to-refresh from home screen',
+        );
+      }
 
       // Generate new greeting on refresh
       _generateNewGreeting();

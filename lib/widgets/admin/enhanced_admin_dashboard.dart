@@ -6,6 +6,8 @@ import '../../providers/auth_provider.dart';
 import '../../providers/document_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../services/user_sync_service.dart';
+import '../../services/optimized_statistics_service.dart';
+import '../../services/statistics_notification_service.dart';
 import '../../core/constants/app_colors.dart';
 
 /// Enhanced Admin Dashboard with unlimited query capabilities
@@ -77,6 +79,32 @@ class _EnhancedAdminDashboardState extends State<EnhancedAdminDashboard> {
     }
   }
 
+  /// Handle pull-to-refresh for statistics update
+  Future<void> _handlePullToRefresh() async {
+    // Force refresh by clearing cache
+    _lastStatisticsLoad = null;
+    _statistics.clear();
+
+    // Reload statistics
+    await _loadStatistics();
+
+    // Also trigger statistics service refresh
+    try {
+      final statisticsService = OptimizedStatisticsService.instance;
+      await statisticsService.invalidateCache(
+        reason: 'Admin dashboard pull-to-refresh',
+      );
+
+      // Notify statistics update
+      final notificationService = StatisticsNotificationService.instance;
+      notificationService.requestStatisticsRefresh(
+        reason: 'Pull-to-refresh from admin dashboard',
+      );
+    } catch (e) {
+      debugPrint('❌ Error refreshing statistics service: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer2<AuthProvider, DocumentProvider>(
@@ -112,7 +140,13 @@ class _EnhancedAdminDashboardState extends State<EnhancedAdminDashboard> {
                   ? const Center(child: CircularProgressIndicator())
                   : _errorMessage != null
                   ? _buildErrorState()
-                  : _buildDashboardContent(authProvider, documentProvider),
+                  : RefreshIndicator(
+                      onRefresh: _handlePullToRefresh,
+                      child: _buildDashboardContent(
+                        authProvider,
+                        documentProvider,
+                      ),
+                    ),
             );
           },
         );

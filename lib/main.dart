@@ -53,6 +53,9 @@ import 'models/category_model.dart';
 import 'models/user_model.dart';
 import 'models/document_model.dart';
 
+// Global RouteObserver for tracking navigation
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -256,6 +259,7 @@ class _MyAppState extends State<MyApp> {
                 ),
               ),
               initialRoute: AppRoutes.splash,
+              navigatorObservers: [routeObserver],
               onGenerateRoute: (settings) {
                 switch (settings.name) {
                   case AppRoutes.splash:
