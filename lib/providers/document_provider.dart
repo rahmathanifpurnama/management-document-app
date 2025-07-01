@@ -2731,6 +2731,56 @@ class DocumentProvider extends ChangeNotifier {
   // REMOVED: _loadFromStorage method to prevent cache loading
   // This ensures statistics show 0 until Firebase Storage loads
 
+  /// Clear category from all documents when category is deleted
+  Future<void> clearCategoryFromAllDocuments(String categoryId) async {
+    try {
+      debugPrint('🧹 Clearing category $categoryId from all documents...');
+
+      bool hasChanges = false;
+      final documentsToUpdate = <DocumentModel>[];
+
+      // Find all documents with this category
+      for (int i = 0; i < _documents.length; i++) {
+        if (_documents[i].category == categoryId) {
+          final updatedDocument = _documents[i].copyWith(category: '');
+          _documents[i] = updatedDocument;
+          documentsToUpdate.add(updatedDocument);
+          hasChanges = true;
+        }
+      }
+
+      // Clear from category storage
+      if (_categoryDocuments.containsKey(categoryId)) {
+        final movedDocuments = _categoryDocuments[categoryId]!;
+        _categoryDocuments.remove(categoryId);
+
+        // Move documents to uncategorized
+        if (!_categoryDocuments.containsKey('uncategorized')) {
+          _categoryDocuments['uncategorized'] = [];
+        }
+
+        for (final doc in movedDocuments) {
+          final updatedDoc = doc.copyWith(category: '');
+          _categoryDocuments['uncategorized']!.add(updatedDoc);
+        }
+
+        debugPrint(
+          '📦 Moved ${movedDocuments.length} documents to uncategorized',
+        );
+      }
+
+      if (hasChanges) {
+        debugPrint(
+          '✅ Cleared category from ${documentsToUpdate.length} documents',
+        );
+        notifyListeners();
+        await _saveToStorage();
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to clear category from documents: $e');
+    }
+  }
+
   /// Update category documents untuk real-time sync
   void updateCategoryDocuments(
     String documentId,

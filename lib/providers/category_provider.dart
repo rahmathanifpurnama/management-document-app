@@ -13,6 +13,14 @@ class CategoryProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
+  // Callback untuk document provider cleanup
+  Function(String)? _onCategoryDeleted;
+
+  // Set callback for category deletion
+  void setOnCategoryDeletedCallback(Function(String) callback) {
+    _onCategoryDeleted = callback;
+  }
+
   // Getters
   List<CategoryModel> get categories => _categories;
   List<CategoryModel> get activeCategories =>
@@ -262,18 +270,42 @@ class CategoryProvider extends ChangeNotifier {
 
         // Remove from local list
         _categories.removeWhere((c) => c.id == categoryId);
+
+        final movedDocuments = result['movedDocuments'] ?? 0;
         debugPrint(
           '✅ Category removed successfully via Cloud Functions: $categoryId',
         );
-        debugPrint(
-          '📊 Moved ${result['movedDocuments']} documents to uncategorized',
-        );
+        debugPrint('📊 Moved $movedDocuments documents to uncategorized');
 
         // FIXED: Trigger real-time statistics refresh
         _statisticsSync.notifyCategoryDeleted(
           categoryId: categoryId,
           categoryName: categoryName,
         );
+
+        // Notify document provider to clear category from local documents
+        if (movedDocuments > 0) {
+          debugPrint(
+            '🔄 Triggering document provider to clear category from local documents',
+          );
+
+          // Use callback to notify document provider
+          try {
+            if (_onCategoryDeleted != null) {
+              _onCategoryDeleted!(categoryId);
+              debugPrint(
+                '✅ Local documents updated - category cleared via callback',
+              );
+            } else {
+              debugPrint('⚠️ No callback set for category deletion cleanup');
+            }
+          } catch (callbackError) {
+            debugPrint(
+              '⚠️ Failed to execute category deletion callback: $callbackError',
+            );
+            // Don't fail the entire operation
+          }
+        }
 
         notifyListeners();
       } else {

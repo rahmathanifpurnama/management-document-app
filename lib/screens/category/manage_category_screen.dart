@@ -541,9 +541,68 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
           'Delete Category',
           style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
-        content: Text(
-          'Are you sure you want to delete "${category.name}"? This action cannot be undone.',
-          style: GoogleFonts.poppins(),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete "${category.name}"?',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.orange.shade700,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Important Notice:',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.orange.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '• All files in this category will be moved to "Uncategorized"',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: Colors.orange.shade700,
+                    ),
+                  ),
+                  Text(
+                    '• The category folder and its contents will be permanently deleted',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: Colors.orange.shade700,
+                    ),
+                  ),
+                  Text(
+                    '• This action cannot be undone',
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: Colors.orange.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -556,8 +615,11 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(
-              'Delete',
-              style: GoogleFonts.poppins(color: Colors.red),
+              'Delete Category',
+              style: GoogleFonts.poppins(
+                color: Colors.red,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -565,6 +627,25 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
     );
 
     if (confirmed == true && mounted) {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(
+                'Deleting category and updating files...',
+                style: GoogleFonts.poppins(),
+              ),
+            ],
+          ),
+        ),
+      );
+
       try {
         final categoryProvider = Provider.of<CategoryProvider>(
           context,
@@ -572,20 +653,30 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
         );
         await categoryProvider.removeCategory(category.id);
 
+        // Close loading dialog
+        if (mounted) Navigator.of(context).pop();
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Category "${category.name}" deleted successfully'),
+              content: Text(
+                'Category "${category.name}" deleted successfully. All files moved to uncategorized.',
+              ),
               backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
             ),
           );
         }
       } catch (e) {
+        // Close loading dialog
+        if (mounted) Navigator.of(context).pop();
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Failed to delete category: $e'),
               backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
             ),
           );
         }
