@@ -83,10 +83,14 @@ class CategoryService {
   // Add new category (lightweight - Firestore only)
   Future<String> addCategory(CategoryModel category) async {
     try {
+      // Generate document ID first
+      final docRef = _firestore.collection(_collection).doc();
+
+      // Create category with the generated ID
+      final categoryWithId = category.copyWith(id: docRef.id);
+
       // Add category to Firestore only - no Storage folder creation
-      final docRef = await _firestore
-          .collection(_collection)
-          .add(category.toMap());
+      await docRef.set(categoryWithId.toMap());
 
       debugPrint('✅ Created category in Firestore: ${category.name}');
       return docRef.id;

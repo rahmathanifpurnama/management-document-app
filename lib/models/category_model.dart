@@ -54,6 +54,7 @@ class CategoryModel {
   // Convert to Map for Firestore
   Map<String, dynamic> toMap() {
     return {
+      'id': id, // Required by Firestore Rules
       'name': name,
       'description': description,
       'createdBy': createdBy,
