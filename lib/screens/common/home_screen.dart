@@ -516,31 +516,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               fontWeight: FontWeight.w600,
             ),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Choose how to delete "${document.fileName}":',
-                style: GoogleFonts.poppins(fontSize: 14, color: Colors.black54),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                '• Permanent Delete: Removes file completely from storage',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: Colors.red[700],
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '• Hide from UI: Removes from view but keeps in storage',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: Colors.orange[700],
-                ),
-              ),
-            ],
+          content: Text(
+            'Are you sure you want to delete "${document.fileName}"? This action cannot be undone.',
+            style: GoogleFonts.poppins(fontSize: 14, color: Colors.black54),
           ),
           actions: [
             TextButton(
@@ -556,23 +534,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _hideFromUI(document);
-              },
-              child: Text(
-                'Hide from UI',
-                style: GoogleFonts.poppins(
-                  color: Colors.orange,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
                 _deleteFile(document);
               },
               child: Text(
-                'Permanent Delete',
+                'Delete',
                 style: GoogleFonts.poppins(
                   color: Colors.red,
                   fontWeight: FontWeight.w600,
@@ -746,86 +711,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 }
               },
             ),
-          ),
-        );
-      }
-    }
-  }
-
-  /// CACHE-ONLY DELETE: Hide file from UI but keep in storage
-  Future<void> _hideFromUI(DocumentModel document) async {
-    try {
-      debugPrint(
-        '🧹 HomeScreen: Hiding file from UI (cache-only delete): ${document.fileName}',
-      );
-
-      // Show loading indicator
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text('Hiding ${document.fileName} from UI...'),
-              ],
-            ),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
-      );
-
-      // Use cache-only deletion method
-      await documentProvider.removeFromCacheOnly(
-        document.id,
-        document.fileName,
-      );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.visibility_off, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '${document.fileName} hidden from UI (file preserved in storage)',
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('❌ HomeScreen: Failed to hide from UI: $e');
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to hide ${document.fileName}: ${e.toString()}',
-            ),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 3),
           ),
         );
       }

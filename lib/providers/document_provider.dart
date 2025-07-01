@@ -12,6 +12,7 @@ import '../services/cloud_functions_service.dart';
 import '../core/config/anr_config.dart';
 
 import '../config/firebase_config.dart';
+import 'category_provider.dart';
 
 import '../services/enhanced_document_service.dart';
 import '../services/enhanced_firebase_storage_service.dart';
@@ -22,13 +23,6 @@ import '../services/realtime_category_sync_service.dart';
 import '../core/services/unified_id_system.dart';
 import '../core/services/smart_cache_invalidation.dart';
 import '../core/services/id_reconciliation_service.dart';
-
-// CACHE SERVICES: Import cache management services
-import '../services/smart_cache_service.dart';
-import '../core/services/optimized_file_service.dart';
-import '../core/services/optimized_image_service.dart';
-import '../services/performance_optimized_stats_service.dart';
-
 import '../services/document_state_manager.dart';
 import '../services/unified_document_loader.dart';
 import '../services/direct_storage_deletion_service.dart';
@@ -1515,58 +1509,189 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  /// CACHE-ONLY DELETE: Remove file from UI and all cache layers but keep in storage
-  /// This makes file disappear from UI without actually deleting from Firebase Storage
-  Future<void> removeFromCacheOnly(String documentId, String fileName) async {
+  /// Delete document using Cloud Function with unified ID system
+  Future<void> _deleteDocumentViaCloudFunction(
+    String documentId,
+    String deletedBy,
+  ) async {
+    // Find document in local cache for better error handling (declare outside try-catch)
+    DocumentModel? localDocument;
+    try {
+      localDocument = _documents.firstWhere((d) => d.id == documentId);
+      debugPrint('✅ Found document locally: ${localDocument.fileName}');
+    } catch (e) {
+      debugPrint('⚠️ Document not found in local cache: $documentId');
+    }
+
+    // Declare CloudFunctions service outside try-catch for error handling access
+    final cloudFunctions = CloudFunctionsService.instance;
+
     try {
       debugPrint(
-        '🧹 CACHE-ONLY DELETE: Removing $fileName from UI and all cache layers...',
+        '🚀 DocumentProvider: Deleting document via Cloud Function: $documentId',
       );
 
-      // 1. Remove from DocumentProvider local state
-      debugPrint('🧹 [1/6] Removing from DocumentProvider local state...');
-      forceRemoveFromLocal(documentId);
+      // UNIFIED ID SYSTEM: Validate and normalize document ID before deletion
+      String actualDocumentId = documentId;
+      final isValidId = await _unifiedIdSystem.validateDocumentId(documentId);
 
-      // 2. Clear from SmartCacheService if it exists
-      debugPrint('🧹 [2/6] Clearing from SmartCacheService...');
-      try {
-        SmartCacheService.instance.clearCache('documents_$documentId');
-        SmartCacheService.instance.clearCache('document_$documentId');
-      } catch (e) {
-        debugPrint('⚠️ SmartCacheService not available: $e');
+      if (!isValidId && localDocument != null) {
+        debugPrint(
+          '⚠️ Document ID validation failed, attempting reconciliation...',
+        );
+
+        // Try to find the correct Firestore ID using the unified system
+        final correctId = await _unifiedIdSystem.getFirestoreIdFromStoragePath(
+          localDocument.filePath,
+        );
+        if (correctId != null && correctId != documentId) {
+          debugPrint(
+            '🔄 Found correct Firestore ID: $correctId (was: $documentId)',
+          );
+          actualDocumentId = correctId;
+        } else {
+          debugPrint(
+            '❌ Could not resolve correct Firestore ID, proceeding with original ID',
+          );
+        }
       }
 
-      // 3. Clear from OptimizedFileService download cache
-      debugPrint('🧹 [3/6] Clearing from OptimizedFileService cache...');
-      try {
-        // Clear any cached downloads for this file
-        OptimizedFileService.instance.clearCache();
-      } catch (e) {
-        debugPrint('⚠️ OptimizedFileService not available: $e');
+      // Call cloud function for deletion using the resolved document ID
+      final cloudFunctions = CloudFunctionsService.instance;
+      final result = await cloudFunctions.deleteDocument(actualDocumentId);
+
+      debugPrint('🔍 Called Cloud Function with ID: $actualDocumentId');
+
+      if (result['success'] == true) {
+        debugPrint('✅ Cloud function deletion successful');
+
+        // Remove from local cache
+        bool localChanges = false;
+
+        // Remove from category storage
+        for (final entry in _categoryDocuments.entries) {
+          final removedCount = entry.value.length;
+          entry.value.removeWhere((d) => d.id == documentId);
+          if (entry.value.length != removedCount) {
+            localChanges = true;
+            debugPrint('✅ Removed from category storage: ${entry.key}');
+          }
+        }
+
+        // Remove from main list
+        final originalCount = _documents.length;
+        _documents.removeWhere((d) => d.id == documentId);
+        if (_documents.length != originalCount) {
+          localChanges = true;
+          debugPrint('✅ Removed from main document list');
+        }
+
+        // Remove from state manager cache
+        try {
+          _stateManager.removeDocument(documentId);
+          debugPrint('✅ Removed from state manager cache');
+        } catch (e) {
+          debugPrint('⚠️ Failed to remove from state manager: $e');
+        }
+
+        // Update UI if any changes were made
+        if (localChanges) {
+          _applyFiltersAndSort();
+          notifyListeners();
+          debugPrint('✅ Local UI updated after cloud function deletion');
+
+          // Save to storage asynchronously
+          _saveToStorage().catchError((e) {
+            debugPrint('⚠️ Failed to update local storage: $e');
+          });
+        }
+
+        debugPrint(
+          '✅ DocumentProvider: Cloud function deletion completed for: $documentId',
+        );
+
+        // STATISTICS UPDATE: Notify about successful file deletion via cloud function
+        if (localDocument != null && localDocument.id.isNotEmpty) {
+          _statisticsService.notifyFileDeleted(
+            fileId: localDocument.id,
+            fileName: localDocument.fileName,
+            category: localDocument.category,
+            fileSize: localDocument.fileSize,
+          );
+          debugPrint(
+            '📊 Statistics notification sent for cloud function deleted file: ${localDocument.fileName}',
+          );
+        }
+      } else {
+        throw Exception(
+          'Cloud function deletion failed: ${result['message'] ?? 'Unknown error'}',
+        );
       }
-
-      // 4. Clear from SharedPreferences cache
-      debugPrint('🧹 [4/6] Clearing from SharedPreferences cache...');
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('cached_document_$documentId');
-      await prefs.remove('document_cache_$documentId');
-
-      // 5. Clear from DocumentStateManager
-      debugPrint('🧹 [5/6] Clearing from DocumentStateManager...');
-      _stateManager.removeDocument(documentId);
-
-      // 6. Clear from SmartCacheInvalidation
-      debugPrint('🧹 [6/6] Triggering cache invalidation...');
-      await _cacheInvalidation.invalidateCache();
-
-      // Force UI refresh
-      notifyListeners();
-
-      debugPrint(
-        '✅ CACHE-ONLY DELETE: File $fileName removed from UI and all cache layers (storage preserved)',
-      );
     } catch (e) {
-      debugPrint('❌ CACHE-ONLY DELETE: Error removing from cache: $e');
+      debugPrint('❌ DocumentProvider: Cloud function deletion failed: $e');
+
+      // Check if it's a "not found" error and handle gracefully with reconciliation
+      if (e.toString().contains('not-found') ||
+          e.toString().contains('Document not found')) {
+        debugPrint(
+          'ℹ️ Document not found in backend - attempting reconciliation and fallback deletion',
+        );
+
+        // UNIFIED ID SYSTEM: Try reconciliation service for ID mismatch scenarios
+        if (localDocument != null) {
+          debugPrint('🔄 Attempting document reconciliation...');
+          final reconciledDocuments = await _reconciliationService
+              .reconcileSpecificDocuments([localDocument]);
+
+          if (reconciledDocuments.isNotEmpty) {
+            final reconciledDocument = reconciledDocuments.first;
+            if (reconciledDocument.id != documentId) {
+              debugPrint(
+                '✅ Document reconciled with new ID: ${reconciledDocument.id}',
+              );
+              // Try deletion again with reconciled ID
+              try {
+                final retryResult = await cloudFunctions.deleteDocument(
+                  reconciledDocument.id,
+                );
+                if (retryResult['success'] == true) {
+                  debugPrint('✅ Deletion successful after reconciliation');
+                  forceRemoveFromLocal(documentId);
+                  return;
+                }
+              } catch (retryError) {
+                debugPrint(
+                  '⚠️ Deletion still failed after reconciliation: $retryError',
+                );
+              }
+            }
+          }
+        }
+
+        // If reconciliation fails, try direct storage deletion as fallback
+        if (localDocument != null) {
+          debugPrint('🔄 Attempting direct storage deletion as fallback...');
+          try {
+            final directResult = await _directStorageService
+                .deleteDocumentDirect(localDocument, forceDelete: true);
+            if (directResult.success) {
+              debugPrint('✅ Direct storage deletion successful');
+            } else {
+              debugPrint(
+                '⚠️ Direct storage deletion failed: ${directResult.message}',
+              );
+            }
+          } catch (directError) {
+            debugPrint('❌ Direct storage deletion error: $directError');
+          }
+        }
+
+        // Always perform local cleanup regardless of backend result
+        forceRemoveFromLocal(documentId);
+        return;
+      }
+
+      // For other errors, rethrow
       rethrow;
     }
   }
@@ -2691,65 +2816,37 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  /// Clear all local cache and phantom file data - COMPREHENSIVE VERSION
-  /// This clears ALL 6+ cache layers to prevent phantom files
+  /// Clear all local cache and phantom file data
   Future<void> clearAllCache() async {
     try {
-      debugPrint(
-        '🧹 COMPREHENSIVE: Clearing ALL cache layers and phantom file data...',
-      );
+      debugPrint('🧹 Clearing all local cache and phantom file data...');
 
       final prefs = await SharedPreferences.getInstance();
 
-      // 1. Clear SharedPreferences Cache
-      debugPrint('🧹 [1/8] Clearing SharedPreferences cache...');
+      // Clear all document-related cache
       await prefs.remove('category_documents');
       await prefs.remove('documents_initialized');
       await prefs.remove('persistent_assignments');
       await prefs.remove('cache_validation_timestamp');
       await prefs.remove('cached_document_count');
 
-      // 2. Clear DocumentProvider Local State
-      debugPrint('🧹 [2/8] Clearing DocumentProvider local state...');
+      // Clear local state
       _documents.clear();
       _categoryDocuments.clear();
       _recentlyAssignedFiles.clear();
       _persistentAssignments.clear();
       _isInitialized = false;
 
-      // 3. Clear DocumentStateManager Cache
-      debugPrint('🧹 [3/8] Clearing DocumentStateManager cache...');
+      // Clear state manager cache
       _stateManager.clearData();
 
-      // 4. Clear SmartCacheInvalidation
-      debugPrint('🧹 [4/8] Clearing SmartCacheInvalidation...');
+      // Clear smart cache invalidation
       await _cacheInvalidation.invalidateCache();
 
-      // 5. Clear OptimizedFileService Download Cache
-      debugPrint('🧹 [5/8] Clearing OptimizedFileService download cache...');
-      OptimizedFileService.instance.clearCache();
-
-      // 6. Clear SmartCacheService Memory Cache
-      debugPrint('🧹 [6/8] Clearing SmartCacheService memory cache...');
-      SmartCacheService.instance.clearAllCache();
-
-      // 7. Clear OptimizedImageService Cache
-      debugPrint('🧹 [7/8] Clearing OptimizedImageService cache...');
-      OptimizedImageService.instance.clearCache();
-
-      // 8. Clear PerformanceOptimizedStatsService Cache
-      debugPrint('🧹 [8/8] Clearing PerformanceOptimizedStatsService cache...');
-      PerformanceOptimizedStatsService.instance.clearCache();
-
-      // 9. Clear Flutter Framework Image Cache
-      debugPrint('🧹 [BONUS] Clearing Flutter framework image cache...');
-      PaintingBinding.instance.imageCache.clear();
-      PaintingBinding.instance.imageCache.clearLiveImages();
-
-      debugPrint('✅ COMPREHENSIVE: All 8+ cache layers cleared successfully');
+      debugPrint('✅ All cache cleared successfully');
       notifyListeners();
     } catch (e) {
-      debugPrint('❌ COMPREHENSIVE: Error clearing cache: $e');
+      debugPrint('❌ Error clearing cache: $e');
     }
   }
 
