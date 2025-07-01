@@ -261,7 +261,7 @@ const deleteCategory = functions.https.onCall(
       return {
         success: true,
         message: "Category deleted successfully",
-        movedDocuments: 0,
+        movedDocuments: documentsInCategory.size,
       };
     } catch (error) {
       console.error("Error deleting category:", error);
@@ -298,10 +298,7 @@ const addFilesToCategory = functions.https.onCall(
 
     try {
       const { categoryId, documentIds } = data;
-      const userId = context.auth?.uid;
-      if (!userId) {
-        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
-      }
+      const userId = context.auth.uid;
 
       // Validate category exists
       const categoryDoc = await admin
@@ -406,10 +403,7 @@ const removeFilesFromCategory = functions.https.onCall(
 
     try {
       const { categoryId, documentIds } = data;
-      const userId = context.auth?.uid;
-      if (!userId) {
-        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
-      }
+      const userId = context.auth.uid;
 
       // Validate category exists
       const categoryDoc = await admin
@@ -634,7 +628,7 @@ export const refreshCategoryContents = functions.https.onCall(
         .add({
           type: "category_contents_refreshed",
           categoryId: categoryId || "all",
-          userId: context.auth?.uid || "system",
+          userId: context.auth.uid,
           timestamp: admin.firestore.FieldValue.serverTimestamp(),
           details: `Refreshed ${documents.length} documents in ${
             Object.keys(categorizedDocuments).length

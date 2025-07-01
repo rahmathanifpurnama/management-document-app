@@ -52,10 +52,6 @@ const ACTIVITIES_COLLECTION = "activities";
  * and creates corresponding metadata in Firestore
  */
 exports.onStorageFileCreated = functions.storage.object().onFinalize(async (object) => {
-    // DISABLED: Function creates document-metadata which is no longer used
-    console.log("⚠️ onStorageFileCreated disabled - using Storage-only approach");
-    console.log("📁 File created but metadata creation skipped:", object.name);
-    return;
     try {
         console.log("🔄 Storage file created trigger activated");
         console.log("📁 File details:", {
@@ -66,21 +62,16 @@ exports.onStorageFileCreated = functions.storage.object().onFinalize(async (obje
             timeCreated: object.timeCreated,
         });
         // Only process files in the documents folder
-        const objectName = object.name;
-        if (!objectName || !objectName.startsWith("documents/")) {
-            console.log("⏭️ Skipping non-document file:", objectName);
+        if (!object.name || !object.name.startsWith("documents/")) {
+            console.log("⏭️ Skipping non-document file:", object.name);
             return;
         }
         // Extract file information
-        const filePath = objectName;
-        const fileName = (filePath === null || filePath === void 0 ? void 0 : filePath.split("/").pop()) || "Unknown File";
+        const filePath = object.name;
+        const fileName = filePath.split("/").pop() || "Unknown File";
         const fileSize = parseInt(object.size || "0");
         const contentType = object.contentType || "application/octet-stream";
         // Enhanced duplicate prevention check
-        if (!filePath) {
-            console.error("File path is undefined");
-            return;
-        }
         const duplicateCheck = await checkForExistingDocumentEnhanced(filePath, fileName, fileSize);
         if (duplicateCheck.hasDuplicates) {
             console.log("✅ Document already exists in Firestore:", fileName);
@@ -125,7 +116,7 @@ exports.onStorageFileCreated = functions.storage.object().onFinalize(async (obje
         console.error("❌ Error in storage file created trigger:", error);
         // Log error for monitoring
         await logSyncActivity("sync_error", {
-            error: error.message || String(error),
+            error: error instanceof Error ? error.message : String(error),
             source: "storage_trigger",
             filePath: object.name,
         });
@@ -136,19 +127,14 @@ exports.onStorageFileCreated = functions.storage.object().onFinalize(async (obje
  * Automatically marks documents as inactive when files are deleted from Storage
  */
 exports.onStorageFileDeleted = functions.storage.object().onDelete(async (object) => {
-    // DISABLED: Function updates document-metadata which is no longer used
-    console.log("⚠️ onStorageFileDeleted disabled - using Storage-only approach");
-    console.log("📁 File deleted but metadata update skipped:", object.name);
-    return;
     try {
         console.log("🗑️ Storage file deleted trigger activated");
         console.log("📁 Deleted file:", object.name);
-        const objectName = object.name;
-        if (!objectName || !objectName.startsWith("documents/")) {
-            console.log("⏭️ Skipping non-document file deletion:", objectName);
+        if (!object.name || !object.name.startsWith("documents/")) {
+            console.log("⏭️ Skipping non-document file deletion:", object.name);
             return;
         }
-        const filePath = objectName;
+        const filePath = object.name;
         // Find and mark document as inactive
         const querySnapshot = await admin
             .firestore()
@@ -179,7 +165,7 @@ exports.onStorageFileDeleted = functions.storage.object().onDelete(async (object
     catch (error) {
         console.error("❌ Error in storage file deleted trigger:", error);
         await logSyncActivity("sync_error", {
-            error: error.message || String(error),
+            error: error instanceof Error ? error.message : String(error),
             source: "storage_deletion_trigger",
             filePath: object.name,
         });

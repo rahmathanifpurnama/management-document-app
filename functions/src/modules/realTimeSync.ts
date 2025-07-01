@@ -36,24 +36,18 @@ export const onStorageFileCreated = functions.storage.object().onFinalize(
       });
 
       // Only process files in the documents folder
-      const objectName = object.name as string;
-      if (!objectName || !objectName.startsWith("documents/")) {
-        console.log("⏭️ Skipping non-document file:", objectName);
+      if (!object.name || !object.name.startsWith("documents/")) {
+        console.log("⏭️ Skipping non-document file:", object.name);
         return;
       }
 
       // Extract file information
-      const filePath = objectName;
-      const fileName = filePath?.split("/").pop() || "Unknown File";
+      const filePath = object.name;
+      const fileName = filePath.split("/").pop() || "Unknown File";
       const fileSize = parseInt(object.size || "0");
       const contentType = object.contentType || "application/octet-stream";
 
       // Enhanced duplicate prevention check
-      if (!filePath) {
-        console.error("File path is undefined");
-        return;
-      }
-
       const duplicateCheck = await checkForExistingDocumentEnhanced(filePath, fileName, fileSize);
       if (duplicateCheck.hasDuplicates) {
         console.log("✅ Document already exists in Firestore:", fileName);
@@ -99,12 +93,12 @@ export const onStorageFileCreated = functions.storage.object().onFinalize(
       await invalidateStatisticsCache();
 
       console.log("🎉 Storage sync completed successfully");
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("❌ Error in storage file created trigger:", error);
 
       // Log error for monitoring
       await logSyncActivity("sync_error", {
-        error: (error as Error).message || String(error),
+        error: error instanceof Error ? error.message : String(error),
         source: "storage_trigger",
         filePath: object.name,
       });
@@ -127,13 +121,12 @@ export const onStorageFileDeleted = functions.storage.object().onDelete(
       console.log("🗑️ Storage file deleted trigger activated");
       console.log("📁 Deleted file:", object.name);
 
-      const objectName = object.name as string;
-      if (!objectName || !objectName.startsWith("documents/")) {
-        console.log("⏭️ Skipping non-document file deletion:", objectName);
+      if (!object.name || !object.name.startsWith("documents/")) {
+        console.log("⏭️ Skipping non-document file deletion:", object.name);
         return;
       }
 
-      const filePath = objectName;
+      const filePath = object.name;
       
       // Find and mark document as inactive
       const querySnapshot = await admin
@@ -167,11 +160,11 @@ export const onStorageFileDeleted = functions.storage.object().onDelete(
       await invalidateStatisticsCache();
 
       console.log("🎉 Storage deletion sync completed");
-    } catch (error: unknown) {
+    } catch (error) {
       console.error("❌ Error in storage file deleted trigger:", error);
 
       await logSyncActivity("sync_error", {
-        error: (error as Error).message || String(error),
+        error: error instanceof Error ? error.message : String(error),
         source: "storage_deletion_trigger",
         filePath: object.name,
       });

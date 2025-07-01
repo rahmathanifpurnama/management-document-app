@@ -658,12 +658,11 @@ const generateDocumentReport = functions.https.onCall(async (data: any, context)
     const userDoc = await admin
       .firestore()
       .collection("users")
-      .doc(context.auth?.uid || "")
+      .doc(context.auth.uid)
       .get();
     const user = userDoc.data();
 
-    const userData = user?.data();
-    if (!userData || userData.role !== "admin") {
+    if (!user || user.role !== "admin") {
       throw new functions.https.HttpsError(
         "permission-denied",
         "Only admins can generate document reports"
@@ -727,7 +726,7 @@ const generateDocumentReport = functions.https.onCall(async (data: any, context)
       .collection("activities")
       .add({
         type: "document_report_generated",
-        userId: context.auth?.uid || "system",
+        userId: context.auth.uid,
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
         details: `Document report generated for ${documents.length} documents`,
       });
@@ -736,7 +735,7 @@ const generateDocumentReport = functions.https.onCall(async (data: any, context)
       success: true,
       report: {
         generatedAt: new Date().toISOString(),
-        generatedBy: context.auth?.uid || "system",
+        generatedBy: context.auth.uid,
         filters: { startDate, endDate, categoryId },
         statistics: stats,
         documents: documents,
