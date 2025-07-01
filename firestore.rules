@@ -93,6 +93,11 @@ service cloud.firestore {
           request.resource.data.id == documentId
         );
 
+      // ENHANCED: Allow category assignment for users with upload permission
+      // Users can update category field on any document if they have upload permission
+      allow update: if hasDocumentPermission('upload')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['category', 'updatedAt']);
+
       // Allow create for users with upload permission
       allow create: if hasDocumentPermission('upload')
         && request.auth.uid == request.resource.data.uploadedBy
@@ -128,8 +133,14 @@ service cloud.firestore {
         && request.resource.data.name.size() > 0
         && request.resource.data.name.size() <= 100;
 
+      // Admin can update all category fields
       allow update: if isAdmin()
         && request.resource.data.id == categoryId;
+
+      // ENHANCED: Allow users with upload permission to update document count only
+      // This enables category assignment functionality for regular users
+      allow update: if hasDocumentPermission('upload')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['documentCount', 'updatedAt']);
 
       // ADMIN-ONLY HARD DELETE: Only admin can permanently delete categories
       allow delete: if isAdmin();

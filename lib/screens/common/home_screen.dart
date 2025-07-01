@@ -483,12 +483,12 @@ class _HomeScreenState extends State<HomeScreen>
 
                   // Dashboard Statistics Section (Admin only) - Using RealTimeStatsWidget without animations
                   if (authProvider.isAdmin) ...[
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
                     const RealTimeStatsWidget(
                       enablePullToRefresh:
                           false, // Integrate with main screen refresh
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
                   ],
 
                   // Search Section - Using new component

@@ -52,9 +52,11 @@ class _HomeSearchSectionState extends State<HomeSearchSection> {
   Widget build(BuildContext context) {
     // Get responsive margin - OPTIMIZED
     final screenWidth = MediaQuery.of(context).size.width;
-    final responsiveMargin = EdgeInsets.symmetric(
-      horizontal: screenWidth < 400 ? 12.0 : 16.0,
-      vertical: 0, // No vertical margin
+    final responsiveMargin = EdgeInsets.only(
+      left: screenWidth < 400 ? 12.0 : 16.0,
+      right: screenWidth < 400 ? 12.0 : 16.0,
+      top: 6.0, // Add top margin for spacing with greeting
+      bottom: 0,
     );
     final responsiveElevation = 2.0;
 
