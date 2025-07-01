@@ -134,7 +134,7 @@ dev_dependencies:
 
 # Flutter Launcher Icons Configuration
 flutter_launcher_icons:
-  android: true
+  android: true  # Generate Android icons
   ios: true
   web:
     generate: true
@@ -154,9 +154,12 @@ flutter_launcher_icons:
   # Main app icon
   image_path: "assets/app_icon.png"
 
-  # Android adaptive icon configuration
-  adaptive_icon_background: "#F5F5F5"
-  adaptive_icon_foreground: "assets/app_icon.png"
+  # Disable adaptive icon to prevent zoom issues
+  # adaptive_icon_background: "#F5F5F5"
+  # adaptive_icon_foreground: "assets/app_icon.png"
+
+  # Minimum SDK version
+  min_sdk_android: 21
 
   # Remove old launcher icons
   remove_alpha_ios: true
