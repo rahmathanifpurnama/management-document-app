@@ -84,7 +84,8 @@ class EmptyStateWidget extends StatelessWidget {
     Widget? actionButton,
     EdgeInsets? padding,
     EdgeInsets? margin,
-    bool showContainer = true,
+    bool showContainer =
+        false, // Default to no container (same as loading state)
   }) {
     return EmptyStateWidget(
       icon: Icons.folder_outlined,
