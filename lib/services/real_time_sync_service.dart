@@ -58,6 +58,13 @@ class RealTimeSyncService {
   /// Setup real-time listener for document-metadata collection
   Future<void> _setupDocumentListener() async {
     try {
+      // PERMISSION FIX: Check if user is properly authenticated before starting listener
+      final currentUser = _firebaseService.auth.currentUser;
+      if (currentUser == null) {
+        debugPrint('⚠️ Document listener not started - user not authenticated');
+        return;
+      }
+
       _documentsSubscription = _firebaseService.firestore
           .collection('document-metadata')
           .orderBy('uploadedAt', descending: true)
@@ -66,17 +73,23 @@ class RealTimeSyncService {
             (snapshot) => _handleDocumentChanges(snapshot),
             onError: (error) {
               debugPrint('❌ Document listener error: $error');
-              _emitSyncEvent(
-                SyncEventType.error,
-                'Document sync error: $error',
-              );
+              // Don't emit sync events for permission errors during login
+              if (!error.toString().contains('permission-denied')) {
+                _emitSyncEvent(
+                  SyncEventType.error,
+                  'Document sync error: $error',
+                );
+              }
             },
           );
 
       debugPrint('✅ Document listener setup complete');
     } catch (e) {
       debugPrint('❌ Error setting up document listener: $e');
-      rethrow;
+      // Don't rethrow permission errors during login
+      if (!e.toString().contains('permission-denied')) {
+        rethrow;
+      }
     }
   }
 

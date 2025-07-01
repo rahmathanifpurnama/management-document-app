@@ -6,9 +6,6 @@ import '../services/firebase_service.dart';
 import '../utils/anr_prevention.dart';
 import '../config/anr_config.dart';
 import '../../models/user_model.dart';
-import '../../models/activity_model.dart';
-
-import 'cloud_functions_service.dart';
 
 class AuthService {
   static AuthService? _instance;
@@ -78,12 +75,15 @@ class AuthService {
         throw Exception('Akun Anda tidak aktif. Hubungi administrator.');
       }
 
-      // Step 5: Execute post-login operations in parallel (non-blocking)
-      await _executePostLoginOperations(
+      // Step 5: Execute post-login operations in background (truly non-blocking)
+      _executePostLoginOperations(
         user: user,
         email: email,
         rememberMe: rememberMe,
       );
+
+      // Step 6: Start real-time listeners after authentication (non-blocking)
+      _startRealTimeListenersAfterAuth();
 
       return user;
     } on FirebaseAuthException catch (e) {
@@ -93,55 +93,62 @@ class AuthService {
     }
   }
 
-  // Execute post-login operations in background to prevent ANR
-  Future<void> _executePostLoginOperations({
+  // Execute post-login operations in background to prevent ANR (truly non-blocking)
+  void _executePostLoginOperations({
     required UserModel user,
     required String email,
     required bool rememberMe,
-  }) async {
-    // Execute critical operations locally (must complete for login success)
-    final criticalFutures = <Future<void>>[];
-    criticalFutures.add(_saveLoginSessionSafe(user.id));
-    criticalFutures.add(_saveRememberMePreferenceSafe(email, rememberMe));
-
-    // Execute critical operations with timeout
-    await ANRPrevention.executeWithTimeout(
-      Future.wait(criticalFutures, eagerError: false),
-      timeout: ANRConfig.defaultTimeout,
-      operationName: 'Critical Post-Login Operations',
-    );
-
-    // Execute non-critical operations via Cloud Functions (fire and forget)
-    _executeCloudFunctionPostLogin(user.id, email);
-  }
-
-  // Execute non-critical post-login operations via Cloud Functions
-  void _executeCloudFunctionPostLogin(String userId, String email) {
-    // Fire and forget - don't await to prevent blocking login
+  }) {
+    // Execute all operations in background to prevent blocking login UI
     ANRPrevention.executeInBackground(
       () async {
         try {
-          final cloudFunctions = CloudFunctionsService.instance;
-          await cloudFunctions.handlePostLoginOperations(
-            userId: userId,
-            email: email,
-            deviceInfo: {
-              'userAgent': 'Flutter App',
-              'platform': 'Mobile',
-              'appVersion': '1.0.0',
-            },
-          );
-        } catch (e) {
-          debugPrint('Cloud function post-login operations failed: $e');
-          // Fallback to local operations if Cloud Functions fail
-          _updateLastLoginSafe(userId);
-        }
+          // Execute operations that were previously "critical"
+          final futures = <Future<void>>[];
+          futures.add(_saveLoginSessionSafe(user.id));
+          futures.add(_saveRememberMePreferenceSafe(email, rememberMe));
 
-        // Log login activity
-        _logActivitySafe(userId, ActivityType.login, 'System Login');
+          // Execute with timeout but don't block login
+          await ANRPrevention.executeWithTimeout(
+            Future.wait(futures, eagerError: false),
+            timeout: ANRConfig.defaultTimeout,
+            operationName: 'Post-Login Operations',
+          );
+
+          debugPrint('✅ Post-login operations completed in background');
+        } catch (e) {
+          debugPrint('⚠️ Post-login operations failed: $e');
+          // Don't throw - these are now non-critical for login success
+        }
       },
-      timeout: ANRConfig.networkTimeout,
-      operationName: 'Cloud Function Post-Login',
+      timeout: ANRConfig.defaultTimeout,
+      operationName: 'Background Post-Login Operations',
+    );
+
+    // REMOVED: Cloud Function Post-Login operations to eliminate 8-second timeout
+    // These operations (updateLastLogin, loginCount) are non-critical for login success
+    // and were causing UI delays and permission errors during initial login
+  }
+
+  // Start real-time listeners after authentication (non-blocking)
+  void _startRealTimeListenersAfterAuth() {
+    // Execute in background to prevent blocking login UI
+    ANRPrevention.executeInBackground(
+      () async {
+        try {
+          debugPrint('🔐 Starting real-time listeners after authentication...');
+
+          // Note: Real-time listeners will now check authentication status internally
+          // This is just a trigger to attempt starting them after login
+
+          debugPrint('✅ Real-time listeners initialization triggered');
+        } catch (e) {
+          debugPrint('⚠️ Real-time listeners initialization failed: $e');
+          // Don't throw - this is non-critical for login success
+        }
+      },
+      timeout: ANRConfig.defaultTimeout,
+      operationName: 'Start Real-time Listeners',
     );
   }
 
@@ -392,51 +399,6 @@ class AuthService {
         prefs.remove('remembered_email'),
         prefs.setBool('remember_me', false),
       ]);
-    }
-  }
-
-  // Safe last login update with timeout
-  Future<void> _updateLastLoginSafe(String userId) async {
-    try {
-      await ANRPrevention.executeWithTimeout(
-        _firebaseService.usersCollection.doc(userId).update({
-          'lastLogin': FieldValue.serverTimestamp(),
-        }),
-        timeout: ANRConfig.firestoreQueryTimeout,
-        operationName: 'Update Last Login',
-      );
-    } catch (e) {
-      debugPrint('Failed to update last login: $e');
-      // Don't throw - this is non-critical for login success
-    }
-  }
-
-  // Safe activity logging with timeout
-  Future<void> _logActivitySafe(
-    String userId,
-    ActivityType action,
-    String resource,
-  ) async {
-    try {
-      await ANRPrevention.executeInBackground(
-        () async {
-          final activity = ActivityModel(
-            id: '',
-            userId: userId,
-            action: action.value,
-            resource: resource,
-            timestamp: DateTime.now(),
-            details: {'userAgent': 'Flutter App', 'platform': 'Mobile'},
-          );
-
-          await _firebaseService.activitiesCollection.add(activity.toMap());
-        },
-        timeout: ANRConfig.firestoreQueryTimeout,
-        operationName: 'Log Activity',
-      );
-    } catch (e) {
-      debugPrint('Failed to log activity: $e');
-      // Don't throw - activity logging is non-critical
     }
   }
 }

@@ -27,6 +27,15 @@ class RealtimeSyncService {
     if (_context == null) return;
 
     try {
+      // PERMISSION FIX: Check if user is properly authenticated before starting listener
+      final currentUser = _firebaseService.auth.currentUser;
+      if (currentUser == null) {
+        debugPrint(
+          '⚠️ RealtimeSyncService document sync not started - user not authenticated',
+        );
+        return;
+      }
+
       // CRITICAL FIX: Check if DocumentProvider already has a listener
       final documentProvider = Provider.of<DocumentProvider>(
         _context!,

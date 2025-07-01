@@ -415,7 +415,7 @@ class DocumentProvider extends ChangeNotifier {
         // Mark storage as not empty
         await emptyStateManager.setStorageNotEmpty();
 
-        // Start Firebase listener for real-time updates
+        // Start Firebase listener for real-time updates (only if authenticated)
         if (_useFirebaseSync) {
           _startFirebaseListener();
         }
@@ -521,6 +521,13 @@ class DocumentProvider extends ChangeNotifier {
         return;
       }
 
+      // PERMISSION FIX: Check if user is properly authenticated before starting listener
+      final currentUser = _firebaseService.auth.currentUser;
+      if (currentUser == null) {
+        debugPrint('⚠️ Firebase listener not started - user not authenticated');
+        return;
+      }
+
       // ENTERPRISE SCALE: Use appropriate limit based on configuration
       final listenerLimit = FirebaseConfig.shouldEnableUnlimitedFiles
           ? ANRConfig
@@ -560,6 +567,14 @@ class DocumentProvider extends ChangeNotifier {
       _documentsSubscription!.cancel();
       _documentsSubscription = null;
       debugPrint('🛑 Firebase listener stopped');
+    }
+  }
+
+  /// Start Firebase listener after authentication (public method)
+  void startFirebaseListenerAfterAuth() {
+    if (_useFirebaseSync && _documents.isNotEmpty) {
+      debugPrint('🔐 Starting Firebase listener after authentication...');
+      _startFirebaseListener();
     }
   }
 
