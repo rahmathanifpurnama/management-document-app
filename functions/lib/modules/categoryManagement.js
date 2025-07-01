@@ -197,24 +197,9 @@ const deleteCategory = functions.https.onCall(async (data, context) => {
             throw new functions.https.HttpsError("not-found", "Category not found");
         }
         const categoryData = categoryDoc.data();
-        // Check if category has documents
-        const documentsInCategory = await admin
-            .firestore()
-            .collection("document-metadata")
-            .where("category", "==", categoryId)
-            .where("isActive", "==", true)
-            .get();
-        if (!documentsInCategory.empty) {
-            // Move documents to uncategorized
-            const batch = admin.firestore().batch();
-            documentsInCategory.docs.forEach((doc) => {
-                batch.update(doc.ref, {
-                    category: "uncategorized",
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                });
-            });
-            await batch.commit();
-        }
+        // REMOVED: document-metadata collection check - collection no longer used
+        // Using Storage-only approach - category deletion allowed without metadata check
+        console.log("⚠️ Category document check disabled - using Storage-only approach");
         // ADMIN HARD DELETE: Permanently delete category for admin users
         await categoryRef.delete();
         // Log activity
@@ -232,7 +217,7 @@ const deleteCategory = functions.https.onCall(async (data, context) => {
         return {
             success: true,
             message: "Category deleted successfully",
-            movedDocuments: documentsInCategory.size,
+            movedDocuments: 0,
         };
     }
     catch (error) {
@@ -247,13 +232,23 @@ const deleteCategory = functions.https.onCall(async (data, context) => {
  * Add files to a category
  */
 const addFilesToCategory = functions.https.onCall(async (data, context) => {
-    var _a;
+    var _a, _b;
+    // DISABLED: Function uses document-metadata collection which is no longer used
+    console.log("⚠️ addFilesToCategory disabled - using Storage-only approach");
+    return {
+        success: false,
+        error: "Function disabled - using Storage-only approach",
+        code: "FUNCTION_DISABLED",
+    };
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
     }
     try {
         const { categoryId, documentIds } = data;
-        const userId = context.auth.uid;
+        const userId = (_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid;
+        if (!userId) {
+            throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
+        }
         // Validate category exists
         const categoryDoc = await admin
             .firestore()
@@ -300,7 +295,7 @@ const addFilesToCategory = functions.https.onCall(async (data, context) => {
             categoryId,
             userId,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: `${documentIds.length} files added to category "${(_a = categoryDoc.data()) === null || _a === void 0 ? void 0 : _a.name}"`,
+            details: `${documentIds.length} files added to category "${(_b = categoryDoc.data()) === null || _b === void 0 ? void 0 : _b.name}"`,
         });
         console.log(`${documentIds.length} files added to category: ${categoryId}`);
         return {
@@ -320,13 +315,23 @@ const addFilesToCategory = functions.https.onCall(async (data, context) => {
  * Remove files from a category
  */
 const removeFilesFromCategory = functions.https.onCall(async (data, context) => {
-    var _a;
+    var _a, _b;
+    // DISABLED: Function uses document-metadata collection which is no longer used
+    console.log("⚠️ removeFilesFromCategory disabled - using Storage-only approach");
+    return {
+        success: false,
+        error: "Function disabled - using Storage-only approach",
+        code: "FUNCTION_DISABLED",
+    };
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
     }
     try {
         const { categoryId, documentIds } = data;
-        const userId = context.auth.uid;
+        const userId = (_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid;
+        if (!userId) {
+            throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
+        }
         // Validate category exists
         const categoryDoc = await admin
             .firestore()
@@ -373,7 +378,7 @@ const removeFilesFromCategory = functions.https.onCall(async (data, context) => 
             categoryId,
             userId,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: `${documentIds.length} files removed from category "${(_a = categoryDoc.data()) === null || _a === void 0 ? void 0 : _a.name}"`,
+            details: `${documentIds.length} files removed from category "${(_b = categoryDoc.data()) === null || _b === void 0 ? void 0 : _b.name}"`,
         });
         console.log(`${documentIds.length} files removed from category: ${categoryId}`);
         return {
@@ -391,6 +396,15 @@ const removeFilesFromCategory = functions.https.onCall(async (data, context) => 
 });
 // Enhanced category document retrieval with real-time support
 exports.getCategoryDocumentsEnhanced = functions.https.onCall(async (data, context) => {
+    // DISABLED: Function uses document-metadata collection which is no longer used
+    console.log("⚠️ getCategoryDocumentsEnhanced disabled - using Storage-only approach");
+    return {
+        success: false,
+        error: "Function disabled - using Storage-only approach",
+        code: "FUNCTION_DISABLED",
+        documents: [],
+        categoryMetadata: null,
+    };
     try {
         // Verify authentication
         if (!context.auth) {
@@ -436,6 +450,15 @@ exports.getCategoryDocumentsEnhanced = functions.https.onCall(async (data, conte
 });
 // Force refresh category contents from Firebase
 exports.refreshCategoryContents = functions.https.onCall(async (data, context) => {
+    var _a;
+    // DISABLED: Function uses document-metadata collection which is no longer used
+    console.log("⚠️ refreshCategoryContents disabled - using Storage-only approach");
+    return {
+        success: false,
+        error: "Function disabled - using Storage-only approach",
+        code: "FUNCTION_DISABLED",
+        refreshedCount: 0,
+    };
     try {
         // Verify authentication
         if (!context.auth) {
@@ -468,7 +491,7 @@ exports.refreshCategoryContents = functions.https.onCall(async (data, context) =
             .add({
             type: "category_contents_refreshed",
             categoryId: categoryId || "all",
-            userId: context.auth.uid,
+            userId: ((_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid) || "system",
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             details: `Refreshed ${documents.length} documents in ${Object.keys(categorizedDocuments).length} categories`,
         });
