@@ -43,17 +43,27 @@ class RealTimeSyncService {
   Map<String, dynamic>? _cachedStatistics;
   DateTime? _lastStatisticsUpdate;
 
+  // Initialization status
+  bool _isInitialized = false;
+
   /// Initialize real-time synchronization
   Future<void> initialize() async {
+    if (_isInitialized) {
+      debugPrint('✅ RealTimeSyncService: Already initialized');
+      return;
+    }
+
     try {
       await _setupDocumentListener();
       await _setupUserListener();
       await _setupActivityListener(); // Non-critical, won't throw
       await _setupStatisticsCacheListener();
 
+      _isInitialized = true;
       debugPrint('✅ RealTimeSyncService: Core initialization completed');
     } catch (e) {
       debugPrint('❌ RealTimeSyncService: Critical initialization error: $e');
+      _isInitialized = false;
       rethrow;
     }
   }
@@ -407,8 +417,7 @@ class RealTimeSyncService {
   Map<String, dynamic>? get currentStatistics => _cachedStatistics;
 
   /// Check if service is initialized
-  bool get isInitialized =>
-      _documentsSubscription != null && _usersSubscription != null;
+  bool get isInitialized => _isInitialized;
 
   /// Dispose all resources
   void dispose() {
@@ -424,6 +433,7 @@ class RealTimeSyncService {
 
     _processedDocuments.clear();
     _processedUsers.clear();
+    _isInitialized = false;
 
     debugPrint('🔄 RealTimeSyncService disposed');
   }

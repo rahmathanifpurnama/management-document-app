@@ -242,18 +242,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     } catch (e) {
       debugPrint('❌ HomeScreen: Real-time sync initialization failed: $e');
 
-      // Only show error for critical failures, not permission errors
-      if (mounted && !e.toString().contains('permission-denied')) {
+      // Only show error for truly critical failures
+      final errorString = e.toString().toLowerCase();
+      final isCriticalError =
+          !errorString.contains('permission-denied') &&
+          !errorString.contains('index') &&
+          !errorString.contains('activities') &&
+          !errorString.contains('statistics-cache');
+
+      if (mounted && isCriticalError) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('⚠️ Real-time sync unavailable - ${e.toString()}'),
+            content: const Text('⚠️ Some real-time features may be limited'),
             backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 3),
+            duration: const Duration(seconds: 2),
             behavior: SnackBarBehavior.floating,
           ),
         );
-      } else if (e.toString().contains('permission-denied')) {
-        debugPrint('⚠️ HomeScreen: Permission error - real-time sync disabled');
+      }
+
+      // Log specific error types for debugging
+      if (errorString.contains('permission-denied')) {
+        debugPrint('⚠️ HomeScreen: Permission error - some features disabled');
+      } else if (errorString.contains('index')) {
+        debugPrint('⚠️ HomeScreen: Index error - activity monitoring disabled');
+      } else {
+        debugPrint(
+          '⚠️ HomeScreen: Non-critical sync error - continuing normally',
+        );
       }
     }
   }
