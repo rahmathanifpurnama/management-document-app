@@ -498,6 +498,16 @@ const deleteDocument = functions.https.onCall(async (data, context) => {
  * Generate document report
  */
 const generateDocumentReport = functions.https.onCall(async (data, context) => {
+    var _a, _b, _c;
+    // DISABLED: Function uses document-metadata collection which is no longer used
+    console.log("⚠️ generateDocumentReport disabled - using Storage-only approach");
+    return {
+        success: false,
+        error: "Function disabled - using Storage-only approach",
+        code: "FUNCTION_DISABLED",
+        documents: [],
+        totalCount: 0,
+    };
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
     }
@@ -506,10 +516,11 @@ const generateDocumentReport = functions.https.onCall(async (data, context) => {
         const userDoc = await admin
             .firestore()
             .collection("users")
-            .doc(context.auth.uid)
+            .doc(((_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid) || "")
             .get();
         const user = userDoc.data();
-        if (!user || user.role !== "admin") {
+        const userData = user === null || user === void 0 ? void 0 : user.data();
+        if (!userData || userData.role !== "admin") {
             throw new functions.https.HttpsError("permission-denied", "Only admins can generate document reports");
         }
         const { startDate, endDate, categoryId } = data;
@@ -555,7 +566,7 @@ const generateDocumentReport = functions.https.onCall(async (data, context) => {
             .collection("activities")
             .add({
             type: "document_report_generated",
-            userId: context.auth.uid,
+            userId: ((_b = context.auth) === null || _b === void 0 ? void 0 : _b.uid) || "system",
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             details: `Document report generated for ${documents.length} documents`,
         });
@@ -563,7 +574,7 @@ const generateDocumentReport = functions.https.onCall(async (data, context) => {
             success: true,
             report: {
                 generatedAt: new Date().toISOString(),
-                generatedBy: context.auth.uid,
+                generatedBy: ((_c = context.auth) === null || _c === void 0 ? void 0 : _c.uid) || "system",
                 filters: { startDate, endDate, categoryId },
                 statistics: stats,
                 documents: documents,
