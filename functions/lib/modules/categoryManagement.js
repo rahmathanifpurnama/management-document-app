@@ -261,12 +261,53 @@ const deleteCategory = functions.https.onCall(async (data, context) => {
             throw new functions.https.HttpsError("not-found", "Category not found");
         }
         const categoryData = categoryDoc.data();
-        // REMOVED: document-metadata collection check - collection no longer used
-        // Using Storage-only approach - category deletion allowed without metadata check
-        console.log("⚠️ Category document check disabled - using Storage-only approach");
-        // ADMIN HARD DELETE: Permanently delete category for admin users
+        // STEP 1: Find all documents that have this category ID
+        console.log(`🔍 Finding all documents with category: ${categoryId}`);
+        const documentsQuery = await admin
+            .firestore()
+            .collection("documents")
+            .where("category", "==", categoryId)
+            .get();
+        let movedDocuments = 0;
+        // STEP 2: Clear category field from all documents in batches
+        if (!documentsQuery.empty) {
+            console.log(`📋 Found ${documentsQuery.size} documents to update`);
+            const batchSize = 500; // Firestore batch limit
+            const batches = [];
+            let currentBatch = admin.firestore().batch();
+            let operationCount = 0;
+            for (const docSnapshot of documentsQuery.docs) {
+                const docRef = admin.firestore().collection("documents").doc(docSnapshot.id);
+                // Clear the category field (set to empty string)
+                currentBatch.update(docRef, {
+                    category: "",
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                operationCount++;
+                movedDocuments++;
+                // If we've reached the batch limit, add to batches array and create new batch
+                if (operationCount === batchSize) {
+                    batches.push(currentBatch);
+                    currentBatch = admin.firestore().batch();
+                    operationCount = 0;
+                }
+            }
+            // Add the last batch if it has operations
+            if (operationCount > 0) {
+                batches.push(currentBatch);
+            }
+            // Execute all batches
+            console.log(`🔄 Executing ${batches.length} batch operations...`);
+            await Promise.all(batches.map(batch => batch.commit()));
+            console.log(`✅ Successfully cleared category from ${movedDocuments} documents`);
+        }
+        else {
+            console.log("📝 No documents found with this category ID");
+        }
+        // STEP 3: Delete the category document
         await categoryRef.delete();
-        // Log activity
+        console.log(`🗑️ Category document deleted: ${categoryId}`);
+        // STEP 4: Log activity with detailed information
         await admin
             .firestore()
             .collection("activities")
@@ -275,13 +316,19 @@ const deleteCategory = functions.https.onCall(async (data, context) => {
             categoryId,
             userId: deletedBy,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: `Category "${categoryData === null || categoryData === void 0 ? void 0 : categoryData.name}" deleted`,
+            details: `Category "${categoryData === null || categoryData === void 0 ? void 0 : categoryData.name}" deleted and ${movedDocuments} documents moved to uncategorized`,
+            metadata: {
+                categoryName: categoryData === null || categoryData === void 0 ? void 0 : categoryData.name,
+                documentsAffected: movedDocuments,
+                deletionMethod: "hard_delete_with_document_cleanup",
+            },
         });
-        console.log(`Category deleted successfully: ${categoryId}`);
+        console.log(`✅ Category deleted successfully: ${categoryId} (${movedDocuments} documents updated)`);
         return {
             success: true,
-            message: "Category deleted successfully",
-            movedDocuments: 0,
+            message: `Category deleted successfully. ${movedDocuments} documents moved to uncategorized.`,
+            movedDocuments: movedDocuments,
+            categoryName: categoryData === null || categoryData === void 0 ? void 0 : categoryData.name,
         };
     }
     catch (error) {
