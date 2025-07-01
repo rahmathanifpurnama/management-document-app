@@ -41,11 +41,39 @@ const uuid_1 = require("uuid");
  * Create a new category
  */
 const createCategory = functions.https.onCall(async (data, context) => {
+    var _a;
     // Verify authentication
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
     }
     try {
+        // Check if current user is admin
+        const currentUserDoc = await admin
+            .firestore()
+            .collection("users")
+            .doc(context.auth.uid)
+            .get();
+        const currentUser = currentUserDoc.data();
+        // Debug logging
+        console.log("🔍 Current user data:", {
+            uid: context.auth.uid,
+            email: (_a = context.auth.token) === null || _a === void 0 ? void 0 : _a.email,
+            userExists: !!currentUser,
+            role: currentUser === null || currentUser === void 0 ? void 0 : currentUser.role,
+            status: currentUser === null || currentUser === void 0 ? void 0 : currentUser.status,
+            isActive: currentUser === null || currentUser === void 0 ? void 0 : currentUser.isActive
+        });
+        if (!currentUser) {
+            throw new functions.https.HttpsError("permission-denied", "User document not found in Firestore");
+        }
+        if (currentUser.role !== "admin") {
+            throw new functions.https.HttpsError("permission-denied", "Only admin users can create categories");
+        }
+        // Check if user is active (support both old and new field structure)
+        const isUserActive = currentUser.status === "active" || currentUser.isActive === true;
+        if (!isUserActive) {
+            throw new functions.https.HttpsError("permission-denied", "Only active admin users can create categories");
+        }
         const { name, description, permissions, isActive } = data;
         const createdBy = context.auth.uid;
         // Validate required fields
@@ -115,6 +143,24 @@ const updateCategory = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
     }
     try {
+        // Check if current user is admin
+        const currentUserDoc = await admin
+            .firestore()
+            .collection("users")
+            .doc(context.auth.uid)
+            .get();
+        const currentUser = currentUserDoc.data();
+        if (!currentUser) {
+            throw new functions.https.HttpsError("permission-denied", "User document not found in Firestore");
+        }
+        if (currentUser.role !== "admin") {
+            throw new functions.https.HttpsError("permission-denied", "Only admin users can update categories");
+        }
+        // Check if user is active (support both old and new field structure)
+        const isUserActive = currentUser.status === "active" || currentUser.isActive === true;
+        if (!isUserActive) {
+            throw new functions.https.HttpsError("permission-denied", "Only active admin users can update categories");
+        }
         const { categoryId, name, description, permissions, isActive } = data;
         const updatedBy = context.auth.uid;
         // Validate category exists
@@ -185,6 +231,24 @@ const deleteCategory = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
     }
     try {
+        // Check if current user is admin
+        const currentUserDoc = await admin
+            .firestore()
+            .collection("users")
+            .doc(context.auth.uid)
+            .get();
+        const currentUser = currentUserDoc.data();
+        if (!currentUser) {
+            throw new functions.https.HttpsError("permission-denied", "User document not found in Firestore");
+        }
+        if (currentUser.role !== "admin") {
+            throw new functions.https.HttpsError("permission-denied", "Only admin users can delete categories");
+        }
+        // Check if user is active (support both old and new field structure)
+        const isUserActive = currentUser.status === "active" || currentUser.isActive === true;
+        if (!isUserActive) {
+            throw new functions.https.HttpsError("permission-denied", "Only active admin users can delete categories");
+        }
         const { categoryId } = data;
         const deletedBy = context.auth.uid;
         // Validate category exists

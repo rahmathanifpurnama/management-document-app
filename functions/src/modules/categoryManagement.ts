@@ -41,6 +41,47 @@ const createCategory = functions.https.onCall(
     }
 
     try {
+      // Check if current user is admin
+      const currentUserDoc = await admin
+        .firestore()
+        .collection("users")
+        .doc(context.auth.uid)
+        .get();
+      const currentUser = currentUserDoc.data();
+
+      // Debug logging
+      console.log("🔍 Current user data:", {
+        uid: context.auth.uid,
+        email: context.auth.token?.email,
+        userExists: !!currentUser,
+        role: currentUser?.role,
+        status: currentUser?.status,
+        isActive: currentUser?.isActive
+      });
+
+      if (!currentUser) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "User document not found in Firestore"
+        );
+      }
+
+      if (currentUser.role !== "admin") {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only admin users can create categories"
+        );
+      }
+
+      // Check if user is active (support both old and new field structure)
+      const isUserActive = currentUser.status === "active" || currentUser.isActive === true;
+      if (!isUserActive) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only active admin users can create categories"
+        );
+      }
+
       const { name, description, permissions, isActive } = data;
       const createdBy = context.auth.uid;
 
@@ -132,6 +173,37 @@ const updateCategory = functions.https.onCall(
     }
 
     try {
+      // Check if current user is admin
+      const currentUserDoc = await admin
+        .firestore()
+        .collection("users")
+        .doc(context.auth.uid)
+        .get();
+      const currentUser = currentUserDoc.data();
+
+      if (!currentUser) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "User document not found in Firestore"
+        );
+      }
+
+      if (currentUser.role !== "admin") {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only admin users can update categories"
+        );
+      }
+
+      // Check if user is active (support both old and new field structure)
+      const isUserActive = currentUser.status === "active" || currentUser.isActive === true;
+      if (!isUserActive) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only active admin users can update categories"
+        );
+      }
+
       const { categoryId, name, description, permissions, isActive } = data;
       const updatedBy = context.auth.uid;
 
@@ -221,6 +293,37 @@ const deleteCategory = functions.https.onCall(
     }
 
     try {
+      // Check if current user is admin
+      const currentUserDoc = await admin
+        .firestore()
+        .collection("users")
+        .doc(context.auth.uid)
+        .get();
+      const currentUser = currentUserDoc.data();
+
+      if (!currentUser) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "User document not found in Firestore"
+        );
+      }
+
+      if (currentUser.role !== "admin") {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only admin users can delete categories"
+        );
+      }
+
+      // Check if user is active (support both old and new field structure)
+      const isUserActive = currentUser.status === "active" || currentUser.isActive === true;
+      if (!isUserActive) {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only active admin users can delete categories"
+        );
+      }
+
       const { categoryId } = data;
       const deletedBy = context.auth.uid;
 
