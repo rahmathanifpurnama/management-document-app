@@ -29,6 +29,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/common/home_screen.dart';
 import 'screens/admin/user_management_screen.dart';
 import 'widgets/app/statistics_initializer.dart';
+import 'widgets/app/realtime_category_initializer.dart';
 import 'screens/admin/create_user_screen.dart';
 import 'screens/admin/edit_user_screen.dart';
 import 'screens/admin/user_details_screen.dart';
@@ -267,8 +268,9 @@ class _MyAppState extends State<MyApp> {
                     );
                   case AppRoutes.home:
                     return MaterialPageRoute(
-                      builder: (context) =>
-                          const StatisticsInitializer(child: HomeScreen()),
+                      builder: (context) => const RealtimeCategoryInitializer(
+                        child: StatisticsInitializer(child: HomeScreen()),
+                      ),
                     );
                   case AppRoutes.userManagement:
                     return MaterialPageRoute(

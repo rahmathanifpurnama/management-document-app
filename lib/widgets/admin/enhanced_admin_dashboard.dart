@@ -519,19 +519,22 @@ class _EnhancedAdminDashboardState extends State<EnhancedAdminDashboard> {
       // Show loading indicator
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Clearing cache and reloading data...'),
+          content: Text('Clearing phantom files and cache...'),
           backgroundColor: AppColors.primary,
         ),
       );
 
-      // Reload data from providers
+      // Get providers
       final documentProvider = Provider.of<DocumentProvider>(
         context,
         listen: false,
       );
       final userProvider = Provider.of<UserProvider>(context, listen: false);
 
-      // Reload document data
+      // ENHANCED: Clear all phantom file cache first
+      await documentProvider.clearAllCache();
+
+      // Reload document data from Storage only
       await documentProvider.loadAllDocumentsUnlimited();
       await documentProvider.loadDocumentsFromStorageUnlimited();
 
@@ -543,7 +546,7 @@ class _EnhancedAdminDashboardState extends State<EnhancedAdminDashboard> {
 
       if (mounted) {
         Fluttertoast.showToast(
-          msg: 'Cache cleared and data reloaded successfully',
+          msg: 'Phantom files cleared! Only real files from Storage shown',
           backgroundColor: AppColors.success,
           textColor: Colors.white,
         );

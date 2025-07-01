@@ -50,9 +50,7 @@ class EnhancedDocumentService {
 
       while (hasMore && batchCount < 50) {
         // Safety limit of 5000 documents
-        Query query = _firebaseService.firestore.collection(
-          'document-metadata',
-        );
+        Query query = _firebaseService.firestore.collection('documents');
 
         // Apply filters
         if (activeOnly) {
@@ -142,8 +140,7 @@ class EnhancedDocumentService {
   }) async {
     try {
       Query query = _firebaseService.firestore
-          .collection('document-metadata')
-          .where('isActive', isEqualTo: true)
+          .collection('documents')
           .orderBy('uploadedAt', descending: true);
 
       if (startAfter != null) {

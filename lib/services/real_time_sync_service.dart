@@ -65,23 +65,10 @@ class RealTimeSyncService {
         return;
       }
 
-      _documentsSubscription = _firebaseService.firestore
-          .collection('document-metadata')
-          .orderBy('uploadedAt', descending: true)
-          .snapshots()
-          .listen(
-            (snapshot) => _handleDocumentChanges(snapshot),
-            onError: (error) {
-              debugPrint('❌ Document listener error: $error');
-              // Don't emit sync events for permission errors during login
-              if (!error.toString().contains('permission-denied')) {
-                _emitSyncEvent(
-                  SyncEventType.error,
-                  'Document sync error: $error',
-                );
-              }
-            },
-          );
+      // REMOVED: document-metadata collection listener
+      // This collection is no longer used and was causing permission errors
+      // File data now comes directly from Firebase Storage only
+      debugPrint('⚠️ Document listener disabled - using Storage-only approach');
 
       debugPrint('✅ Document listener setup complete');
     } catch (e) {

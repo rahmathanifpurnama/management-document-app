@@ -17,6 +17,7 @@ import 'category_provider.dart';
 import '../services/enhanced_document_service.dart';
 import '../services/enhanced_firebase_storage_service.dart';
 import '../services/enhanced_auth_service.dart';
+import '../services/realtime_category_sync_service.dart';
 
 // UNIFIED ID SYSTEM: Import new architectural services
 import '../core/services/unified_id_system.dart';
@@ -295,8 +296,7 @@ class DocumentProvider extends ChangeNotifier {
   StreamSubscription? _documentsSubscription;
   final bool _useFirebaseSync =
       true; // Enable Firebase sync for data persistence
-  bool _isProcessingFirebaseUpdate = false; // Prevent duplicate processing
-  Timer? _firebaseUpdateDebouncer; // Debounce Firebase updates
+  // REMOVED: Firebase update processing variables - no longer needed
   bool _isLoadingDocuments = false; // Prevent concurrent document loading
 
   // Getters
@@ -348,7 +348,7 @@ class DocumentProvider extends ChangeNotifier {
     final emptyStateManager = EmptyStorageStateManager.instance;
 
     // REMOVED: Database version tracking (not implemented in current database structure)
-    // Only 4 collections exist: users, document-metadata, categories, activities
+    // Only 3 collections exist: users, documents, categories, activities
 
     // Check if we should skip loading due to confirmed empty state
     if (!forceRefresh && emptyStateManager.shouldSkipLoading()) {
@@ -534,24 +534,10 @@ class DocumentProvider extends ChangeNotifier {
                 .enterprisePageSize // Larger limit for enterprise
           : ANRConfig.defaultPageSize; // Standard limit for regular use
 
-      _documentsSubscription = _firebaseService.firestore
-          .collection('document-metadata')
-          .where('isActive', isEqualTo: true) // Only get active documents
-          .orderBy('uploadedAt', descending: true)
-          .limit(
-            listenerLimit,
-          ) // Increased limit for better recent files coverage
-          .snapshots()
-          .listen(
-            (snapshot) {
-              _handleFirebaseDocumentUpdates(snapshot.docs);
-            },
-            onError: (error) {
-              // REDUCED LOGGING: Only log Firebase listener errors, not every event
-              debugPrint('❌ Firebase listener error: $error');
-              _setError('Real-time sync temporarily unavailable');
-            },
-          );
+      // REMOVED: document-metadata collection listener
+      // This collection is no longer used and was causing permission errors
+      // File data now comes directly from Firebase Storage only
+      debugPrint('⚠️ Firebase listener disabled - using Storage-only approach');
 
       // REDUCED LOGGING: Only log listener start once, not repeatedly
       debugPrint('✅ Firebase listener started (limit: $listenerLimit)');
@@ -561,79 +547,11 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  // Stop Firebase listener to prevent duplicates
-  void _stopFirebaseListener() {
-    if (_documentsSubscription != null) {
-      _documentsSubscription!.cancel();
-      _documentsSubscription = null;
-      debugPrint('🛑 Firebase listener stopped');
-    }
-  }
+  // REMOVED: Firebase listener methods - no longer needed
+  // Using Storage-only approach without document-metadata collection
 
-  /// Start Firebase listener after authentication (public method)
-  void startFirebaseListenerAfterAuth() {
-    if (_useFirebaseSync && _documents.isNotEmpty) {
-      debugPrint('🔐 Starting Firebase listener after authentication...');
-      _startFirebaseListener();
-    }
-  }
-
-  // Handle Firebase document updates from snapshots
-  void _handleFirebaseDocumentUpdates(List<QueryDocumentSnapshot> docs) {
-    // REDUCED debounce time for faster UI updates and consistency
-    _firebaseUpdateDebouncer?.cancel();
-    _firebaseUpdateDebouncer = Timer(const Duration(milliseconds: 500), () {
-      _processFirebaseDocumentUpdates(docs);
-    });
-  }
-
-  // Process Firebase document updates (debounced)
-  void _processFirebaseDocumentUpdates(List<QueryDocumentSnapshot> docs) {
-    // Prevent duplicate processing or processing during initial load
-    if (_isProcessingFirebaseUpdate || _isLoadingDocuments) {
-      debugPrint(
-        '⚠️ Firebase update already in progress or documents loading, skipping...',
-      );
-      return;
-    }
-
-    try {
-      _isProcessingFirebaseUpdate = true;
-      // REDUCED LOGGING: Only log significant changes and use controlled logging
-      if (docs.length != _documents.length) {
-        // Use controlled logging to reduce noise
-        if (docs.isNotEmpty) {
-          debugPrint('📥 Firebase listener: ${docs.length} documents updated');
-        }
-      }
-
-      final firebaseDocuments = docs
-          .map((doc) => DocumentModel.fromFirestore(doc as DocumentSnapshot))
-          .toList();
-
-      // SURGICAL FIX: Preserve recent assignments during Firebase listener updates
-      final updatedFirebaseDocuments = firebaseDocuments.map((doc) {
-        if (_recentlyAssignedFiles.containsKey(doc.id)) {
-          final recentCategory = _recentlyAssignedFiles[doc.id]!;
-          debugPrint(
-            '🔒 Preserving recent assignment from listener for ${doc.fileName}: $recentCategory',
-          );
-          return doc.copyWith(category: recentCategory);
-        }
-        return doc;
-      }).toList();
-
-      // Merge Firebase documents with local documents
-      _mergeFirebaseDocuments(updatedFirebaseDocuments, isFromListener: true);
-
-      // Apply filters and notify listeners
-      _applyFiltersAndSort();
-    } catch (e) {
-      debugPrint('Error handling Firebase updates: $e');
-    } finally {
-      _isProcessingFirebaseUpdate = false;
-    }
-  }
+  // REMOVED: Firebase document update handlers - no longer needed
+  // Using Storage-only approach without document-metadata collection
 
   // Handle Firebase document updates from DocumentModel list (for direct service calls)
   void _handleFirebaseDocumentModels(List<DocumentModel> firebaseDocuments) {
@@ -933,14 +851,21 @@ class DocumentProvider extends ChangeNotifier {
         '🔄 Updating ${documentIds.length} documents to category: $categoryId',
       );
 
-      // First try to update via Cloud Functions for persistence
+      // Use real-time category sync untuk batch assignment
       try {
-        final categoryProvider = CategoryProvider();
-        await categoryProvider.addFilesToCategory(categoryId, documentIds);
-        debugPrint('✅ Cloud Functions update successful');
-      } catch (cloudError) {
-        debugPrint('⚠️ Cloud Functions update failed: $cloudError');
-        // Continue with local update and direct Firebase fallback
+        final realtimeCategorySync = RealtimeCategorySyncService.instance;
+        await realtimeCategorySync.assignMultipleDocumentsToCategory(
+          documentIds,
+          categoryId,
+        );
+        debugPrint('✅ Real-time batch assignment successful');
+
+        // Update local cache immediately
+        _updateLocalBatchAssignment(documentIds, categoryId);
+        return; // Exit early if successful
+      } catch (syncError) {
+        debugPrint('⚠️ Real-time batch assignment failed: $syncError');
+        // Continue with fallback method
       }
 
       bool hasChanges = false;
@@ -1010,14 +935,14 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  // Update document category with Firebase Storage integration
-  // FIXED: Update local cache first for immediate UI response, then sync with backend
+  // Update document category dengan real-time sync
+  // ENHANCED: Menggunakan RealtimeCategorySyncService untuk immediate updates
   Future<void> updateDocumentCategory(
     String documentId,
     String categoryId,
   ) async {
     try {
-      debugPrint('🔄 DocumentProvider: Starting category update...');
+      debugPrint('🔄 DocumentProvider: Starting real-time category update...');
       debugPrint('   Document ID: $documentId');
       debugPrint('   Target Category: $categoryId');
 
@@ -1080,23 +1005,29 @@ class DocumentProvider extends ChangeNotifier {
 
       debugPrint('✅ Local cache updated immediately with timestamp protection');
 
-      // STEP 2: Update Firestore document-metadata (non-blocking for UI)
-      try {
-        await _updateFirestoreDocumentCategory(documentId, categoryId);
-        debugPrint('✅ Firestore updated successfully');
-      } catch (firestoreError) {
-        debugPrint('⚠️ Firestore update failed: $firestoreError');
-        // Don't rollback local changes - Firestore will be eventually consistent
-      }
+      // REMOVED: Firestore document-metadata update - collection no longer used
+      // Using Storage-only approach for better performance and simplicity
 
-      // STEP 3: Update Firebase Storage (non-blocking for UI, graceful degradation)
+      // STEP 3: Use real-time category sync service untuk immediate Firestore update
       try {
-        final fileCategoryService = FileCategoryManagementService();
-        await fileCategoryService.moveFileToCategory(documentId, categoryId);
-        debugPrint('✅ Firebase Storage updated successfully');
-      } catch (storageError) {
-        debugPrint('⚠️ Firebase Storage update failed: $storageError');
-        // Don't rollback local changes - Storage organization is not critical for functionality
+        final realtimeCategorySync = RealtimeCategorySyncService.instance;
+        await realtimeCategorySync.assignDocumentToCategory(
+          documentId,
+          categoryId,
+        );
+        debugPrint('✅ Real-time category assignment completed');
+      } catch (syncError) {
+        debugPrint('⚠️ Real-time category sync failed: $syncError');
+
+        // Fallback to direct Firestore update
+        try {
+          await _documentService.updateDocumentCategory(documentId, categoryId);
+          debugPrint('✅ Fallback Firestore update successful');
+        } catch (fallbackError) {
+          debugPrint(
+            '⚠️ Fallback Firestore update also failed: $fallbackError',
+          );
+        }
       }
 
       // STEP 4: Update category document count (non-blocking)
@@ -1116,66 +1047,8 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  /// Update Firestore document-metadata with new category
-  Future<void> _updateFirestoreDocumentCategory(
-    String documentId,
-    String categoryId,
-  ) async {
-    try {
-      debugPrint('🔄 Updating Firestore document-metadata for: $documentId');
-      debugPrint('   New category: $categoryId');
-
-      await FirebaseFirestore.instance
-          .collection('document-metadata')
-          .doc(documentId)
-          .update({
-            'category': categoryId,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-
-      debugPrint('✅ Firestore document-metadata updated successfully');
-    } catch (e) {
-      debugPrint('❌ Failed to update Firestore document-metadata: $e');
-
-      // ENHANCED: Try to create document if it doesn't exist
-      if (e.toString().contains('No document to update')) {
-        try {
-          debugPrint('🔄 Document not found, attempting to create...');
-
-          // Find document in local cache to get metadata
-          final document = _documents.firstWhere(
-            (doc) => doc.id == documentId,
-            orElse: () => throw Exception('Document not found in local cache'),
-          );
-
-          await FirebaseFirestore.instance
-              .collection('document-metadata')
-              .doc(documentId)
-              .set({
-                'id': documentId,
-                'fileName': document.fileName,
-                'fileSize': document.fileSize,
-                'fileType': document.fileType,
-                'filePath': document.filePath,
-                'uploadedBy': document.uploadedBy,
-                'uploadedAt': document.uploadedAt,
-                'category': categoryId,
-                'permissions': document.permissions,
-                'isActive': true,
-                'createdAt': FieldValue.serverTimestamp(),
-                'updatedAt': FieldValue.serverTimestamp(),
-              });
-
-          debugPrint('✅ Firestore document created successfully');
-        } catch (createError) {
-          debugPrint('❌ Failed to create Firestore document: $createError');
-          // Don't throw - graceful degradation
-        }
-      }
-
-      // Don't throw error - graceful degradation for eventual consistency
-    }
-  }
+  // REMOVED: _updateFirestoreDocumentCategory method - no longer needed
+  // Using Storage-only approach without document-metadata collection
 
   /// Update category document count in Firestore
   Future<void> _updateCategoryDocumentCount(String categoryId) async {
@@ -1202,7 +1075,7 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  // Remove file from category (set category to empty string, not uncategorized)
+  // Remove file from category dengan real-time sync (set category to empty string)
   Future<void> removeFileFromCategory(
     String documentId,
     String categoryId,
@@ -1210,8 +1083,18 @@ class DocumentProvider extends ChangeNotifier {
     try {
       debugPrint('🔄 Removing file $documentId from category $categoryId');
 
-      // Update document in Firestore to have empty category
-      await _documentService.updateDocumentCategory(documentId, '');
+      // Use real-time category sync service untuk immediate update
+      try {
+        final realtimeCategorySync = RealtimeCategorySyncService.instance;
+        await realtimeCategorySync.removeDocumentFromCategory(documentId);
+        debugPrint('✅ Real-time category removal completed');
+      } catch (syncError) {
+        debugPrint('⚠️ Real-time category removal failed: $syncError');
+
+        // Fallback to direct Firestore update
+        await _documentService.updateDocumentCategory(documentId, '');
+        debugPrint('✅ Fallback category removal successful');
+      }
 
       final documentIndex = _documents.indexWhere(
         (doc) => doc.id == documentId,
@@ -2821,8 +2704,7 @@ class DocumentProvider extends ChangeNotifier {
   void dispose() {
     // Cancel Firebase listener
     _documentsSubscription?.cancel();
-    // Cancel debounce timer
-    _firebaseUpdateDebouncer?.cancel();
+    // REMOVED: Firebase update debouncer - no longer used
     super.dispose();
   }
 
@@ -2848,6 +2730,125 @@ class DocumentProvider extends ChangeNotifier {
 
   // REMOVED: _loadFromStorage method to prevent cache loading
   // This ensures statistics show 0 until Firebase Storage loads
+
+  /// Update category documents untuk real-time sync
+  void updateCategoryDocuments(
+    String documentId,
+    String oldCategory,
+    String newCategory,
+    DocumentModel updatedDocument,
+  ) {
+    try {
+      // Remove from old category if it exists
+      if (oldCategory.isNotEmpty &&
+          _categoryDocuments.containsKey(oldCategory)) {
+        _categoryDocuments[oldCategory]!.removeWhere(
+          (doc) => doc.id == documentId,
+        );
+        debugPrint('📤 Removed document from old category: $oldCategory');
+      }
+
+      // Add to new category if it's not empty
+      if (newCategory.isNotEmpty) {
+        if (!_categoryDocuments.containsKey(newCategory)) {
+          _categoryDocuments[newCategory] = [];
+        }
+
+        // Check if document already exists in new category
+        if (!_categoryDocuments[newCategory]!.any(
+          (doc) => doc.id == documentId,
+        )) {
+          _categoryDocuments[newCategory]!.add(updatedDocument);
+          debugPrint('📥 Added document to new category: $newCategory');
+        }
+      }
+
+      // Apply filters and sort
+      _applyFiltersAndSort();
+    } catch (e) {
+      debugPrint('❌ Failed to update category documents: $e');
+    }
+  }
+
+  /// Update local cache untuk batch assignment
+  void _updateLocalBatchAssignment(
+    List<String> documentIds,
+    String categoryId,
+  ) {
+    try {
+      bool hasChanges = false;
+
+      for (final documentId in documentIds) {
+        final documentIndex = _documents.indexWhere(
+          (doc) => doc.id == documentId,
+        );
+
+        if (documentIndex != -1) {
+          final originalDocument = _documents[documentIndex];
+          final updatedDocument = originalDocument.copyWith(
+            category: categoryId,
+          );
+
+          // Update main documents list
+          _documents[documentIndex] = updatedDocument;
+
+          // Update category documents
+          updateCategoryDocuments(
+            documentId,
+            originalDocument.category,
+            categoryId,
+            updatedDocument,
+          );
+
+          hasChanges = true;
+        }
+      }
+
+      if (hasChanges) {
+        notifyListeners();
+        _saveToStorage();
+        debugPrint(
+          '✅ Local batch assignment completed for ${documentIds.length} documents',
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Failed to update local batch assignment: $e');
+    }
+  }
+
+  /// Clear all local cache and phantom file data
+  Future<void> clearAllCache() async {
+    try {
+      debugPrint('🧹 Clearing all local cache and phantom file data...');
+
+      final prefs = await SharedPreferences.getInstance();
+
+      // Clear all document-related cache
+      await prefs.remove('category_documents');
+      await prefs.remove('documents_initialized');
+      await prefs.remove('persistent_assignments');
+      await prefs.remove('cache_validation_timestamp');
+      await prefs.remove('cached_document_count');
+
+      // Clear local state
+      _documents.clear();
+      _categoryDocuments.clear();
+      _recentlyAssignedFiles.clear();
+      _persistentAssignments.clear();
+      _isInitialized = false;
+
+      // Clear state manager cache
+      _stateManager.clearData();
+
+      // Clear smart cache invalidation
+      await _cacheInvalidation.invalidateCache();
+
+      debugPrint('✅ All cache cleared successfully');
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ Error clearing cache: $e');
+    }
+  }
 
   // USER STRATEGY: Get Firestore documents that user has access to
   Future<List<DocumentModel>> _getUserAccessibleFirestoreDocuments(

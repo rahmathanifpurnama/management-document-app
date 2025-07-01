@@ -636,6 +636,16 @@ const deleteDocument = functions.https.onCall(async (data: any, context) => {
  * Generate document report
  */
 const generateDocumentReport = functions.https.onCall(async (data: any, context) => {
+  // DISABLED: Function uses document-metadata collection which is no longer used
+  console.log("⚠️ generateDocumentReport disabled - using Storage-only approach");
+  return {
+    success: false,
+    error: "Function disabled - using Storage-only approach",
+    code: "FUNCTION_DISABLED",
+    documents: [],
+    totalCount: 0,
+  };
+
   if (!context.auth) {
     throw new functions.https.HttpsError(
       "unauthenticated",
