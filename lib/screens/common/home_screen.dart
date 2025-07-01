@@ -155,9 +155,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (mounted) {
         setState(() {});
       }
+
+      // OPTIMIZATION: Don't re-initialize real-time sync on refresh
+      // Real-time sync should only be initialized once during app startup
+      debugPrint(
+        '✅ HomeScreen: Refresh completed without re-initializing sync',
+      );
     } catch (e) {
       // Silently handle refresh errors to avoid disrupting user experience
-      debugPrint('Auto-refresh error: $e');
+      debugPrint('❌ HomeScreen: Refresh error: $e');
+
+      // If refresh fails due to sync issues, try to reset and re-initialize
+      if (e.toString().contains('Real-time sync') ||
+          e.toString().contains('Future already completed')) {
+        debugPrint('🔄 HomeScreen: Attempting to reset real-time sync...');
+        try {
+          RealTimeSyncInitializer.instance.reset();
+          await _initializeRealTimeSync();
+        } catch (resetError) {
+          debugPrint('❌ HomeScreen: Reset failed: $resetError');
+        }
+      }
     }
   }
 
@@ -211,21 +229,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Initialize real-time synchronization system
   Future<void> _initializeRealTimeSync() async {
     try {
+      // Check if already initialized to prevent re-initialization
+      if (RealTimeSyncInitializer.instance.isInitialized) {
+        debugPrint('✅ HomeScreen: Real-time sync already initialized');
+        return;
+      }
+
+      debugPrint('🚀 HomeScreen: Initializing real-time sync...');
       // Initialize the real-time sync system
       await RealTimeSyncInitializer.instance.initialize();
+      debugPrint('✅ HomeScreen: Real-time sync initialization completed');
     } catch (e) {
       debugPrint('❌ HomeScreen: Real-time sync initialization failed: $e');
 
-      // Show error notification but don't block the app
-      if (mounted) {
+      // Only show error for critical failures, not permission errors
+      if (mounted && !e.toString().contains('permission-denied')) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('⚠️ Real-time sync unavailable: ${e.toString()}'),
+            content: Text('⚠️ Real-time sync unavailable - ${e.toString()}'),
             backgroundColor: Colors.orange,
             duration: const Duration(seconds: 3),
             behavior: SnackBarBehavior.floating,
           ),
         );
+      } else if (e.toString().contains('permission-denied')) {
+        debugPrint('⚠️ HomeScreen: Permission error - real-time sync disabled');
       }
     }
   }

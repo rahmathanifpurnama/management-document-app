@@ -48,9 +48,12 @@ class RealTimeSyncService {
     try {
       await _setupDocumentListener();
       await _setupUserListener();
-      await _setupActivityListener();
+      await _setupActivityListener(); // Non-critical, won't throw
       await _setupStatisticsCacheListener();
+
+      debugPrint('✅ RealTimeSyncService: Core initialization completed');
     } catch (e) {
+      debugPrint('❌ RealTimeSyncService: Critical initialization error: $e');
       rethrow;
     }
   }
@@ -114,13 +117,45 @@ class RealTimeSyncService {
             (snapshot) => _handleActivityChanges(snapshot),
             onError: (error) {
               debugPrint('❌ Activity listener error: $error');
+
+              // Handle specific error types gracefully
+              if (error.toString().contains('index') ||
+                  error.toString().contains('requires an index')) {
+                debugPrint(
+                  '⚠️ Missing Firestore index for activities - disabling activity monitoring',
+                );
+                _activitiesSubscription?.cancel();
+                _activitiesSubscription = null;
+              } else if (error.toString().contains('permission-denied')) {
+                debugPrint(
+                  '⚠️ Permission denied for activities - disabling activity monitoring',
+                );
+                _activitiesSubscription?.cancel();
+                _activitiesSubscription = null;
+              }
             },
           );
 
       debugPrint('✅ Activity listener setup complete');
     } catch (e) {
       debugPrint('❌ Error setting up activity listener: $e');
-      // Don't rethrow - activity monitoring is not critical
+
+      // Handle setup errors gracefully
+      if (e.toString().contains('index') ||
+          e.toString().contains('requires an index')) {
+        debugPrint('⚠️ Missing Firestore index for activities collection');
+        debugPrint(
+          '💡 Please deploy the updated firestore.indexes.json to fix this',
+        );
+        // Continue without activity monitoring - it's not critical
+      } else if (e.toString().contains('permission-denied')) {
+        debugPrint('⚠️ Permission denied for activities collection');
+        // Continue without activity monitoring - it's not critical
+      } else {
+        debugPrint('⚠️ Unknown error setting up activity listener: $e');
+      }
+
+      // Don't rethrow - activity monitoring is not critical for core functionality
     }
   }
 

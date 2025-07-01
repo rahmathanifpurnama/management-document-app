@@ -34,7 +34,7 @@ class RealTimeSyncInitializer {
   bool _isInitializing = false;
   final List<String> _initializationSteps = [];
   final Map<String, bool> _componentStatus = {};
-  final Completer<void> _initializationCompleter = Completer<void>();
+  Completer<void>? _initializationCompleter;
 
   /// Initialize all real-time synchronization components
   Future<void> initialize() async {
@@ -45,10 +45,20 @@ class RealTimeSyncInitializer {
 
     if (_isInitializing) {
       debugPrint('⏳ Real-time sync initialization in progress, waiting...');
-      return _initializationCompleter.future;
+      // Wait for existing initialization to complete
+      try {
+        await _initializationCompleter?.future;
+        return;
+      } catch (e) {
+        debugPrint('⚠️ Previous initialization failed, retrying: $e');
+        // Reset state and continue with new initialization
+        _isInitializing = false;
+        _initializationCompleter = null;
+      }
     }
 
     _isInitializing = true;
+    _initializationCompleter = Completer<void>();
     debugPrint('🚀 Starting real-time synchronization initialization...');
 
     try {
@@ -86,7 +96,11 @@ class RealTimeSyncInitializer {
 
       _isInitialized = true;
       _isInitializing = false;
-      _initializationCompleter.complete();
+
+      // Safely complete the completer
+      if (!_initializationCompleter!.isCompleted) {
+        _initializationCompleter!.complete();
+      }
 
       debugPrint(
         '🎉 Real-time synchronization initialization completed successfully!',
@@ -94,7 +108,11 @@ class RealTimeSyncInitializer {
       _logInitializationSuccess();
     } catch (e) {
       _isInitializing = false;
-      _initializationCompleter.completeError(e);
+
+      // Safely complete the completer with error
+      if (!_initializationCompleter!.isCompleted) {
+        _initializationCompleter!.completeError(e);
+      }
 
       debugPrint('❌ Real-time sync initialization failed: $e');
       await _handleInitializationFailure(e);
@@ -441,4 +459,18 @@ class RealTimeSyncInitializer {
 
   /// Get component status
   Map<String, bool> get componentStatus => Map.unmodifiable(_componentStatus);
+
+  /// Reset initialization state for clean re-initialization
+  void reset() {
+    debugPrint('🔄 Resetting real-time sync initialization state...');
+    _isInitialized = false;
+    _isInitializing = false;
+    _initializationCompleter = null;
+    _initializationSteps.clear();
+    _componentStatus.clear();
+    debugPrint('✅ Real-time sync state reset completed');
+  }
+
+  /// Get initialization status (simple getter)
+  bool get isInitialized => _isInitialized;
 }

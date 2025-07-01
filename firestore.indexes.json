@@ -29,21 +29,15 @@
       ]
     },
     {
-      "collectionGroup": "categories",
+      "collectionGroup": "activities",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
+          "fieldPath": "source",
+          "order": "ASCENDING"
+        },
         {
-          "fieldPath": "createdAt",
+          "fieldPath": "timestamp",
           "order": "DESCENDING"
         }
       ]

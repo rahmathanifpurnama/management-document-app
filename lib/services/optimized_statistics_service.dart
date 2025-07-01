@@ -31,6 +31,12 @@ class OptimizedStatisticsService {
 
   // Real-time sync subscription
   StreamSubscription<Map<String, dynamic>>? _realTimeSyncSubscription;
+  StreamSubscription<SyncEvent>? _syncEventsSubscription;
+
+  // Prevent excessive updates
+  bool _isUpdatingStatistics = false;
+  DateTime? _lastUpdateTime;
+  static const Duration _minUpdateInterval = Duration(seconds: 5);
 
   Stream<Map<String, dynamic>> get statsStream => _statsStreamController.stream;
 
@@ -408,21 +414,23 @@ class OptimizedStatisticsService {
       // Subscribe to real-time statistics updates
       _realTimeSyncSubscription = _realTimeSyncService.statisticsStream.listen(
         (stats) {
-          debugPrint('📊 Real-time statistics update received');
-          _cachedStats = stats;
-          _lastCacheTime = DateTime.now();
-          _statsStreamController.add(stats);
+          if (_shouldUpdateStatistics()) {
+            debugPrint('📊 Real-time statistics update received');
+            _updateStatisticsCache(stats);
+          } else {
+            debugPrint('⏳ Skipping statistics update - too frequent');
+          }
         },
         onError: (error) {
           debugPrint('❌ Real-time statistics error: $error');
         },
       );
 
-      // Listen to sync events for cache invalidation
-      _realTimeSyncService.syncEventsStream.listen((event) {
-        if (event.type == SyncEventType.statisticsInvalidated ||
-            event.type == SyncEventType.documentAdded ||
-            event.type == SyncEventType.userAdded) {
+      // Listen to sync events for cache invalidation (with throttling)
+      _syncEventsSubscription = _realTimeSyncService.syncEventsStream.listen((
+        event,
+      ) {
+        if (_shouldProcessSyncEvent(event)) {
           debugPrint(
             '🔄 Sync event detected: ${event.type} - invalidating cache',
           );
@@ -435,6 +443,50 @@ class OptimizedStatisticsService {
       debugPrint('❌ Error initializing real-time sync: $e');
       rethrow;
     }
+  }
+
+  /// Check if statistics should be updated (throttling)
+  bool _shouldUpdateStatistics() {
+    if (_isUpdatingStatistics) {
+      return false;
+    }
+
+    final now = DateTime.now();
+    if (_lastUpdateTime != null &&
+        now.difference(_lastUpdateTime!) < _minUpdateInterval) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /// Update statistics cache with throttling
+  void _updateStatisticsCache(Map<String, dynamic> stats) {
+    _isUpdatingStatistics = true;
+    _cachedStats = stats;
+    _lastCacheTime = DateTime.now();
+    _lastUpdateTime = DateTime.now();
+    _statsStreamController.add(stats);
+    _isUpdatingStatistics = false;
+  }
+
+  /// Check if sync event should be processed (prevent loop)
+  bool _shouldProcessSyncEvent(SyncEvent event) {
+    // Only process critical events that require immediate cache invalidation
+    final criticalEvents = {
+      SyncEventType.documentAdded,
+      SyncEventType.documentRemoved,
+      SyncEventType.userAdded,
+      SyncEventType.userRemoved,
+    };
+
+    // Skip statistics invalidation events to prevent loops
+    if (event.type == SyncEventType.statisticsInvalidated ||
+        event.type == SyncEventType.statisticsUpdated) {
+      return false;
+    }
+
+    return criticalEvents.contains(event.type);
   }
 
   /// Invalidate local cache
@@ -473,6 +525,7 @@ class OptimizedStatisticsService {
   /// Dispose resources
   void dispose() {
     _realTimeSyncSubscription?.cancel();
+    _syncEventsSubscription?.cancel();
     _statsStreamController.close();
     debugPrint('🔄 OptimizedStatisticsService disposed');
   }
