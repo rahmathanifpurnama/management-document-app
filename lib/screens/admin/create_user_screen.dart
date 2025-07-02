@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../services/email_validation_service.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/loading_widget.dart';
 
@@ -28,6 +30,53 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _sendEmailVerification = true;
+  EmailValidationService get _emailValidationService =>
+      EmailValidationService.instance;
+
+  // Password strength levels
+  String _getPasswordStrength(String password) {
+    if (password.isEmpty) return '';
+    if (password.length < 6) return 'Terlalu Lemah';
+
+    int score = 0;
+    if (password.length >= 8) score++;
+    if (RegExp(r'[A-Z]').hasMatch(password)) score++;
+    if (RegExp(r'[a-z]').hasMatch(password)) score++;
+    if (RegExp(r'[0-9]').hasMatch(password)) score++;
+    if (RegExp(r'[!@#$%^&*(),.?":{}|<>]').hasMatch(password)) score++;
+
+    switch (score) {
+      case 0:
+      case 1:
+        return 'Lemah';
+      case 2:
+      case 3:
+        return 'Sedang';
+      case 4:
+        return 'Kuat';
+      case 5:
+        return 'Sangat Kuat';
+      default:
+        return 'Lemah';
+    }
+  }
+
+  Color _getPasswordStrengthColor(String strength) {
+    switch (strength) {
+      case 'Terlalu Lemah':
+      case 'Lemah':
+        return AppColors.error;
+      case 'Sedang':
+        return AppColors.warning;
+      case 'Kuat':
+        return AppColors.success;
+      case 'Sangat Kuat':
+        return AppColors.primary;
+      default:
+        return AppColors.textSecondary;
+    }
+  }
 
   @override
   void dispose() {
@@ -140,10 +189,10 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                         if (value == null || value.isEmpty) {
                           return 'Email harus diisi';
                         }
-                        if (!RegExp(
-                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                        ).hasMatch(value)) {
-                          return 'Format email tidak valid';
+                        final validationResult = _emailValidationService
+                            .validateEmailForRegistration(value);
+                        if (!validationResult.isValid) {
+                          return validationResult.message;
                         }
                         return null;
                       },
@@ -155,25 +204,61 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                     _buildSectionHeader('Keamanan'),
                     const SizedBox(height: 16),
 
-                    _buildPasswordField(
-                      controller: _passwordController,
-                      label: 'Password',
-                      hint: 'Masukkan password',
-                      obscureText: _obscurePassword,
-                      onToggleVisibility: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Password harus diisi';
-                        }
-                        if (value.length < 6) {
-                          return 'Password minimal 6 karakter';
-                        }
-                        return null;
-                      },
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildPasswordField(
+                          controller: _passwordController,
+                          label: 'Password',
+                          hint: 'Masukkan password',
+                          obscureText: _obscurePassword,
+                          onToggleVisibility: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Password harus diisi';
+                            }
+                            if (value.length < 6) {
+                              return 'Password minimal 6 karakter';
+                            }
+                            return null;
+                          },
+                          onChanged: (value) {
+                            setState(
+                              () {},
+                            ); // Trigger rebuild for strength indicator
+                          },
+                        ),
+                        if (_passwordController.text.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Text(
+                                'Kekuatan Password: ',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              Text(
+                                _getPasswordStrength(_passwordController.text),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _getPasswordStrengthColor(
+                                    _getPasswordStrength(
+                                      _passwordController.text,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
                     ),
 
                     const SizedBox(height: 16),
@@ -253,6 +338,64 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                           ),
                         ),
                       ],
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Email Verification Section
+                    _buildSectionHeader('Verifikasi Email'),
+                    const SizedBox(height: 16),
+
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: _sendEmailVerification,
+                                onChanged: (value) {
+                                  setState(() {
+                                    _sendEmailVerification = value ?? true;
+                                  });
+                                },
+                                activeColor: AppColors.primary,
+                              ),
+                              Expanded(
+                                child: Text(
+                                  'Kirim email verifikasi ke pengguna',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 48),
+                            child: Text(
+                              _sendEmailVerification
+                                  ? 'Email verifikasi akan dikirim setelah akun berhasil dibuat. Pengguna perlu memverifikasi email sebelum dapat menggunakan semua fitur.'
+                                  : 'Pengguna dapat login tanpa verifikasi email, namun akan menerima peringatan untuk memverifikasi email.',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
 
                     const SizedBox(height: 32),
@@ -354,11 +497,13 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     required bool obscureText,
     required VoidCallback onToggleVisibility,
     String? Function(String?)? validator,
+    void Function(String)? onChanged,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
       validator: validator,
+      onChanged: onChanged,
       style: GoogleFonts.poppins(),
       decoration: InputDecoration(
         labelText: label,
@@ -432,8 +577,43 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
       );
 
       if (success && mounted) {
+        // Send email verification if requested
+        if (_sendEmailVerification) {
+          try {
+            final result = await _emailValidationService.sendEmailVerification(
+              customMessage:
+                  'Email verifikasi telah dikirim ke ${_emailController.text.trim()}. Silakan periksa inbox dan verifikasi email Anda.',
+            );
+
+            if (result.success) {
+              Fluttertoast.showToast(
+                msg: result.message,
+                backgroundColor: AppColors.success,
+                textColor: AppColors.textWhite,
+                toastLength: Toast.LENGTH_LONG,
+              );
+            } else {
+              Fluttertoast.showToast(
+                msg:
+                    'Pengguna berhasil dibuat, namun gagal mengirim email verifikasi: ${result.message}',
+                backgroundColor: AppColors.warning,
+                textColor: AppColors.textWhite,
+                toastLength: Toast.LENGTH_LONG,
+              );
+            }
+          } catch (e) {
+            Fluttertoast.showToast(
+              msg:
+                  'Pengguna berhasil dibuat, namun gagal mengirim email verifikasi: $e',
+              backgroundColor: AppColors.warning,
+              textColor: AppColors.textWhite,
+              toastLength: Toast.LENGTH_LONG,
+            );
+          }
+        }
+
         // Show success dialog with password
-        _showPasswordDialog(password);
+        _showPasswordDialog(password, _sendEmailVerification);
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -462,7 +642,7 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     }
   }
 
-  void _showPasswordDialog(String password) {
+  void _showPasswordDialog(String password, bool emailVerificationSent) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -533,6 +713,50 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+
+            // Email verification status
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: emailVerificationSent
+                    ? AppColors.success.withValues(alpha: 0.1)
+                    : AppColors.warning.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: emailVerificationSent
+                      ? AppColors.success.withValues(alpha: 0.3)
+                      : AppColors.warning.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    emailVerificationSent ? Icons.email : Icons.warning,
+                    color: emailVerificationSent
+                        ? AppColors.success
+                        : AppColors.warning,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      emailVerificationSent
+                          ? 'Email verifikasi telah dikirim ke ${_emailController.text.trim()}'
+                          : 'Email verifikasi tidak dikirim. Pengguna akan menerima peringatan untuk memverifikasi email.',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: emailVerificationSent
+                            ? AppColors.success
+                            : AppColors.warning,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             const SizedBox(height: 12),
             Text(
               'Please save this password securely. Due to Firebase SCRYPT hashing, password recovery is difficult.',

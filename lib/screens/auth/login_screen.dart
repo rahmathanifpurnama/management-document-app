@@ -67,12 +67,22 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (success && mounted) {
-        Fluttertoast.showToast(
-          msg: AppStrings.loginSuccess,
-          backgroundColor: AppColors.success,
-          textColor: AppColors.textWhite,
-          toastLength: Toast.LENGTH_SHORT,
-        );
+        // Check if email verification is required
+        if (authProvider.requiresEmailVerification) {
+          Fluttertoast.showToast(
+            msg: 'Login berhasil. Peringatan: Email Anda belum diverifikasi.',
+            backgroundColor: AppColors.warning,
+            textColor: AppColors.textWhite,
+            toastLength: Toast.LENGTH_LONG,
+          );
+        } else {
+          Fluttertoast.showToast(
+            msg: AppStrings.loginSuccess,
+            backgroundColor: AppColors.success,
+            textColor: AppColors.textWhite,
+            toastLength: Toast.LENGTH_SHORT,
+          );
+        }
         Navigator.of(context).pushReplacementNamed(AppRoutes.home);
       } else if (authProvider.errorMessage != null && mounted) {
         Fluttertoast.showToast(
@@ -137,11 +147,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             if (value == null || value.isEmpty) {
                               return AppStrings.fieldRequired;
                             }
-                            if (!RegExp(
-                              r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                            ).hasMatch(value)) {
-                              return AppStrings.invalidEmail;
+
+                            // Use EmailValidationService for comprehensive validation
+                            final authProvider = Provider.of<AuthProvider>(
+                              context,
+                              listen: false,
+                            );
+                            final validationResult = authProvider
+                                .validateEmailForRegistration(value.trim());
+
+                            if (!validationResult.isValid) {
+                              return validationResult.message;
                             }
+
                             return null;
                           },
                         ),

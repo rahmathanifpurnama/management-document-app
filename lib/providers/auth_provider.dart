@@ -5,16 +5,20 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../core/services/auth_service.dart';
 
 import '../services/enhanced_auth_service.dart';
+import '../services/email_validation_service.dart';
 import '../models/user_model.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService.instance;
   final EnhancedAuthService _enhancedAuthService = EnhancedAuthService.instance;
+  final EmailValidationService _emailValidationService =
+      EmailValidationService.instance;
 
   UserModel? _currentUser;
   bool _isLoading = false;
   String? _errorMessage;
   bool _isLoggedIn = false;
+  bool _requiresEmailVerification = false;
 
   // Getters
   UserModel? get currentUser => _currentUser;
@@ -22,6 +26,9 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isLoggedIn => _isLoggedIn;
   bool get isAdmin => _currentUser?.isAdmin ?? false;
+  bool get requiresEmailVerification => _requiresEmailVerification;
+  bool get isEmailVerified =>
+      _emailValidationService.isCurrentUserEmailVerified;
 
   // Initialize auth state
   Future<void> initializeAuth() async {
@@ -86,6 +93,18 @@ class AuthProvider extends ChangeNotifier {
       if (user != null) {
         _currentUser = user;
         _isLoggedIn = true;
+
+        // Check email verification status
+        final isEmailVerified =
+            _emailValidationService.isCurrentUserEmailVerified;
+        if (!isEmailVerified) {
+          _requiresEmailVerification = true;
+          // Send verification email automatically
+          await _emailValidationService.sendEmailVerification();
+        } else {
+          _requiresEmailVerification = false;
+        }
+
         notifyListeners();
         return true;
       }
@@ -308,5 +327,47 @@ class AuthProvider extends ChangeNotifier {
   /// Check if user has access to specific document
   Future<bool> hasDocumentAccess(String documentId, String action) async {
     return await _enhancedAuthService.hasDocumentAccess(documentId, action);
+  }
+
+  // Email Verification Methods
+
+  /// Send email verification to current user
+  Future<EmailVerificationResult> sendEmailVerification() async {
+    try {
+      final result = await _emailValidationService.sendEmailVerification();
+      if (result.success) {
+        _requiresEmailVerification = true;
+        notifyListeners();
+      }
+      return result;
+    } catch (e) {
+      return EmailVerificationResult(
+        success: false,
+        message: 'Gagal mengirim email verifikasi: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Check email verification status and update state
+  Future<bool> checkEmailVerificationStatus() async {
+    try {
+      final isVerified = await _emailValidationService
+          .checkEmailVerificationStatus();
+      if (isVerified) {
+        _requiresEmailVerification = false;
+        // Reload current user data to reflect verification status
+        await _loadCurrentUser();
+        notifyListeners();
+      }
+      return isVerified;
+    } catch (e) {
+      debugPrint('Error checking email verification: $e');
+      return false;
+    }
+  }
+
+  /// Validate email for registration
+  EmailRegistrationValidationResult validateEmailForRegistration(String email) {
+    return _emailValidationService.validateEmailForRegistration(email);
   }
 }

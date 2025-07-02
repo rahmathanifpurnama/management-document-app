@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../../utils/date_formatter.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
@@ -29,6 +30,7 @@ import '../../services/statistics_notification_service.dart';
 import '../../core/utils/circuit_breaker.dart';
 import '../../core/utils/empty_storage_state_manager.dart';
 import '../../widgets/statistics/real_time_stats_widget.dart';
+import '../../widgets/notification/bell_notification_widget.dart';
 import '../../main.dart' show routeObserver;
 part 'components/home_greeting_section.dart';
 part 'components/home_search_section.dart';
@@ -440,6 +442,7 @@ class _HomeScreenState extends State<HomeScreen>
             title: 'Beranda',
             currentNavIndex: 0, // Home is index 0
             showAppBar: true, // Use standard app bar like other pages
+            actions: const [BellNotificationWidget()],
             body: Column(
               children: [
                 // File selection bar (appears when files are selected)

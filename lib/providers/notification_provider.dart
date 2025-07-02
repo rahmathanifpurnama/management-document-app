@@ -2,16 +2,19 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/notification_model.dart';
 import '../core/services/approval_service.dart';
 
 class NotificationProvider with ChangeNotifier {
-  static final NotificationProvider _instance = NotificationProvider._internal();
+  static final NotificationProvider _instance =
+      NotificationProvider._internal();
   factory NotificationProvider() => _instance;
   NotificationProvider._internal();
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
   final ApprovalService _approvalService = ApprovalService();
 
   // State variables
@@ -22,13 +25,28 @@ class NotificationProvider with ChangeNotifier {
   StreamSubscription<QuerySnapshot>? _notificationSubscription;
   String? _currentUserId;
 
+  // Email verification notification state
+  bool _hasUnverifiedEmailWarning = false;
+  bool _isEmailVerificationDismissed = false;
+
   // Getters
-  List<NotificationModel> get notifications => List.unmodifiable(_notifications);
+  List<NotificationModel> get notifications =>
+      List.unmodifiable(_notifications);
   NotificationStats get stats => _stats;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   int get unreadCount => _stats.unreadCount;
   bool get hasUnreadNotifications => _stats.unreadCount > 0;
+
+  // Email verification getters
+  bool get hasUnverifiedEmailWarning => _hasUnverifiedEmailWarning;
+  bool get isEmailVerificationDismissed => _isEmailVerificationDismissed;
+  bool get hasActiveEmailWarning =>
+      _hasUnverifiedEmailWarning && !_isEmailVerificationDismissed;
+  int get totalNotificationCount =>
+      unreadCount + (hasActiveEmailWarning ? 1 : 0);
+  bool get hasAnyNotifications =>
+      hasUnreadNotifications || hasActiveEmailWarning;
 
   // Filtered notifications
   List<NotificationModel> get unreadNotifications =>
@@ -48,6 +66,7 @@ class NotificationProvider with ChangeNotifier {
     await _setupNotificationListener();
     await _requestNotificationPermissions();
     await _updateFCMToken();
+    _checkEmailVerificationStatus();
   }
 
   /// Setup real-time notification listener
@@ -138,10 +157,9 @@ class NotificationProvider with ChangeNotifier {
     try {
       final token = await _messaging.getToken();
       if (token != null) {
-        await _firestore
-            .collection('users')
-            .doc(_currentUserId)
-            .update({'fcmToken': token});
+        await _firestore.collection('users').doc(_currentUserId).update({
+          'fcmToken': token,
+        });
         debugPrint('✅ FCM token updated');
       }
     } catch (e) {
@@ -152,10 +170,9 @@ class NotificationProvider with ChangeNotifier {
   /// Mark notification as read
   Future<void> markAsRead(String notificationId) async {
     try {
-      await _firestore
-          .collection('notifications')
-          .doc(notificationId)
-          .update({'isRead': true});
+      await _firestore.collection('notifications').doc(notificationId).update({
+        'isRead': true,
+      });
 
       // Update local state
       final index = _notifications.indexWhere((n) => n.id == notificationId);
@@ -180,7 +197,9 @@ class NotificationProvider with ChangeNotifier {
       final unreadNotifications = _notifications.where((n) => !n.isRead);
 
       for (final notification in unreadNotifications) {
-        final docRef = _firestore.collection('notifications').doc(notification.id);
+        final docRef = _firestore
+            .collection('notifications')
+            .doc(notification.id);
         batch.update(docRef, {'isRead': true});
       }
 
@@ -194,10 +213,7 @@ class NotificationProvider with ChangeNotifier {
   /// Delete notification
   Future<void> deleteNotification(String notificationId) async {
     try {
-      await _firestore
-          .collection('notifications')
-          .doc(notificationId)
-          .delete();
+      await _firestore.collection('notifications').doc(notificationId).delete();
 
       debugPrint('✅ Notification deleted: $notificationId');
     } catch (e) {
@@ -211,9 +227,11 @@ class NotificationProvider with ChangeNotifier {
 
     try {
       final batch = _firestore.batch();
-      
+
       for (final notification in _notifications) {
-        final docRef = _firestore.collection('notifications').doc(notification.id);
+        final docRef = _firestore
+            .collection('notifications')
+            .doc(notification.id);
         batch.delete(docRef);
       }
 
@@ -233,7 +251,8 @@ class NotificationProvider with ChangeNotifier {
     await _approvalService.sendNotificationToUser(
       userId: userId,
       title: 'File Uploaded Successfully',
-      message: 'Your file "$fileName" has been uploaded and is waiting for admin approval.',
+      message:
+          'Your file "$fileName" has been uploaded and is waiting for admin approval.',
       type: NotificationType.fileUploaded,
       documentId: documentId,
     );
@@ -270,10 +289,7 @@ class NotificationProvider with ChangeNotifier {
       message: 'Your file "$fileName" was rejected. Reason: $reason',
       type: NotificationType.fileRejected,
       documentId: documentId,
-      additionalData: {
-        'rejectedBy': rejectedBy,
-        'reason': reason,
-      },
+      additionalData: {'rejectedBy': rejectedBy, 'reason': reason},
     );
   }
 
@@ -317,6 +333,32 @@ class NotificationProvider with ChangeNotifier {
     _isLoading = false;
     _errorMessage = null;
     _currentUserId = null;
+    _hasUnverifiedEmailWarning = false;
+    _isEmailVerificationDismissed = false;
     notifyListeners();
+  }
+
+  /// Check if current user has unverified email
+  void _checkEmailVerificationStatus() {
+    final user = _auth.currentUser;
+    if (user != null && !user.emailVerified) {
+      _hasUnverifiedEmailWarning = true;
+      _isEmailVerificationDismissed = false;
+    } else {
+      _hasUnverifiedEmailWarning = false;
+      _isEmailVerificationDismissed = false;
+    }
+    notifyListeners();
+  }
+
+  /// Dismiss the email verification warning
+  void dismissEmailVerificationWarning() {
+    _isEmailVerificationDismissed = true;
+    notifyListeners();
+  }
+
+  /// Refresh email verification status
+  void refreshEmailVerificationStatus() {
+    _checkEmailVerificationStatus();
   }
 }
