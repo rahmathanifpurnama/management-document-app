@@ -297,10 +297,9 @@ const deleteUser = functions.https.onCall(
       // ADMIN HARD DELETE: Permanently delete user document for admin operations
       await admin.firestore().collection("users").doc(userId).delete();
 
-      // Disable user in Firebase Auth
-      await admin.auth().updateUser(userId, {
-        disabled: true,
-      });
+      // FIXED: Delete user from Firebase Auth completely (not just disable)
+      // This prevents auto-sync from recreating the user
+      await admin.auth().deleteUser(userId);
 
       // Log activity
       await admin
