@@ -15,12 +15,26 @@ class AuthService {
 
   final FirebaseService _firebaseService = FirebaseService.instance;
 
-  // Get current user
-  User? get currentUser => _firebaseService.auth.currentUser;
+  // Get current user with safety check
+  User? get currentUser {
+    try {
+      return _firebaseService.auth.currentUser;
+    } catch (e) {
+      debugPrint('🚨 Error getting current user: $e');
+      return null;
+    }
+  }
 
-  // Get current user stream
-  Stream<User?> get authStateChanges =>
-      _firebaseService.auth.authStateChanges();
+  // Get current user stream with safety check
+  Stream<User?> get authStateChanges {
+    try {
+      return _firebaseService.auth.authStateChanges();
+    } catch (e) {
+      debugPrint('🚨 Error getting auth state changes: $e');
+      // Return empty stream if Firebase is not available
+      return Stream.value(null);
+    }
+  }
 
   // Login with email and password - ANR-safe implementation
   Future<UserModel?> login(

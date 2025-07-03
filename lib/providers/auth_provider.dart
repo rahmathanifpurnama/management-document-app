@@ -7,6 +7,7 @@ import '../core/services/auth_service.dart';
 import '../services/enhanced_auth_service.dart';
 import '../services/email_validation_service.dart';
 import '../models/user_model.dart';
+import '../widgets/common/offline_error_log.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService.instance;
@@ -30,11 +31,21 @@ class AuthProvider extends ChangeNotifier {
   bool get isEmailVerified =>
       _emailValidationService.isCurrentUserEmailVerified;
 
-  // Initialize auth state
+  // Initialize auth state with offline support
   Future<void> initializeAuth() async {
     try {
       // Don't call _setLoading during initialization to avoid setState during build
       _isLoading = true;
+      _errorMessage = null;
+
+      // Check if Firebase is available first
+      if (!await _isFirebaseAvailable()) {
+        debugPrint('🔥 Firebase not available - running in offline mode');
+        _errorMessage = 'Running in offline mode';
+        _isLoggedIn = false;
+        _currentUser = null;
+        return;
+      }
 
       // Listen to auth state changes with timeout
       _authService.authStateChanges.listen((User? user) async {
@@ -52,6 +63,10 @@ class AuthProvider extends ChangeNotifier {
             notifyListeners();
           }
         } catch (e) {
+          debugPrint('🚨 Error in auth state listener: $e');
+          OfflineErrorLogManager.addError(
+            'Auth state listener: ${e.toString()}',
+          );
           _errorMessage = 'Error loading user: ${e.toString()}';
           notifyListeners();
         }
@@ -65,11 +80,32 @@ class AuthProvider extends ChangeNotifier {
         ]);
       }
     } catch (e) {
-      _errorMessage = 'Gagal menginisialisasi autentikasi: ${e.toString()}';
+      debugPrint('🚨 AuthProvider initialization error: $e');
+      OfflineErrorLogManager.addError(
+        'AuthProvider initialization: ${e.toString()}',
+      );
+      _errorMessage = 'Authentication service unavailable';
+      _isLoggedIn = false;
+      _currentUser = null;
     } finally {
       _isLoading = false;
       // Only notify listeners at the end of initialization
       notifyListeners();
+    }
+  }
+
+  // Check if Firebase is available
+  Future<bool> _isFirebaseAvailable() async {
+    try {
+      // Try to access Firebase Auth instance
+      final auth = FirebaseAuth.instance;
+      // Try a simple operation to check if Firebase is working
+      final user = auth.currentUser;
+      debugPrint('🔥 Firebase check - current user: ${user?.uid ?? 'null'}');
+      return true;
+    } catch (e) {
+      debugPrint('🔥 Firebase availability check failed: $e');
+      return false;
     }
   }
 

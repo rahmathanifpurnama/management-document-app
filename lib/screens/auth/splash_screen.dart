@@ -6,6 +6,7 @@ import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/utils/anr_prevention.dart';
 import '../../providers/auth_provider.dart';
+import '../../widgets/common/offline_error_log.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -60,14 +61,19 @@ class _SplashScreenState extends State<SplashScreen> {
           }
         }
       } else {
-        // Auth initialization failed, go to login
+        // Auth initialization failed - check if it's a network/Firebase issue
         if (mounted) {
+          // Always go to login even if Firebase is not available
+          // The login screen will handle offline mode appropriately
           Navigator.of(context).pushReplacementNamed(AppRoutes.login);
         }
       }
     } catch (e) {
       // Handle Firebase/network errors with better UX
       debugPrint('🚨 Splash Screen Error: $e');
+
+      // Log error for offline viewing
+      OfflineErrorLogManager.addError('Splash Screen: ${e.toString()}');
 
       if (mounted) {
         // Check if it's a network error
@@ -133,6 +139,24 @@ class _SplashScreenState extends State<SplashScreen> {
         _initializeApp();
       }
     });
+  }
+
+  void _showErrorLog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => OfflineErrorLog(
+        errorLogs: OfflineErrorLogManager.errorLogs,
+        onRetry: () {
+          Navigator.of(context).pop();
+          _retry();
+        },
+        onClose: () {
+          Navigator.of(context).pop();
+        },
+      ),
+    );
   }
 
   Widget _buildLoadingState() {
@@ -230,6 +254,23 @@ class _SplashScreenState extends State<SplashScreen> {
           ),
 
           const SizedBox(height: 32),
+
+          // Show error log button if there are errors
+          if (OfflineErrorLogManager.hasErrors)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 16),
+              child: OutlinedButton.icon(
+                onPressed: _showErrorLog,
+                icon: const Icon(Icons.bug_report, size: 18),
+                label: const Text('View Error Log'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  side: BorderSide(color: Colors.orange.shade400),
+                  foregroundColor: Colors.orange.shade600,
+                ),
+              ),
+            ),
 
           // Action buttons
           Row(

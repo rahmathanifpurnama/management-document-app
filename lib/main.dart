@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'core/services/firebase_service.dart';
 import 'core/services/memory_management_service.dart';
 import 'core/services/optimized_network_service.dart';
-
+import 'widgets/common/app_error_boundary.dart';
 import 'core/config/anr_config.dart';
 import 'core/utils/debug_log_controller.dart';
 import 'core/utils/empty_storage_state_manager.dart';
@@ -31,7 +31,6 @@ import 'screens/admin/user_management_screen.dart';
 import 'widgets/app/statistics_initializer.dart';
 import 'widgets/app/realtime_category_initializer.dart';
 import 'widgets/app/category_document_sync_initializer.dart';
-import 'widgets/common/app_error_boundary.dart';
 import 'screens/admin/create_user_screen.dart';
 import 'screens/admin/edit_user_screen.dart';
 import 'screens/admin/user_details_screen.dart';
@@ -46,11 +45,9 @@ import 'screens/profile/settings_screen.dart';
 import 'screens/profile/change_password_screen.dart';
 import 'screens/admin/file_approval_screen.dart';
 import 'screens/notification/notification_center_screen.dart';
-
 import 'screens/upload/upload_document_screen.dart';
 import 'screens/common/file_preview_screen.dart';
 import 'services/download_notification_service.dart';
-
 import 'models/category_model.dart';
 import 'models/user_model.dart';
 import 'models/document_model.dart';
@@ -60,6 +57,47 @@ final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Set up custom error widget for better UX
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    // In debug mode, show detailed error
+    if (kDebugMode) {
+      return ErrorWidget(details.exception);
+    }
+
+    // In release mode, show user-friendly error
+    return Material(
+      child: Container(
+        color: Colors.white,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 48,
+                color: Colors.orange.shade400,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Something went wrong',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Please restart the app',
+                style: TextStyle(fontSize: 14, color: Colors.black54),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  };
 
   // HIGH PRIORITY: Initialize memory management first
   MemoryManagementService.instance.initialize();
@@ -146,7 +184,25 @@ class _MyAppState extends State<MyApp> {
       child: MultiProvider(
         providers: [
           ChangeNotifierProvider(
-            create: (_) => AuthProvider(),
+            create: (_) {
+              try {
+                final authProvider = AuthProvider();
+                // Initialize auth in background to avoid blocking UI
+                Future.microtask(() async {
+                  try {
+                    await authProvider.initializeAuth();
+                  } catch (e) {
+                    debugPrint('🚨 AuthProvider initialization failed: $e');
+                    // Don't rethrow - let the app continue with offline mode
+                  }
+                });
+                return authProvider;
+              } catch (e) {
+                debugPrint('🚨 AuthProvider creation failed: $e');
+                // Return a fallback AuthProvider that works offline
+                return AuthProvider();
+              }
+            },
             lazy: false, // Initialize immediately for authentication
           ),
           ChangeNotifierProvider(
