@@ -5,6 +5,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/notification_model.dart';
 import '../core/services/approval_service.dart';
+import '../core/services/firebase_service.dart';
 
 class NotificationProvider with ChangeNotifier {
   static final NotificationProvider _instance =
@@ -12,10 +13,13 @@ class NotificationProvider with ChangeNotifier {
   factory NotificationProvider() => _instance;
   NotificationProvider._internal();
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseService _firebaseService = FirebaseService.instance;
   final ApprovalService _approvalService = ApprovalService();
+  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+
+  // Safe getters for Firebase services
+  FirebaseFirestore? get _firestore => _firebaseService.firestoreSafe;
+  FirebaseAuth? get _auth => _firebaseService.authSafe;
 
   // State variables
   List<NotificationModel> _notifications = [];
@@ -81,16 +85,18 @@ class NotificationProvider with ChangeNotifier {
       await _notificationSubscription?.cancel();
 
       // Setup new subscription
-      _notificationSubscription = _firestore
-          .collection('notifications')
-          .where('userId', isEqualTo: _currentUserId)
-          .orderBy('createdAt', descending: true)
-          .limit(100) // Limit to recent 100 notifications
-          .snapshots()
-          .listen(
-            _handleNotificationSnapshot,
-            onError: _handleNotificationError,
-          );
+      if (_firestore != null) {
+        _notificationSubscription = _firestore!
+            .collection('notifications')
+            .where('userId', isEqualTo: _currentUserId)
+            .orderBy('createdAt', descending: true)
+            .limit(100) // Limit to recent 100 notifications
+            .snapshots()
+            .listen(
+              _handleNotificationSnapshot,
+              onError: _handleNotificationError,
+            );
+      }
 
       debugPrint('✅ Notification listener setup for user: $_currentUserId');
     } catch (e) {
@@ -156,8 +162,8 @@ class NotificationProvider with ChangeNotifier {
 
     try {
       final token = await _messaging.getToken();
-      if (token != null) {
-        await _firestore.collection('users').doc(_currentUserId).update({
+      if (token != null && _firestore != null) {
+        await _firestore!.collection('users').doc(_currentUserId).update({
           'fcmToken': token,
         });
         debugPrint('✅ FCM token updated');
@@ -170,7 +176,9 @@ class NotificationProvider with ChangeNotifier {
   /// Mark notification as read
   Future<void> markAsRead(String notificationId) async {
     try {
-      await _firestore.collection('notifications').doc(notificationId).update({
+      if (_firestore == null) return;
+
+      await _firestore!.collection('notifications').doc(notificationId).update({
         'isRead': true,
       });
 
@@ -193,11 +201,13 @@ class NotificationProvider with ChangeNotifier {
     if (_currentUserId == null) return;
 
     try {
-      final batch = _firestore.batch();
+      if (_firestore == null) return;
+
+      final batch = _firestore!.batch();
       final unreadNotifications = _notifications.where((n) => !n.isRead);
 
       for (final notification in unreadNotifications) {
-        final docRef = _firestore
+        final docRef = _firestore!
             .collection('notifications')
             .doc(notification.id);
         batch.update(docRef, {'isRead': true});
@@ -213,7 +223,12 @@ class NotificationProvider with ChangeNotifier {
   /// Delete notification
   Future<void> deleteNotification(String notificationId) async {
     try {
-      await _firestore.collection('notifications').doc(notificationId).delete();
+      if (_firestore == null) return;
+
+      await _firestore!
+          .collection('notifications')
+          .doc(notificationId)
+          .delete();
 
       debugPrint('✅ Notification deleted: $notificationId');
     } catch (e) {
@@ -226,10 +241,12 @@ class NotificationProvider with ChangeNotifier {
     if (_currentUserId == null) return;
 
     try {
-      final batch = _firestore.batch();
+      if (_firestore == null) return;
+
+      final batch = _firestore!.batch();
 
       for (final notification in _notifications) {
-        final docRef = _firestore
+        final docRef = _firestore!
             .collection('notifications')
             .doc(notification.id);
         batch.delete(docRef);
@@ -340,7 +357,9 @@ class NotificationProvider with ChangeNotifier {
 
   /// Check if current user has unverified email
   void _checkEmailVerificationStatus() {
-    final user = _auth.currentUser;
+    if (_auth == null) return;
+
+    final user = _auth!.currentUser;
     if (user != null && !user.emailVerified) {
       _hasUnverifiedEmailWarning = true;
       _isEmailVerificationDismissed = false;

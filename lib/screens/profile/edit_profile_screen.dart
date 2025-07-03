@@ -7,6 +7,7 @@ import 'dart:io';
 import '../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/services/user_service.dart';
+import '../../core/services/firebase_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -25,6 +26,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   File? _selectedImage;
   final ImagePicker _imagePicker = ImagePicker();
   final UserService _userService = UserService.instance;
+  final FirebaseService _firebaseService = FirebaseService.instance;
 
   @override
   void initState() {
@@ -626,7 +628,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (currentUser != null) {
         // Ensure we're using the correct path structure: profile_images/{userId}/profile_image.jpg
         // Using the correct bucket path: gs://document-management-c5a96.firebasestorage.app/profile_images
-        final storageRef = FirebaseStorage.instance
+        if (_firebaseService.storageSafe == null) {
+          throw Exception('Firebase Storage tidak tersedia');
+        }
+
+        final storageRef = _firebaseService.storageSafe!
             .ref()
             .child('profile_images')
             .child(currentUser.id)

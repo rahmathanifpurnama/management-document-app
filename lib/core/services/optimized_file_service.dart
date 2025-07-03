@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../config/anr_config.dart';
 import '../utils/anr_prevention.dart';
+import 'firebase_service.dart';
 
 /// HIGH PRIORITY: Optimized file service to prevent ANR during file operations
 class OptimizedFileService {
@@ -13,6 +14,7 @@ class OptimizedFileService {
 
   OptimizedFileService._();
 
+  final FirebaseService _firebaseService = FirebaseService.instance;
   final Map<String, Completer<Uint8List?>> _downloadCache = {};
   final Map<String, DateTime> _cacheTimestamps = {};
   int _activeOperations = 0;
@@ -65,7 +67,11 @@ class OptimizedFileService {
   ) async {
     return await ANRPrevention.executeInBackground(
       () async {
-        final ref = FirebaseStorage.instance.ref().child(filePath);
+        if (_firebaseService.storageSafe == null) {
+          throw Exception('Firebase Storage tidak tersedia');
+        }
+
+        final ref = _firebaseService.storageSafe!.ref().child(filePath);
 
         // Get file metadata first
         final metadata = await ANRPrevention.executeWithTimeout(
@@ -198,7 +204,12 @@ class OptimizedFileService {
     try {
       // Use clean filename for storage path
       final filePath = 'documents/$fileName';
-      final ref = FirebaseStorage.instance.ref().child(filePath);
+
+      if (_firebaseService.storageSafe == null) {
+        throw Exception('Firebase Storage tidak tersedia');
+      }
+
+      final ref = _firebaseService.storageSafe!.ref().child(filePath);
 
       debugPrint(
         '📤 Uploading file: $fileName (${_formatFileSize(fileData.length)})',

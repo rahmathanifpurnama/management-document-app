@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../core/services/firebase_service.dart';
 
 /// Service for comprehensive email validation and verification
 class EmailValidationService {
@@ -9,7 +10,8 @@ class EmailValidationService {
 
   EmailValidationService._();
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  // Safe getter for FirebaseAuth
+  FirebaseAuth? get _auth => FirebaseService.instance.authSafe;
 
   // Common email domain providers
   static const List<String> _commonEmailDomains = [
@@ -136,7 +138,14 @@ class EmailValidationService {
     String? customMessage,
   }) async {
     try {
-      final user = _auth.currentUser;
+      if (_auth == null) {
+        return EmailVerificationResult(
+          success: false,
+          message: 'Firebase Auth tidak tersedia.',
+        );
+      }
+
+      final user = _auth!.currentUser;
 
       if (user == null) {
         return EmailVerificationResult(
@@ -199,18 +208,21 @@ class EmailValidationService {
 
   /// Check if current user's email is verified
   bool get isCurrentUserEmailVerified {
-    final user = _auth.currentUser;
+    if (_auth == null) return false;
+    final user = _auth!.currentUser;
     return user?.emailVerified ?? false;
   }
 
   /// Reload user and check verification status
   Future<bool> checkEmailVerificationStatus() async {
     try {
-      final user = _auth.currentUser;
+      if (_auth == null) return false;
+
+      final user = _auth!.currentUser;
       if (user == null) return false;
 
       await user.reload();
-      final updatedUser = _auth.currentUser;
+      final updatedUser = _auth!.currentUser;
 
       return updatedUser?.emailVerified ?? false;
     } catch (e) {

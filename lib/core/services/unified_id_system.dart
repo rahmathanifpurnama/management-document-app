@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_service.dart';
 import '../../models/document_model.dart';
 
@@ -131,7 +130,7 @@ class UnifiedIdSystem {
       debugPrint('🆔 UnifiedIdSystem: Creating document with ID: $documentId');
 
       // Debug authentication info
-      final currentUser = FirebaseAuth.instance.currentUser;
+      final currentUser = _firebaseService.authSafe?.currentUser;
       debugPrint('🔍 FIRESTORE DEBUG - Authentication Info:');
       debugPrint('   Current user: ${currentUser?.email}');
       debugPrint('   User UID: ${currentUser?.uid}');
@@ -192,10 +191,10 @@ class UnifiedIdSystem {
           '🚫 PERMISSION DENIED - Check user authentication and Firestore Rules',
         );
         debugPrint(
-          '   Current user authenticated: ${FirebaseAuth.instance.currentUser != null}',
+          '   Current user authenticated: ${_firebaseService.authSafe?.currentUser != null}',
         );
         debugPrint(
-          '   User email: ${FirebaseAuth.instance.currentUser?.email}',
+          '   User email: ${_firebaseService.authSafe?.currentUser?.email}',
         );
       }
       rethrow;

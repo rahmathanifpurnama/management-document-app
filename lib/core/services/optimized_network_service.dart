@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../config/anr_config.dart';
 import '../utils/anr_prevention.dart';
+import 'firebase_service.dart';
 
 /// HIGH PRIORITY: Network service to prevent ANR from concurrent operations
 class OptimizedNetworkService {
@@ -14,6 +15,7 @@ class OptimizedNetworkService {
 
   OptimizedNetworkService._();
 
+  final FirebaseService _firebaseService = FirebaseService.instance;
   final Queue<_NetworkOperation> _operationQueue = Queue();
   final Set<String> _activeOperations = {};
   int _concurrentOperations = 0;
@@ -261,6 +263,7 @@ class OptimizedFirestoreService {
 
   OptimizedFirestoreService._();
 
+  final FirebaseService _firebaseService = FirebaseService.instance;
   final OptimizedNetworkService _networkService =
       OptimizedNetworkService.instance;
 
@@ -278,7 +281,13 @@ class OptimizedFirestoreService {
 
     return await _networkService.executeFirestoreOperation(
       () async {
-        Query query = FirebaseFirestore.instance.collection(collectionPath);
+        if (_firebaseService.firestoreSafe == null) {
+          throw Exception('Firestore tidak tersedia');
+        }
+
+        Query query = _firebaseService.firestoreSafe!.collection(
+          collectionPath,
+        );
 
         // Apply where conditions
         if (whereConditions != null) {
@@ -317,7 +326,11 @@ class OptimizedFirestoreService {
 
     return await _networkService.executeFirestoreOperation(
       () async {
-        return await FirebaseFirestore.instance.doc(documentPath).get();
+        if (_firebaseService.firestoreSafe == null) {
+          throw Exception('Firestore tidak tersedia');
+        }
+
+        return await _firebaseService.firestoreSafe!.doc(documentPath).get();
       },
       operationId: operationId,
       operationName: 'Get Document: $documentPath',
@@ -335,7 +348,11 @@ class OptimizedFirestoreService {
 
     return await _networkService.executeFirestoreOperation(
       () async {
-        return await FirebaseFirestore.instance
+        if (_firebaseService.firestoreSafe == null) {
+          throw Exception('Firestore tidak tersedia');
+        }
+
+        return await _firebaseService.firestoreSafe!
             .collection(collectionPath)
             .add(data);
       },
