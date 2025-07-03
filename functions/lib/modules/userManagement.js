@@ -235,6 +235,7 @@ const deleteUser = functions.https.onCall(async (data, context) => {
         // ADMIN HARD DELETE: Permanently delete user document for admin operations
         console.log(`🗑️ Deleting user document from Firestore: ${userId}`);
         await admin.firestore().collection("users").doc(userId).delete();
+<<<<<<< HEAD
         console.log(`✅ User document deleted from Firestore: ${userId}`);
         // FIXED: Delete user from Firebase Auth completely (not just disable)
         // This prevents auto-sync from recreating the user
@@ -250,6 +251,12 @@ const deleteUser = functions.https.onCall(async (data, context) => {
             // Continue execution even if auth deletion fails
             // The Firestore document is already deleted
         }
+=======
+        // Disable user in Firebase Auth
+        await admin.auth().updateUser(userId, {
+            disabled: true,
+        });
+>>>>>>> parent of c5650f43 (fix(user-management): prevent deleted users from reappearing after refresh)
         // Log activity
         await admin
             .firestore()
