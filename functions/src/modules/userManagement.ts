@@ -299,26 +299,9 @@ const deleteUser = functions.https.onCall(
       await admin.firestore().collection("users").doc(userId).delete();
       console.log(`✅ User document deleted from Firestore: ${userId}`);
 
-<<<<<<< HEAD
       // FIXED: Delete user from Firebase Auth completely (not just disable)
       // This prevents auto-sync from recreating the user
-      console.log(`🗑️ Deleting user from Firebase Auth: ${userId}`);
-      try {
-        await admin.auth().deleteUser(userId);
-        console.log(`✅ User deleted from Firebase Auth: ${userId}`);
-      } catch (authError: any) {
-        console.error(`❌ Error deleting user from Firebase Auth: ${userId}`, authError);
-        console.error(`Auth error code: ${authError.code}`);
-        console.error(`Auth error message: ${authError.message}`);
-        // Continue execution even if auth deletion fails
-        // The Firestore document is already deleted
-      }
-=======
-      // Disable user in Firebase Auth
-      await admin.auth().updateUser(userId, {
-        disabled: true,
-      });
->>>>>>> parent of c5650f43 (fix(user-management): prevent deleted users from reappearing after refresh)
+      await admin.auth().deleteUser(userId);
 
       // Log activity
       await admin
