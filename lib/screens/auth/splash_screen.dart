@@ -15,6 +15,10 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  bool _hasError = false;
+  String? _errorMessage;
+  bool _isRetrying = false;
+
   @override
   void initState() {
     super.initState();
@@ -62,9 +66,24 @@ class _SplashScreenState extends State<SplashScreen> {
         }
       }
     } catch (e) {
-      // Handle any errors by navigating to login
+      // Handle Firebase/network errors with better UX
+      debugPrint('🚨 Splash Screen Error: $e');
+
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+        // Check if it's a network error
+        final errorString = e.toString().toLowerCase();
+        if (errorString.contains('network') ||
+            errorString.contains('connection') ||
+            errorString.contains('timeout') ||
+            errorString.contains('firebase')) {
+          setState(() {
+            _hasError = true;
+            _errorMessage = _getErrorMessage(e.toString());
+          });
+        } else {
+          // For other errors, go to login
+          Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+        }
       }
     }
   }
@@ -84,6 +103,171 @@ class _SplashScreenState extends State<SplashScreen> {
     }
   }
 
+  String _getErrorMessage(String error) {
+    if (error.toLowerCase().contains('network') ||
+        error.toLowerCase().contains('connection')) {
+      return 'No internet connection. Please check your network settings.';
+    }
+    if (error.toLowerCase().contains('firebase')) {
+      return 'Unable to connect to services. Please try again.';
+    }
+    if (error.toLowerCase().contains('timeout')) {
+      return 'Connection timed out. Please try again.';
+    }
+    return 'Something went wrong. Please try again.';
+  }
+
+  void _retry() {
+    setState(() {
+      _hasError = false;
+      _errorMessage = null;
+      _isRetrying = true;
+    });
+
+    // Retry initialization after a short delay
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() {
+          _isRetrying = false;
+        });
+        _initializeApp();
+      }
+    });
+  }
+
+  Widget _buildLoadingState() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // App Logo
+        SvgPicture.asset(
+          'assets/Logo.svg',
+          width: 200,
+          height: 200,
+          colorFilter: const ColorFilter.mode(
+            AppColors.primary,
+            BlendMode.srcIn,
+          ),
+        ),
+
+        const SizedBox(height: 30),
+
+        // Loading Indicator
+        if (_isRetrying) ...[
+          const SizedBox(
+            width: 40,
+            height: 40,
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              strokeWidth: 3.0,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Retrying...',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+          ),
+        ] else ...[
+          const SizedBox(
+            width: 40,
+            height: 40,
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              strokeWidth: 3.0,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Error icon
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.cloud_off_rounded,
+              size: 40,
+              color: Colors.red.shade400,
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // Error title
+          const Text(
+            'Connection Error',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+
+          const SizedBox(height: 12),
+
+          // Error message
+          Text(
+            _errorMessage ?? 'Unable to connect to services',
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+
+          const SizedBox(height: 32),
+
+          // Action buttons
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    side: const BorderSide(color: AppColors.primary),
+                    foregroundColor: AppColors.primary,
+                  ),
+                  child: const Text('Skip'),
+                ),
+              ),
+
+              const SizedBox(width: 16),
+
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _retry,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  child: const Text('Retry'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -95,36 +279,7 @@ class _SplashScreenState extends State<SplashScreen> {
           children: [
             Expanded(
               child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // App Logo
-                    SvgPicture.asset(
-                      'assets/Logo.svg',
-                      width: 200,
-                      height: 200,
-                      colorFilter: const ColorFilter.mode(
-                        AppColors.primary,
-                        BlendMode.srcIn,
-                      ),
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // Loading Indicator - Standard CircularProgressIndicator
-                    const SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          AppColors.primary,
-                        ),
-                        strokeWidth: 3.0,
-                      ),
-                    ),
-                  ],
-                ),
+                child: _hasError ? _buildErrorState() : _buildLoadingState(),
               ),
             ),
 
