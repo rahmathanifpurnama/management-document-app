@@ -6,9 +6,50 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../../config/firebase_config.dart';
-import '../../services/cloud_functions_service.dart';
 import 'network_service.dart';
 import '../utils/app_check_status.dart';
+
+/// Firebase initialization states
+enum FirebaseInitializationState {
+  notInitialized,
+  initializing,
+  initialized,
+  failed,
+  offline,
+}
+
+/// Firebase service availability status
+class FirebaseServiceStatus {
+  final bool isFirebaseInitialized;
+  final bool isFirestoreAvailable;
+  final bool isAuthAvailable;
+  final bool isStorageAvailable;
+  final bool isFunctionsAvailable;
+  final String? errorMessage;
+  final FirebaseInitializationState state;
+
+  const FirebaseServiceStatus({
+    required this.isFirebaseInitialized,
+    required this.isFirestoreAvailable,
+    required this.isAuthAvailable,
+    required this.isStorageAvailable,
+    required this.isFunctionsAvailable,
+    required this.state,
+    this.errorMessage,
+  });
+
+  bool get isFullyAvailable =>
+      isFirebaseInitialized &&
+      isFirestoreAvailable &&
+      isAuthAvailable &&
+      isStorageAvailable;
+
+  bool get isPartiallyAvailable =>
+      isFirebaseInitialized &&
+      (isFirestoreAvailable || isAuthAvailable || isStorageAvailable);
+
+  bool get canWorkOffline => isFirebaseInitialized && isFirestoreAvailable;
+}
 
 class FirebaseService {
   static FirebaseService? _instance;
@@ -16,52 +57,291 @@ class FirebaseService {
 
   FirebaseService._();
 
-  // Firebase instances
-  FirebaseAuth get auth => FirebaseAuth.instance;
-  FirebaseFirestore get firestore => FirebaseFirestore.instance;
-  FirebaseStorage get storage => FirebaseStorage.instance;
-  FirebaseFunctions get functions => FirebaseFunctions.instance;
+  // State management
+  FirebaseInitializationState _state =
+      FirebaseInitializationState.notInitialized;
+  String? _lastError;
+  bool _isFirebaseInitialized = false;
+  bool _isFirestoreAvailable = false;
+  bool _isAuthAvailable = false;
+  bool _isStorageAvailable = false;
+  bool _isFunctionsAvailable = false;
 
-  // Initialize Firebase
+  // Getters for state
+  FirebaseInitializationState get state => _state;
+  String? get lastError => _lastError;
+
+  /// Get current Firebase service status
+  FirebaseServiceStatus get status => FirebaseServiceStatus(
+    isFirebaseInitialized: _isFirebaseInitialized,
+    isFirestoreAvailable: _isFirestoreAvailable,
+    isAuthAvailable: _isAuthAvailable,
+    isStorageAvailable: _isStorageAvailable,
+    isFunctionsAvailable: _isFunctionsAvailable,
+    state: _state,
+    errorMessage: _lastError,
+  );
+
+  // Firebase instances with safety checks
+  FirebaseAuth get auth {
+    if (!_isAuthAvailable) {
+      throw Exception('Firebase Auth is not available. Current state: $_state');
+    }
+    return FirebaseAuth.instance;
+  }
+
+  FirebaseFirestore get firestore {
+    if (!_isFirestoreAvailable) {
+      throw Exception('Firestore is not available. Current state: $_state');
+    }
+    return FirebaseFirestore.instance;
+  }
+
+  FirebaseStorage get storage {
+    if (!_isStorageAvailable) {
+      throw Exception(
+        'Firebase Storage is not available. Current state: $_state',
+      );
+    }
+    return FirebaseStorage.instance;
+  }
+
+  FirebaseFunctions get functions {
+    if (!_isFunctionsAvailable) {
+      throw Exception(
+        'Firebase Functions is not available. Current state: $_state',
+      );
+    }
+    return FirebaseFunctions.instance;
+  }
+
+  // Safe getters that return null instead of throwing
+  FirebaseAuth? get authSafe => _isAuthAvailable ? FirebaseAuth.instance : null;
+  FirebaseFirestore? get firestoreSafe =>
+      _isFirestoreAvailable ? FirebaseFirestore.instance : null;
+  FirebaseStorage? get storageSafe =>
+      _isStorageAvailable ? FirebaseStorage.instance : null;
+  FirebaseFunctions? get functionsSafe =>
+      _isFunctionsAvailable ? FirebaseFunctions.instance : null;
+
+  // Initialize Firebase with robust error handling
   static Future<void> initialize() async {
+    final service = FirebaseService.instance;
+
+    if (service._state == FirebaseInitializationState.initializing) {
+      debugPrint('🔄 Firebase initialization already in progress');
+      return;
+    }
+
+    if (service._state == FirebaseInitializationState.initialized) {
+      debugPrint('✅ Firebase already initialized');
+      return;
+    }
+
+    service._state = FirebaseInitializationState.initializing;
+    service._lastError = null;
+
+    debugPrint('🚀 Starting Firebase initialization...');
+
     try {
-      // Check network connectivity first
+      // Step 1: Check network connectivity
       final networkService = NetworkService.instance;
       final diagnostics = await networkService.runDiagnostics();
 
       if (!diagnostics.hasInternet) {
         debugPrint('⚠️ No internet connection detected');
-        final suggestions = networkService.getTroubleshootingSuggestions(
-          diagnostics,
-        );
-        for (final suggestion in suggestions) {
-          debugPrint('💡 $suggestion');
-        }
-        // Continue initialization but with warnings
+        service._state = FirebaseInitializationState.offline;
+
+        // Try to initialize Firebase in offline mode
+        await _initializeOfflineMode(service);
+        return;
       }
 
-      await Firebase.initializeApp();
+      // Step 2: Initialize Firebase Core
+      await _initializeFirebaseCore(service);
 
-      // Initialize App Check only if enabled in configuration
-      if (FirebaseConfig.enableAppCheckInDebug ||
-          FirebaseConfig.enableAppCheckInProduction) {
-        await _initializeAppCheck();
-      } else {
-        debugPrint(
-          '🔧 App Check disabled in configuration - skipping initialization',
-        );
-      }
+      // Step 3: Initialize individual services
+      await _initializeFirebaseServices(service);
 
-      // Enable offline persistence for Firestore with timeout
-      await Future.any([
-        _configureFirestore(),
-        Future.delayed(const Duration(seconds: 5)), // Timeout after 5 seconds
-      ]);
-
-      // Initialize Cloud Functions service
-      CloudFunctionsService.instance.configureForDevelopment();
+      // Step 4: Mark as fully initialized
+      service._state = FirebaseInitializationState.initialized;
+      debugPrint('✅ Firebase initialization completed successfully');
     } catch (e) {
-      debugPrint('❌ Firebase initialization error: $e');
+      service._state = FirebaseInitializationState.failed;
+      service._lastError = e.toString();
+      debugPrint('❌ Firebase initialization failed: $e');
+
+      // Try partial initialization for offline functionality
+      await _attemptPartialInitialization(service);
+
+      // Don't rethrow - allow app to continue with limited functionality
+    }
+  }
+
+  /// Initialize Firebase in offline mode
+  static Future<void> _initializeOfflineMode(FirebaseService service) async {
+    try {
+      debugPrint('🔄 Attempting offline Firebase initialization...');
+
+      // Try to initialize Firebase core even without internet
+      await Firebase.initializeApp();
+      service._isFirebaseInitialized = true;
+
+      // Try to configure Firestore for offline use
+      await _configureFirestoreOffline();
+      service._isFirestoreAvailable = true;
+
+      // Auth might work offline with cached credentials
+      service._isAuthAvailable = true;
+
+      debugPrint('✅ Firebase initialized in offline mode');
+    } catch (e) {
+      debugPrint('❌ Offline Firebase initialization failed: $e');
+      service._lastError = 'Offline initialization failed: $e';
+    }
+  }
+
+  /// Initialize Firebase Core
+  static Future<void> _initializeFirebaseCore(FirebaseService service) async {
+    try {
+      debugPrint('🔄 Initializing Firebase Core...');
+      await Firebase.initializeApp();
+      service._isFirebaseInitialized = true;
+      debugPrint('✅ Firebase Core initialized');
+    } catch (e) {
+      debugPrint('❌ Firebase Core initialization failed: $e');
+      throw Exception('Firebase Core initialization failed: $e');
+    }
+  }
+
+  /// Initialize individual Firebase services
+  static Future<void> _initializeFirebaseServices(
+    FirebaseService service,
+  ) async {
+    // Initialize Auth
+    await _initializeAuth(service);
+
+    // Initialize Firestore
+    await _initializeFirestore(service);
+
+    // Initialize Storage
+    await _initializeStorage(service);
+
+    // Initialize Functions
+    await _initializeFunctions(service);
+
+    // Initialize App Check (optional)
+    await _initializeAppCheck(service);
+  }
+
+  /// Attempt partial initialization for offline functionality
+  static Future<void> _attemptPartialInitialization(
+    FirebaseService service,
+  ) async {
+    debugPrint('🔄 Attempting partial Firebase initialization...');
+
+    // Try to initialize at least Firestore for offline functionality
+    await _initializeFirestore(service);
+
+    // Try Auth for cached credentials
+    await _initializeAuth(service);
+
+    if (service._isFirestoreAvailable || service._isAuthAvailable) {
+      debugPrint('✅ Partial Firebase initialization successful');
+    } else {
+      debugPrint('❌ Partial Firebase initialization failed');
+    }
+  }
+
+  /// Initialize Firebase Auth
+  static Future<void> _initializeAuth(FirebaseService service) async {
+    try {
+      debugPrint('🔄 Initializing Firebase Auth...');
+      // Test Auth availability
+      final _ = FirebaseAuth.instance;
+      service._isAuthAvailable = true;
+      debugPrint('✅ Firebase Auth initialized');
+    } catch (e) {
+      debugPrint('❌ Firebase Auth initialization failed: $e');
+      service._isAuthAvailable = false;
+    }
+  }
+
+  /// Initialize Firestore
+  static Future<void> _initializeFirestore(FirebaseService service) async {
+    try {
+      debugPrint('🔄 Initializing Firestore...');
+
+      // Configure Firestore settings
+      await _configureFirestore();
+
+      // Test Firestore availability with a simple operation
+      await FirebaseFirestore.instance
+          .collection('_test')
+          .limit(1)
+          .get()
+          .timeout(const Duration(seconds: 5));
+
+      service._isFirestoreAvailable = true;
+      debugPrint('✅ Firestore initialized');
+    } catch (e) {
+      debugPrint('❌ Firestore initialization failed: $e');
+
+      // Try offline configuration
+      try {
+        await _configureFirestoreOffline();
+        service._isFirestoreAvailable = true;
+        debugPrint('✅ Firestore initialized in offline mode');
+      } catch (offlineError) {
+        debugPrint('❌ Firestore offline initialization failed: $offlineError');
+        service._isFirestoreAvailable = false;
+      }
+    }
+  }
+
+  /// Initialize Firebase Storage
+  static Future<void> _initializeStorage(FirebaseService service) async {
+    try {
+      debugPrint('🔄 Initializing Firebase Storage...');
+
+      // Test Storage availability
+      final _ = FirebaseStorage.instance;
+      service._isStorageAvailable = true;
+      debugPrint('✅ Firebase Storage initialized');
+    } catch (e) {
+      debugPrint('❌ Firebase Storage initialization failed: $e');
+      service._isStorageAvailable = false;
+    }
+  }
+
+  /// Initialize Firebase Functions
+  static Future<void> _initializeFunctions(FirebaseService service) async {
+    try {
+      debugPrint('🔄 Initializing Firebase Functions...');
+
+      // Test Functions availability with health check
+      final functions = FirebaseFunctions.instance;
+      final healthCheck = functions.httpsCallable('healthCheck');
+
+      await healthCheck.call().timeout(const Duration(seconds: 5));
+      service._isFunctionsAvailable = true;
+      debugPrint('✅ Firebase Functions initialized');
+    } catch (e) {
+      debugPrint('❌ Firebase Functions initialization failed: $e');
+      service._isFunctionsAvailable = false;
+    }
+  }
+
+  /// Configure Firestore for offline use
+  static Future<void> _configureFirestoreOffline() async {
+    try {
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: 50 * 1024 * 1024, // 50MB cache
+      );
+      debugPrint('✅ Firestore configured for offline use');
+    } catch (e) {
+      debugPrint('❌ Firestore offline configuration failed: $e');
       rethrow;
     }
   }
@@ -78,8 +358,8 @@ class FirebaseService {
     }
   }
 
-  // Initialize App Check to prevent warnings and improve security
-  static Future<void> _initializeAppCheck() async {
+  /// Initialize App Check (optional)
+  static Future<void> _initializeAppCheck(FirebaseService service) async {
     try {
       // Check if App Check should be enabled based on configuration
       final shouldEnableInDebug = FirebaseConfig.enableAppCheckInDebug;
@@ -327,5 +607,71 @@ class FirebaseService {
   // Terminate Firestore
   Future<void> terminate() async {
     await firestore.terminate();
+  }
+
+  /// Attempt to recover Firebase services
+  Future<void> attemptRecovery() async {
+    debugPrint('🔄 Attempting Firebase service recovery...');
+
+    if (_state == FirebaseInitializationState.failed ||
+        _state == FirebaseInitializationState.offline) {
+      // Reset state
+      _state = FirebaseInitializationState.notInitialized;
+      _lastError = null;
+
+      // Try to reinitialize
+      await initialize();
+    }
+  }
+
+  /// Check if a specific service is available
+  bool isServiceAvailable(String serviceName) {
+    switch (serviceName.toLowerCase()) {
+      case 'auth':
+        return _isAuthAvailable;
+      case 'firestore':
+        return _isFirestoreAvailable;
+      case 'storage':
+        return _isStorageAvailable;
+      case 'functions':
+        return _isFunctionsAvailable;
+      default:
+        return false;
+    }
+  }
+
+  /// Get a human-readable status message
+  String getStatusMessage() {
+    switch (_state) {
+      case FirebaseInitializationState.notInitialized:
+        return 'Firebase not initialized';
+      case FirebaseInitializationState.initializing:
+        return 'Initializing Firebase services...';
+      case FirebaseInitializationState.initialized:
+        return 'All Firebase services available';
+      case FirebaseInitializationState.failed:
+        return 'Firebase initialization failed: ${_lastError ?? 'Unknown error'}';
+      case FirebaseInitializationState.offline:
+        return 'Running in offline mode';
+    }
+  }
+
+  /// Execute operation with Firebase availability check
+  Future<T?> executeWithAvailabilityCheck<T>(
+    String serviceName,
+    Future<T> Function() operation, {
+    T? fallbackValue,
+  }) async {
+    if (!isServiceAvailable(serviceName)) {
+      debugPrint('⚠️ Service $serviceName not available, using fallback');
+      return fallbackValue;
+    }
+
+    try {
+      return await operation();
+    } catch (e) {
+      debugPrint('❌ Operation failed for $serviceName: $e');
+      return fallbackValue;
+    }
   }
 }

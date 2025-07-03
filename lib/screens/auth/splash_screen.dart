@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_routes.dart';
 import '../../core/utils/anr_prevention.dart';
+import '../../core/services/firebase_service.dart';
 import '../../providers/auth_provider.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -32,9 +33,12 @@ class _SplashScreenState extends State<SplashScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
+      // Check Firebase service status first
+      final firebaseStatus = FirebaseService.instance.status;
+
       // Run initialization and minimum splash duration in parallel
       final results = await Future.wait([
-        _initializeAuth(authProvider),
+        _initializeAuth(authProvider, firebaseStatus),
         Future.delayed(const Duration(seconds: 2)), // Minimum splash duration
       ], eagerError: false);
 
@@ -43,7 +47,18 @@ class _SplashScreenState extends State<SplashScreen> {
 
       if (!mounted) return;
 
-      if (authInitialized) {
+      // Handle different Firebase states
+      if (firebaseStatus.state == FirebaseInitializationState.failed) {
+        // Firebase completely failed - show error
+        setState(() {
+          _hasError = true;
+          _errorMessage =
+              'Unable to connect to services. Please check your internet connection.';
+        });
+        return;
+      }
+
+      if (authInitialized && firebaseStatus.isAuthAvailable) {
         // Check if user has valid session for auto-login
         bool hasValidSession = await authProvider.hasValidSession();
 
@@ -60,10 +75,8 @@ class _SplashScreenState extends State<SplashScreen> {
           }
         }
       } else {
-        // Auth initialization failed - check if it's a network/Firebase issue
+        // Auth not available or failed - go to login with limited functionality
         if (mounted) {
-          // Always go to login even if Firebase is not available
-          // The login screen will handle offline mode appropriately
           Navigator.of(context).pushReplacementNamed(AppRoutes.login);
         }
       }
@@ -90,8 +103,19 @@ class _SplashScreenState extends State<SplashScreen> {
     }
   }
 
-  Future<bool> _initializeAuth(AuthProvider authProvider) async {
+  Future<bool> _initializeAuth(
+    AuthProvider authProvider,
+    FirebaseServiceStatus firebaseStatus,
+  ) async {
     try {
+      // Check if Firebase Auth is available
+      if (!firebaseStatus.isAuthAvailable) {
+        debugPrint(
+          '⚠️ Firebase Auth not available, skipping auth initialization',
+        );
+        return false;
+      }
+
       // Use ANR prevention for auth initialization
       await ANRPrevention.executeWithTimeout(
         authProvider.initializeAuth(),
