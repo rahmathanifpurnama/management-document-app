@@ -170,6 +170,7 @@ class UserProvider extends ChangeNotifier {
 
   // Delete user
   Future<bool> deleteUser(String userId, String deletedBy) async {
+    debugPrint('🔄 UserProvider.deleteUser called for userId: $userId');
     _setLoading(true);
     _clearError();
 
@@ -177,8 +178,11 @@ class UserProvider extends ChangeNotifier {
       // Get user name before deletion for statistics
       final user = _users.firstWhere((u) => u.id == userId);
       final userName = user.fullName;
+      debugPrint('🔄 Found user to delete: $userName ($userId)');
 
+      debugPrint('🔄 Calling UserService.deleteUser...');
       await _userService.deleteUser(userId, deletedBy);
+      debugPrint('✅ UserService.deleteUser completed successfully');
 
       // Remove from local list
       _users.removeWhere((u) => u.id == userId);
@@ -189,6 +193,7 @@ class UserProvider extends ChangeNotifier {
 
       return true;
     } catch (e) {
+      debugPrint('❌ UserProvider.deleteUser failed: $e');
       _setError(e.toString());
       return false;
     } finally {
