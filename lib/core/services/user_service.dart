@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../services/firebase_service.dart';
 import '../../models/user_model.dart';
 import '../../services/cloud_functions_service.dart';
@@ -141,20 +142,17 @@ class UserService {
     }
   }
 
-  // Delete user
+  // Delete user using Cloud Function (hard delete from both Firestore and Firebase Auth)
   Future<void> deleteUser(String userId, String deletedBy) async {
     try {
-      // Get user data first
-      UserModel? user = await getUserById(userId);
+      debugPrint('🔄 Deleting user via Cloud Function: $userId');
 
-      if (user != null) {
-        // Delete from Firestore
-        await _firebaseService.usersCollection.doc(userId).delete();
+      // Use Cloud Function to perform hard delete from both Firestore and Firebase Auth
+      await _cloudFunctions.deleteUser(userId);
 
-        // Note: We cannot delete from Firebase Auth from client side
-        // This should be done from admin SDK on server side
-      }
+      debugPrint('✅ User deleted successfully via Cloud Function: $userId');
     } catch (e) {
+      debugPrint('❌ Failed to delete user via Cloud Function: $e');
       throw Exception('Gagal menghapus pengguna: ${e.toString()}');
     }
   }

@@ -249,7 +249,11 @@ const updateUserPermissions = functions.https.onCall(
  */
 const deleteUser = functions.https.onCall(
   async (data: { userId: string }, context) => {
+    console.log('🚀 deleteUser function called with data:', JSON.stringify(data));
+    console.log('🔐 Auth context:', context.auth ? 'AUTHENTICATED' : 'NOT AUTHENTICATED');
+
     if (!context.auth) {
+      console.log('❌ Authentication failed - no context.auth');
       throw new functions.https.HttpsError(
         "unauthenticated",
         "User must be authenticated"
@@ -257,6 +261,8 @@ const deleteUser = functions.https.onCall(
     }
 
     try {
+      console.log('🔍 Checking admin permissions for user:', context.auth.uid);
+
       // Check if current user is admin
       const currentUserDoc = await admin
         .firestore()
@@ -265,7 +271,11 @@ const deleteUser = functions.https.onCall(
         .get();
       const currentUser = currentUserDoc.data();
 
+      console.log('👤 Current user data:', currentUser ? 'EXISTS' : 'NOT FOUND');
+      console.log('🔑 Current user role:', currentUser?.role);
+
       if (!currentUser || currentUser.role !== "admin") {
+        console.log('❌ Permission denied - user is not admin');
         throw new functions.https.HttpsError(
           "permission-denied",
           "Only admins can delete users"
@@ -294,15 +304,13 @@ const deleteUser = functions.https.onCall(
 
       const userData = userDoc.data();
 
-      // ADMIN HARD DELETE: Permanently delete user document for admin operations
-      console.log(`🗑️ Deleting user document from Firestore: ${userId}`);
-      await admin.firestore().collection("users").doc(userId).delete();
-      console.log(`✅ User document deleted from Firestore: ${userId}`);
-
-      // HARD DELETE: Permanently delete user from Firebase Auth
+      // HARD DELETE: Delete user from Firebase Auth FIRST
+      // This will trigger onAuthUserDeleted which will handle Firestore cleanup
       console.log(`🗑️ Deleting user from Firebase Auth: ${userId}`);
       await admin.auth().deleteUser(userId);
       console.log(`✅ User deleted from Firebase Auth: ${userId}`);
+
+      // Note: onAuthUserDeleted trigger will automatically clean up Firestore document
 
       // Log activity
       await admin
