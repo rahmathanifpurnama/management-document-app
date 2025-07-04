@@ -3,8 +3,18 @@ import * as admin from "firebase-admin";
 import cors from "cors";
 import express from "express";
 
-// Initialize Firebase Admin
-admin.initializeApp();
+// Initialize Firebase Admin with service account
+try {
+  const serviceAccount = require("../config/service-account-key.json");
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    projectId: 'document-management-c5a96'
+  });
+  console.log('✅ Firebase Admin initialized with service account key');
+} catch (error) {
+  console.log('⚠️ Service account key not found, using default credentials');
+  admin.initializeApp();
+}
 
 // Initialize Express app with CORS
 const app = express();
@@ -55,6 +65,7 @@ export const deleteUser = userFunctions.deleteUser;
 export const bulkUserOperations = userFunctions.bulkUserOperations;
 export const setAdminClaims = userFunctions.setAdminClaims;
 export const autoSyncFirebaseAuthUsers = userFunctions.autoSyncFirebaseAuthUsers;
+export const debugAuthPermissions = userFunctions.debugAuthPermissions;
 export const initializeAdmin = userFunctions.initializeAdmin;
 
 // Document Management Functions

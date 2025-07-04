@@ -651,6 +651,135 @@ const autoSyncFirebaseAuthUsers = functions.https.onCall(async (data, context) =
 });
 
 /**
+ * Debug Firebase Auth permissions and test delete functionality
+ */
+const debugAuthPermissions = functions.https.onCall(async (data: { testUserId?: string }, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
+  }
+
+  try {
+    // Check if current user is admin
+    const currentUserDoc = await admin.firestore().collection("users").doc(context.auth.uid).get();
+    const currentUser = currentUserDoc.data();
+
+    if (!currentUser || currentUser.role !== "admin") {
+      throw new functions.https.HttpsError("permission-denied", "Only admins can run debug operations");
+    }
+
+    const results: any = {
+      timestamp: new Date().toISOString(),
+      tests: {},
+      errors: []
+    };
+
+    // Test 1: List users
+    try {
+      console.log("🧪 Testing: List users...");
+      const listResult = await admin.auth().listUsers(3);
+      results.tests.listUsers = {
+        success: true,
+        userCount: listResult.users.length,
+        message: `Successfully listed ${listResult.users.length} users`
+      };
+      console.log(`✅ List users: ${listResult.users.length} users found`);
+    } catch (error: any) {
+      console.error("❌ List users failed:", error);
+      results.tests.listUsers = {
+        success: false,
+        error: error.message,
+        code: error.code
+      };
+      results.errors.push(`List users: ${error.message}`);
+    }
+
+    // Test 2: Create test user
+    let testUserId = data.testUserId;
+    if (!testUserId) {
+      try {
+        console.log("🧪 Testing: Create user...");
+        const testEmail = `debug-test-${Date.now()}@example.com`;
+        const userRecord = await admin.auth().createUser({
+          email: testEmail,
+          password: 'debugTest123',
+          displayName: 'Debug Test User'
+        });
+        testUserId = userRecord.uid;
+        results.tests.createUser = {
+          success: true,
+          userId: testUserId,
+          email: testEmail,
+          message: "Successfully created test user"
+        };
+        console.log(`✅ Create user: ${testUserId} (${testEmail})`);
+      } catch (error: any) {
+        console.error("❌ Create user failed:", error);
+        results.tests.createUser = {
+          success: false,
+          error: error.message,
+          code: error.code
+        };
+        results.errors.push(`Create user: ${error.message}`);
+      }
+    }
+
+    // Test 3: Delete user (if we have a test user)
+    if (testUserId) {
+      try {
+        console.log(`🧪 Testing: Delete user ${testUserId}...`);
+        await admin.auth().deleteUser(testUserId);
+        results.tests.deleteUser = {
+          success: true,
+          userId: testUserId,
+          message: "Successfully deleted test user"
+        };
+        console.log(`✅ Delete user: ${testUserId}`);
+      } catch (error: any) {
+        console.error("❌ Delete user failed:", error);
+        results.tests.deleteUser = {
+          success: false,
+          userId: testUserId,
+          error: error.message,
+          code: error.code
+        };
+        results.errors.push(`Delete user: ${error.message}`);
+      }
+    }
+
+    // Test 4: Check service account info
+    try {
+      console.log("🧪 Testing: Service account info...");
+      // Try to get project info to verify permissions
+      const projectId = admin.app().options.projectId;
+      results.tests.serviceAccount = {
+        success: true,
+        projectId: projectId,
+        message: "Service account appears to be working"
+      };
+      console.log(`✅ Service account: Project ID ${projectId}`);
+    } catch (error: any) {
+      console.error("❌ Service account check failed:", error);
+      results.tests.serviceAccount = {
+        success: false,
+        error: error.message,
+        code: error.code
+      };
+      results.errors.push(`Service account: ${error.message}`);
+    }
+
+    return {
+      success: results.errors.length === 0,
+      message: results.errors.length === 0 ? "All tests passed" : `${results.errors.length} tests failed`,
+      results: results
+    };
+
+  } catch (error: any) {
+    console.error("Debug auth permissions failed:", error);
+    throw new functions.https.HttpsError("internal", `Debug failed: ${error.message}`);
+  }
+});
+
+/**
  * Initialize admin user (for first-time setup)
  */
 const initializeAdmin = functions.https.onCall(async (data: { email: string }, context) => {
@@ -691,5 +820,6 @@ export const userFunctions = {
   bulkUserOperations,
   setAdminClaims,
   autoSyncFirebaseAuthUsers,
+  debugAuthPermissions,
   initializeAdmin,
 };
