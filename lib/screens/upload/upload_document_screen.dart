@@ -7,7 +7,7 @@ import 'package:file_selector/file_selector.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/upload_ui_constants.dart';
 
-import '../../providers/consolidated_upload_provider.dart';
+import '../../providers/hybrid_upload_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../widgets/upload/duplicate_file_dialog.dart';
 
@@ -40,7 +40,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
-      final uploadProvider = Provider.of<ConsolidatedUploadProvider>(
+      final uploadProvider = Provider.of<HybridUploadProvider>(
         context,
         listen: false,
       );
@@ -62,7 +62,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   }
 
   // Check for completed uploads and trigger UI refresh
-  void _checkForCompletedUploads(ConsolidatedUploadProvider uploadProvider) {
+  void _checkForCompletedUploads(HybridUploadProvider uploadProvider) {
     final currentCompletedCount = uploadProvider.completedFiles;
 
     // Show notification when uploads are completed
@@ -165,7 +165,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
     // Wait longer to ensure user sees the final notification
     Timer(const Duration(seconds: 5), () {
       if (mounted) {
-        final uploadProvider = Provider.of<ConsolidatedUploadProvider>(
+        final uploadProvider = Provider.of<HybridUploadProvider>(
           context,
           listen: false,
         );
@@ -180,7 +180,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   }
 
   // Determine if upload progress should be shown
-  bool _shouldShowUploadProgress(ConsolidatedUploadProvider uploadProvider) {
+  bool _shouldShowUploadProgress(HybridUploadProvider uploadProvider) {
     // Use the provider's built-in logic for determining visibility
     return uploadProvider.shouldShowQueue;
   }
@@ -244,7 +244,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
         ),
       ),
       body: SafeArea(
-        child: Consumer<ConsolidatedUploadProvider>(
+        child: Consumer<HybridUploadProvider>(
           builder: (context, uploadProvider, child) {
             // Schedule check for completed uploads after build completes
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -298,7 +298,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   // Handle file selection
   Future<void> _handleFilesSelected(List<XFile> files) async {
     if (files.isNotEmpty) {
-      final uploadProvider = Provider.of<ConsolidatedUploadProvider>(
+      final uploadProvider = Provider.of<HybridUploadProvider>(
         context,
         listen: false,
       );
@@ -352,7 +352,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
 
   // Retry failed upload
   void _retryUpload(String fileId) {
-    final uploadProvider = Provider.of<ConsolidatedUploadProvider>(
+    final uploadProvider = Provider.of<HybridUploadProvider>(
       context,
       listen: false,
     );
@@ -360,7 +360,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   }
 
   // Improved progress widget with better visual feedback
-  Widget _buildImprovedProgress(ConsolidatedUploadProvider uploadProvider) {
+  Widget _buildImprovedProgress(HybridUploadProvider uploadProvider) {
     final totalFiles = uploadProvider.totalFiles;
     final completedFiles = uploadProvider.completedFiles;
     final failedFiles = uploadProvider.failedFiles;
@@ -475,7 +475,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   }
 
   // Consistent file list that always shows container
-  Widget _buildConsistentFileList(ConsolidatedUploadProvider uploadProvider) {
+  Widget _buildConsistentFileList(HybridUploadProvider uploadProvider) {
     final allFiles = uploadProvider.uploadQueue;
     final files = _applyFileTypeFilter(allFiles);
 
@@ -682,7 +682,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   }
 
   /// Send upload notifications to users for completed files
-  void _sendUploadNotifications(ConsolidatedUploadProvider uploadProvider) {
+  void _sendUploadNotifications(HybridUploadProvider uploadProvider) {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) return;

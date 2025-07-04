@@ -9,6 +9,8 @@ class CloudFunctionsConfig {
 
   // Function endpoints
   static const String processFileUploadFunction = 'processFileUpload';
+  static const String hybridProcessFileUploadFunction =
+      'hybridProcessFileUpload';
   static const String validateFileFunction = 'validateFile';
   static const String checkDuplicateFileFunction = 'checkDuplicateFile';
   static const String generateThumbnailFunction = 'generateThumbnail';
@@ -206,8 +208,34 @@ class CloudFunctionsConfig {
     );
   }
 
-  /// Process file upload using Cloud Functions
+  /// Process file upload using HYBRID Cloud Functions (Optimized)
+  /// Uses server-side heavy processing for better performance
   static Future<Map<String, dynamic>> processFileUpload({
+    required String filePath,
+    required String fileName,
+    required String contentType,
+    String? categoryId,
+    Map<String, String>? metadata,
+  }) async {
+    if (!_isAvailable) {
+      throw Exception('Cloud Functions not available');
+    }
+
+    return await callFunctionWithRetry<Map<String, dynamic>>(
+      hybridProcessFileUploadFunction,
+      {
+        'filePath': filePath,
+        'fileName': fileName,
+        'contentType': contentType,
+        'categoryId': categoryId,
+        'metadata': metadata ?? {},
+      },
+      timeout: uploadTimeout,
+    );
+  }
+
+  /// Legacy process file upload (fallback)
+  static Future<Map<String, dynamic>> legacyProcessFileUpload({
     required String filePath,
     required String fileName,
     required String contentType,

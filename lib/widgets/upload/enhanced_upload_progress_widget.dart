@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/config/upload_config.dart';
 import '../../models/upload_file_model.dart';
-import '../../providers/consolidated_upload_provider.dart';
+import '../../providers/hybrid_upload_provider.dart';
 
 /// Enhanced upload progress widget with queue management
 class EnhancedUploadProgressWidget extends StatelessWidget {
@@ -21,7 +21,7 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ConsolidatedUploadProvider>(
+    return Consumer<HybridUploadProvider>(
       builder: (context, uploadProvider, child) {
         final queuedFiles = uploadProvider.uploadQueue;
         final isProcessing = uploadProvider.isUploading;
@@ -77,7 +77,7 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(ConsolidatedUploadProvider uploadProvider) {
+  Widget _buildHeader(HybridUploadProvider uploadProvider) {
     final queuedFiles = uploadProvider.uploadQueue;
     final isProcessing = uploadProvider.isUploading;
 
@@ -140,7 +140,7 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildQueueControls(ConsolidatedUploadProvider uploadProvider) {
+  Widget _buildQueueControls(HybridUploadProvider uploadProvider) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -184,7 +184,7 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
   /// Build scrollable file list with enhanced visibility for bulk uploads
   Widget _buildScrollableFileList(
     List<UploadFileModel> queuedFiles,
-    ConsolidatedUploadProvider uploadProvider,
+    HybridUploadProvider uploadProvider,
     bool isProcessing,
   ) {
     final maxVisibleItems = UploadConfig.maxVisibleQueueItems;
@@ -258,7 +258,7 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
 
   Widget _buildFileProgressItem(
     UploadFileModel file,
-    ConsolidatedUploadProvider uploadProvider, {
+    HybridUploadProvider uploadProvider, {
     required bool isActive,
   }) {
     return Container(
@@ -371,7 +371,7 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
 
   Widget _buildFileActions(
     UploadFileModel file,
-    ConsolidatedUploadProvider uploadProvider,
+    HybridUploadProvider uploadProvider,
     bool isActive,
   ) {
     switch (file.status) {
@@ -508,7 +508,7 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildOverallProgress(ConsolidatedUploadProvider uploadProvider) {
+  Widget _buildOverallProgress(HybridUploadProvider uploadProvider) {
     final total = uploadProvider.totalFiles;
     final completed = uploadProvider.completedFiles;
     final progress = total > 0 ? uploadProvider.overallProgress : 0.0;

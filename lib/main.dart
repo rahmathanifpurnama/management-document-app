@@ -18,7 +18,7 @@ import 'providers/auth_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/document_provider.dart';
 import 'providers/category_provider.dart';
-import 'providers/consolidated_upload_provider.dart';
+import 'providers/hybrid_upload_provider.dart';
 import 'providers/file_selection_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/notification_provider.dart';
@@ -165,7 +165,7 @@ class _MyAppState extends State<MyApp> {
             lazy: true, // Initialize when needed to prevent startup delay
           ),
           ChangeNotifierProvider(
-            create: (_) => ConsolidatedUploadProvider(),
+            create: (_) => HybridUploadProvider(),
             lazy: true, // Initialize when needed to prevent startup delay
           ),
           ChangeNotifierProvider(
