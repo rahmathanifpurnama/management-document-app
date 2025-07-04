@@ -46,6 +46,10 @@ export const getFileAccessUrl = fileUploadFunctions.getFileAccessUrl;
 export const cleanupOrphanedFiles = fileUploadFunctions.cleanupOrphanedFiles;
 export const batchProcessFiles = fileUploadFunctions.batchProcessFiles;
 
+// Hybrid File Processing Functions (Optimized for client-server separation)
+import * as hybridProcessingFunctions from './modules/hybridFileProcessing';
+export const hybridProcessFileUpload = hybridProcessingFunctions.processFileUpload;
+
 // Category Management Functions
 export const createCategory = categoryFunctions.createCategory;
 export const updateCategory = categoryFunctions.updateCategory;
