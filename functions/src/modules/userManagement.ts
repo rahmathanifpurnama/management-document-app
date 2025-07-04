@@ -245,7 +245,7 @@ const updateUserPermissions = functions.https.onCall(
 );
 
 /**
- * Delete a user (soft delete)
+ * Delete a user (hard delete - permanently removes from Firebase Auth and Firestore)
  */
 const deleteUser = functions.https.onCall(
   async (data: { userId: string }, context) => {
@@ -299,10 +299,10 @@ const deleteUser = functions.https.onCall(
       await admin.firestore().collection("users").doc(userId).delete();
       console.log(`✅ User document deleted from Firestore: ${userId}`);
 
-      // Disable user in Firebase Auth
-      await admin.auth().updateUser(userId, {
-        disabled: true,
-      });
+      // HARD DELETE: Permanently delete user from Firebase Auth
+      console.log(`🗑️ Deleting user from Firebase Auth: ${userId}`);
+      await admin.auth().deleteUser(userId);
+      console.log(`✅ User deleted from Firebase Auth: ${userId}`);
 
       // Log activity
       await admin
