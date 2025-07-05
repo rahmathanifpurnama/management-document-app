@@ -48,6 +48,15 @@ export const processFileUpload = functions
   })
   .https.onCall(async (data: any, context: functions.https.CallableContext) => {
     const startTime = Date.now();
+
+    // CRITICAL DEBUG: Log function invocation
+    console.log('🚀 HYBRID FUNCTION INVOKED!');
+    console.log('📞 Function: hybridProcessFileUpload');
+    console.log('📋 Data received:', JSON.stringify(data, null, 2));
+    console.log('👤 Context:', {
+      uid: context.auth?.uid,
+      email: context.auth?.token?.email,
+    });
     
     try {
       // Validate authentication
@@ -57,6 +66,44 @@ export const processFileUpload = functions
           'User must be authenticated to process files'
         );
       }
+
+      // Validate authorization - check user permissions
+      const userId = context.auth.uid;
+      const userEmail = context.auth.token?.email;
+
+      console.log(`🔐 Authorization check for user: ${userEmail} (${userId})`);
+
+      // Get user document from Firestore to check permissions
+      const db = admin.firestore();
+      const userDoc = await db.collection('users').doc(userId).get();
+
+      if (!userDoc.exists) {
+        console.log(`❌ User document not found: ${userId}`);
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'User not found in system'
+        );
+      }
+
+      const userData = userDoc.data();
+      const userRole = userData?.role;
+      const userPermissions = userData?.permissions?.documents || [];
+
+      console.log(`👤 User role: ${userRole}`);
+      console.log(`📋 User permissions:`, userPermissions);
+
+      // Check if user has upload permission
+      const hasUploadPermission = userRole === 'admin' || userPermissions.includes('upload');
+
+      if (!hasUploadPermission) {
+        console.log(`❌ User ${userEmail} does not have upload permission`);
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'User does not have permission to upload files'
+        );
+      }
+
+      console.log(`✅ User ${userEmail} authorized for file upload`);
 
       const { filePath, fileName, contentType, categoryId, metadata } = data;
       

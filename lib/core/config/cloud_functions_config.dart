@@ -1,4 +1,5 @@
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 /// Configuration for Cloud Functions integration
@@ -136,6 +137,14 @@ class CloudFunctionsConfig {
     final actualTimeout = timeout ?? defaultTimeout;
     final actualMaxRetries = maxRetries ?? CloudFunctionsConfig.maxRetries;
 
+    // CRITICAL DEBUG: Check authentication state before calling function
+    final currentUser = FirebaseAuth.instance.currentUser;
+    debugPrint('🔐 AUTH DEBUG - Before calling $functionName:');
+    debugPrint('   User: ${currentUser?.email}');
+    debugPrint('   UID: ${currentUser?.uid}');
+    debugPrint('   Email verified: ${currentUser?.emailVerified}');
+    debugPrint('   Token available: ${currentUser != null}');
+
     for (int attempt = 1; attempt <= actualMaxRetries; attempt++) {
       try {
         debugPrint(
@@ -155,6 +164,17 @@ class CloudFunctionsConfig {
         return result.data as T;
       } catch (e) {
         debugPrint('❌ $functionName attempt $attempt failed: $e');
+
+        // Additional debug for authentication errors
+        if (e.toString().contains('unauthenticated') ||
+            e.toString().contains('UNAUTHENTICATED')) {
+          final user = FirebaseAuth.instance.currentUser;
+          debugPrint('🔐 AUTH ERROR DEBUG:');
+          debugPrint('   Current user: ${user?.email}');
+          debugPrint('   User UID: ${user?.uid}');
+          debugPrint('   Email verified: ${user?.emailVerified}');
+          debugPrint('   ID token available: ${user != null}');
+        }
 
         if (attempt == actualMaxRetries) {
           rethrow;
@@ -217,11 +237,19 @@ class CloudFunctionsConfig {
     String? categoryId,
     Map<String, String>? metadata,
   }) async {
+    debugPrint('🔧 CloudFunctionsConfig.processFileUpload called');
+    debugPrint('📍 Function: $hybridProcessFileUploadFunction');
+    debugPrint('📁 File: $fileName');
+    debugPrint('🔗 Path: $filePath');
+    debugPrint('🔧 Available: $_isAvailable');
+
     if (!_isAvailable) {
+      debugPrint('❌ Cloud Functions not available');
       throw Exception('Cloud Functions not available');
     }
 
-    return await callFunctionWithRetry<Map<String, dynamic>>(
+    debugPrint('📞 Calling function with retry...');
+    final result = await callFunctionWithRetry<Map<String, dynamic>>(
       hybridProcessFileUploadFunction,
       {
         'filePath': filePath,
@@ -232,6 +260,9 @@ class CloudFunctionsConfig {
       },
       timeout: uploadTimeout,
     );
+
+    debugPrint('✅ Function call completed: $result');
+    return result;
   }
 
   /// Legacy process file upload (fallback)

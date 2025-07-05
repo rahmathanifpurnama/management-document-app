@@ -127,60 +127,17 @@ class UnifiedIdSystem {
       // Generate Firestore document ID (single source of truth)
       final documentId = generateDocumentId();
 
-      debugPrint('🆔 UnifiedIdSystem: Creating document with ID: $documentId');
-
-      // Debug authentication info
-      final currentUser = _firebaseService.authSafe?.currentUser;
-      debugPrint('🔍 FIRESTORE DEBUG - Authentication Info:');
-      debugPrint('   Current user: ${currentUser?.email}');
-      debugPrint('   User UID: ${currentUser?.uid}');
-      debugPrint('   Email verified: ${currentUser?.emailVerified}');
-      debugPrint('   uploadedBy parameter: $uploadedBy');
-      debugPrint('   Match: ${currentUser?.uid == uploadedBy}');
-
-      // Create document data
-      final documentData = {
-        'id': documentId, // Store ID in document for consistency
-        'fileName': fileName,
-        'filePath': filePath,
-        'uploadedBy': uploadedBy,
-        'category': category,
-        'fileSize': fileSize,
-        'fileType': fileType,
-        'uploadedAt': FieldValue.serverTimestamp(),
-        'status': 'active', // Add status field for Firestore Rules compliance
-        'isActive': true,
-        'permissions': [uploadedBy],
-        'metadata': {
-          'description': '',
-          'tags': [],
-          'version': '1.0',
-          'contentType': _getContentTypeFromFileType(fileType),
-          ...?additionalMetadata,
-        },
-      };
-
-      // Debug document data before creation
-      debugPrint('📋 Document data to create:');
-      debugPrint('   ID: $documentId');
-      debugPrint('   fileName: $fileName');
-      debugPrint('   uploadedBy: $uploadedBy');
-      debugPrint('   status: ${documentData['status']}');
+      debugPrint('🆔 UnifiedIdSystem: Generated document ID: $documentId');
       debugPrint(
-        '   Required fields present: ${['id', 'fileName', 'uploadedAt'].every((field) => documentData.containsKey(field))}',
+        '⚠️ DOCUMENT CREATION DISABLED - Delegated to hybrid Cloud Function',
       );
 
-      // Create document in Firestore with the generated ID
-      await _firebaseService.documentsCollection
-          .doc(documentId)
-          .set(documentData);
-
-      // Cache the ID mapping
+      // Cache the ID mapping for future reference
       _firestoreIdToStoragePath[documentId] = filePath;
       _storagePathToFirestoreId[filePath] = documentId;
 
       debugPrint(
-        '✅ UnifiedIdSystem: Document created successfully with ID: $documentId',
+        '✅ UnifiedIdSystem: ID mapping cached, document creation delegated to hybrid function',
       );
       return documentId;
     } catch (e) {

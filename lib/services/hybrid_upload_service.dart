@@ -7,7 +7,6 @@ import '../models/upload_file_model.dart';
 import '../core/config/cloud_functions_config.dart';
 import '../core/config/file_config.dart';
 import '../services/google_drive_service.dart';
-import '../core/services/unified_id_system.dart';
 
 /// HYBRID UPLOAD SERVICE
 /// =====================
@@ -101,6 +100,10 @@ class HybridUploadService {
       // ===================================================
 
       debugPrint('⚙️ Triggering background server processing...');
+
+      // Small delay to ensure file is fully committed to Storage
+      await Future.delayed(const Duration(milliseconds: 500));
+
       String? documentId;
 
       try {
@@ -116,15 +119,10 @@ class HybridUploadService {
         documentId = processingResult['documentId'];
         debugPrint('✅ Server processing completed');
       } catch (e) {
-        debugPrint('⚠️ Server processing failed, using fallback: $e');
-        // Fallback: Create basic document record locally
-        documentId = await _createBasicDocumentRecord(
-          file,
-          downloadUrl,
-          currentUser.uid,
-          categoryId,
-          customMetadata,
-        );
+        debugPrint('❌ Server processing failed: $e');
+        // IMPORTANT: Don't create fallback document to prevent duplicates
+        // Let the upload fail and show error to user
+        throw Exception('Upload processing failed: $e');
       }
 
       onProgress(100);
@@ -294,18 +292,6 @@ class HybridUploadService {
         .toLowerCase();
   }
 
-  /// Reverse sanitization to get original email (for display purposes)
-  String _desanitizeEmailFromStorage(String sanitizedEmail) {
-    // Convert storage format back to email
-    // john-dot-doe-at-company-dot-com -> john.doe@company.com
-    return sanitizedEmail
-        .replaceAll('-at-', '@')
-        .replaceAll('-dot-', '.')
-        .replaceAll('-plus-', '+')
-        .replaceAll('-', ' ')
-        .toLowerCase();
-  }
-
   /// Get content type from filename
   String _getContentType(String fileName) {
     final extension = fileName.split('.').last.toLowerCase();
@@ -330,8 +316,21 @@ class HybridUploadService {
   }) async {
     try {
       debugPrint('⚙️ Triggering server processing for: $fileName');
+      debugPrint('📍 File path: $filePath');
+      debugPrint('🔗 Download URL: $downloadUrl');
+      debugPrint('👤 User ID: ${currentUser.uid}');
+      debugPrint('📁 Category ID: $categoryId');
+
+      // Check Cloud Functions availability first
+      final isAvailable = await CloudFunctionsConfig.initialize();
+      debugPrint('🔧 Cloud Functions available: $isAvailable');
+
+      if (!isAvailable) {
+        throw Exception('Cloud Functions not available');
+      }
 
       // Call Cloud Function for heavy processing
+      debugPrint('📞 Calling hybridProcessFileUpload function...');
       final result = await CloudFunctionsConfig.processFileUpload(
         filePath: filePath,
         fileName: fileName,
@@ -351,88 +350,9 @@ class HybridUploadService {
       return result;
     } catch (e) {
       debugPrint('❌ Server processing failed: $e');
+      debugPrint('❌ Error type: ${e.runtimeType}');
+      debugPrint('❌ Error details: ${e.toString()}');
       rethrow;
-    }
-  }
-
-  /// Create basic document record locally (fallback when server processing fails)
-  Future<String> _createBasicDocumentRecord(
-    UploadFileModel file,
-    String downloadUrl,
-    String userId,
-    String? categoryId,
-    Map<String, String>? customMetadata,
-  ) async {
-    try {
-      debugPrint('📝 Creating basic document record locally...');
-
-      // Generate document ID using unified system
-      final unifiedIdSystem = UnifiedIdSystem.instance;
-      final documentId = unifiedIdSystem.generateDocumentId();
-
-      // Create basic document data
-      final documentData = {
-        'id': documentId,
-        'fileName': file.fileName,
-        'fileSize': await file.file.length(),
-        'fileType': _getSimpleFileType(file.fileName),
-        'filePath': _getStoragePath(file.fileName, userId, categoryId),
-        'downloadUrl': downloadUrl,
-        'uploadedBy': userId,
-        'uploadedAt': DateTime.now(),
-        'category': categoryId ?? '',
-        'status': 'active',
-        'permissions': [userId],
-        'metadata': {
-          'description': 'Uploaded via Flutter app (hybrid mode)',
-          'tags': ['flutter-upload', 'hybrid-mode'],
-          'version': '1.0',
-          'contentType': _getContentType(file.fileName),
-          'processingStatus': 'basic', // Indicates basic processing only
-          'serverProcessingFailed': true,
-          ...?customMetadata,
-        },
-      };
-
-      // Save to Firestore
-      await FirebaseFirestore.instance
-          .collection('documents')
-          .doc(documentId)
-          .set(documentData);
-
-      debugPrint('✅ Basic document record created: $documentId');
-      return documentId;
-    } catch (e) {
-      debugPrint('❌ Failed to create basic document record: $e');
-      rethrow;
-    }
-  }
-
-  /// Get simple file type from filename
-  String _getSimpleFileType(String fileName) {
-    final extension = fileName.split('.').last.toLowerCase();
-
-    switch (extension) {
-      case 'pdf':
-        return 'PDF';
-      case 'doc':
-      case 'docx':
-        return 'Word Document';
-      case 'xls':
-      case 'xlsx':
-        return 'Excel Spreadsheet';
-      case 'ppt':
-      case 'pptx':
-        return 'PowerPoint Presentation';
-      case 'jpg':
-      case 'jpeg':
-      case 'png':
-      case 'gif':
-        return 'Image';
-      case 'txt':
-        return 'Text Document';
-      default:
-        return 'Document';
     }
   }
 

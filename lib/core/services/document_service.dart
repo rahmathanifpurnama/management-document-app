@@ -131,72 +131,56 @@ class DocumentService {
   }
 
   // Add document using unified ID system
+  // DISABLED: Document creation now handled by hybrid Cloud Function
   Future<String> addDocument(DocumentModel document) async {
     try {
-      String documentId;
+      debugPrint(
+        '⚠️ DocumentService.addDocument() DISABLED - Delegated to hybrid Cloud Function',
+      );
+      debugPrint('   Document: ${document.fileName}');
 
-      // UNIFIED ID SYSTEM: Use existing ID if valid, otherwise create with unified system
-      if (document.id.isNotEmpty &&
-          await _unifiedIdSystem.validateDocumentId(document.id)) {
-        // Document already has a valid Firestore ID
-        documentId = document.id;
-        await _firebaseService.documentsCollection
-            .doc(documentId)
-            .set(document.toMap());
-      } else {
-        // Create new document with unified ID system
-        documentId = await _unifiedIdSystem.createDocumentWithUnifiedId(
-          fileName: document.fileName,
-          filePath: document.filePath,
-          uploadedBy: document.uploadedBy,
-          category: document.category,
-          fileSize: document.fileSize,
-          fileType: document.fileType,
-          additionalMetadata: document.metadata.toMap(),
-        );
-      }
-
-      // Log activity
-      await _logActivity(
-        document.uploadedBy,
-        ActivityType.upload,
-        'Document: ${document.fileName}',
+      // Generate ID for reference but don't create document
+      final documentId = await _unifiedIdSystem.createDocumentWithUnifiedId(
+        fileName: document.fileName,
+        filePath: document.filePath,
+        uploadedBy: document.uploadedBy,
+        category: document.category,
+        fileSize: document.fileSize,
+        fileType: document.fileType,
+        additionalMetadata: document.metadata.toMap(),
       );
 
+      debugPrint(
+        '✅ Document ID generated, creation delegated to hybrid function: $documentId',
+      );
       return documentId;
     } catch (e) {
-      throw Exception('Failed to add document: ${e.toString()}');
+      throw Exception('Failed to generate document ID: ${e.toString()}');
     }
   }
 
   // CRITICAL FIX: Add document without activity logging (for sync operations)
+  // DISABLED: Document creation now handled by hybrid Cloud Function
   Future<String> addDocumentSilent(DocumentModel document) async {
     try {
-      String documentId;
+      debugPrint(
+        '⚠️ DocumentService.addDocumentSilent() DISABLED - Delegated to hybrid Cloud Function',
+      );
+      debugPrint('   Document: ${document.fileName}');
 
-      // UNIFIED ID SYSTEM: Use existing ID if valid, otherwise create with unified system
-      if (document.id.isNotEmpty &&
-          await _unifiedIdSystem.validateDocumentId(document.id)) {
-        // Document already has a valid Firestore ID
-        documentId = document.id;
-        await _firebaseService.documentsCollection
-            .doc(documentId)
-            .set(document.toMap());
-      } else {
-        // Create new document with unified ID system
-        documentId = await _unifiedIdSystem.createDocumentWithUnifiedId(
-          fileName: document.fileName,
-          filePath: document.filePath,
-          uploadedBy: document.uploadedBy,
-          category: document.category,
-          fileSize: document.fileSize,
-          fileType: document.fileType,
-          additionalMetadata: document.metadata.toMap(),
-        );
-      }
+      // Generate ID for reference but don't create document
+      final documentId = await _unifiedIdSystem.createDocumentWithUnifiedId(
+        fileName: document.fileName,
+        filePath: document.filePath,
+        uploadedBy: document.uploadedBy,
+        category: document.category,
+        fileSize: document.fileSize,
+        fileType: document.fileType,
+        additionalMetadata: document.metadata.toMap(),
+      );
 
       debugPrint(
-        '✅ Document added silently (no activity log): ${document.fileName}',
+        '✅ Document ID generated silently, creation delegated to hybrid function: $documentId',
       );
       return documentId;
     } catch (e) {
