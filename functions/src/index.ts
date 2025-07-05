@@ -8,12 +8,16 @@ try {
   const serviceAccount = require("../config/service-account-key.json");
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
-    projectId: 'document-management-c5a96'
+    projectId: 'document-management-c5a96',
+    storageBucket: 'document-management-c5a96.appspot.com'
   });
-  console.log('✅ Firebase Admin initialized with service account key');
+  console.log('✅ Firebase Admin initialized with service account key and storage bucket');
 } catch (error) {
   console.log('⚠️ Service account key not found, using default credentials');
-  admin.initializeApp();
+  admin.initializeApp({
+    projectId: 'document-management-c5a96',
+    storageBucket: 'document-management-c5a96.appspot.com'
+  });
 }
 
 // Initialize Express app with CORS
