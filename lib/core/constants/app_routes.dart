@@ -28,14 +28,12 @@ class AppRoutes {
   static const String categoryDetails = '/category-details';
 
   // Admin Routes
-  static const String adminDashboard = '/admin-dashboard';
-  static const String userManagement = '/user-management';
+    static const String userManagement = '/user-management';
   static const String createUser = '/create-user';
   static const String editUser = '/edit-user';
   static const String userDetails = '/user-details';
   static const String userPermissions = '/user-permissions';
   static const String searchUser = '/search-user';
-  static const String storageMigration = '/storage-migration';
 
   // User Routes
   static const String userDashboard = '/user-dashboard';
