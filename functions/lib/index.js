@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.healthCheck = exports.validateUserSession = exports.handleLogoutOperations = exports.handlePostLoginOperations = exports.onAuthUserDeleted = exports.onAuthUserCreated = exports.onStorageFileDeleted = exports.onStorageFileCreated = exports.processActivityLog = exports.sendNotification = exports.invalidateStatisticsCache = exports.getPaginatedFileStats = exports.getAggregatedStatistics = exports.repairSyncInconsistencies = exports.monitorSyncConsistency = exports.performComprehensiveSync = exports.cleanupOrphanedMetadata = exports.syncStorageToFirestore = exports.syncStorageWithFirestore = exports.generateDocumentReport = exports.bulkDocumentOperations = exports.deleteDocument = exports.rejectDocument = exports.approveDocument = exports.initializeAdmin = exports.debugAuthPermissions = exports.autoSyncFirebaseAuthUsers = exports.setAdminClaims = exports.bulkUserOperations = exports.deleteUser = exports.updateUserPermissions = exports.createUser = exports.refreshCategoryContents = exports.getCategoryDocumentsEnhanced = exports.removeFilesFromCategory = exports.addFilesToCategory = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.hybridProcessFileUpload = exports.batchProcessFiles = exports.cleanupOrphanedFiles = exports.getFileAccessUrl = exports.getStorageQuota = exports.extractMetadata = exports.checkDuplicateFile = exports.validateFile = exports.generateThumbnail = exports.streamingUpload = exports.processFileUpload = void 0;
+exports.healthCheck = exports.validateUserSession = exports.handleLogoutOperations = exports.handlePostLoginOperations = exports.onAuthUserDeleted = exports.onAuthUserCreated = exports.onStorageFileDeleted = exports.onStorageFileCreated = exports.processActivityLog = exports.sendNotification = exports.invalidateStatisticsCache = exports.getPaginatedFileStats = exports.getAggregatedStatistics = exports.repairSyncInconsistencies = exports.monitorSyncConsistency = exports.performComprehensiveSync = exports.cleanupOrphanedMetadata = exports.syncStorageToFirestore = exports.syncStorageWithFirestore = exports.generateDocumentReport = exports.bulkDocumentOperations = exports.deleteDocument = exports.rejectDocument = exports.approveDocument = exports.initializeAdmin = exports.debugAuthPermissions = exports.autoSyncFirebaseAuthUsers = exports.setAdminClaims = exports.bulkUserOperations = exports.deleteUser = exports.updateUserPermissions = exports.createUser = exports.refreshCategoryContents = exports.getCategoryDocumentsEnhanced = exports.removeFilesFromCategory = exports.addFilesToCategory = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.hybridProcessFileUpload = exports.processFileUpload = exports.batchProcessFiles = exports.cleanupOrphanedFiles = exports.getFileAccessUrl = exports.getStorageQuota = exports.extractMetadata = exports.checkDuplicateFile = exports.validateFile = exports.generateThumbnail = exports.streamingUpload = void 0;
 exports.manualCleanupActivityLogs = exports.onFileUpload = exports.onUserCreate = exports.onDocumentCreate = exports.api = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
@@ -70,7 +70,7 @@ Object.defineProperty(exports, "handlePostLoginOperations", { enumerable: true, 
 Object.defineProperty(exports, "handleLogoutOperations", { enumerable: true, get: function () { return authOperations_1.handleLogoutOperations; } });
 Object.defineProperty(exports, "validateUserSession", { enumerable: true, get: function () { return authOperations_1.validateUserSession; } });
 // File Upload Functions
-exports.processFileUpload = fileUpload_1.fileUploadFunctions.processFileUpload;
+// Removed duplicate export - using hybrid version below
 exports.streamingUpload = fileUpload_1.fileUploadFunctions.streamingUpload;
 exports.generateThumbnail = fileUpload_1.fileUploadFunctions.generateThumbnail;
 exports.validateFile = fileUpload_1.fileUploadFunctions.validateFile;
@@ -82,6 +82,7 @@ exports.cleanupOrphanedFiles = fileUpload_1.fileUploadFunctions.cleanupOrphanedF
 exports.batchProcessFiles = fileUpload_1.fileUploadFunctions.batchProcessFiles;
 // Hybrid File Processing Functions (Optimized for client-server separation)
 const hybridProcessingFunctions = __importStar(require("./modules/hybridFileProcessing"));
+exports.processFileUpload = hybridProcessingFunctions.processFileUpload;
 exports.hybridProcessFileUpload = hybridProcessingFunctions.processFileUpload;
 // Category Management Functions
 exports.createCategory = categoryManagement_1.categoryFunctions.createCategory;

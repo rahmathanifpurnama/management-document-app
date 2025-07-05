@@ -77,41 +77,28 @@ exports.onStorageFileCreated = functions.storage.object().onFinalize(async (obje
             console.error("File path is undefined");
             return;
         }
+        // DISABLED: Document creation is now handled by upload functions only
+        // This prevents duplicate document creation between upload functions and storage triggers
+        console.log("📝 File uploaded to storage:", filePath);
+        console.log("⚠️ Document metadata creation is handled by upload functions");
         const duplicateCheck = await checkForExistingDocumentEnhanced(filePath, fileName, fileSize);
         if (duplicateCheck.hasDuplicates) {
-            console.log("✅ Document already exists in Firestore:", fileName);
+            console.log("✅ Document metadata already exists in Firestore:", fileName);
             console.log("📊 Duplicate check details:", duplicateCheck);
-            return;
         }
-        // Create metadata document
-        const documentId = generateDocumentId(filePath);
-        const metadata = {
-            id: documentId,
-            fileName: fileName,
-            filePath: filePath,
-            fileSize: fileSize,
-            fileType: getFileTypeFromContentType(contentType),
-            contentType: contentType,
-            uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
-            uploadedBy: "system", // Will be updated if we can determine the actual user
-            isActive: true,
-            category: extractCategoryFromPath(filePath),
-            source: "storage_trigger",
-            syncedAt: admin.firestore.FieldValue.serverTimestamp(),
-        };
-        // Create document in Firestore
-        await admin
-            .firestore()
-            .collection(METADATA_COLLECTION)
-            .doc(documentId)
-            .set(metadata);
-        console.log("✅ Created metadata document:", documentId);
-        // Log activity
-        await logSyncActivity("document_created", {
-            documentId: documentId,
+        else {
+            console.log("⚠️ No metadata found for uploaded file:", filePath);
+            console.log("💡 This might indicate upload function failed to create metadata");
+            console.log("🔧 Consider checking upload function logs for errors");
+        }
+        // Skip document creation to prevent duplicates
+        console.log("⏭️ Skipping document creation (handled by upload functions)");
+        // Log activity (without documentId since no document was created)
+        await logSyncActivity("file_uploaded", {
             fileName: fileName,
             filePath: filePath,
             source: "storage_trigger",
+            note: "Document creation handled by upload functions",
         });
         // Invalidate statistics cache to trigger real-time updates
         await invalidateStatisticsCache();
@@ -199,6 +186,17 @@ exports.onAuthUserCreated = functions.auth.user().onCreate(async (user) => {
             .get();
         if (existingUser.exists) {
             console.log("✅ User document already exists:", user.uid);
+            return;
+        }
+        // RATE LIMITING: Prevent rapid user creation loops
+        const recentUsers = await admin
+            .firestore()
+            .collection(USERS_COLLECTION)
+            .where("email", "==", user.email)
+            .where("createdAt", ">", new Date(Date.now() - 60000)) // Last 1 minute
+            .get();
+        if (!recentUsers.empty) {
+            console.log("⚠️ User with same email created recently, skipping:", user.email);
             return;
         }
         // Create user profile document

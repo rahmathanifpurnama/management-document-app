@@ -35,7 +35,7 @@ import {
 } from "./auth/authOperations";
 
 // File Upload Functions
-export const processFileUpload = fileUploadFunctions.processFileUpload;
+// Removed duplicate export - using hybrid version below
 export const streamingUpload = fileUploadFunctions.streamingUpload;
 export const generateThumbnail = fileUploadFunctions.generateThumbnail;
 export const validateFile = fileUploadFunctions.validateFile;
@@ -48,6 +48,7 @@ export const batchProcessFiles = fileUploadFunctions.batchProcessFiles;
 
 // Hybrid File Processing Functions (Optimized for client-server separation)
 import * as hybridProcessingFunctions from './modules/hybridFileProcessing';
+export const processFileUpload = hybridProcessingFunctions.processFileUpload;
 export const hybridProcessFileUpload = hybridProcessingFunctions.processFileUpload;
 
 // Category Management Functions
