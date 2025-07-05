@@ -31,6 +31,18 @@ service firebase.storage {
              );
     }
 
+    // Helper function to check if userIdentifier matches current user's email (sanitized)
+    function isUserEmailMatch(userIdentifier) {
+      return request.auth != null &&
+             request.auth.token.email != null &&
+             userIdentifier == request.auth.token.email
+               .replace('@', '-at-')
+               .replace('.', '-dot-')
+               .replace('+', '-plus-')
+               .replace(' ', '-')
+               .lower();
+    }
+
     // Default deny all
     match /{allPaths=**} {
       allow read, write: if false;
@@ -68,13 +80,16 @@ service firebase.storage {
     }
 
     // User-specific documents folder with enhanced permission control
-    match /documents/{userId}/{fileName} {
+    // Supports both old UID-based and new email-based folder structures
+    match /documents/{userIdentifier}/{fileName} {
       // Allow read for users with view permission or admin
       allow read: if hasDocumentPermission('view') || isAdmin();
 
       // Allow create/update for the file owner with upload permission or admin
+      // Note: userIdentifier can be either UID or sanitized email
       allow create, update: if (isActiveUser()
-                               && request.auth.uid == userId
+                               && (request.auth.uid == userIdentifier ||
+                                   isUserEmailMatch(userIdentifier))
                                && hasDocumentPermission('upload'))
                             || isAdmin();
 

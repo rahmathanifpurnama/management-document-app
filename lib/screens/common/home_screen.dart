@@ -959,20 +959,41 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         content: Consumer<UserProvider>(
           builder: (context, userProvider, child) {
-            final user = userProvider.getUserById(document.uploadedBy);
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildDetailRow('Name', document.fileName),
-                _buildDetailRow('Owner', user?.fullName ?? 'Unknown'),
-                _buildDetailRow('Size', _formatFileSize(document.fileSize)),
-                _buildDetailRow('Type', document.fileType),
-                _buildDetailRow('Uploaded', _formatDate(document.uploadedAt)),
-                _buildDetailRow('Status', 'ACTIVE'),
-                if (document.metadata.description.isNotEmpty)
-                  _buildDetailRow('Description', document.metadata.description),
-              ],
+            return FutureBuilder<UserModel?>(
+              future: userProvider.getUserByIdAsync(document.uploadedBy),
+              builder: (context, snapshot) {
+                String ownerName = 'Loading...';
+
+                if (snapshot.connectionState == ConnectionState.done) {
+                  if (snapshot.hasData && snapshot.data != null) {
+                    ownerName = snapshot.data!.fullName;
+                  } else {
+                    // Fallback: try to extract readable name from uploadedBy
+                    ownerName = _extractReadableOwnerName(document.uploadedBy);
+                  }
+                }
+
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildDetailRow('Name', document.fileName),
+                    _buildDetailRow('Owner', ownerName),
+                    _buildDetailRow('Size', _formatFileSize(document.fileSize)),
+                    _buildDetailRow('Type', document.fileType),
+                    _buildDetailRow(
+                      'Uploaded',
+                      _formatDate(document.uploadedAt),
+                    ),
+                    _buildDetailRow('Status', 'ACTIVE'),
+                    if (document.metadata.description.isNotEmpty)
+                      _buildDetailRow(
+                        'Description',
+                        document.metadata.description,
+                      ),
+                  ],
+                );
+              },
             );
           },
         ),
@@ -1204,5 +1225,33 @@ class _HomeScreenState extends State<HomeScreen>
         );
       }
     }
+  }
+
+  /// Extract readable owner name from uploadedBy field as fallback
+  String _extractReadableOwnerName(String uploadedBy) {
+    // If it looks like an email-based folder name, try to reverse it
+    if (uploadedBy.contains('-at-') && uploadedBy.contains('-dot-')) {
+      try {
+        return uploadedBy
+            .replaceAll('-at-', '@')
+            .replaceAll('-dot-', '.')
+            .replaceAll('-plus-', '+')
+            .replaceAll('-', ' ')
+            .split('@')[0] // Get part before @
+            .split(' ')
+            .map(
+              (word) => word.isNotEmpty
+                  ? word[0].toUpperCase() + word.substring(1).toLowerCase()
+                  : word,
+            )
+            .join(' ');
+      } catch (e) {
+        // If parsing fails, return a cleaned version
+        return uploadedBy.replaceAll('-', ' ').split(' ')[0];
+      }
+    }
+
+    // For UID-based names, just return "Unknown User"
+    return 'Unknown User';
   }
 }

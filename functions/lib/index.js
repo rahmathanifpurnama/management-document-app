@@ -36,14 +36,25 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.onDocumentCreate = exports.api = exports.healthCheck = exports.validateUserSession = exports.handleLogoutOperations = exports.handlePostLoginOperations = exports.onAuthUserDeleted = exports.onAuthUserCreated = exports.onStorageFileDeleted = exports.onStorageFileCreated = exports.processActivityLog = exports.sendNotification = exports.invalidateStatisticsCache = exports.getPaginatedFileStats = exports.getAggregatedStatistics = exports.repairSyncInconsistencies = exports.monitorSyncConsistency = exports.performComprehensiveSync = exports.cleanupOrphanedMetadata = exports.syncStorageToFirestore = exports.syncStorageWithFirestore = exports.generateDocumentReport = exports.bulkDocumentOperations = exports.deleteDocument = exports.rejectDocument = exports.approveDocument = exports.initializeAdmin = exports.autoSyncFirebaseAuthUsers = exports.setAdminClaims = exports.bulkUserOperations = exports.deleteUser = exports.updateUserPermissions = exports.createUser = exports.refreshCategoryContents = exports.getCategoryDocumentsEnhanced = exports.removeFilesFromCategory = exports.addFilesToCategory = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.batchProcessFiles = exports.cleanupOrphanedFiles = exports.getFileAccessUrl = exports.getStorageQuota = exports.extractMetadata = exports.checkDuplicateFile = exports.validateFile = exports.generateThumbnail = exports.streamingUpload = exports.processFileUpload = void 0;
-exports.manualCleanupActivityLogs = exports.onFileUpload = exports.onUserCreate = void 0;
+exports.healthCheck = exports.validateUserSession = exports.handleLogoutOperations = exports.handlePostLoginOperations = exports.onAuthUserDeleted = exports.onAuthUserCreated = exports.onStorageFileDeleted = exports.onStorageFileCreated = exports.processActivityLog = exports.sendNotification = exports.invalidateStatisticsCache = exports.getPaginatedFileStats = exports.getAggregatedStatistics = exports.repairSyncInconsistencies = exports.monitorSyncConsistency = exports.performComprehensiveSync = exports.cleanupOrphanedMetadata = exports.syncStorageToFirestore = exports.syncStorageWithFirestore = exports.generateDocumentReport = exports.bulkDocumentOperations = exports.deleteDocument = exports.rejectDocument = exports.approveDocument = exports.initializeAdmin = exports.debugAuthPermissions = exports.autoSyncFirebaseAuthUsers = exports.setAdminClaims = exports.bulkUserOperations = exports.deleteUser = exports.updateUserPermissions = exports.createUser = exports.refreshCategoryContents = exports.getCategoryDocumentsEnhanced = exports.removeFilesFromCategory = exports.addFilesToCategory = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.hybridProcessFileUpload = exports.batchProcessFiles = exports.cleanupOrphanedFiles = exports.getFileAccessUrl = exports.getStorageQuota = exports.extractMetadata = exports.checkDuplicateFile = exports.validateFile = exports.generateThumbnail = exports.streamingUpload = exports.processFileUpload = void 0;
+exports.manualCleanupActivityLogs = exports.onFileUpload = exports.onUserCreate = exports.onDocumentCreate = exports.api = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const cors_1 = __importDefault(require("cors"));
 const express_1 = __importDefault(require("express"));
-// Initialize Firebase Admin
-admin.initializeApp();
+// Initialize Firebase Admin with service account
+try {
+    const serviceAccount = require("../config/service-account-key.json");
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        projectId: 'document-management-c5a96'
+    });
+    console.log('✅ Firebase Admin initialized with service account key');
+}
+catch (error) {
+    console.log('⚠️ Service account key not found, using default credentials');
+    admin.initializeApp();
+}
 // Initialize Express app with CORS
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)({ origin: true }));
@@ -69,6 +80,9 @@ exports.getStorageQuota = fileUpload_1.fileUploadFunctions.getStorageQuota;
 exports.getFileAccessUrl = fileUpload_1.fileUploadFunctions.getFileAccessUrl;
 exports.cleanupOrphanedFiles = fileUpload_1.fileUploadFunctions.cleanupOrphanedFiles;
 exports.batchProcessFiles = fileUpload_1.fileUploadFunctions.batchProcessFiles;
+// Hybrid File Processing Functions (Optimized for client-server separation)
+const hybridProcessingFunctions = __importStar(require("./modules/hybridFileProcessing"));
+exports.hybridProcessFileUpload = hybridProcessingFunctions.processFileUpload;
 // Category Management Functions
 exports.createCategory = categoryManagement_1.categoryFunctions.createCategory;
 exports.updateCategory = categoryManagement_1.categoryFunctions.updateCategory;
@@ -84,6 +98,7 @@ exports.deleteUser = userManagement_1.userFunctions.deleteUser;
 exports.bulkUserOperations = userManagement_1.userFunctions.bulkUserOperations;
 exports.setAdminClaims = userManagement_1.userFunctions.setAdminClaims;
 exports.autoSyncFirebaseAuthUsers = userManagement_1.userFunctions.autoSyncFirebaseAuthUsers;
+exports.debugAuthPermissions = userManagement_1.userFunctions.debugAuthPermissions;
 exports.initializeAdmin = userManagement_1.userFunctions.initializeAdmin;
 // Document Management Functions
 exports.approveDocument = documentManagement_1.documentFunctions.approveDocument;

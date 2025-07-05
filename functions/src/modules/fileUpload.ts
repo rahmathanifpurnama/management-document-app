@@ -162,7 +162,24 @@ function createSecureStoragePath(fileName: string): string {
   return securePath;
 }
 
+/**
+ * Sanitize email address for Firebase Storage path compatibility
+ * Converts email to storage-safe format for human-readable folder names
+ */
+function sanitizeEmailForStorage(email: string): string {
+  if (!email || typeof email !== "string") {
+    return "unknown-user";
+  }
 
+  // Convert email to storage-safe format
+  // john.doe@company.com -> john-dot-doe-at-company-dot-com
+  return email
+    .replace(/@/g, "-at-")
+    .replace(/\./g, "-dot-")
+    .replace(/\+/g, "-plus-")
+    .replace(/ /g, "-")
+    .toLowerCase();
+}
 
 /**
  * Calculate file hash for duplicate detection
@@ -1145,7 +1162,11 @@ const streamingUpload = functions.https.onRequest(async (req, res) => {
 
     const displayFileName = sanitizeFileName(originalFileName); // Preserves spaces
     const secureStorageName = createSecureStoragePath(originalFileName); // Secure for storage
-    const filePath = `documents/${decodedToken.uid}/${secureStorageName}`;
+
+    // Use email-based folder structure for human-readable storage paths
+    const userEmail = decodedToken.email || decodedToken.uid; // Fallback to UID if no email
+    const sanitizedEmail = sanitizeEmailForStorage(userEmail);
+    const filePath = `documents/${sanitizedEmail}/${secureStorageName}`;
 
     // Stream upload to Firebase Storage
     const bucket = admin.storage().bucket();

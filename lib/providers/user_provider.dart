@@ -281,11 +281,37 @@ class UserProvider extends ChangeNotifier {
     _applyFilters();
   }
 
-  // Get user by ID
+  // Get user by ID from loaded users (fast but may not have all users)
   UserModel? getUserById(String userId) {
     try {
       return _users.firstWhere((user) => user.id == userId);
     } catch (e) {
+      return null;
+    }
+  }
+
+  // Get user by ID with on-demand fetching (slower but more reliable)
+  Future<UserModel?> getUserByIdAsync(String userId) async {
+    try {
+      // First try to get from loaded users (fast path)
+      final cachedUser = getUserById(userId);
+      if (cachedUser != null) {
+        return cachedUser;
+      }
+
+      // If not found in cache, fetch from Firestore
+      debugPrint('🔍 Fetching user data for ID: $userId');
+      final userDoc = await _userService.getUserById(userId);
+
+      // Add to cache for future use
+      if (userDoc != null && !_users.any((u) => u.id == userId)) {
+        _users.add(userDoc);
+        notifyListeners();
+      }
+
+      return userDoc;
+    } catch (e) {
+      debugPrint('❌ Error fetching user by ID: $e');
       return null;
     }
   }

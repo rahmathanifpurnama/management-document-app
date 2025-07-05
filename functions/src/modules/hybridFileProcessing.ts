@@ -1,7 +1,7 @@
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
-import * as sharp from 'sharp';
+import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -42,12 +42,11 @@ interface ProcessingResult {
  * Called after client has already uploaded file to Firebase Storage
  */
 export const processFileUpload = functions
-  .region('us-central1')
   .runWith({
     timeoutSeconds: 540, // 9 minutes
     memory: '2GB',
   })
-  .https.onCall(async (data, context) => {
+  .https.onCall(async (data: any, context: functions.https.CallableContext) => {
     const startTime = Date.now();
     
     try {
@@ -172,7 +171,7 @@ export const processFileUpload = functions
       throw new functions.https.HttpsError(
         'internal',
         'File processing failed',
-        { error: error.message, processingTime }
+        { error: error instanceof Error ? error.message : String(error), processingTime }
       );
     }
   });
@@ -189,7 +188,7 @@ async function downloadFileFromStorage(filePath: string): Promise<Buffer> {
     return fileBuffer;
   } catch (error) {
     console.error(`❌ Failed to download file: ${filePath}`, error);
-    throw new Error(`Failed to download file: ${error.message}`);
+    throw new Error(`Failed to download file: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -303,7 +302,7 @@ async function generateThumbnail(
   fileBuffer: Buffer,
   originalPath: string,
   fileName: string
-): Promise<string> {
+): Promise<string | undefined> {
   try {
     // Generate thumbnail using Sharp
     const thumbnailBuffer = await sharp(fileBuffer)
@@ -469,7 +468,7 @@ async function createEnhancedDocumentRecord(data: {
     return documentId;
   } catch (error) {
     console.error('❌ Failed to create enhanced document record:', error);
-    throw new Error(`Failed to create document record: ${error.message}`);
+    throw new Error(`Failed to create document record: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

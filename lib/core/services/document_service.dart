@@ -1,5 +1,6 @@
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../services/firebase_service.dart';
 import '../config/anr_config.dart';
@@ -1035,7 +1036,20 @@ class DocumentService {
 
     // CRITICAL FIX: Pattern 1 - User-specific path (most likely correct path)
     if (uploadedBy != null && uploadedBy.isNotEmpty) {
-      patterns.add('documents/$uploadedBy/$fileName');
+      // Try both old UID-based and new email-based folder structures
+      patterns.add(
+        'documents/$uploadedBy/$fileName',
+      ); // Old UID-based structure
+
+      // Try to get email-based path for new structure
+      final userEmail = _getUserEmailFromId(uploadedBy);
+      if (userEmail != uploadedBy) {
+        // Only add if we got an actual email
+        final sanitizedEmail = _sanitizeEmailForStorage(userEmail);
+        patterns.add(
+          'documents/$sanitizedEmail/$fileName',
+        ); // New email-based structure
+      }
 
       // Also try with document ID as filename in user folder
       final commonExtensions = [
@@ -1341,5 +1355,35 @@ class DocumentService {
       debugPrint('❌ Error verifying admin status: $e');
       return false;
     }
+  }
+
+  /// Get user email from userId (Firebase UID) for storage path generation
+  String _getUserEmailFromId(String userId) {
+    try {
+      // Try to get email from current Firebase user if it matches
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null && currentUser.uid == userId) {
+        return currentUser.email ?? userId; // Fallback to userId if no email
+      }
+
+      // For other users, fallback to userId (performance optimization)
+      // In a real implementation, you might want to cache user emails
+      return userId; // Fallback to original behavior
+    } catch (e) {
+      debugPrint('❌ Error getting user email: $e');
+      return userId; // Fallback to original behavior
+    }
+  }
+
+  /// Sanitize email address for Firebase Storage path compatibility
+  String _sanitizeEmailForStorage(String email) {
+    // Convert email to storage-safe format
+    // john.doe@company.com -> john-dot-doe-at-company-dot-com
+    return email
+        .replaceAll('@', '-at-')
+        .replaceAll('.', '-dot-')
+        .replaceAll('+', '-plus-')
+        .replaceAll(' ', '-')
+        .toLowerCase();
   }
 }

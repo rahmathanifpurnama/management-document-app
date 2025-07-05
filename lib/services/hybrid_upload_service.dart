@@ -250,10 +250,60 @@ class HybridUploadService {
     }
   }
 
-  /// Get storage path for file
+  /// Get storage path for file using human-readable email-based folders
   String _getStoragePath(String fileName, String userId, String? categoryId) {
-    // Simple path structure: documents/userId/fileName
-    return 'documents/$userId/$fileName';
+    // Get user email for human-readable folder structure
+    final userEmail = _getUserEmailFromId(userId);
+    final sanitizedEmail = _sanitizeEmailForStorage(userEmail);
+
+    // New path structure: documents/sanitized-email/fileName
+    return 'documents/$sanitizedEmail/$fileName';
+  }
+
+  /// Get user email from userId (Firebase UID)
+  String _getUserEmailFromId(String userId) {
+    try {
+      // Try to get email from current Firebase user if it matches
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null && currentUser.uid == userId) {
+        return currentUser.email ?? userId; // Fallback to userId if no email
+      }
+
+      // For other users, we'll need to fallback to userId
+      // In a real implementation, you might want to cache user emails
+      // or make a Firestore query, but for performance we'll use fallback
+      debugPrint(
+        '⚠️ Could not resolve email for userId: $userId, using fallback',
+      );
+      return userId; // Fallback to original behavior
+    } catch (e) {
+      debugPrint('❌ Error getting user email: $e');
+      return userId; // Fallback to original behavior
+    }
+  }
+
+  /// Sanitize email address for Firebase Storage path compatibility
+  String _sanitizeEmailForStorage(String email) {
+    // Convert email to storage-safe format
+    // john.doe@company.com -> john-dot-doe-at-company-dot-com
+    return email
+        .replaceAll('@', '-at-')
+        .replaceAll('.', '-dot-')
+        .replaceAll('+', '-plus-')
+        .replaceAll(' ', '-')
+        .toLowerCase();
+  }
+
+  /// Reverse sanitization to get original email (for display purposes)
+  String _desanitizeEmailFromStorage(String sanitizedEmail) {
+    // Convert storage format back to email
+    // john-dot-doe-at-company-dot-com -> john.doe@company.com
+    return sanitizedEmail
+        .replaceAll('-at-', '@')
+        .replaceAll('-dot-', '.')
+        .replaceAll('-plus-', '+')
+        .replaceAll('-', ' ')
+        .toLowerCase();
   }
 
   /// Get content type from filename

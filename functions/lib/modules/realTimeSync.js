@@ -43,7 +43,7 @@ const admin = __importStar(require("firebase-admin"));
  */
 // Constants for real-time sync
 const SYNC_COLLECTION = "sync-operations";
-const METADATA_COLLECTION = "document-metadata";
+const METADATA_COLLECTION = "documents";
 const USERS_COLLECTION = "users";
 const ACTIVITIES_COLLECTION = "activities";
 /**
@@ -52,10 +52,6 @@ const ACTIVITIES_COLLECTION = "activities";
  * and creates corresponding metadata in Firestore
  */
 exports.onStorageFileCreated = functions.storage.object().onFinalize(async (object) => {
-    // DISABLED: Function creates document-metadata which is no longer used
-    console.log("⚠️ onStorageFileCreated disabled - using Storage-only approach");
-    console.log("📁 File created but metadata creation skipped:", object.name);
-    return;
     try {
         console.log("🔄 Storage file created trigger activated");
         console.log("📁 File details:", {
@@ -136,10 +132,6 @@ exports.onStorageFileCreated = functions.storage.object().onFinalize(async (obje
  * Automatically marks documents as inactive when files are deleted from Storage
  */
 exports.onStorageFileDeleted = functions.storage.object().onDelete(async (object) => {
-    // DISABLED: Function updates document-metadata which is no longer used
-    console.log("⚠️ onStorageFileDeleted disabled - using Storage-only approach");
-    console.log("📁 File deleted but metadata update skipped:", object.name);
-    return;
     try {
         console.log("🗑️ Storage file deleted trigger activated");
         console.log("📁 Deleted file:", object.name);
