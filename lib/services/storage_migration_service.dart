@@ -1,16 +1,14 @@
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../core/services/firebase_service.dart';
 import '../core/services/user_service.dart';
-import '../models/user_model.dart';
 import '../models/document_model.dart';
 
 /// Service to handle migration from UID-based to email-based storage structure
 class StorageMigrationService {
   static StorageMigrationService? _instance;
-  static StorageMigrationService get instance => _instance ??= StorageMigrationService._();
+  static StorageMigrationService get instance =>
+      _instance ??= StorageMigrationService._();
 
   StorageMigrationService._();
 
@@ -23,8 +21,9 @@ class StorageMigrationService {
       debugPrint('🔍 Checking storage migration status...');
 
       // Get all documents from Firestore
-      final documentsSnapshot = await _firebaseService.documentsCollection.get();
-      
+      final documentsSnapshot = await _firebaseService.documentsCollection
+          .get();
+
       if (documentsSnapshot.docs.isEmpty) {
         return MigrationStatus(
           isNeeded: false,
@@ -38,15 +37,15 @@ class StorageMigrationService {
       int totalFiles = 0;
       int uidBasedFiles = 0;
       int emailBasedFiles = 0;
-      
+
       // Analyze storage paths to determine structure
       for (final doc in documentsSnapshot.docs) {
         final document = DocumentModel.fromFirestore(doc);
         totalFiles++;
-        
+
         // Check if file exists in storage and determine structure
         final storageAnalysis = await _analyzeFileStorageStructure(document);
-        
+
         if (storageAnalysis.isUidBased) {
           uidBasedFiles++;
         } else if (storageAnalysis.isEmailBased) {
@@ -55,13 +54,13 @@ class StorageMigrationService {
       }
 
       final isNeeded = uidBasedFiles > 0;
-      
+
       return MigrationStatus(
         isNeeded: isNeeded,
         totalFiles: totalFiles,
         uidBasedFiles: uidBasedFiles,
         emailBasedFiles: emailBasedFiles,
-        message: isNeeded 
+        message: isNeeded
             ? 'Migration needed: $uidBasedFiles files using old UID structure'
             : 'All files already using new email structure',
       );
@@ -78,16 +77,23 @@ class StorageMigrationService {
   }
 
   /// Analyze a single file's storage structure
-  Future<StorageAnalysis> _analyzeFileStorageStructure(DocumentModel document) async {
+  Future<StorageAnalysis> _analyzeFileStorageStructure(
+    DocumentModel document,
+  ) async {
     try {
-      final bucket = FirebaseStorage.instance.bucket();
-      
       // Try UID-based path first
       final uidPath = 'documents/${document.uploadedBy}/${document.fileName}';
-      final uidRef = bucket.file(uidPath);
-      final uidExists = await uidRef.exists();
-      
-      if (uidExists.item1) {
+      final uidRef = FirebaseStorage.instance.ref().child(uidPath);
+
+      bool uidExists = false;
+      try {
+        await uidRef.getMetadata();
+        uidExists = true;
+      } catch (e) {
+        uidExists = false;
+      }
+
+      if (uidExists) {
         return StorageAnalysis(
           actualPath: uidPath,
           isUidBased: true,
@@ -95,16 +101,23 @@ class StorageMigrationService {
           exists: true,
         );
       }
-      
+
       // Try email-based path
       final user = await _userService.getUserById(document.uploadedBy);
       if (user != null) {
         final sanitizedEmail = _sanitizeEmailForStorage(user.email);
         final emailPath = 'documents/$sanitizedEmail/${document.fileName}';
-        final emailRef = bucket.file(emailPath);
-        final emailExists = await emailRef.exists();
-        
-        if (emailExists.item1) {
+        final emailRef = FirebaseStorage.instance.ref().child(emailPath);
+
+        bool emailExists = false;
+        try {
+          await emailRef.getMetadata();
+          emailExists = true;
+        } catch (e) {
+          emailExists = false;
+        }
+
+        if (emailExists) {
           return StorageAnalysis(
             actualPath: emailPath,
             isUidBased: false,
@@ -113,7 +126,7 @@ class StorageMigrationService {
           );
         }
       }
-      
+
       // File not found in either structure
       return StorageAnalysis(
         actualPath: null,
@@ -136,7 +149,7 @@ class StorageMigrationService {
   Future<MigrationResult> migrateFile(DocumentModel document) async {
     try {
       debugPrint('🔄 Migrating file: ${document.fileName}');
-      
+
       // Get user data for email-based path
       final user = await _userService.getUserById(document.uploadedBy);
       if (user == null) {
@@ -145,49 +158,67 @@ class StorageMigrationService {
           message: 'User not found for file: ${document.fileName}',
         );
       }
-      
-      final bucket = FirebaseStorage.instance.bucket();
+
       final oldPath = 'documents/${document.uploadedBy}/${document.fileName}';
       final sanitizedEmail = _sanitizeEmailForStorage(user.email);
       final newPath = 'documents/$sanitizedEmail/${document.fileName}';
-      
+
       // Check if old file exists
-      final oldRef = bucket.file(oldPath);
-      final oldExists = await oldRef.exists();
-      
-      if (!oldExists.item1) {
+      final oldRef = FirebaseStorage.instance.ref().child(oldPath);
+      bool oldExists = false;
+      try {
+        await oldRef.getMetadata();
+        oldExists = true;
+      } catch (e) {
+        oldExists = false;
+      }
+
+      if (!oldExists) {
         return MigrationResult(
           success: false,
           message: 'Source file not found: $oldPath',
         );
       }
-      
+
       // Check if new file already exists
-      final newRef = bucket.file(newPath);
-      final newExists = await newRef.exists();
-      
-      if (newExists.item1) {
+      final newRef = FirebaseStorage.instance.ref().child(newPath);
+      bool newExists = false;
+      try {
+        await newRef.getMetadata();
+        newExists = true;
+      } catch (e) {
+        newExists = false;
+      }
+
+      if (newExists) {
         return MigrationResult(
           success: false,
           message: 'Target file already exists: $newPath',
         );
       }
-      
+
       // Copy file to new location
       await _copyFile(oldRef, newRef);
-      
+
       // Verify copy was successful
-      final copyExists = await newRef.exists();
-      if (!copyExists.item1) {
+      bool copyExists = false;
+      try {
+        await newRef.getMetadata();
+        copyExists = true;
+      } catch (e) {
+        copyExists = false;
+      }
+
+      if (!copyExists) {
         return MigrationResult(
           success: false,
           message: 'Failed to copy file to new location',
         );
       }
-      
+
       // Delete old file
       await oldRef.delete();
-      
+
       debugPrint('✅ Successfully migrated: $oldPath -> $newPath');
       return MigrationResult(
         success: true,
@@ -195,10 +226,7 @@ class StorageMigrationService {
       );
     } catch (e) {
       debugPrint('❌ Error migrating file: $e');
-      return MigrationResult(
-        success: false,
-        message: 'Migration failed: $e',
-      );
+      return MigrationResult(success: false, message: 'Migration failed: $e');
     }
   }
 
@@ -209,10 +237,10 @@ class StorageMigrationService {
     if (data == null) {
       throw Exception('Failed to download source file');
     }
-    
+
     // Get metadata
     final metadata = await source.getMetadata();
-    
+
     // Upload to new location with same metadata
     await destination.putData(
       data,
@@ -239,7 +267,7 @@ class StorageMigrationService {
   }) async {
     try {
       debugPrint('🚀 Starting batch migration...');
-      
+
       // Get migration status first
       final status = await checkMigrationStatus();
       if (!status.isNeeded) {
@@ -251,27 +279,28 @@ class StorageMigrationService {
           message: 'No migration needed',
         );
       }
-      
+
       // Get all documents that need migration
-      final documentsSnapshot = await _firebaseService.documentsCollection.get();
+      final documentsSnapshot = await _firebaseService.documentsCollection
+          .get();
       final documents = documentsSnapshot.docs
           .map((doc) => DocumentModel.fromFirestore(doc))
           .toList();
-      
+
       int migratedFiles = 0;
       int failedFiles = 0;
       final failedFilesList = <String>[];
-      
+
       for (int i = 0; i < documents.length; i++) {
         final document = documents[i];
         onProgress(i + 1, documents.length, document.fileName);
-        
+
         // Check if file needs migration
         final analysis = await _analyzeFileStorageStructure(document);
         if (!analysis.isUidBased) {
           continue; // Skip files that don't need migration
         }
-        
+
         // Perform migration
         final result = await migrateFile(document);
         if (result.success) {
@@ -280,15 +309,15 @@ class StorageMigrationService {
           failedFiles++;
           failedFilesList.add('${document.fileName}: ${result.message}');
         }
-        
+
         // Add small delay to prevent overwhelming Firebase
         await Future.delayed(const Duration(milliseconds: 100));
       }
-      
+
       final message = failedFiles > 0
           ? 'Migration completed with errors. Failed files: ${failedFilesList.join(', ')}'
           : 'Migration completed successfully';
-      
+
       return BatchMigrationResult(
         success: failedFiles == 0,
         totalFiles: documents.length,
@@ -346,10 +375,7 @@ class MigrationResult {
   final bool success;
   final String message;
 
-  MigrationResult({
-    required this.success,
-    required this.message,
-  });
+  MigrationResult({required this.success, required this.message});
 }
 
 /// Batch migration result

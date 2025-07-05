@@ -9,6 +9,7 @@ import '../../services/user_sync_service.dart';
 import '../../services/optimized_statistics_service.dart';
 import '../../services/statistics_notification_service.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_routes.dart';
 
 /// Enhanced Admin Dashboard with unlimited query capabilities
 class EnhancedAdminDashboard extends StatefulWidget {
@@ -485,6 +486,11 @@ class _EnhancedAdminDashboardState extends State<EnhancedAdminDashboard> {
               Icons.cached,
               _clearCacheAndReload,
             ),
+            _buildActionButton(
+              'Storage Migration',
+              Icons.folder_copy,
+              _navigateToStorageMigration,
+            ),
           ],
         ),
       ),
@@ -594,6 +600,10 @@ class _EnhancedAdminDashboardState extends State<EnhancedAdminDashboard> {
         );
       }
     }
+  }
+
+  void _navigateToStorageMigration() {
+    Navigator.pushNamed(context, AppRoutes.storageMigration);
   }
 
   String _formatBytes(int bytes) {

@@ -33,6 +33,7 @@ import 'widgets/app/category_document_sync_initializer.dart';
 import 'screens/admin/create_user_screen.dart';
 import 'screens/admin/edit_user_screen.dart';
 import 'screens/admin/user_details_screen.dart';
+import 'screens/admin/storage_migration_screen.dart';
 import 'screens/category/category_screen.dart';
 import 'screens/category/manage_category_screen.dart';
 import 'screens/category/category_files_screen.dart';
@@ -361,6 +362,11 @@ class _MyAppState extends State<MyApp> {
                     return MaterialPageRoute(
                       builder: (context) =>
                           FilePreviewScreen(document: document),
+                    );
+
+                  case AppRoutes.storageMigration:
+                    return MaterialPageRoute(
+                      builder: (context) => const StorageMigrationScreen(),
                     );
 
                   default:

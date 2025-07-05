@@ -35,6 +35,7 @@ class AppRoutes {
   static const String userDetails = '/user-details';
   static const String userPermissions = '/user-permissions';
   static const String searchUser = '/search-user';
+  static const String storageMigration = '/storage-migration';
 
   // User Routes
   static const String userDashboard = '/user-dashboard';
