@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/user_model.dart';
-
 import '../../utils/date_formatter.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
@@ -1171,6 +1170,33 @@ class _HomeScreenState extends State<HomeScreen>
               ),
             ),
             const Divider(),
+
+            // Admin-only menu items
+            if (authProvider.isAdmin) ...[
+              ListTile(
+                leading: const Icon(
+                  Icons.admin_panel_settings,
+                  color: AppColors.primary,
+                ),
+                title: const Text('Enhanced Admin Dashboard'),
+                subtitle: const Text('Advanced admin tools'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).pushNamed(AppRoutes.adminDashboard);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.folder_copy, color: Colors.orange),
+                title: const Text('Storage Migration'),
+                subtitle: const Text('Migrate storage structure'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).pushNamed(AppRoutes.storageMigration);
+                },
+              ),
+              const Divider(),
+            ],
+
             ListTile(
               leading: const Icon(Icons.person_outline),
               title: const Text(AppStrings.profile),
