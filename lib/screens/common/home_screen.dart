@@ -21,6 +21,8 @@ import '../../models/document_model.dart';
 import '../../core/utils/context_filter_utils.dart';
 import '../../services/ui_refresh_service.dart';
 import '../../services/file_download_service.dart';
+import '../../services/enhanced_download_service.dart';
+import '../../widgets/download/download_overlay_widget.dart';
 import '../../services/share_service.dart';
 import '../../services/bulk_operations_service.dart';
 import '../../core/services/greeting_service.dart';
@@ -44,7 +46,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen>
-    with WidgetsBindingObserver, RouteAware {
+    with WidgetsBindingObserver, RouteAware, DownloadMixin {
   bool _dataLoaded = false;
   final TextEditingController _searchController = TextEditingController();
   final ShareService _shareService = ShareService();
@@ -438,18 +440,20 @@ class _HomeScreenState extends State<HomeScreen>
             }
           });
 
-          return AppScaffoldWithNavigation(
-            title: 'Beranda',
-            currentNavIndex: 0, // Home is index 0
-            showAppBar: true, // Use standard app bar like other pages
-            actions: const [BellNotificationWidget()],
-            body: Column(
-              children: [
-                // File selection bar (appears when files are selected)
-                FileSelectionBar(onExitSelection: _onExitSelectionMode),
-                // Main dashboard content
-                Expanded(child: _buildDashboard()),
-              ],
+          return DownloadOverlayProvider(
+            child: AppScaffoldWithNavigation(
+              title: 'Beranda',
+              currentNavIndex: 0, // Home is index 0
+              showAppBar: true, // Use standard app bar like other pages
+              actions: const [BellNotificationWidget()],
+              body: Column(
+                children: [
+                  // File selection bar (appears when files are selected)
+                  FileSelectionBar(onExitSelection: _onExitSelectionMode),
+                  // Main dashboard content
+                  Expanded(child: _buildDashboard()),
+                ],
+              ),
             ),
           );
         },
@@ -1091,19 +1095,24 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  // Download file to device storage
+  // Download file to device storage with enhanced animated progress
   Future<void> _downloadFile(DocumentModel document) async {
-    final downloadService = FileDownloadService();
-
     try {
-      // Download the file (notifications handled by FileDownloadService)
-      await downloadService.downloadFile(document);
-
-      // Success notification handled by FileDownloadService
-      debugPrint('✅ Download completed: ${document.fileName}');
+      // Use the enhanced download service with animated progress
+      await startDownload(document);
+      debugPrint('✅ Enhanced download initiated: ${document.fileName}');
     } catch (e) {
-      // Error notification handled by FileDownloadService
-      debugPrint('❌ Download failed: ${document.fileName} - $e');
+      debugPrint('❌ Enhanced download failed: ${document.fileName} - $e');
+      // Fallback to basic download service if enhanced fails
+      try {
+        final downloadService = FileDownloadService();
+        await downloadService.downloadFile(document);
+        debugPrint('✅ Fallback download completed: ${document.fileName}');
+      } catch (fallbackError) {
+        debugPrint(
+          '❌ Fallback download also failed: ${document.fileName} - $fallbackError',
+        );
+      }
     }
   }
 
@@ -1230,6 +1239,14 @@ class _HomeScreenState extends State<HomeScreen>
 
   /// Extract readable owner name from uploadedBy field as fallback
   String _extractReadableOwnerName(String uploadedBy) {
+    // If uploadedBy is already a readable name (contains spaces or common name patterns)
+    if (uploadedBy.contains(' ') ||
+        uploadedBy.length < 20 || // Not a UID (UIDs are typically 28+ chars)
+        !uploadedBy.contains(RegExp(r'^[a-zA-Z0-9]+$'))) {
+      // Contains non-alphanumeric chars
+      return uploadedBy; // Return as-is since it's likely already a readable name
+    }
+
     // If it looks like an email-based folder name, try to reverse it
     if (uploadedBy.contains('-at-') && uploadedBy.contains('-dot-')) {
       try {
@@ -1252,7 +1269,7 @@ class _HomeScreenState extends State<HomeScreen>
       }
     }
 
-    // For UID-based names, just return "Unknown User"
+    // For UID-based names (legacy documents), return "Unknown User"
     return 'Unknown User';
   }
 }

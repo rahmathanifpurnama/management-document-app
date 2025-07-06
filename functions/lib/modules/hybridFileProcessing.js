@@ -81,7 +81,9 @@ exports.processFileUpload = functions
         const userData = userDoc.data();
         const userRole = userData === null || userData === void 0 ? void 0 : userData.role;
         const userPermissions = ((_e = userData === null || userData === void 0 ? void 0 : userData.permissions) === null || _e === void 0 ? void 0 : _e.documents) || [];
+        const userFullName = (userData === null || userData === void 0 ? void 0 : userData.fullName) || 'Unknown User';
         console.log(`👤 User role: ${userRole}`);
+        console.log(`👤 User name: ${userFullName}`);
         console.log(`📋 User permissions:`, userPermissions);
         // Check if user has upload permission
         const hasUploadPermission = userRole === 'admin' || userPermissions.includes('upload');
@@ -130,7 +132,8 @@ exports.processFileUpload = functions
             fileSize: fileBuffer.length,
             contentType,
             categoryId,
-            uploadedBy: context.auth.uid,
+            uploadedBy: userFullName,
+            uploadedByUid: context.auth.uid, // Keep UID for internal tracking
             downloadUrl: metadata.downloadUrl,
             thumbnailUrl,
             extractedMetadata,
@@ -216,13 +219,32 @@ async function advancedDuplicateDetection(fileHash, fileName, fileSize, userId) 
             };
         }
         // Check for same filename + size + user (secondary check)
+        // Try both uploadedByUid (new format) and uploadedBy (legacy format) for compatibility
         const metadataQuery = await db
             .collection('documents')
             .where('fileName', '==', fileName)
             .where('fileSize', '==', fileSize)
-            .where('uploadedBy', '==', userId)
+            .where('uploadedByUid', '==', userId)
             .limit(1)
             .get();
+        // If no match with uploadedByUid, try legacy uploadedBy field
+        if (metadataQuery.empty) {
+            const legacyQuery = await db
+                .collection('documents')
+                .where('fileName', '==', fileName)
+                .where('fileSize', '==', fileSize)
+                .where('uploadedBy', '==', userId)
+                .limit(1)
+                .get();
+            if (!legacyQuery.empty) {
+                const existingDoc = legacyQuery.docs[0].data();
+                console.log(`🔍 Potential duplicate found by legacy metadata: ${existingDoc.fileName}`);
+                return {
+                    isDuplicate: true,
+                    existingDocument: existingDoc,
+                };
+            }
+        }
         if (!metadataQuery.empty) {
             const existingDoc = metadataQuery.docs[0].data();
             console.log(`🔍 Potential duplicate found by metadata: ${existingDoc.fileName}`);
@@ -385,10 +407,11 @@ async function createEnhancedDocumentRecord(data) {
             downloadUrl: data.downloadUrl,
             thumbnailUrl: data.thumbnailUrl,
             uploadedBy: data.uploadedBy,
+            uploadedByUid: data.uploadedByUid, // Keep UID for internal tracking
             uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
             category: data.categoryId || '',
             status: 'active',
-            permissions: [data.uploadedBy],
+            permissions: [data.uploadedByUid || data.uploadedBy], // Use UID for permissions
             contentType: data.contentType,
             // Enhanced metadata from server processing
             metadata: {

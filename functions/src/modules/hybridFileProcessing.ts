@@ -88,8 +88,10 @@ export const processFileUpload = functions
       const userData = userDoc.data();
       const userRole = userData?.role;
       const userPermissions = userData?.permissions?.documents || [];
+      const userFullName = userData?.fullName || 'Unknown User';
 
       console.log(`👤 User role: ${userRole}`);
+      console.log(`👤 User name: ${userFullName}`);
       console.log(`📋 User permissions:`, userPermissions);
 
       // Check if user has upload permission
@@ -178,7 +180,8 @@ export const processFileUpload = functions
         fileSize: fileBuffer.length,
         contentType,
         categoryId,
-        uploadedBy: context.auth.uid,
+        uploadedBy: userFullName,
+        uploadedByUid: context.auth.uid, // Keep UID for internal tracking
         downloadUrl: metadata.downloadUrl,
         thumbnailUrl,
         extractedMetadata,
@@ -287,13 +290,34 @@ async function advancedDuplicateDetection(
     }
 
     // Check for same filename + size + user (secondary check)
+    // Try both uploadedByUid (new format) and uploadedBy (legacy format) for compatibility
     const metadataQuery = await db
       .collection('documents')
       .where('fileName', '==', fileName)
       .where('fileSize', '==', fileSize)
-      .where('uploadedBy', '==', userId)
+      .where('uploadedByUid', '==', userId)
       .limit(1)
       .get();
+
+    // If no match with uploadedByUid, try legacy uploadedBy field
+    if (metadataQuery.empty) {
+      const legacyQuery = await db
+        .collection('documents')
+        .where('fileName', '==', fileName)
+        .where('fileSize', '==', fileSize)
+        .where('uploadedBy', '==', userId)
+        .limit(1)
+        .get();
+
+      if (!legacyQuery.empty) {
+        const existingDoc = legacyQuery.docs[0].data();
+        console.log(`🔍 Potential duplicate found by legacy metadata: ${existingDoc.fileName}`);
+        return {
+          isDuplicate: true,
+          existingDocument: existingDoc,
+        };
+      }
+    }
 
     if (!metadataQuery.empty) {
       const existingDoc = metadataQuery.docs[0].data();
@@ -472,6 +496,7 @@ async function createEnhancedDocumentRecord(data: {
   contentType: string;
   categoryId?: string;
   uploadedBy: string;
+  uploadedByUid?: string;
   downloadUrl: string;
   thumbnailUrl?: string;
   extractedMetadata: any;
@@ -491,10 +516,11 @@ async function createEnhancedDocumentRecord(data: {
       downloadUrl: data.downloadUrl,
       thumbnailUrl: data.thumbnailUrl,
       uploadedBy: data.uploadedBy,
+      uploadedByUid: data.uploadedByUid, // Keep UID for internal tracking
       uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
       category: data.categoryId || '',
       status: 'active',
-      permissions: [data.uploadedBy],
+      permissions: [data.uploadedByUid || data.uploadedBy], // Use UID for permissions
       contentType: data.contentType,
 
       // Enhanced metadata from server processing

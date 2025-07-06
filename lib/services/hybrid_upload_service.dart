@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../models/upload_file_model.dart';
 import '../core/config/cloud_functions_config.dart';
 import '../core/config/file_config.dart';
+import '../core/services/auth_service.dart';
 import '../services/google_drive_service.dart';
 
 /// HYBRID UPLOAD SERVICE
@@ -65,7 +66,14 @@ class HybridUploadService {
         debugPrint('❌ UPLOAD FAILED: User not authenticated');
         throw Exception('User not authenticated');
       }
+
+      // Get user's full name from Firestore
+      final authService = AuthService.instance;
+      final userData = await authService.getCurrentUserData();
+      final userFullName = userData?.fullName ?? 'Unknown User';
+
       debugPrint('✅ User authenticated: ${currentUser.uid}');
+      debugPrint('👤 User name: $userFullName');
       onProgress(2);
 
       // Step 2: Basic client-side validation ONLY (no heavy processing)
@@ -79,7 +87,7 @@ class HybridUploadService {
       onProgress(8);
 
       // Step 4: Quick duplicate check (filename + size only, no hashing)
-      await _quickDuplicateCheck(file, currentUser.uid);
+      await _quickDuplicateCheck(file, userFullName);
       debugPrint('✅ Quick duplicate check passed');
       onProgress(10);
 
@@ -90,6 +98,7 @@ class HybridUploadService {
       final downloadUrl = await _directUploadToStorage(
         file,
         currentUser.uid,
+        userFullName,
         categoryId,
         onProgress: (progress) => onProgress(10 + (progress * 0.8)), // 10-90%
       );
@@ -113,6 +122,7 @@ class HybridUploadService {
           fileName: file.fileName,
           downloadUrl: downloadUrl,
           currentUser: currentUser,
+          userFullName: userFullName,
           categoryId: categoryId,
           customMetadata: customMetadata,
         );
@@ -168,7 +178,10 @@ class HybridUploadService {
   }
 
   /// Quick duplicate check (filename + size only, no hashing)
-  Future<void> _quickDuplicateCheck(UploadFileModel file, String userId) async {
+  Future<void> _quickDuplicateCheck(
+    UploadFileModel file,
+    String userFullName,
+  ) async {
     try {
       final fileSize = await file.file.length();
 
@@ -177,7 +190,7 @@ class HybridUploadService {
           .collection('documents')
           .where('fileName', isEqualTo: file.fileName)
           .where('fileSize', isEqualTo: fileSize)
-          .where('uploadedBy', isEqualTo: userId)
+          .where('uploadedBy', isEqualTo: userFullName)
           .limit(1)
           .get();
 
@@ -202,6 +215,7 @@ class HybridUploadService {
   Future<String> _directUploadToStorage(
     UploadFileModel file,
     String userId,
+    String userFullName,
     String? categoryId, {
     required Function(double) onProgress,
   }) async {
@@ -220,7 +234,8 @@ class HybridUploadService {
         SettableMetadata(
           contentType: _getContentType(file.fileName),
           customMetadata: {
-            'uploadedBy': userId,
+            'uploadedBy': userFullName,
+            'uploadedByUid': userId, // Keep UID for internal tracking
             'originalFileName': file.fileName,
             'uploadTimestamp': DateTime.now().toIso8601String(),
             'processingStatus': 'pending', // Will be updated by server
@@ -311,6 +326,7 @@ class HybridUploadService {
     required String fileName,
     required String downloadUrl,
     required User currentUser,
+    required String userFullName,
     String? categoryId,
     Map<String, String>? customMetadata,
   }) async {
@@ -319,7 +335,8 @@ class HybridUploadService {
       debugPrint('📍 File path: $filePath');
       debugPrint('🔗 Download URL: $downloadUrl');
       debugPrint('👤 User ID: ${currentUser.uid}');
-      debugPrint('📁 Category ID: $categoryId');
+      debugPrint('� User Name: $userFullName');
+      debugPrint('�📁 Category ID: $categoryId');
 
       // Check Cloud Functions availability first
       final isAvailable = await CloudFunctionsConfig.initialize();
@@ -337,7 +354,8 @@ class HybridUploadService {
         contentType: _getContentType(fileName),
         categoryId: categoryId,
         metadata: {
-          'uploadedBy': currentUser.uid,
+          'uploadedBy': userFullName,
+          'uploadedByUid': currentUser.uid, // Keep UID for internal tracking
           'downloadUrl': downloadUrl,
           'deviceId': 'flutter_app_hybrid',
           'timestamp': DateTime.now().toIso8601String(),

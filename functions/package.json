@@ -10,7 +10,8 @@
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "test": "jest"
+    "test": "jest",
+    "postinstall": "npm rebuild sharp --platform=linux --arch=x64"
   },
   "engines": {
     "node": "20"
