@@ -172,7 +172,11 @@ export const processFileUpload = functions
         );
       }
 
-      // PHASE 7: Create document record with full metadata
+      // PHASE 7: Retrieve user information for enhanced identification
+      const userInfo = await getUserInformation(context.auth.uid);
+      console.log(`👤 User info retrieved: ${userInfo.uploaderName} (${userInfo.uploaderEmail})`);
+
+      // PHASE 8: Create document record with full metadata including user info
       const documentId = await createEnhancedDocumentRecord({
         fileName,
         filePath,
@@ -180,8 +184,14 @@ export const processFileUpload = functions
         fileSize: fileBuffer.length,
         contentType,
         categoryId,
+<<<<<<< HEAD
         uploadedBy: userFullName,
         uploadedByUid: context.auth.uid, // Keep UID for internal tracking
+=======
+        uploadedBy: context.auth.uid,
+        uploaderName: userInfo.uploaderName,
+        uploaderEmail: userInfo.uploaderEmail,
+>>>>>>> 6af418dc0684924ddbcbd849b4577833e6ea3ca5
         downloadUrl: metadata.downloadUrl,
         thumbnailUrl,
         extractedMetadata,
