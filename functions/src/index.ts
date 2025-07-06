@@ -9,14 +9,14 @@ try {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     projectId: 'document-management-c5a96',
-    storageBucket: 'document-management-c5a96.appspot.com'
+    storageBucket: 'document-management-c5a96.firebasestorage.app'
   });
   console.log('✅ Firebase Admin initialized with service account key and storage bucket');
 } catch (error) {
   console.log('⚠️ Service account key not found, using default credentials');
   admin.initializeApp({
     projectId: 'document-management-c5a96',
-    storageBucket: 'document-management-c5a96.appspot.com'
+    storageBucket: 'document-management-c5a96.firebasestorage.app'
   });
 }
 

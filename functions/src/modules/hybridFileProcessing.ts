@@ -228,13 +228,25 @@ export const processFileUpload = functions
  */
 async function downloadFileFromStorage(filePath: string): Promise<Buffer> {
   try {
-    const bucket = admin.storage().bucket('document-management-c5a96.appspot.com');
+    // Use default bucket from Firebase Admin initialization
+    const bucket = admin.storage().bucket();
     const file = bucket.file(filePath);
 
+    console.log(`📥 Attempting to download file: ${filePath}`);
+    console.log(`🪣 Using bucket: ${bucket.name}`);
+
+    // Check if file exists first
+    const [exists] = await file.exists();
+    if (!exists) {
+      throw new Error(`File does not exist: ${filePath}`);
+    }
+
     const [fileBuffer] = await file.download();
+    console.log(`✅ File downloaded successfully: ${fileBuffer.length} bytes`);
     return fileBuffer;
   } catch (error) {
     console.error(`❌ Failed to download file: ${filePath}`, error);
+    console.error(`❌ Error details:`, error);
     throw new Error(`Failed to download file: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
