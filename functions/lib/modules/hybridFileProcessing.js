@@ -52,12 +52,44 @@ exports.processFileUpload = functions
     memory: '2GB',
 })
     .https.onCall(async (data, context) => {
+    var _a, _b, _c, _d, _e;
     const startTime = Date.now();
+    // CRITICAL DEBUG: Log function invocation
+    console.log('🚀 HYBRID FUNCTION INVOKED!');
+    console.log('📞 Function: hybridProcessFileUpload');
+    console.log('📋 Data received:', JSON.stringify(data, null, 2));
+    console.log('👤 Context:', {
+        uid: (_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid,
+        email: (_c = (_b = context.auth) === null || _b === void 0 ? void 0 : _b.token) === null || _c === void 0 ? void 0 : _c.email,
+    });
     try {
         // Validate authentication
         if (!context.auth) {
             throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated to process files');
         }
+        // Validate authorization - check user permissions
+        const userId = context.auth.uid;
+        const userEmail = (_d = context.auth.token) === null || _d === void 0 ? void 0 : _d.email;
+        console.log(`🔐 Authorization check for user: ${userEmail} (${userId})`);
+        // Get user document from Firestore to check permissions
+        const db = admin.firestore();
+        const userDoc = await db.collection('users').doc(userId).get();
+        if (!userDoc.exists) {
+            console.log(`❌ User document not found: ${userId}`);
+            throw new functions.https.HttpsError('permission-denied', 'User not found in system');
+        }
+        const userData = userDoc.data();
+        const userRole = userData === null || userData === void 0 ? void 0 : userData.role;
+        const userPermissions = ((_e = userData === null || userData === void 0 ? void 0 : userData.permissions) === null || _e === void 0 ? void 0 : _e.documents) || [];
+        console.log(`👤 User role: ${userRole}`);
+        console.log(`📋 User permissions:`, userPermissions);
+        // Check if user has upload permission
+        const hasUploadPermission = userRole === 'admin' || userPermissions.includes('upload');
+        if (!hasUploadPermission) {
+            console.log(`❌ User ${userEmail} does not have upload permission`);
+            throw new functions.https.HttpsError('permission-denied', 'User does not have permission to upload files');
+        }
+        console.log(`✅ User ${userEmail} authorized for file upload`);
         const { filePath, fileName, contentType, categoryId, metadata } = data;
         if (!filePath || !fileName || !metadata) {
             throw new functions.https.HttpsError('invalid-argument', 'Missing required parameters: filePath, fileName, or metadata');
@@ -137,7 +169,7 @@ exports.processFileUpload = functions
  */
 async function downloadFileFromStorage(filePath) {
     try {
-        const bucket = admin.storage().bucket();
+        const bucket = admin.storage().bucket('document-management-c5a96.appspot.com');
         const file = bucket.file(filePath);
         const [fileBuffer] = await file.download();
         return fileBuffer;

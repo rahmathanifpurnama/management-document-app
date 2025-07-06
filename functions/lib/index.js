@@ -36,8 +36,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.healthCheck = exports.validateUserSession = exports.handleLogoutOperations = exports.handlePostLoginOperations = exports.onAuthUserDeleted = exports.onAuthUserCreated = exports.onStorageFileDeleted = exports.onStorageFileCreated = exports.processActivityLog = exports.sendNotification = exports.invalidateStatisticsCache = exports.getPaginatedFileStats = exports.getAggregatedStatistics = exports.repairSyncInconsistencies = exports.monitorSyncConsistency = exports.performComprehensiveSync = exports.cleanupOrphanedMetadata = exports.syncStorageToFirestore = exports.syncStorageWithFirestore = exports.generateDocumentReport = exports.bulkDocumentOperations = exports.deleteDocument = exports.rejectDocument = exports.approveDocument = exports.initializeAdmin = exports.debugAuthPermissions = exports.autoSyncFirebaseAuthUsers = exports.setAdminClaims = exports.bulkUserOperations = exports.deleteUser = exports.updateUserPermissions = exports.createUser = exports.refreshCategoryContents = exports.getCategoryDocumentsEnhanced = exports.removeFilesFromCategory = exports.addFilesToCategory = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.hybridProcessFileUpload = exports.processFileUpload = exports.batchProcessFiles = exports.cleanupOrphanedFiles = exports.getFileAccessUrl = exports.getStorageQuota = exports.extractMetadata = exports.checkDuplicateFile = exports.validateFile = exports.generateThumbnail = exports.streamingUpload = void 0;
-exports.manualCleanupActivityLogs = exports.onFileUpload = exports.onUserCreate = exports.onDocumentCreate = exports.api = void 0;
+exports.api = exports.healthCheck = exports.validateUserSession = exports.handleLogoutOperations = exports.handlePostLoginOperations = exports.onAuthUserDeleted = exports.onAuthUserCreated = exports.onStorageFileDeleted = exports.onStorageFileCreated = exports.processActivityLog = exports.sendNotification = exports.invalidateStatisticsCache = exports.getPaginatedFileStats = exports.getAggregatedStatistics = exports.repairSyncInconsistencies = exports.monitorSyncConsistency = exports.performComprehensiveSync = exports.cleanupOrphanedMetadata = exports.syncStorageToFirestore = exports.syncStorageWithFirestore = exports.generateDocumentReport = exports.bulkDocumentOperations = exports.deleteDocument = exports.rejectDocument = exports.approveDocument = exports.initializeAdmin = exports.debugAuthPermissions = exports.autoSyncFirebaseAuthUsers = exports.setAdminClaims = exports.bulkUserOperations = exports.deleteUser = exports.updateUserPermissions = exports.createUser = exports.refreshCategoryContents = exports.getCategoryDocumentsEnhanced = exports.removeFilesFromCategory = exports.addFilesToCategory = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.hybridProcessFileUpload = exports.batchProcessFiles = exports.cleanupOrphanedFiles = exports.getFileAccessUrl = exports.getStorageQuota = exports.extractMetadata = exports.checkDuplicateFile = exports.validateFile = exports.generateThumbnail = exports.streamingUpload = void 0;
+exports.manualCleanupActivityLogs = exports.onFileUpload = exports.onUserCreate = exports.onDocumentCreate = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const cors_1 = __importDefault(require("cors"));
@@ -47,13 +47,17 @@ try {
     const serviceAccount = require("../config/service-account-key.json");
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
-        projectId: 'document-management-c5a96'
+        projectId: 'document-management-c5a96',
+        storageBucket: 'document-management-c5a96.appspot.com'
     });
-    console.log('✅ Firebase Admin initialized with service account key');
+    console.log('✅ Firebase Admin initialized with service account key and storage bucket');
 }
 catch (error) {
     console.log('⚠️ Service account key not found, using default credentials');
-    admin.initializeApp();
+    admin.initializeApp({
+        projectId: 'document-management-c5a96',
+        storageBucket: 'document-management-c5a96.appspot.com'
+    });
 }
 // Initialize Express app with CORS
 const app = (0, express_1.default)();
@@ -82,7 +86,6 @@ exports.cleanupOrphanedFiles = fileUpload_1.fileUploadFunctions.cleanupOrphanedF
 exports.batchProcessFiles = fileUpload_1.fileUploadFunctions.batchProcessFiles;
 // Hybrid File Processing Functions (Optimized for client-server separation)
 const hybridProcessingFunctions = __importStar(require("./modules/hybridFileProcessing"));
-exports.processFileUpload = hybridProcessingFunctions.processFileUpload;
 exports.hybridProcessFileUpload = hybridProcessingFunctions.processFileUpload;
 // Category Management Functions
 exports.createCategory = categoryManagement_1.categoryFunctions.createCategory;
