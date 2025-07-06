@@ -228,9 +228,9 @@ export const processFileUpload = functions
  */
 async function downloadFileFromStorage(filePath: string): Promise<Buffer> {
   try {
-    const bucket = admin.storage().bucket();
+    const bucket = admin.storage().bucket('document-management-c5a96.appspot.com');
     const file = bucket.file(filePath);
-    
+
     const [fileBuffer] = await file.download();
     return fileBuffer;
   } catch (error) {
