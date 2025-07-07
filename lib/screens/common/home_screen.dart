@@ -525,7 +525,7 @@ class _HomeScreenState extends State<HomeScreen>
 
                   // Dashboard Statistics Section (Admin only) - Using ResponsiveStatsGrid
                   if (authProvider.isAdmin) ...[
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 12),
                     Consumer<DocumentProvider>(
                       builder: (context, documentProvider, child) {
                         return Padding(
