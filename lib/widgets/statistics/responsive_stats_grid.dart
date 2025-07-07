@@ -3,27 +3,21 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 
-/// Responsive stats grid widget with Unified-style equal sizing
+/// Simple stats grid widget with equal-sized containers
 ///
 /// Features:
-/// - Unified-style layout: uses Expanded widgets for equal sizing like UnifiedStatsWidget
-/// - Equal-sized containers: all widgets have the same width in each row
-/// - Dynamic responsive breakpoints:
-///   - Small screens (< 400px): 2 widgets per row
-///   - Small-medium screens (400-600px): 3 widgets per row
-///   - Medium screens (600-900px): 4 widgets per row
-///   - Large screens (> 900px): 5 widgets per row
-/// - Row-based layout: widgets organized in rows with Column and Row structure
-/// - Automatic space distribution: Expanded widgets distribute available space equally
-/// - Compact sizing with maintained readability
+/// - Fixed 4 widgets per row layout
+/// - Equal-sized containers using Expanded widgets
+/// - Unified-style design with icon backgrounds and shadows
+/// - Simple grid structure without responsive breakpoints
 /// - SVG icon support for recycle bin and favorites
 /// - Recycle Bin and Favorites widgets display only titles and icons (no values)
-class ResponsiveStatsGrid extends StatelessWidget {
+class StatsGrid extends StatelessWidget {
   final Map<String, dynamic> statsData;
   final Function(String)? onStatTap;
   final bool isLoading;
 
-  const ResponsiveStatsGrid({
+  const StatsGrid({
     super.key,
     required this.statsData,
     this.onStatTap,
@@ -32,97 +26,46 @@ class ResponsiveStatsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final screenWidth = constraints.maxWidth;
-        final statWidgets = _buildStatWidgets();
+    final statWidgets = _buildStatWidgets();
+    return _buildSimpleGrid(statWidgets);
+  }
 
-        // Calculate responsive layout parameters
-        final layoutConfig = _getLayoutConfig(screenWidth);
+  /// Build simple grid with fixed 4 widgets per row
+  Widget _buildSimpleGrid(List<Widget> statWidgets) {
+    const spacing = 12.0;
 
-        return _buildCSSGridLayout(statWidgets, layoutConfig);
-      },
+    // First row: 4 widgets
+    final firstRow = Row(
+      children: [
+        Expanded(child: statWidgets[0]),
+        const SizedBox(width: spacing),
+        Expanded(child: statWidgets[1]),
+        const SizedBox(width: spacing),
+        Expanded(child: statWidgets[2]),
+        const SizedBox(width: spacing),
+        Expanded(child: statWidgets[3]),
+      ],
     );
-  }
 
-  /// Build Unified-style layout with equal-sized widgets using Expanded
-  Widget _buildCSSGridLayout(
-    List<Widget> statWidgets,
-    _LayoutConfig layoutConfig,
-  ) {
-    final itemsPerRow = layoutConfig.itemsPerRow;
-    final spacing = layoutConfig.spacing;
+    // Second row: 2 widgets centered
+    final secondRow = Row(
+      children: [
+        Expanded(child: Container()), // Empty space
+        const SizedBox(width: spacing),
+        Expanded(child: statWidgets[4]),
+        const SizedBox(width: spacing),
+        Expanded(child: statWidgets[5]),
+        const SizedBox(width: spacing),
+        Expanded(child: Container()), // Empty space
+      ],
+    );
 
-    // Group widgets into rows based on itemsPerRow
-    final rows = <Widget>[];
-
-    for (int i = 0; i < statWidgets.length; i += itemsPerRow) {
-      final rowWidgets = <Widget>[];
-
-      // Add widgets for this row
-      for (int j = 0; j < itemsPerRow; j++) {
-        final widgetIndex = i + j;
-
-        if (widgetIndex < statWidgets.length) {
-          // Add actual widget with Expanded for equal sizing
-          rowWidgets.add(Expanded(child: statWidgets[widgetIndex]));
-        } else {
-          // Add empty expanded space for incomplete rows
-          rowWidgets.add(
-            Expanded(
-              child: Container(), // Empty container to maintain layout
-            ),
-          );
-        }
-
-        // Add spacing between widgets (except for last widget in row)
-        if (j < itemsPerRow - 1) {
-          rowWidgets.add(SizedBox(width: spacing));
-        }
-      }
-
-      // Create row with equal-sized widgets
-      rows.add(Row(children: rowWidgets));
-
-      // Add spacing between rows (except for last row)
-      if (i + itemsPerRow < statWidgets.length) {
-        rows.add(SizedBox(height: spacing));
-      }
-    }
-
-    return Column(children: rows);
-  }
-
-  /// Get layout configuration based on screen width
-  _LayoutConfig _getLayoutConfig(double screenWidth) {
-    int itemsPerRow;
-    double spacing;
-
-    if (screenWidth < 400) {
-      // Small screens: 2 widgets per row
-      itemsPerRow = 2;
-      spacing = 8.0;
-    } else if (screenWidth < 600) {
-      // Small-medium screens: 3 widgets per row
-      itemsPerRow = 3;
-      spacing = 10.0;
-    } else if (screenWidth < 900) {
-      // Medium screens: 4 widgets per row
-      itemsPerRow = 4;
-      spacing = 12.0;
-    } else {
-      // Large screens: 5 widgets per row
-      itemsPerRow = 5;
-      spacing = 16.0;
-    }
-
-    // No need for itemWidth calculation since we use Expanded widgets
-    // Expanded automatically distributes available space equally
-
-    return _LayoutConfig(
-      itemsPerRow: itemsPerRow,
-      spacing: spacing,
-      itemWidth: 0, // Not used with Expanded layout
+    return Column(
+      children: [
+        firstRow,
+        const SizedBox(height: spacing),
+        secondRow,
+      ],
     );
   }
 
@@ -208,20 +151,7 @@ class ResponsiveStatsGrid extends StatelessWidget {
   }
 }
 
-/// Layout configuration class for responsive grid
-class _LayoutConfig {
-  final int itemsPerRow;
-  final double spacing;
-  final double itemWidth;
-
-  const _LayoutConfig({
-    required this.itemsPerRow,
-    required this.spacing,
-    required this.itemWidth,
-  });
-}
-
-/// Individual stat widget with responsive design
+/// Individual stat widget with simple design
 class StatWidget extends StatelessWidget {
   final String title;
   final String value;
@@ -246,34 +176,13 @@ class StatWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isSmallScreen = screenWidth < 400;
-    final isMediumScreen = screenWidth < 600;
-    final isLargeScreen = screenWidth < 900;
-
-    // Optimized compact padding for better space utilization
-    final padding = EdgeInsets.all(
-      isSmallScreen
-          ? 6.0 // Maintain touch targets on mobile
-          : (isMediumScreen
-                ? 6.0
-                : (isLargeScreen
-                      ? 8.0
-                      : 8.0)), // More compact for larger screens
-    );
-    final borderRadius = isSmallScreen
-        ? 8.0
-        : 12.0; // Unified style - larger radius
-    final spacing = isSmallScreen ? 4.0 : 8.0; // Unified style - more spacing
-    final valueFontSize = isSmallScreen
-        ? 14.0 // Unified style - slightly larger
-        : (isMediumScreen ? 16.0 : (isLargeScreen ? 18.0 : 20.0));
-    final titleFontSize = isSmallScreen
-        ? 9.0 // Unified style - more readable
-        : (isMediumScreen ? 10.0 : (isLargeScreen ? 11.0 : 12.0));
-    final iconSize = isSmallScreen
-        ? 16.0 // Unified style - larger icons
-        : (isMediumScreen ? 18.0 : (isLargeScreen ? 20.0 : 22.0));
+    // Fixed sizing without responsive behavior
+    const padding = EdgeInsets.all(8.0);
+    const borderRadius = 12.0;
+    const spacing = 8.0;
+    const valueFontSize = 18.0;
+    const titleFontSize = 11.0;
+    const iconSize = 20.0;
 
     // Calculate consistent minimum height for all widgets (Unified style)
     final iconContainerHeight = iconSize + (spacing * 2); // Icon + padding
@@ -340,7 +249,7 @@ class StatWidget extends StatelessWidget {
           if (showValue) ...[
             if (isLoading)
               Container(
-                width: isSmallScreen ? 24 : 30, // Responsive loading width
+                width: 30, // Fixed loading width
                 height: valueFontSize * 0.8, // Proportional to font size
                 decoration: BoxDecoration(
                   color: Colors.grey.withValues(alpha: 0.3),

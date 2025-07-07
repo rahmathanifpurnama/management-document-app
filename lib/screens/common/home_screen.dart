@@ -530,7 +530,7 @@ class _HomeScreenState extends State<HomeScreen>
                       builder: (context, documentProvider, child) {
                         return Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: ResponsiveStatsGrid(
+                          child: StatsGrid(
                             statsData: documentProvider.statisticsData,
                             onStatTap: _handleStatTap,
                             isLoading: documentProvider.isLoading,
