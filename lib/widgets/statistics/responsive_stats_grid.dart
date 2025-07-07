@@ -230,8 +230,10 @@ class StatWidget extends StatelessWidget {
             borderRadius: borderRadius,
           ),
 
-          SizedBox(height: spacing),
-
+          // Custom spacing between icon and content for row 2
+          SizedBox(
+            height: showValue ? spacing : 12.0,
+          ), // 12px for row 2, 8px for row 1
           // Value section with consistent spacing for visual alignment
           if (showValue) ...[
             if (isLoading)
@@ -258,11 +260,14 @@ class StatWidget extends StatelessWidget {
               height: spacing / 2,
             ), // Unified style - half spacing before title
           ] else ...[
-            // When value is hidden, maintain same visual space as value + spacing
-            // This ensures consistent container heights across all widgets
+            // Row 2: Adjust spacing to maintain container height while using 12px icon-to-title spacing
+            // Calculate remaining space to maintain same total height as row 1
             SizedBox(
-              height: (valueFontSize * 1.1) + (spacing / 2),
-            ), // Same total height as value text + spacing
+              height:
+                  (valueFontSize * 1.1) +
+                  (spacing / 2) -
+                  4.0, // Reduce by 4px (12px - 8px difference)
+            ), // Adjusted to compensate for the 12px spacing above
           ],
           // Title with optimized text wrapping
           Text(
