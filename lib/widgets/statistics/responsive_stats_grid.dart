@@ -46,63 +46,59 @@ class ResponsiveStatsGrid extends StatelessWidget {
     List<Widget> statWidgets,
     _LayoutConfig layoutConfig,
   ) {
-    final itemsPerRow = layoutConfig.itemsPerRow;
+    // Always use custom layout for 6 widgets (4+2 layout)
+    if (statWidgets.length == 6) {
+      final firstRowWidgets = statWidgets.take(4).toList();
+      final secondRowWidgets = statWidgets.skip(4).take(2).toList();
 
-    if (statWidgets.length <= 4 || itemsPerRow < 4) {
-      // For small screens or few widgets, use normal wrap layout
-      return Wrap(
-        spacing: layoutConfig.spacing,
-        runSpacing: layoutConfig.spacing,
-        children: statWidgets.map((widget) {
-          return SizedBox(width: layoutConfig.itemWidth, child: widget);
-        }).toList(),
-      );
-    }
+      // Calculate width for 4 widgets per row
+      final screenWidth =
+          layoutConfig.itemWidth * layoutConfig.itemsPerRow +
+          layoutConfig.spacing * (layoutConfig.itemsPerRow - 1);
+      final fourWidgetWidth = (screenWidth - (layoutConfig.spacing * 3)) / 4;
 
-    // For larger screens with 6 widgets: 4 in first row, 2 in second row (centered)
-    final firstRowWidgets = statWidgets.take(4).toList();
-    final secondRowWidgets = statWidgets.skip(4).take(2).toList();
+      return Column(
+        children: [
+          // First row: 4 widgets
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: firstRowWidgets.map((widget) {
+              return SizedBox(width: fourWidgetWidth, child: widget);
+            }).toList(),
+          ),
 
-    return Column(
-      children: [
-        // First row: 4 widgets
-        Wrap(
-          spacing: layoutConfig.spacing,
-          runSpacing: layoutConfig.spacing,
-          children: firstRowWidgets.map((widget) {
-            return SizedBox(width: layoutConfig.itemWidth, child: widget);
-          }).toList(),
-        ),
-
-        SizedBox(height: layoutConfig.spacing), // Space between rows
-        // Second row: 2 widgets centered with 2 empty spaces
-        if (secondRowWidgets.length == 2)
+          SizedBox(height: layoutConfig.spacing), // Space between rows
+          // Second row: 2 widgets centered with 2 empty spaces
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // Empty space (1/4 of row)
-              SizedBox(width: layoutConfig.itemWidth),
+              SizedBox(width: fourWidgetWidth),
               SizedBox(width: layoutConfig.spacing),
 
               // First widget
-              SizedBox(
-                width: layoutConfig.itemWidth,
-                child: secondRowWidgets[0],
-              ),
+              SizedBox(width: fourWidgetWidth, child: secondRowWidgets[0]),
               SizedBox(width: layoutConfig.spacing),
 
               // Second widget
-              SizedBox(
-                width: layoutConfig.itemWidth,
-                child: secondRowWidgets[1],
-              ),
+              SizedBox(width: fourWidgetWidth, child: secondRowWidgets[1]),
               SizedBox(width: layoutConfig.spacing),
 
               // Empty space (1/4 of row)
-              SizedBox(width: layoutConfig.itemWidth),
+              SizedBox(width: fourWidgetWidth),
             ],
           ),
-      ],
+        ],
+      );
+    }
+
+    // For other cases, use normal wrap layout
+    return Wrap(
+      spacing: layoutConfig.spacing,
+      runSpacing: layoutConfig.spacing,
+      children: statWidgets.map((widget) {
+        return SizedBox(width: layoutConfig.itemWidth, child: widget);
+      }).toList(),
     );
   }
 
