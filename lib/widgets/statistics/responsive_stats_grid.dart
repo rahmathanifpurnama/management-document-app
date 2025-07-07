@@ -3,17 +3,18 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 
-/// Responsive stats grid widget with CSS Grid-like behavior
+/// Responsive stats grid widget with Unified-style equal sizing
 ///
 /// Features:
-/// - CSS Grid-like natural flow: widgets flow left to right, then wrap to next row
+/// - Unified-style layout: uses Expanded widgets for equal sizing like UnifiedStatsWidget
+/// - Equal-sized containers: all widgets have the same width in each row
 /// - Dynamic responsive breakpoints:
 ///   - Small screens (< 400px): 2 widgets per row
 ///   - Small-medium screens (400-600px): 3 widgets per row
 ///   - Medium screens (600-900px): 4 widgets per row
 ///   - Large screens (> 900px): 5 widgets per row
-/// - Left-aligned layout: all widgets align to the left naturally
-/// - Natural wrapping: widgets reflow automatically when screen size changes
+/// - Row-based layout: widgets organized in rows with Column and Row structure
+/// - Automatic space distribution: Expanded widgets distribute available space equally
 /// - Compact sizing with maintained readability
 /// - SVG icon support for recycle bin and favorites
 /// - Recycle Bin and Favorites widgets display only titles and icons (no values)
@@ -44,22 +45,52 @@ class ResponsiveStatsGrid extends StatelessWidget {
     );
   }
 
-  /// Build CSS Grid-like layout with natural flow and left alignment
+  /// Build Unified-style layout with equal-sized widgets using Expanded
   Widget _buildCSSGridLayout(
     List<Widget> statWidgets,
     _LayoutConfig layoutConfig,
   ) {
-    // Use Wrap widget for natural CSS Grid-like behavior with optimized container widths
-    // Widgets flow left to right, then wrap to next row naturally
-    return Wrap(
-      spacing: layoutConfig.spacing,
-      runSpacing: layoutConfig.spacing,
-      alignment: WrapAlignment.start, // Left-align all widgets
-      runAlignment: WrapAlignment.start, // Left-align rows
-      children: statWidgets.map((widget) {
-        return SizedBox(width: layoutConfig.itemWidth, child: widget);
-      }).toList(),
-    );
+    final itemsPerRow = layoutConfig.itemsPerRow;
+    final spacing = layoutConfig.spacing;
+
+    // Group widgets into rows based on itemsPerRow
+    final rows = <Widget>[];
+
+    for (int i = 0; i < statWidgets.length; i += itemsPerRow) {
+      final rowWidgets = <Widget>[];
+
+      // Add widgets for this row
+      for (int j = 0; j < itemsPerRow; j++) {
+        final widgetIndex = i + j;
+
+        if (widgetIndex < statWidgets.length) {
+          // Add actual widget with Expanded for equal sizing
+          rowWidgets.add(Expanded(child: statWidgets[widgetIndex]));
+        } else {
+          // Add empty expanded space for incomplete rows
+          rowWidgets.add(
+            Expanded(
+              child: Container(), // Empty container to maintain layout
+            ),
+          );
+        }
+
+        // Add spacing between widgets (except for last widget in row)
+        if (j < itemsPerRow - 1) {
+          rowWidgets.add(SizedBox(width: spacing));
+        }
+      }
+
+      // Create row with equal-sized widgets
+      rows.add(Row(children: rowWidgets));
+
+      // Add spacing between rows (except for last row)
+      if (i + itemsPerRow < statWidgets.length) {
+        rows.add(SizedBox(height: spacing));
+      }
+    }
+
+    return Column(children: rows);
   }
 
   /// Get layout configuration based on screen width
@@ -85,27 +116,13 @@ class ResponsiveStatsGrid extends StatelessWidget {
       spacing = 16.0;
     }
 
-    // Calculate optimized item width for better space utilization
-    final totalSpacing = spacing * (itemsPerRow - 1);
-    final availableWidth = screenWidth - totalSpacing;
-
-    // Optimize container width based on screen size and content
-    final baseItemWidth = availableWidth / itemsPerRow;
-    double itemWidth;
-
-    if (screenWidth >= 600) {
-      // For medium and large screens: optimize for 4+ widgets per row
-      // Reduce width more significantly to fit content better
-      itemWidth = baseItemWidth * 0.75; // 25% reduction for better content fit
-    } else {
-      // For small screens: moderate reduction to maintain readability
-      itemWidth = baseItemWidth * 0.85; // 15% reduction
-    }
+    // No need for itemWidth calculation since we use Expanded widgets
+    // Expanded automatically distributes available space equally
 
     return _LayoutConfig(
       itemsPerRow: itemsPerRow,
       spacing: spacing,
-      itemWidth: itemWidth,
+      itemWidth: 0, // Not used with Expanded layout
     );
   }
 
