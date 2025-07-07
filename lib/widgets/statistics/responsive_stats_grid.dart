@@ -55,28 +55,32 @@ class ResponsiveStatsGrid extends StatelessWidget {
     if (screenWidth < 300) {
       // Very small screens: 1 widget per row
       itemsPerRow = 1;
-      spacing = 4.0;
+      spacing = 8.0; // Increased spacing
     } else if (screenWidth < 400) {
       // Small screens: 2 widgets per row
       itemsPerRow = 2;
-      spacing = 4.0;
+      spacing = 10.0; // Increased spacing
     } else if (screenWidth < 600) {
       // Medium screens: 3 widgets per row
       itemsPerRow = 3;
-      spacing = 6.0;
+      spacing = 12.0; // Increased spacing
     } else if (screenWidth < 900) {
       // Current screen width: 4 widgets per row (maintain current behavior)
       itemsPerRow = 4;
-      spacing = 8.0;
+      spacing = 16.0; // Increased spacing
     } else {
       // Extra wide screens: 5 widgets per row
       itemsPerRow = 5;
-      spacing = 10.0;
+      spacing = 20.0; // Increased spacing
     }
 
-    // Calculate item width accounting for spacing
+    // Calculate item width accounting for spacing - make containers narrower
     final totalSpacing = spacing * (itemsPerRow - 1);
-    final itemWidth = (screenWidth - totalSpacing) / itemsPerRow;
+    final availableWidth = screenWidth - totalSpacing;
+
+    // Reduce item width by 15% to make containers more compact
+    final baseItemWidth = availableWidth / itemsPerRow;
+    final itemWidth = baseItemWidth * 0.85; // Make containers 15% narrower
 
     return _LayoutConfig(
       itemsPerRow: itemsPerRow,
@@ -210,11 +214,11 @@ class StatWidget extends StatelessWidget {
     final isMediumScreen = screenWidth < 600;
     final isLargeScreen = screenWidth < 900;
 
-    // Optimized compact sizing while maintaining readability
+    // More compact padding for narrower containers
     final padding = EdgeInsets.all(
       isSmallScreen
-          ? 4.0 // More compact on mobile
-          : (isMediumScreen ? 6.0 : (isLargeScreen ? 8.0 : 10.0)),
+          ? 6.0 // Slightly more padding on mobile for better touch targets
+          : (isMediumScreen ? 8.0 : (isLargeScreen ? 10.0 : 12.0)),
     );
     final borderRadius = isSmallScreen ? 6.0 : 8.0;
     final spacing = isSmallScreen
