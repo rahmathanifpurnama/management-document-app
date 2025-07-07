@@ -3,7 +3,14 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 
-/// Responsive stats grid widget with individual clickable stat widgets
+/// Responsive stats grid widget with optimized compact design
+///
+/// Features:
+/// - Mobile (< 400px): 2 components per row
+/// - Tablet (400-900px): 3-4 components per row
+/// - Desktop (> 900px): Maximum 5 components per row
+/// - Compact sizing with maintained readability
+/// - SVG icon support for recycle bin and favorites
 class ResponsiveStatsGrid extends StatelessWidget {
   final Map<String, dynamic> statsData;
   final Function(String)? onStatTap;
@@ -20,31 +27,32 @@ class ResponsiveStatsGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // Determine grid layout based on screen size with improved responsive design
+    // Optimized responsive layout with refined breakpoints
     int crossAxisCount;
     double childAspectRatio;
     double spacing;
 
     if (screenWidth < 400) {
-      // Small screens (mobile): 2 widgets per row
+      // Mobile screens: 2 components per row
       crossAxisCount = 2;
-      childAspectRatio = 1.3;
-      spacing = 6.0;
+      childAspectRatio =
+          1.4; // Slightly taller for better readability on small screens
+      spacing = 4.0; // Reduced spacing for more compact design
     } else if (screenWidth < 600) {
-      // Medium screens (large mobile/small tablet): 3 widgets per row
+      // Large mobile/small tablet: 3 components per row
       crossAxisCount = 3;
-      childAspectRatio = 1.2;
-      spacing = 8.0;
+      childAspectRatio = 1.3; // Optimized aspect ratio
+      spacing = 6.0;
     } else if (screenWidth < 900) {
-      // Large screens (tablet): 4 widgets per row
+      // Tablet screens: 4 components per row
       crossAxisCount = 4;
-      childAspectRatio = 1.1;
-      spacing = 10.0;
+      childAspectRatio = 1.2; // Balanced aspect ratio for tablets
+      spacing = 8.0;
     } else {
-      // Extra large screens (desktop): 5 widgets per row (maximum)
+      // Desktop screens: Maximum 5 components per row
       crossAxisCount = 5;
-      childAspectRatio = 1.0;
-      spacing = 12.0;
+      childAspectRatio = 1.1; // Compact but readable on large screens
+      spacing = 10.0;
     }
 
     final statWidgets = _buildStatWidgets();
@@ -165,23 +173,25 @@ class StatWidget extends StatelessWidget {
     final isMediumScreen = screenWidth < 600;
     final isLargeScreen = screenWidth < 900;
 
-    // Responsive sizing - made smaller overall
+    // Optimized compact sizing while maintaining readability
     final padding = EdgeInsets.all(
       isSmallScreen
-          ? 6.0
-          : (isMediumScreen ? 8.0 : (isLargeScreen ? 10.0 : 12.0)),
+          ? 4.0 // More compact on mobile
+          : (isMediumScreen ? 6.0 : (isLargeScreen ? 8.0 : 10.0)),
     );
     final borderRadius = isSmallScreen ? 6.0 : 8.0;
-    final spacing = isSmallScreen ? 3.0 : (isMediumScreen ? 4.0 : 6.0);
+    final spacing = isSmallScreen
+        ? 2.0
+        : (isMediumScreen ? 3.0 : 4.0); // Reduced spacing
     final valueFontSize = isSmallScreen
-        ? 14.0
-        : (isMediumScreen ? 16.0 : (isLargeScreen ? 18.0 : 20.0));
+        ? 13.0 // Slightly smaller but still readable
+        : (isMediumScreen ? 15.0 : (isLargeScreen ? 17.0 : 19.0));
     final titleFontSize = isSmallScreen
-        ? 9.0
-        : (isMediumScreen ? 10.0 : (isLargeScreen ? 11.0 : 12.0));
+        ? 8.5 // Compact title size
+        : (isMediumScreen ? 9.5 : (isLargeScreen ? 10.5 : 11.5));
     final iconSize = isSmallScreen
-        ? 16.0
-        : (isMediumScreen ? 18.0 : (isLargeScreen ? 20.0 : 22.0));
+        ? 14.0 // Smaller icons for compact design
+        : (isMediumScreen ? 16.0 : (isLargeScreen ? 18.0 : 20.0));
 
     Widget content = Container(
       padding: padding,
@@ -191,16 +201,17 @@ class StatWidget extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.04), // Subtle shadow
+            blurRadius: 3, // Reduced blur for compact design
+            offset: const Offset(0, 1), // Smaller offset
           ),
         ],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min, // Minimize vertical space
         children: [
-          // Icon
+          // Icon with optimized sizing
           if (iconAsset != null)
             SvgPicture.asset(
               iconAsset!,
@@ -213,14 +224,14 @@ class StatWidget extends StatelessWidget {
 
           SizedBox(height: spacing),
 
-          // Value
+          // Value with optimized loading state
           if (isLoading)
             Container(
-              width: 30,
-              height: valueFontSize,
+              width: isSmallScreen ? 24 : 30, // Responsive loading width
+              height: valueFontSize * 0.8, // Proportional to font size
               decoration: BoxDecoration(
                 color: Colors.grey.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(3),
               ),
             )
           else
@@ -230,19 +241,22 @@ class StatWidget extends StatelessWidget {
                 fontSize: valueFontSize,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
+                height: 1.1, // Tighter line height
               ),
               textAlign: TextAlign.center,
             ),
 
-          SizedBox(height: spacing / 2),
-
-          // Title
+          SizedBox(
+            height: spacing * 0.7,
+          ), // Reduced spacing between value and title
+          // Title with optimized spacing
           Text(
             title,
             style: GoogleFonts.poppins(
               fontSize: titleFontSize,
               fontWeight: FontWeight.w500,
               color: AppColors.textSecondary,
+              height: 1.2, // Optimized line height
             ),
             textAlign: TextAlign.center,
             maxLines: 2,
