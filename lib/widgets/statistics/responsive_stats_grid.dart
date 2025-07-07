@@ -49,7 +49,7 @@ class ResponsiveStatsGrid extends StatelessWidget {
     List<Widget> statWidgets,
     _LayoutConfig layoutConfig,
   ) {
-    // Use Wrap widget for natural CSS Grid-like behavior
+    // Use Wrap widget for natural CSS Grid-like behavior with optimized container widths
     // Widgets flow left to right, then wrap to next row naturally
     return Wrap(
       spacing: layoutConfig.spacing,
@@ -85,13 +85,22 @@ class ResponsiveStatsGrid extends StatelessWidget {
       spacing = 16.0;
     }
 
-    // Calculate item width accounting for spacing - make containers narrower
+    // Calculate optimized item width for better space utilization
     final totalSpacing = spacing * (itemsPerRow - 1);
     final availableWidth = screenWidth - totalSpacing;
 
-    // Reduce item width by 15% to make containers more compact
+    // Optimize container width based on screen size and content
     final baseItemWidth = availableWidth / itemsPerRow;
-    final itemWidth = baseItemWidth * 0.85; // Make containers 15% narrower
+    double itemWidth;
+
+    if (screenWidth >= 600) {
+      // For medium and large screens: optimize for 4+ widgets per row
+      // Reduce width more significantly to fit content better
+      itemWidth = baseItemWidth * 0.75; // 25% reduction for better content fit
+    } else {
+      // For small screens: moderate reduction to maintain readability
+      itemWidth = baseItemWidth * 0.85; // 15% reduction
+    }
 
     return _LayoutConfig(
       itemsPerRow: itemsPerRow,
@@ -225,11 +234,15 @@ class StatWidget extends StatelessWidget {
     final isMediumScreen = screenWidth < 600;
     final isLargeScreen = screenWidth < 900;
 
-    // More compact padding for narrower containers
+    // Optimized compact padding for better space utilization
     final padding = EdgeInsets.all(
       isSmallScreen
-          ? 6.0 // Slightly more padding on mobile for better touch targets
-          : (isMediumScreen ? 8.0 : (isLargeScreen ? 10.0 : 12.0)),
+          ? 6.0 // Maintain touch targets on mobile
+          : (isMediumScreen
+                ? 6.0
+                : (isLargeScreen
+                      ? 8.0
+                      : 8.0)), // More compact for larger screens
     );
     final borderRadius = isSmallScreen
         ? 8.0
@@ -253,8 +266,8 @@ class StatWidget extends StatelessWidget {
         (valueFontSize * 1.1) +
         (spacing / 2) +
         (titleFontSize *
-            1.2 *
-            2); // Icon container + spacing + value area + title (2 lines max)
+            1.3 *
+            3); // Icon container + spacing + value area + title (up to 3 lines)
     final minHeight = baseContentHeight + (padding.vertical);
 
     Widget content = Container(
@@ -338,18 +351,20 @@ class StatWidget extends StatelessWidget {
               height: (valueFontSize * 1.1) + (spacing / 2),
             ), // Same total height as value text + spacing
           ],
-          // Title with Unified style spacing
+          // Title with optimized text wrapping
           Text(
             title,
             style: GoogleFonts.poppins(
               fontSize: titleFontSize,
               fontWeight: FontWeight.w500,
               color: AppColors.textSecondary,
-              height: 1.2, // Optimized line height
+              height:
+                  1.3, // Slightly increased for better wrapped text readability
             ),
             textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+            maxLines: 3, // Allow up to 3 lines for better text wrapping
+            overflow: TextOverflow.visible, // Allow text to wrap naturally
+            softWrap: true, // Enable soft wrapping
           ),
         ],
       ),
