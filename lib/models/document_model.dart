@@ -13,6 +13,20 @@ class DocumentModel {
   final List<String> permissions;
   final DocumentMetadata metadata;
 
+  // Recycle bin fields
+  final bool isDeleted;
+  final DateTime? deletedAt;
+  final String? deletedBy;
+
+  // Additional fields from hybridFileProcessing
+  final String? fileHash;
+  final String? downloadUrl;
+  final String? uploadedByUid;
+  final String? contentType;
+  final String? status;
+  final List<String>? searchTerms;
+  final Map<String, dynamic>? analytics;
+
   DocumentModel({
     required this.id,
     required this.fileName,
@@ -24,6 +38,16 @@ class DocumentModel {
     required this.category,
     required this.permissions,
     required this.metadata,
+    this.isDeleted = false,
+    this.deletedAt,
+    this.deletedBy,
+    this.fileHash,
+    this.downloadUrl,
+    this.uploadedByUid,
+    this.contentType,
+    this.status,
+    this.searchTerms,
+    this.analytics,
   });
 
   // Factory constructor from Firestore document
@@ -41,6 +65,21 @@ class DocumentModel {
       category: data['category'] ?? '',
       permissions: List<String>.from(data['permissions'] ?? []),
       metadata: DocumentMetadata.fromMap(data['metadata'] ?? {}),
+      isDeleted: data['isDeleted'] ?? false,
+      deletedAt: data['deletedAt']?.toDate(),
+      deletedBy: data['deletedBy'],
+      // Additional fields from hybridFileProcessing
+      fileHash: data['fileHash'],
+      downloadUrl: data['downloadUrl'],
+      uploadedByUid: data['uploadedByUid'],
+      contentType: data['contentType'],
+      status: data['status'],
+      searchTerms: data['searchTerms'] != null
+          ? List<String>.from(data['searchTerms'])
+          : null,
+      analytics: data['analytics'] != null
+          ? Map<String, dynamic>.from(data['analytics'])
+          : null,
     );
   }
 
@@ -57,6 +96,21 @@ class DocumentModel {
       category: map['category'] ?? '',
       permissions: List<String>.from(map['permissions'] ?? []),
       metadata: DocumentMetadata.fromMap(map['metadata'] ?? {}),
+      isDeleted: map['isDeleted'] ?? false,
+      deletedAt: map['deletedAt']?.toDate(),
+      deletedBy: map['deletedBy'],
+      // Additional fields from hybridFileProcessing
+      fileHash: map['fileHash'],
+      downloadUrl: map['downloadUrl'],
+      uploadedByUid: map['uploadedByUid'],
+      contentType: map['contentType'],
+      status: map['status'],
+      searchTerms: map['searchTerms'] != null
+          ? List<String>.from(map['searchTerms'])
+          : null,
+      analytics: map['analytics'] != null
+          ? Map<String, dynamic>.from(map['analytics'])
+          : null,
     );
   }
 
@@ -72,6 +126,17 @@ class DocumentModel {
       'category': category,
       'permissions': permissions,
       'metadata': metadata.toMap(),
+      'isDeleted': isDeleted,
+      'deletedAt': deletedAt != null ? Timestamp.fromDate(deletedAt!) : null,
+      'deletedBy': deletedBy,
+      // Additional fields from hybridFileProcessing
+      'fileHash': fileHash,
+      'downloadUrl': downloadUrl,
+      'uploadedByUid': uploadedByUid,
+      'contentType': contentType,
+      'status': status,
+      'searchTerms': searchTerms,
+      'analytics': analytics,
     };
   }
 
@@ -88,6 +153,17 @@ class DocumentModel {
       'category': category,
       'permissions': permissions,
       'metadata': metadata.toMap(),
+      'isDeleted': isDeleted,
+      'deletedAt': deletedAt?.toIso8601String(),
+      'deletedBy': deletedBy,
+      // Additional fields from hybridFileProcessing
+      'fileHash': fileHash,
+      'downloadUrl': downloadUrl,
+      'uploadedByUid': uploadedByUid,
+      'contentType': contentType,
+      'status': status,
+      'searchTerms': searchTerms,
+      'analytics': analytics,
     };
   }
 
@@ -106,6 +182,23 @@ class DocumentModel {
       category: map['category'] ?? '',
       permissions: List<String>.from(map['permissions'] ?? []),
       metadata: DocumentMetadata.fromMap(map['metadata'] ?? {}),
+      isDeleted: map['isDeleted'] ?? false,
+      deletedAt: map['deletedAt'] != null
+          ? DateTime.parse(map['deletedAt'])
+          : null,
+      deletedBy: map['deletedBy'],
+      // Additional fields from hybridFileProcessing
+      fileHash: map['fileHash'],
+      downloadUrl: map['downloadUrl'],
+      uploadedByUid: map['uploadedByUid'],
+      contentType: map['contentType'],
+      status: map['status'],
+      searchTerms: map['searchTerms'] != null
+          ? List<String>.from(map['searchTerms'])
+          : null,
+      analytics: map['analytics'] != null
+          ? Map<String, dynamic>.from(map['analytics'])
+          : null,
     );
   }
 
@@ -121,6 +214,16 @@ class DocumentModel {
     String? category,
     List<String>? permissions,
     DocumentMetadata? metadata,
+    bool? isDeleted,
+    DateTime? deletedAt,
+    String? deletedBy,
+    String? fileHash,
+    String? downloadUrl,
+    String? uploadedByUid,
+    String? contentType,
+    String? status,
+    List<String>? searchTerms,
+    Map<String, dynamic>? analytics,
   }) {
     return DocumentModel(
       id: id ?? this.id,
@@ -133,6 +236,16 @@ class DocumentModel {
       category: category ?? this.category,
       permissions: permissions ?? this.permissions,
       metadata: metadata ?? this.metadata,
+      isDeleted: isDeleted ?? this.isDeleted,
+      deletedAt: deletedAt ?? this.deletedAt,
+      deletedBy: deletedBy ?? this.deletedBy,
+      fileHash: fileHash ?? this.fileHash,
+      downloadUrl: downloadUrl ?? this.downloadUrl,
+      uploadedByUid: uploadedByUid ?? this.uploadedByUid,
+      contentType: contentType ?? this.contentType,
+      status: status ?? this.status,
+      searchTerms: searchTerms ?? this.searchTerms,
+      analytics: analytics ?? this.analytics,
     );
   }
 
@@ -174,9 +287,20 @@ class DocumentModel {
     return permissions.contains(userId) || uploadedBy == userId;
   }
 
+  // Check if file is in recycle bin
+  bool get isInRecycleBin {
+    return isDeleted;
+  }
+
+  // Check if file is recent (uploaded within last 7 days)
+  bool get isRecent {
+    final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
+    return uploadedAt.isAfter(sevenDaysAgo) && !isDeleted;
+  }
+
   @override
   String toString() {
-    return 'DocumentModel(id: $id, fileName: $fileName, category: $category)';
+    return 'DocumentModel(id: $id, fileName: $fileName, category: $category, isDeleted: $isDeleted)';
   }
 
   @override

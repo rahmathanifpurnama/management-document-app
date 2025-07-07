@@ -31,7 +31,7 @@ import '../../services/real_time_sync_initializer.dart';
 import '../../services/statistics_notification_service.dart';
 import '../../core/utils/circuit_breaker.dart';
 import '../../core/utils/empty_storage_state_manager.dart';
-import '../../widgets/statistics/real_time_stats_widget.dart';
+import '../../widgets/statistics/responsive_stats_grid.dart';
 import '../../widgets/notification/bell_notification_widget.dart';
 import '../../main.dart' show routeObserver;
 part 'components/home_greeting_section.dart';
@@ -269,6 +269,41 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
+  /// Handle stat widget taps for navigation
+  void _handleStatTap(String statType) {
+    switch (statType) {
+      case 'recent':
+        // Scroll to recent files section on home screen
+        _scrollToRecentFiles();
+        break;
+      case 'categories':
+        // Navigate to categories page
+        Navigator.pushNamed(context, '/categories');
+        break;
+      case 'users':
+        // Navigate to user management page
+        Navigator.pushNamed(context, '/user-management');
+        break;
+      case 'total':
+        // No action for total files (non-clickable)
+        break;
+      case 'recycle':
+        // TODO: Navigate to recycle bin (not implemented yet)
+        break;
+      case 'favorites':
+        // TODO: Navigate to favorites (not implemented yet)
+        break;
+    }
+  }
+
+  /// Scroll to recent files section on home screen
+  void _scrollToRecentFiles() {
+    // Find the recent files section and scroll to it
+    // This will be implemented when we add the recent files section
+    debugPrint('📍 Scrolling to recent files section');
+    // TODO: Implement scroll to recent files section
+  }
+
   // SEARCH FIX: Method removed - search handling consolidated in HomeSearchSection
   // This eliminates duplicate listener registration and conflicting debounce timers
 
@@ -486,12 +521,20 @@ class _HomeScreenState extends State<HomeScreen>
                     onProfileTap: () => _showProfileMenu(authProvider),
                   ),
 
-                  // Dashboard Statistics Section (Admin only) - Using RealTimeStatsWidget without animations
+                  // Dashboard Statistics Section (Admin only) - Using ResponsiveStatsGrid
                   if (authProvider.isAdmin) ...[
                     const SizedBox(height: 6),
-                    const RealTimeStatsWidget(
-                      enablePullToRefresh:
-                          false, // Integrate with main screen refresh
+                    Consumer<DocumentProvider>(
+                      builder: (context, documentProvider, child) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: ResponsiveStatsGrid(
+                            statsData: documentProvider.statisticsData,
+                            onStatTap: _handleStatTap,
+                            isLoading: documentProvider.isLoading,
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 6),
                   ],

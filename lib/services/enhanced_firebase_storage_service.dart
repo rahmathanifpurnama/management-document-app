@@ -166,6 +166,7 @@ class EnhancedFirebaseStorageService {
           contentType: contentType,
           downloadUrl: downloadUrl,
         ),
+        isDeleted: false, // Files from storage are not deleted
       );
     } catch (e) {
       debugPrint(

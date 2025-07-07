@@ -186,6 +186,7 @@ class FirebaseStorageDirectService {
           description: 'File from Firebase Storage',
           tags: ['storage-sourced'],
         ),
+        isDeleted: false, // Files from storage are not deleted
       );
     } catch (e) {
       debugPrint(

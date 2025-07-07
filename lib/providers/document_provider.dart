@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
 import '../models/document_model.dart';
 import '../core/services/document_service.dart';
@@ -343,7 +344,7 @@ class DocumentProvider extends ChangeNotifier {
     _errorMessage = null;
   }
 
-  // ENHANCED: Load documents with Firebase Storage priority
+  // SIMPLIFIED: Load documents from Firestore collection only
   Future<void> loadDocuments({bool forceRefresh = false}) async {
     final emptyStateManager = EmptyStorageStateManager.instance;
 
@@ -383,119 +384,53 @@ class DocumentProvider extends ChangeNotifier {
     }
 
     try {
-      debugPrint('🔄 Starting Firebase Storage-first document loading...');
+      debugPrint('🔄 Starting Firestore-only document loading...');
 
-      // PRIORITY 1: Try Firebase Storage first for consistency
-      await _stateManager.refreshDocuments();
-      final storageDocuments = _stateManager.documents;
+      // Load documents directly from Firestore collection
+      final firestoreDocuments = await _documentService.getAllDocuments();
 
-      if (storageDocuments.isNotEmpty) {
+      if (firestoreDocuments.isNotEmpty) {
         debugPrint(
-          '✅ Loaded ${storageDocuments.length} documents from Firebase Storage',
+          '✅ Loaded ${firestoreDocuments.length} documents from Firestore',
         );
 
-        // DEFINITIVE FIX: Merge Storage data with Firestore category metadata
-        final documentsWithCategories =
-            await _mergeStorageWithFirestoreCategories(storageDocuments);
-
-        // Update local state with merged data
-        _documents = List.from(documentsWithCategories);
+        // Update local state directly from Firestore
+        _documents = List.from(firestoreDocuments);
         _isInitialized = true;
 
-        // RACE CONDITION FIX: Update last load time
+        // Update last load time
         _lastLoadTime = DateTime.now();
 
-        await _saveToStorage();
+        // Rebuild category documents
+        _categoryDocuments.clear();
+        for (final doc in _documents) {
+          final category = doc.category.isEmpty
+              ? 'uncategorized'
+              : doc.category;
+          if (!_categoryDocuments.containsKey(category)) {
+            _categoryDocuments[category] = [];
+          }
+          _categoryDocuments[category]!.add(doc);
+        }
 
-        // SMART CACHE INVALIDATION: Mark cache as valid after successful load
-        await _cacheInvalidation.markCacheAsValid(
-          documentCount: _documents.length,
-        );
+        await _saveToStorage();
 
         // Mark storage as not empty
         await emptyStateManager.setStorageNotEmpty();
 
-        // Start Firebase listener for real-time updates (only if authenticated)
+        // Start Firebase listener for real-time updates
         if (_useFirebaseSync) {
           _startFirebaseListener();
         }
 
-        debugPrint(
-          '📊 File count matches Firebase Storage exactly: ${_documents.length} files',
-        );
-        debugPrint(
-          '🔗 DEFINITIVE FIX: Storage data merged with Firestore categories',
-        );
+        debugPrint('✅ Firestore-only loading completed successfully');
       } else {
-        // EMPTY STATE FIX: Use EmptyStorageStateManager for proper empty state handling
-        if (!emptyStateManager.hasCheckedThisSession) {
-          // First time checking - confirm if storage is actually empty
-          final documentsRef = _firebaseService.storage.ref().child(
-            'documents',
-          );
-          final listResult = await documentsRef.listAll();
-
-          if (listResult.items.isEmpty) {
-            // Storage is confirmed empty
-            await emptyStateManager.setStorageEmpty();
-            debugPrint(
-              '📁 Firebase Storage confirmed empty - cached for session',
-            );
-
-            // Clear local data to match empty storage
-            _documents.clear();
-            _isInitialized = true;
-            await _saveToStorage();
-            return; // Exit early, no fallback needed
-          } else {
-            // Storage has files but state manager didn't detect them
-            emptyStateManager.markCheckedThisSession();
-          }
-        } else if (emptyStateManager.isEmptyStateConfirmed) {
-          // Already confirmed empty in this session
-          debugPrint('📁 Storage already confirmed empty - skipping fallbacks');
-          _documents.clear();
-          _isInitialized = true;
-          await _saveToStorage();
-          return; // Exit early, no fallback needed
-        }
-
-        // Only try fallbacks if storage is not confirmed empty
-        if (!emptyStateManager.isEmptyStateConfirmed) {
-          debugPrint('⚠️ Storage check inconclusive, trying unified loader...');
-          final unifiedDocuments = await _unifiedLoader.loadAllDocuments(
-            forceRefresh: forceRefresh,
-            onLoadingStateChanged: (isLoading) {
-              _isLoading = isLoading;
-            },
-          );
-
-          if (unifiedDocuments.isNotEmpty) {
-            // DEFINITIVE FIX: Merge unified documents with Firestore categories
-            final documentsWithCategories =
-                await _mergeStorageWithFirestoreCategories(unifiedDocuments);
-            _handleUnifiedDocuments(documentsWithCategories);
-            _isInitialized = true;
-
-            // RACE CONDITION FIX: Update last load time
-            _lastLoadTime = DateTime.now();
-
-            await _saveToStorage();
-            await emptyStateManager.setStorageNotEmpty();
-
-            if (_useFirebaseSync) {
-              _startFirebaseListener();
-            }
-
-            debugPrint(
-              '🔗 DEFINITIVE FIX: Unified documents merged with Firestore categories',
-            );
-          } else {
-            // FINAL FALLBACK: Traditional loading
-            debugPrint('⚠️ Trying traditional loading as final fallback...');
-            await _loadDocumentsTraditional();
-          }
-        }
+        debugPrint('📁 No documents found in Firestore');
+        _documents.clear();
+        _categoryDocuments.clear();
+        _isInitialized = true;
+        await _saveToStorage();
+        await emptyStateManager.setStorageEmpty();
       }
 
       _applyFiltersAndSort();
@@ -1789,6 +1724,11 @@ class DocumentProvider extends ChangeNotifier {
   // Apply filters and sorting
   void _applyFiltersAndSort() {
     _filteredDocuments = _documents.where((document) {
+      // Exclude deleted files from normal display
+      if (document.isDeleted) {
+        return false;
+      }
+
       // Search filter
       bool matchesSearch =
           _searchQuery.isEmpty ||
@@ -2026,11 +1966,15 @@ class DocumentProvider extends ChangeNotifier {
     }
   }
 
-  // ENTERPRISE SCALE: Get recent files with unlimited support
+  // ENTERPRISE SCALE: Get recent files with unlimited support (excluding deleted files)
   List<DocumentModel> getRecentFiles({int days = 7, int? limit}) {
     final cutoffDate = DateTime.now().subtract(Duration(days: days));
     final recentFiles =
-        _documents.where((doc) => doc.uploadedAt.isAfter(cutoffDate)).toList()
+        _documents
+            .where(
+              (doc) => doc.uploadedAt.isAfter(cutoffDate) && !doc.isDeleted,
+            ) // Exclude deleted files
+            .toList()
           ..sort((a, b) => b.uploadedAt.compareTo(a.uploadedAt));
 
     // ENHANCED DEBUG: Log recent files regardless of category
@@ -2061,6 +2005,166 @@ class DocumentProvider extends ChangeNotifier {
   // Get uncategorized files (files with empty category)
   List<DocumentModel> getUncategorizedFiles() {
     return getDocumentsByCategory(''); // Empty string for uncategorized files
+  }
+
+  // Get files in recycle bin
+  List<DocumentModel> getRecycleBinFiles() {
+    return _documents.where((doc) => doc.isDeleted).toList()..sort(
+      (a, b) => (b.deletedAt ?? DateTime.now()).compareTo(
+        a.deletedAt ?? DateTime.now(),
+      ),
+    );
+  }
+
+  // Get total count of files (including deleted ones)
+  int get totalFilesCount {
+    return _documents.length;
+  }
+
+  // Get count of active files (excluding deleted ones)
+  int get activeFilesCount {
+    return _documents.where((doc) => !doc.isDeleted).length;
+  }
+
+  // Get count of files in recycle bin
+  int get recycleBinCount {
+    return _documents.where((doc) => doc.isDeleted).length;
+  }
+
+  // Get count of recent files (last 7 days, excluding deleted)
+  int get recentFilesCount {
+    return getRecentFiles().length;
+  }
+
+  // Get statistics data for responsive stats grid
+  Map<String, dynamic> get statisticsData {
+    return {
+      'totalFiles': totalFilesCount,
+      'activeFiles': activeFilesCount,
+      'recentFiles': recentFilesCount,
+      'recycleBinCount': recycleBinCount,
+      'favoritesCount': 0, // TODO: Implement favorites functionality
+      'totalCategories': _categoryDocuments.keys.length,
+      'activeUsers': 1, // TODO: Get from UserProvider
+    };
+  }
+
+  // Move file to recycle bin (soft delete)
+  Future<void> moveToRecycleBin(String documentId) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      debugPrint('🗑️ Moving document to recycle bin: $documentId');
+
+      // Update in Firestore
+      await _firebaseService.firestore
+          .collection('documents')
+          .doc(documentId)
+          .update({
+            'isDeleted': true,
+            'deletedAt': FieldValue.serverTimestamp(),
+            'deletedBy': currentUser.uid,
+          });
+
+      // Update local state
+      final docIndex = _documents.indexWhere((doc) => doc.id == documentId);
+      if (docIndex != -1) {
+        _documents[docIndex] = _documents[docIndex].copyWith(
+          isDeleted: true,
+          deletedAt: DateTime.now(),
+          deletedBy: currentUser.uid,
+        );
+        _applyFiltersAndSort();
+        notifyListeners();
+      }
+
+      debugPrint('✅ Document moved to recycle bin successfully');
+    } catch (e) {
+      debugPrint('❌ Failed to move document to recycle bin: $e');
+      rethrow;
+    }
+  }
+
+  // Restore file from recycle bin
+  Future<void> restoreFromRecycleBin(String documentId) async {
+    try {
+      debugPrint('♻️ Restoring document from recycle bin: $documentId');
+
+      // Update in Firestore
+      await _firebaseService.firestore
+          .collection('documents')
+          .doc(documentId)
+          .update({
+            'isDeleted': false,
+            'deletedAt': FieldValue.delete(),
+            'deletedBy': FieldValue.delete(),
+          });
+
+      // Update local state
+      final docIndex = _documents.indexWhere((doc) => doc.id == documentId);
+      if (docIndex != -1) {
+        _documents[docIndex] = _documents[docIndex].copyWith(
+          isDeleted: false,
+          deletedAt: null,
+          deletedBy: null,
+        );
+        _applyFiltersAndSort();
+        notifyListeners();
+      }
+
+      debugPrint('✅ Document restored from recycle bin successfully');
+    } catch (e) {
+      debugPrint('❌ Failed to restore document from recycle bin: $e');
+      rethrow;
+    }
+  }
+
+  // Permanently delete file from recycle bin
+  Future<void> permanentlyDeleteDocument(String documentId) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      debugPrint('🗑️ Permanently deleting document: $documentId');
+
+      final document = _documents.firstWhere((doc) => doc.id == documentId);
+
+      // Delete from Firebase Storage if file path exists
+      if (document.filePath.isNotEmpty) {
+        try {
+          final storageRef = _firebaseService.storage.ref().child(
+            document.filePath,
+          );
+          await storageRef.delete();
+          debugPrint('✅ File deleted from Firebase Storage');
+        } catch (storageError) {
+          debugPrint(
+            '⚠️ Failed to delete from storage (file may not exist): $storageError',
+          );
+        }
+      }
+
+      // Delete from Firestore
+      await _firebaseService.firestore
+          .collection('documents')
+          .doc(documentId)
+          .delete();
+
+      // Remove from local state
+      _documents.removeWhere((doc) => doc.id == documentId);
+      _applyFiltersAndSort();
+      notifyListeners();
+
+      debugPrint('✅ Document permanently deleted successfully');
+    } catch (e) {
+      debugPrint('❌ Failed to permanently delete document: $e');
+      rethrow;
+    }
   }
 
   /// Verify that the user has admin privileges
