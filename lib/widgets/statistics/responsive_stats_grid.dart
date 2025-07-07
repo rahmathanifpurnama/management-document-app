@@ -36,14 +36,76 @@ class ResponsiveStatsGrid extends StatelessWidget {
         // Calculate responsive layout parameters
         final layoutConfig = _getLayoutConfig(screenWidth);
 
-        return Wrap(
+        return _buildCustomLayout(statWidgets, layoutConfig);
+      },
+    );
+  }
+
+  /// Build custom layout: 4 widgets in first row, 2 widgets in second row with 2 empty spaces
+  Widget _buildCustomLayout(
+    List<Widget> statWidgets,
+    _LayoutConfig layoutConfig,
+  ) {
+    final itemsPerRow = layoutConfig.itemsPerRow;
+
+    if (statWidgets.length <= 4 || itemsPerRow < 4) {
+      // For small screens or few widgets, use normal wrap layout
+      return Wrap(
+        spacing: layoutConfig.spacing,
+        runSpacing: layoutConfig.spacing,
+        children: statWidgets.map((widget) {
+          return SizedBox(width: layoutConfig.itemWidth, child: widget);
+        }).toList(),
+      );
+    }
+
+    // For larger screens: 4 in first row, remaining widgets in second row (centered)
+    final firstRowWidgets = statWidgets.take(4).toList();
+    final secondRowWidgets = statWidgets.skip(4).toList();
+
+    return Column(
+      children: [
+        // First row: 4 widgets
+        Wrap(
           spacing: layoutConfig.spacing,
           runSpacing: layoutConfig.spacing,
-          children: statWidgets.map((widget) {
+          children: firstRowWidgets.map((widget) {
             return SizedBox(width: layoutConfig.itemWidth, child: widget);
           }).toList(),
-        );
-      },
+        ),
+
+        SizedBox(height: layoutConfig.spacing), // Space between rows
+        // Second row: remaining widgets centered with empty spaces
+        if (secondRowWidgets.isNotEmpty)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Empty space (1/4 of row)
+              SizedBox(width: layoutConfig.itemWidth),
+              if (secondRowWidgets.isNotEmpty)
+                SizedBox(width: layoutConfig.spacing),
+
+              // Render available widgets in second row
+              ...secondRowWidgets.asMap().entries.map((entry) {
+                final widget = entry.value;
+                final isLast = entry.key == secondRowWidgets.length - 1;
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(width: layoutConfig.itemWidth, child: widget),
+                    if (!isLast) SizedBox(width: layoutConfig.spacing),
+                  ],
+                );
+              }),
+
+              // Add spacing and empty space after widgets
+              if (secondRowWidgets.isNotEmpty)
+                SizedBox(width: layoutConfig.spacing),
+              // Empty space (1/4 of row)
+              SizedBox(width: layoutConfig.itemWidth),
+            ],
+          ),
+      ],
     );
   }
 
@@ -69,8 +131,8 @@ class ResponsiveStatsGrid extends StatelessWidget {
       itemsPerRow = 4;
       spacing = 16.0; // Increased spacing
     } else {
-      // Extra wide screens: 5 widgets per row
-      itemsPerRow = 5;
+      // Extra wide screens: 4 widgets per row (changed from 5 to accommodate 8 widgets in 2 rows)
+      itemsPerRow = 4;
       spacing = 20.0; // Increased spacing
     }
 
@@ -144,6 +206,24 @@ class ResponsiveStatsGrid extends StatelessWidget {
         onTap: () => onStatTap?.call('favorites'),
         isClickable: true,
         showValue: false, // Remove numeric value for Favorites
+      ),
+      _buildStatWidget(
+        title: 'Storage',
+        value: (statsData['storageUsed'] ?? 0).toString(),
+        icon: Icons.storage,
+        color: Colors.purple,
+        onTap: () => onStatTap?.call('storage'),
+        isClickable: true,
+        showValue: true,
+      ),
+      _buildStatWidget(
+        title: 'Activity',
+        value: (statsData['todayActivity'] ?? 0).toString(),
+        icon: Icons.trending_up,
+        color: Colors.orange,
+        onTap: () => onStatTap?.call('activity'),
+        isClickable: true,
+        showValue: true,
       ),
     ];
   }
