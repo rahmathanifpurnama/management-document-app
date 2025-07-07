@@ -220,29 +220,30 @@ class StatWidget extends StatelessWidget {
           ? 6.0 // Slightly more padding on mobile for better touch targets
           : (isMediumScreen ? 8.0 : (isLargeScreen ? 10.0 : 12.0)),
     );
-    final borderRadius = isSmallScreen ? 6.0 : 8.0;
-    final spacing = isSmallScreen
-        ? 2.0
-        : (isMediumScreen ? 3.0 : 4.0); // Reduced spacing
+    final borderRadius = isSmallScreen
+        ? 8.0
+        : 12.0; // Unified style - larger radius
+    final spacing = isSmallScreen ? 4.0 : 8.0; // Unified style - more spacing
     final valueFontSize = isSmallScreen
-        ? 13.0 // Slightly smaller but still readable
-        : (isMediumScreen ? 15.0 : (isLargeScreen ? 17.0 : 19.0));
-    final titleFontSize = isSmallScreen
-        ? 8.5 // Compact title size
-        : (isMediumScreen ? 9.5 : (isLargeScreen ? 10.5 : 11.5));
-    final iconSize = isSmallScreen
-        ? 14.0 // Smaller icons for compact design
+        ? 14.0 // Unified style - slightly larger
         : (isMediumScreen ? 16.0 : (isLargeScreen ? 18.0 : 20.0));
+    final titleFontSize = isSmallScreen
+        ? 9.0 // Unified style - more readable
+        : (isMediumScreen ? 10.0 : (isLargeScreen ? 11.0 : 12.0));
+    final iconSize = isSmallScreen
+        ? 16.0 // Unified style - larger icons
+        : (isMediumScreen ? 18.0 : (isLargeScreen ? 20.0 : 22.0));
 
-    // Calculate consistent minimum height for all widgets
+    // Calculate consistent minimum height for all widgets (Unified style)
+    final iconContainerHeight = iconSize + (spacing * 2); // Icon + padding
     final baseContentHeight =
-        iconSize +
+        iconContainerHeight +
         spacing +
         (valueFontSize * 1.1) +
-        (spacing * 0.7) +
+        (spacing / 2) +
         (titleFontSize *
             1.2 *
-            2); // Icon + spacing + value area + title (2 lines max)
+            2); // Icon container + spacing + value area + title (2 lines max)
     final minHeight = baseContentHeight + (padding.vertical);
 
     Widget content = Container(
@@ -253,12 +254,17 @@ class StatWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
+        border: Border.all(
+          color: color.withValues(alpha: 0.1),
+          width: 1,
+        ), // Unified style - lighter border
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04), // Subtle shadow
-            blurRadius: 3, // Reduced blur for compact design
-            offset: const Offset(0, 1), // Smaller offset
+            color: Colors.black.withValues(
+              alpha: 0.05,
+            ), // Unified style - slightly more shadow
+            blurRadius: 4, // Unified style - more blur
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -266,16 +272,26 @@ class StatWidget extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min, // Minimize vertical space
         children: [
-          // Icon with optimized sizing
-          if (iconAsset != null)
-            SvgPicture.asset(
-              iconAsset!,
-              width: iconSize,
-              height: iconSize,
-              colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-            )
-          else if (icon != null)
-            Icon(icon, size: iconSize, color: color),
+          // Icon with Unified style - background container
+          Container(
+            padding: EdgeInsets.all(spacing),
+            decoration: BoxDecoration(
+              color: color.withValues(
+                alpha: 0.1,
+              ), // Unified style - background for icon
+              borderRadius: BorderRadius.circular(borderRadius / 1.5),
+            ),
+            child: iconAsset != null
+                ? SvgPicture.asset(
+                    iconAsset!,
+                    width: iconSize,
+                    height: iconSize,
+                    colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+                  )
+                : icon != null
+                ? Icon(icon, size: iconSize, color: color)
+                : const SizedBox.shrink(),
+          ),
 
           SizedBox(height: spacing),
 
@@ -301,15 +317,17 @@ class StatWidget extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-            SizedBox(height: spacing * 0.7), // Spacing between value and title
+            SizedBox(
+              height: spacing / 2,
+            ), // Unified style - half spacing before title
           ] else ...[
             // When value is hidden, maintain same visual space as value + spacing
             // This ensures consistent container heights across all widgets
             SizedBox(
-              height: (valueFontSize * 1.1) + (spacing * 0.7),
+              height: (valueFontSize * 1.1) + (spacing / 2),
             ), // Same total height as value text + spacing
           ],
-          // Title with optimized spacing
+          // Title with Unified style spacing
           Text(
             title,
             style: GoogleFonts.poppins(
