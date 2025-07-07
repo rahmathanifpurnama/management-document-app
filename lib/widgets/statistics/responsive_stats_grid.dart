@@ -3,14 +3,17 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 
-/// Responsive stats grid widget with optimized compact design
+/// Responsive stats grid widget with CSS Grid-like behavior
 ///
 /// Features:
-/// - Very small screens: 1 widget per row
-/// - Small screens (< 400px): 2 widgets per row
-/// - Medium screens (400-600px): 3 widgets per row
-/// - Current screen width (600-900px): 4 widgets per row
-/// - Extra wide screens (> 900px): 5 widgets per row
+/// - CSS Grid-like natural flow: widgets flow left to right, then wrap to next row
+/// - Dynamic responsive breakpoints:
+///   - Small screens (< 400px): 2 widgets per row
+///   - Small-medium screens (400-600px): 3 widgets per row
+///   - Medium screens (600-900px): 4 widgets per row
+///   - Large screens (> 900px): 5 widgets per row
+/// - Left-aligned layout: all widgets align to the left naturally
+/// - Natural wrapping: widgets reflow automatically when screen size changes
 /// - Compact sizing with maintained readability
 /// - SVG icon support for recycle bin and favorites
 /// - Recycle Bin and Favorites widgets display only titles and icons (no values)
@@ -36,66 +39,23 @@ class ResponsiveStatsGrid extends StatelessWidget {
         // Calculate responsive layout parameters
         final layoutConfig = _getLayoutConfig(screenWidth);
 
-        return _buildCustomLayout(statWidgets, layoutConfig);
+        return _buildCSSGridLayout(statWidgets, layoutConfig);
       },
     );
   }
 
-  /// Build custom layout: 4 widgets in first row, 2 widgets in second row with 2 empty spaces
-  Widget _buildCustomLayout(
+  /// Build CSS Grid-like layout with natural flow and left alignment
+  Widget _buildCSSGridLayout(
     List<Widget> statWidgets,
     _LayoutConfig layoutConfig,
   ) {
-    // Always use custom layout for 6 widgets (4+2 layout)
-    if (statWidgets.length == 6) {
-      final firstRowWidgets = statWidgets.take(4).toList();
-      final secondRowWidgets = statWidgets.skip(4).take(2).toList();
-
-      // Calculate width for 4 widgets per row
-      final screenWidth =
-          layoutConfig.itemWidth * layoutConfig.itemsPerRow +
-          layoutConfig.spacing * (layoutConfig.itemsPerRow - 1);
-      final fourWidgetWidth = (screenWidth - (layoutConfig.spacing * 3)) / 4;
-
-      return Column(
-        children: [
-          // First row: 4 widgets
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: firstRowWidgets.map((widget) {
-              return SizedBox(width: fourWidgetWidth, child: widget);
-            }).toList(),
-          ),
-
-          SizedBox(height: layoutConfig.spacing), // Space between rows
-          // Second row: 2 widgets centered with 2 empty spaces
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Empty space (1/4 of row)
-              SizedBox(width: fourWidgetWidth),
-              SizedBox(width: layoutConfig.spacing),
-
-              // First widget
-              SizedBox(width: fourWidgetWidth, child: secondRowWidgets[0]),
-              SizedBox(width: layoutConfig.spacing),
-
-              // Second widget
-              SizedBox(width: fourWidgetWidth, child: secondRowWidgets[1]),
-              SizedBox(width: layoutConfig.spacing),
-
-              // Empty space (1/4 of row)
-              SizedBox(width: fourWidgetWidth),
-            ],
-          ),
-        ],
-      );
-    }
-
-    // For other cases, use normal wrap layout
+    // Use Wrap widget for natural CSS Grid-like behavior
+    // Widgets flow left to right, then wrap to next row naturally
     return Wrap(
       spacing: layoutConfig.spacing,
       runSpacing: layoutConfig.spacing,
+      alignment: WrapAlignment.start, // Left-align all widgets
+      runAlignment: WrapAlignment.start, // Left-align rows
       children: statWidgets.map((widget) {
         return SizedBox(width: layoutConfig.itemWidth, child: widget);
       }).toList(),
@@ -107,26 +67,22 @@ class ResponsiveStatsGrid extends StatelessWidget {
     int itemsPerRow;
     double spacing;
 
-    if (screenWidth < 300) {
-      // Very small screens: 1 widget per row
-      itemsPerRow = 1;
-      spacing = 8.0; // Increased spacing
-    } else if (screenWidth < 400) {
+    if (screenWidth < 400) {
       // Small screens: 2 widgets per row
       itemsPerRow = 2;
-      spacing = 10.0; // Increased spacing
+      spacing = 8.0;
     } else if (screenWidth < 600) {
-      // Medium screens: 3 widgets per row
+      // Small-medium screens: 3 widgets per row
       itemsPerRow = 3;
-      spacing = 12.0; // Increased spacing
+      spacing = 10.0;
     } else if (screenWidth < 900) {
-      // Current screen width: 4 widgets per row (maintain current behavior)
+      // Medium screens: 4 widgets per row
       itemsPerRow = 4;
-      spacing = 16.0; // Increased spacing
+      spacing = 12.0;
     } else {
-      // Extra wide screens: 4 widgets per row (changed from 5 to accommodate 8 widgets in 2 rows)
-      itemsPerRow = 4;
-      spacing = 20.0; // Increased spacing
+      // Large screens: 5 widgets per row
+      itemsPerRow = 5;
+      spacing = 16.0;
     }
 
     // Calculate item width accounting for spacing - make containers narrower
