@@ -32,7 +32,8 @@ class StatsGrid extends StatelessWidget {
 
   /// Build simple grid with fixed 4 widgets per row
   Widget _buildSimpleGrid(List<Widget> statWidgets) {
-    const spacing = 12.0;
+    const spacing = 6.0;
+    const heightSpacing = 12.0;
 
     // First row: 4 widgets
     final firstRow = Row(
@@ -50,11 +51,11 @@ class StatsGrid extends StatelessWidget {
     // Second row: 2 widgets centered
     final secondRow = Row(
       children: [
-        Expanded(child: Container()), // Empty space
-        const SizedBox(width: spacing),
         Expanded(child: statWidgets[4]),
         const SizedBox(width: spacing),
         Expanded(child: statWidgets[5]),
+        const SizedBox(width: spacing),
+        Expanded(child: Container()), // Empty space
         const SizedBox(width: spacing),
         Expanded(child: Container()), // Empty space
       ],
@@ -63,7 +64,7 @@ class StatsGrid extends StatelessWidget {
     return Column(
       children: [
         firstRow,
-        const SizedBox(height: spacing),
+        const SizedBox(height: heightSpacing),
         secondRow,
       ],
     );
