@@ -35,6 +35,7 @@ class CloudFunctionsConfig {
   static const String sendNotificationFunction = 'sendNotification';
   static const String healthCheckFunction = 'healthCheck';
   static const String getStorageQuotaFunction = 'getStorageQuota';
+  // DISABLED: invalidateStatisticsCacheFunction - replaced with client-side cache invalidation for better performance
   static const String getFileAccessUrlFunction = 'getFileAccessUrl';
   static const String cleanupOrphanedFilesFunction = 'cleanupOrphanedFiles';
   static const String batchProcessFilesFunction = 'batchProcessFiles';

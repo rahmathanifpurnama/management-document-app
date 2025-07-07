@@ -132,22 +132,22 @@ class _HomeScreenState extends State<HomeScreen>
     debugPrint('📱 User navigated away from home screen');
   }
 
-  /// Refresh statistics when user returns to home screen
+  /// Refresh statistics when user returns to home screen (CLIENT-SIDE ONLY)
   void _refreshStatisticsOnReturn() {
     if (!mounted) return;
 
     try {
-      // Refresh statistics service
+      // OPTIMIZED: Client-side cache invalidation only
       final statisticsService = OptimizedStatisticsService.instance;
       statisticsService.invalidateCache(reason: 'Returned to home screen');
 
-      // Trigger statistics update notification
+      // Trigger statistics update notification (client-side)
       final notificationService = StatisticsNotificationService.instance;
       notificationService.requestStatisticsRefresh(
         reason: 'User returned to home screen',
       );
 
-      debugPrint('✅ Statistics refreshed on home screen return');
+      debugPrint('✅ Statistics refreshed on home screen return (client-side)');
     } catch (e) {
       debugPrint('❌ Error refreshing statistics on return: $e');
     }
@@ -201,11 +201,11 @@ class _HomeScreenState extends State<HomeScreen>
         categoryProvider.refreshCategories(),
       ]);
 
-      // Refresh statistics as part of the main RefreshIndicator
+      // OPTIMIZED: Client-side statistics refresh only
       final statisticsService = OptimizedStatisticsService.instance;
       await statisticsService.invalidateCache(reason: 'Pull to refresh');
 
-      // Force refresh real-time statistics widget if it exists
+      // Force refresh real-time statistics widget if it exists (client-side)
       if (mounted) {
         // Trigger statistics update through notification service
         final notificationService = StatisticsNotificationService.instance;

@@ -385,17 +385,17 @@ class RealTimeSyncService {
     _syncEventsController.add(event);
   }
 
-  /// Invalidate statistics cache to trigger recalculation
+  /// Invalidate statistics cache to trigger recalculation (CLIENT-SIDE ONLY)
+  /// OPTIMIZED: Removed direct Firestore cache deletion to reduce redundant operations
   Future<void> _invalidateStatisticsCache() async {
     try {
-      await _firebaseService.firestore
-          .collection('statistics-cache')
-          .doc('global-stats')
-          .delete();
+      // DISABLED: Direct Firestore cache deletion
+      // Reason: Server cache has TTL (5 minutes) and client-side invalidation is sufficient
+      // This reduces unnecessary Firestore write operations
 
-      debugPrint('🔄 Statistics cache invalidated');
+      debugPrint('🔄 Statistics cache invalidation skipped (client-side only)');
     } catch (e) {
-      debugPrint('❌ Error invalidating statistics cache: $e');
+      debugPrint('❌ Error in cache invalidation: $e');
     }
   }
 

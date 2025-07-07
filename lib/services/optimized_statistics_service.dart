@@ -5,7 +5,7 @@ import '../core/services/firebase_service.dart';
 import '../models/document_model.dart';
 import 'timestamp_debug_service.dart';
 import 'real_time_sync_service.dart';
-import 'cloud_functions_service.dart';
+// REMOVED: cloud_functions_service.dart - no longer used for auto-sync
 
 /// Optimized statistics service for handling large datasets (1M+ files)
 /// Uses Cloud Functions, intelligent caching, and streaming for performance
@@ -24,6 +24,10 @@ class OptimizedStatisticsService {
   Map<String, dynamic>? _cachedStats;
   DateTime? _lastCacheTime;
   static const Duration _cacheValidDuration = Duration(minutes: 5);
+
+  // Circuit breaker to prevent multiple simultaneous calls
+  bool _isRequestInProgress = false;
+  Completer<Map<String, dynamic>>? _pendingRequest;
 
   // Stream controllers for real-time updates
   final StreamController<Map<String, dynamic>> _statsStreamController =
@@ -45,12 +49,24 @@ class OptimizedStatisticsService {
     bool forceRefresh = false,
   }) async {
     try {
+      // Circuit breaker: If request is already in progress, wait for it
+      if (_isRequestInProgress && _pendingRequest != null) {
+        debugPrint(
+          '📊 OptimizedStatisticsService: Request in progress, waiting...',
+        );
+        return await _pendingRequest!.future;
+      }
+
       // FIXED: Always use real-time queries for delete operations and critical updates
       // Only use cache for non-critical requests with very short cache duration
       if (!forceRefresh && _isCacheValid() && _isNonCriticalRequest()) {
         debugPrint('📊 OptimizedStatisticsService: Using cached statistics');
         return _cachedStats!;
       }
+
+      // Set circuit breaker
+      _isRequestInProgress = true;
+      _pendingRequest = Completer<Map<String, dynamic>>();
 
       debugPrint(
         '📊 OptimizedStatisticsService: Fetching fresh real-time statistics...',
@@ -74,6 +90,11 @@ class OptimizedStatisticsService {
         // Emit to stream
         _statsStreamController.add(stats);
 
+        // Complete pending request
+        if (_pendingRequest != null && !_pendingRequest!.isCompleted) {
+          _pendingRequest!.complete(stats);
+        }
+
         debugPrint(
           '✅ OptimizedStatisticsService: Statistics fetched from Cloud Function',
         );
@@ -92,6 +113,11 @@ class OptimizedStatisticsService {
 
         // Emit to stream
         _statsStreamController.add(stats);
+
+        // Complete pending request
+        if (_pendingRequest != null && !_pendingRequest!.isCompleted) {
+          _pendingRequest!.complete(stats);
+        }
 
         debugPrint(
           '✅ OptimizedStatisticsService: Statistics calculated directly',
@@ -112,11 +138,28 @@ class OptimizedStatisticsService {
       // Last resort: try direct calculation
       try {
         final stats = await _calculateStatisticsDirectly();
+
+        // Complete pending request with fallback data
+        if (_pendingRequest != null && !_pendingRequest!.isCompleted) {
+          _pendingRequest!.complete(stats);
+        }
+
         return stats;
       } catch (directError) {
         debugPrint('❌ Direct calculation also failed: $directError');
-        return _getEmptyStats();
+        final emptyStats = _getEmptyStats();
+
+        // Complete pending request with empty stats
+        if (_pendingRequest != null && !_pendingRequest!.isCompleted) {
+          _pendingRequest!.complete(emptyStats);
+        }
+
+        return emptyStats;
       }
+    } finally {
+      // Always reset circuit breaker
+      _isRequestInProgress = false;
+      _pendingRequest = null;
     }
   }
 
@@ -156,24 +199,23 @@ class OptimizedStatisticsService {
     }
   }
 
-  /// Invalidate statistics cache
+  /// Invalidate statistics cache (CLIENT-SIDE ONLY)
+  /// OPTIMIZED: Removed cloud function call to reduce redundant network requests
   Future<void> invalidateCache({String? reason}) async {
     try {
       debugPrint(
-        '🗑️ OptimizedStatisticsService: Invalidating cache - $reason',
+        '🗑️ OptimizedStatisticsService: Invalidating local cache - $reason',
       );
 
-      // Clear local cache
+      // Clear local cache only - more efficient than cloud function call
       _cachedStats = null;
       _lastCacheTime = null;
 
-      // Invalidate server cache
-      final callable = _firebaseService.functions.httpsCallable(
-        'invalidateStatisticsCache',
-      );
-      await callable.call();
+      // DISABLED: Server cache invalidation via cloud function
+      // Reason: Client-side cache invalidation is sufficient and more efficient
+      // The server cache has its own TTL (5 minutes) which handles expiration
 
-      debugPrint('✅ OptimizedStatisticsService: Cache invalidated');
+      debugPrint('✅ OptimizedStatisticsService: Local cache invalidated');
     } catch (e) {
       debugPrint('❌ OptimizedStatisticsService: Error invalidating cache - $e');
     }
@@ -402,14 +444,14 @@ class OptimizedStatisticsService {
   }
 
   /// Auto-sync Firebase Auth users to Firestore (silent operation)
+  /// REMOVED: This should be handled by background service, not statistics service
+  /// to avoid redundant calls and improve home screen performance
   Future<void> _autoSyncFirebaseAuthUsers() async {
-    try {
-      final cloudFunctions = CloudFunctionsService.instance;
-      await cloudFunctions.autoSyncFirebaseAuthUsers();
-    } catch (e) {
-      // Silent fail - don't disrupt statistics if sync fails
-      debugPrint('⚠️ Auto-sync Firebase Auth users failed: $e');
-    }
+    // DISABLED: Auto-sync moved to background service to prevent redundancy
+    debugPrint(
+      'ℹ️ Auto-sync disabled in statistics service - handled by background service',
+    );
+    return;
   }
 
   /// Get empty statistics structure

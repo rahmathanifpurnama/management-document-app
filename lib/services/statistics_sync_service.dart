@@ -195,16 +195,16 @@ class StatisticsSyncService {
     debugPrint('✅ StatisticsSyncService: Firestore listeners stopped');
   }
 
-  /// Trigger statistics update
+  /// Trigger statistics update (CLIENT-SIDE ONLY)
   void _triggerStatisticsUpdate(String reason) {
     debugPrint(
-      '📊 StatisticsSyncService: Triggering statistics update - $reason',
+      '📊 StatisticsSyncService: Triggering client-side statistics update - $reason',
     );
 
-    // Invalidate cache to force fresh calculation
+    // OPTIMIZED: Client-side cache invalidation only
     _statsService.invalidateCache(reason: reason);
 
-    // Notify statistics update
+    // Notify statistics update (client-side)
     _notificationService.requestStatisticsRefresh(reason: reason);
   }
 

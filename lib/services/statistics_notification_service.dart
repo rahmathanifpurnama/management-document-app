@@ -244,18 +244,20 @@ class StatisticsNotificationService {
     _batchTimer = null;
   }
 
-  /// ENHANCED: Invalidate cached statistics across all services
+  /// ENHANCED: Invalidate cached statistics across all services (CLIENT-SIDE ONLY)
   void _invalidateCache() {
     _cachedStorageStats = null;
     _lastStatsUpdate = null;
 
-    // Invalidate optimized services caches
+    // OPTIMIZED: Client-side cache invalidation only
     _optimizedStatsService.invalidateCache(
-      reason: 'Statistics cache invalidated',
+      reason: 'Statistics cache invalidated (client-side)',
     );
     _performanceStatsService.clearCache();
 
-    debugPrint('📊 StatisticsNotificationService: Cache invalidated');
+    debugPrint(
+      '📊 StatisticsNotificationService: Client-side cache invalidated',
+    );
   }
 
   /// ENHANCED: Get performance metrics
