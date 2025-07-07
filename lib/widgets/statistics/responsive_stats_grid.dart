@@ -59,9 +59,9 @@ class ResponsiveStatsGrid extends StatelessWidget {
       );
     }
 
-    // For larger screens: 4 in first row, remaining widgets in second row (centered)
+    // For larger screens with 6 widgets: 4 in first row, 2 in second row (centered)
     final firstRowWidgets = statWidgets.take(4).toList();
-    final secondRowWidgets = statWidgets.skip(4).toList();
+    final secondRowWidgets = statWidgets.skip(4).take(2).toList();
 
     return Column(
       children: [
@@ -75,32 +75,29 @@ class ResponsiveStatsGrid extends StatelessWidget {
         ),
 
         SizedBox(height: layoutConfig.spacing), // Space between rows
-        // Second row: remaining widgets centered with empty spaces
-        if (secondRowWidgets.isNotEmpty)
+        // Second row: 2 widgets centered with 2 empty spaces
+        if (secondRowWidgets.length == 2)
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // Empty space (1/4 of row)
               SizedBox(width: layoutConfig.itemWidth),
-              if (secondRowWidgets.isNotEmpty)
-                SizedBox(width: layoutConfig.spacing),
+              SizedBox(width: layoutConfig.spacing),
 
-              // Render available widgets in second row
-              ...secondRowWidgets.asMap().entries.map((entry) {
-                final widget = entry.value;
-                final isLast = entry.key == secondRowWidgets.length - 1;
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(width: layoutConfig.itemWidth, child: widget),
-                    if (!isLast) SizedBox(width: layoutConfig.spacing),
-                  ],
-                );
-              }),
+              // First widget
+              SizedBox(
+                width: layoutConfig.itemWidth,
+                child: secondRowWidgets[0],
+              ),
+              SizedBox(width: layoutConfig.spacing),
 
-              // Add spacing and empty space after widgets
-              if (secondRowWidgets.isNotEmpty)
-                SizedBox(width: layoutConfig.spacing),
+              // Second widget
+              SizedBox(
+                width: layoutConfig.itemWidth,
+                child: secondRowWidgets[1],
+              ),
+              SizedBox(width: layoutConfig.spacing),
+
               // Empty space (1/4 of row)
               SizedBox(width: layoutConfig.itemWidth),
             ],
@@ -206,24 +203,6 @@ class ResponsiveStatsGrid extends StatelessWidget {
         onTap: () => onStatTap?.call('favorites'),
         isClickable: true,
         showValue: false, // Remove numeric value for Favorites
-      ),
-      _buildStatWidget(
-        title: 'Storage',
-        value: (statsData['storageUsed'] ?? 0).toString(),
-        icon: Icons.storage,
-        color: Colors.purple,
-        onTap: () => onStatTap?.call('storage'),
-        isClickable: true,
-        showValue: true,
-      ),
-      _buildStatWidget(
-        title: 'Activity',
-        value: (statsData['todayActivity'] ?? 0).toString(),
-        icon: Icons.trending_up,
-        color: Colors.orange,
-        onTap: () => onStatTap?.call('activity'),
-        isClickable: true,
-        showValue: true,
       ),
     ];
   }
