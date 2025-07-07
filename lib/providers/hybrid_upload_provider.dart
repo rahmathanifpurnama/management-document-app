@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/upload_file_model.dart';
 import '../services/hybrid_upload_service.dart';
-import '../services/file_hash_service.dart';
+// Removed: file_hash_service - hash calculation moved to hybridProcessFileUpload
 import '../services/statistics_notification_service.dart';
 import '../core/config/cloud_functions_config.dart';
 import '../core/config/upload_config.dart';
@@ -28,7 +28,7 @@ class HybridUploadProvider with ChangeNotifier {
   HybridUploadProvider._internal();
 
   final HybridUploadService _uploadService = HybridUploadService();
-  final FileHashService _hashService = FileHashService();
+  // Removed: FileHashService - hash calculation moved to hybridProcessFileUpload
   final StatisticsNotificationService _statisticsService =
       StatisticsNotificationService.instance;
   final List<UploadFileModel> _uploadQueue = [];
@@ -159,30 +159,12 @@ class HybridUploadProvider with ChangeNotifier {
           continue;
         }
 
-        // Advanced duplicate check via Cloud Functions (if available)
-        if (_useCloudFunctions && CloudFunctionsConfig.isAvailable) {
-          try {
-            final fileHash = await _hashService.calculateXFileHash(file);
-            final duplicateResult =
-                await CloudFunctionsConfig.checkDuplicateFile(
-                  fileName: file.name,
-                  fileSize: await file.length(),
-                  contentType: _getContentType(file.name),
-                  fileHash: fileHash,
-                );
-
-            if (duplicateResult['isDuplicate'] == true) {
-              duplicates.add({
-                'fileName': file.name,
-                'reason': 'File already exists in system',
-                'existingDocument': duplicateResult['existingDocument'],
-              });
-            }
-          } catch (e) {
-            debugPrint('⚠️ HYBRID: Cloud Functions duplicate check failed: $e');
-            // Continue without duplicate check if CF unavailable
-          }
-        }
+        // REMOVED: Advanced duplicate check via Cloud Functions
+        // Duplicate checking is now integrated into hybridProcessFileUpload
+        // This eliminates redundant function calls and improves performance
+        debugPrint(
+          'ℹ️ HYBRID: Duplicate checking moved to hybridProcessFileUpload for better integration',
+        );
       }
     } catch (e) {
       debugPrint('❌ HYBRID: Duplicate check failed: $e');

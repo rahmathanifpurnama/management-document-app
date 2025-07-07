@@ -12,10 +12,10 @@ class CloudFunctionsConfig {
   static const String processFileUploadFunction = 'processFileUpload';
   static const String hybridProcessFileUploadFunction =
       'hybridProcessFileUpload';
-  static const String validateFileFunction = 'validateFile';
-  static const String checkDuplicateFileFunction = 'checkDuplicateFile';
-  static const String generateThumbnailFunction = 'generateThumbnail';
-  static const String extractMetadataFunction = 'extractMetadata';
+  // REMOVED: validateFileFunction - integrated into hybridProcessFileUpload
+  // REMOVED: checkDuplicateFileFunction - integrated into hybridProcessFileUpload
+  // REMOVED: generateThumbnailFunction - too complex to implement and maintain
+  // REMOVED: extractMetadataFunction - integrated into hybridProcessFileUpload
   static const String createCategoryFunction = 'createCategory';
   static const String updateCategoryFunction = 'updateCategory';
   static const String deleteCategoryFunction = 'deleteCategory';
@@ -189,43 +189,44 @@ class CloudFunctionsConfig {
   }
 
   /// Validate file using Cloud Functions
+  /// DEPRECATED: This functionality is now integrated into hybridProcessFileUpload
+  @Deprecated('Use hybridProcessFileUpload instead - validation is integrated')
   static Future<Map<String, dynamic>> validateFile({
     required String fileName,
     required int fileSize,
     required String contentType,
   }) async {
-    if (!_isAvailable) {
-      throw Exception('Cloud Functions not available');
-    }
-
-    return await callFunctionWithRetry<Map<String, dynamic>>(
-      validateFileFunction,
-      {'fileName': fileName, 'fileSize': fileSize, 'contentType': contentType},
-      timeout: validationTimeout,
+    debugPrint(
+      '⚠️ DEPRECATED: CloudFunctionsConfig.validateFile() is deprecated',
     );
+
+    return {
+      'isValid': true,
+      'message': 'Validation moved to hybridProcessFileUpload',
+      'deprecated': true,
+    };
   }
 
   /// Check for duplicate files before upload
+  /// DEPRECATED: This functionality is now integrated into hybridProcessFileUpload
+  @Deprecated(
+    'Use hybridProcessFileUpload instead - duplicate checking is integrated',
+  )
   static Future<Map<String, dynamic>> checkDuplicateFile({
     required String fileName,
     required int fileSize,
     required String contentType,
     String? fileHash,
   }) async {
-    if (!_isAvailable) {
-      throw Exception('Cloud Functions not available');
-    }
-
-    return await callFunctionWithRetry<Map<String, dynamic>>(
-      checkDuplicateFileFunction,
-      {
-        'fileName': fileName,
-        'fileSize': fileSize,
-        'contentType': contentType,
-        'fileHash': fileHash,
-      },
-      timeout: const Duration(seconds: 30),
+    debugPrint(
+      '⚠️ DEPRECATED: CloudFunctionsConfig.checkDuplicateFile() is deprecated',
     );
+
+    return {
+      'isDuplicate': false,
+      'message': 'Duplicate checking moved to hybridProcessFileUpload',
+      'deprecated': true,
+    };
   }
 
   /// Process file upload using HYBRID Cloud Functions (Optimized)

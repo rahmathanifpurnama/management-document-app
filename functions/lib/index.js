@@ -36,8 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.api = exports.healthCheck = exports.validateUserSession = exports.handleLogoutOperations = exports.handlePostLoginOperations = exports.onAuthUserDeleted = exports.onAuthUserCreated = exports.onStorageFileDeleted = exports.onStorageFileCreated = exports.processActivityLog = exports.sendNotification = exports.invalidateStatisticsCache = exports.getPaginatedFileStats = exports.getAggregatedStatistics = exports.repairSyncInconsistencies = exports.monitorSyncConsistency = exports.performComprehensiveSync = exports.cleanupOrphanedMetadata = exports.syncStorageToFirestore = exports.syncStorageWithFirestore = exports.generateDocumentReport = exports.bulkDocumentOperations = exports.deleteDocument = exports.rejectDocument = exports.approveDocument = exports.initializeAdmin = exports.debugAuthPermissions = exports.autoSyncFirebaseAuthUsers = exports.setAdminClaims = exports.bulkUserOperations = exports.deleteUser = exports.updateUserPermissions = exports.createUser = exports.refreshCategoryContents = exports.getCategoryDocumentsEnhanced = exports.removeFilesFromCategory = exports.addFilesToCategory = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.hybridProcessFileUpload = exports.batchProcessFiles = exports.cleanupOrphanedFiles = exports.getFileAccessUrl = exports.getStorageQuota = exports.extractMetadata = exports.checkDuplicateFile = exports.validateFile = exports.generateThumbnail = exports.streamingUpload = void 0;
-exports.manualCleanupActivityLogs = exports.onFileUpload = exports.onUserCreate = exports.onDocumentCreate = void 0;
+exports.manualCleanupActivityLogs = exports.onFileUpload = exports.onUserCreate = exports.onDocumentCreate = exports.api = exports.healthCheck = exports.validateUserSession = exports.handleLogoutOperations = exports.handlePostLoginOperations = exports.onAuthUserDeleted = exports.onAuthUserCreated = exports.onStorageFileDeleted = exports.onStorageFileCreated = exports.processActivityLog = exports.sendNotification = exports.invalidateStatisticsCache = exports.getPaginatedFileStats = exports.getAggregatedStatistics = exports.repairSyncInconsistencies = exports.monitorSyncConsistency = exports.performComprehensiveSync = exports.cleanupOrphanedMetadata = exports.syncStorageToFirestore = exports.syncStorageWithFirestore = exports.generateDocumentReport = exports.bulkDocumentOperations = exports.deleteDocument = exports.rejectDocument = exports.approveDocument = exports.initializeAdmin = exports.debugAuthPermissions = exports.autoSyncFirebaseAuthUsers = exports.setAdminClaims = exports.bulkUserOperations = exports.deleteUser = exports.updateUserPermissions = exports.createUser = exports.refreshCategoryContents = exports.getCategoryDocumentsEnhanced = exports.removeFilesFromCategory = exports.addFilesToCategory = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.hybridProcessFileUpload = exports.batchProcessFiles = exports.cleanupOrphanedFiles = exports.getFileAccessUrl = exports.getStorageQuota = exports.streamingUpload = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const cors_1 = __importDefault(require("cors"));
@@ -76,10 +75,9 @@ Object.defineProperty(exports, "validateUserSession", { enumerable: true, get: f
 // File Upload Functions
 // Removed duplicate export - using hybrid version below
 exports.streamingUpload = fileUpload_1.fileUploadFunctions.streamingUpload;
-exports.generateThumbnail = fileUpload_1.fileUploadFunctions.generateThumbnail;
-exports.validateFile = fileUpload_1.fileUploadFunctions.validateFile;
-exports.checkDuplicateFile = fileUpload_1.fileUploadFunctions.checkDuplicateFile;
-exports.extractMetadata = fileUpload_1.fileUploadFunctions.extractMetadata;
+// REMOVED: generateThumbnail - too complex to implement and maintain
+// REMOVED: validateFile, checkDuplicateFile, extractMetadata - integrated into hybridProcessFileUpload
+// These functions are no longer exported and will be removed in next deployment
 exports.getStorageQuota = fileUpload_1.fileUploadFunctions.getStorageQuota;
 exports.getFileAccessUrl = fileUpload_1.fileUploadFunctions.getFileAccessUrl;
 exports.cleanupOrphanedFiles = fileUpload_1.fileUploadFunctions.cleanupOrphanedFiles;

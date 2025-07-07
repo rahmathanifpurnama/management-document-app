@@ -41,10 +41,9 @@ import {
 // File Upload Functions
 // Removed duplicate export - using hybrid version below
 export const streamingUpload = fileUploadFunctions.streamingUpload;
-export const generateThumbnail = fileUploadFunctions.generateThumbnail;
-export const validateFile = fileUploadFunctions.validateFile;
-export const checkDuplicateFile = fileUploadFunctions.checkDuplicateFile;
-export const extractMetadata = fileUploadFunctions.extractMetadata;
+// REMOVED: generateThumbnail - too complex to implement and maintain
+// REMOVED: validateFile, checkDuplicateFile, extractMetadata - integrated into hybridProcessFileUpload
+// These functions are no longer exported and will be removed in next deployment
 export const getStorageQuota = fileUploadFunctions.getStorageQuota;
 export const getFileAccessUrl = fileUploadFunctions.getFileAccessUrl;
 export const cleanupOrphanedFiles = fileUploadFunctions.cleanupOrphanedFiles;

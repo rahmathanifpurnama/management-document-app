@@ -49,85 +49,78 @@ class CloudFunctionsService {
   }
 
   /// Validate file before upload
+  /// DEPRECATED: This functionality is now integrated into hybridProcessFileUpload
+  @Deprecated('Use hybridProcessFileUpload instead - validation is integrated')
   Future<Map<String, dynamic>> validateFile({
     required String fileName,
     required int fileSize,
     required String contentType,
   }) async {
-    try {
-      final callable = _functions.httpsCallable('validateFile');
-      final result = await callable.call({
-        'fileName': fileName,
-        'fileSize': fileSize,
-        'contentType': contentType,
-      });
+    debugPrint(
+      '⚠️ DEPRECATED: validateFile() is deprecated. Use hybridProcessFileUpload instead.',
+    );
 
-      return Map<String, dynamic>.from(result.data);
-    } catch (e) {
-      debugPrint('❌ Error validating file: $e');
-      rethrow;
-    }
+    // Return basic validation for backward compatibility
+    return {
+      'isValid': true,
+      'message': 'Validation moved to hybridProcessFileUpload',
+      'deprecated': true,
+    };
   }
 
   /// Generate thumbnail for image files
+  /// DEPRECATED: Thumbnail generation removed due to implementation complexity
+  @Deprecated(
+    'Thumbnail generation removed - too complex to implement and maintain',
+  )
   Future<String?> generateThumbnail(String filePath) async {
-    try {
-      final callable = _functions.httpsCallable('generateThumbnail');
-      final result = await callable.call({'filePath': filePath});
-
-      if (result.data['success'] == true) {
-        return result.data['thumbnailUrl'];
-      }
-      return null;
-    } catch (e) {
-      debugPrint('❌ Error generating thumbnail: $e');
-      return null;
-    }
+    debugPrint('⚠️ DEPRECATED: generateThumbnail() is deprecated and removed.');
+    return null; // Always return null - no thumbnail generation
   }
 
   /// Extract metadata from uploaded file
+  /// DEPRECATED: This functionality is now integrated into hybridProcessFileUpload
+  @Deprecated(
+    'Use hybridProcessFileUpload instead - metadata extraction is integrated',
+  )
   Future<Map<String, dynamic>> extractMetadata({
     required String filePath,
     required String contentType,
   }) async {
-    try {
-      final callable = _functions.httpsCallable('extractMetadata');
-      final result = await callable.call({
-        'filePath': filePath,
-        'contentType': contentType,
-      });
+    debugPrint(
+      '⚠️ DEPRECATED: extractMetadata() is deprecated. Use hybridProcessFileUpload instead.',
+    );
 
-      return Map<String, dynamic>.from(result.data);
-    } catch (e) {
-      debugPrint('❌ Error extracting metadata: $e');
-      rethrow;
-    }
+    // Return basic metadata for backward compatibility
+    return {
+      'fileName': filePath.split('/').last,
+      'contentType': contentType,
+      'message': 'Metadata extraction moved to hybridProcessFileUpload',
+      'deprecated': true,
+    };
   }
 
   /// Check for duplicate files before upload
+  /// DEPRECATED: This functionality is now integrated into hybridProcessFileUpload
+  @Deprecated(
+    'Use hybridProcessFileUpload instead - duplicate checking is integrated',
+  )
   Future<Map<String, dynamic>> checkDuplicateFile({
     required String fileName,
     required int fileSize,
     required String contentType,
     String? fileHash,
   }) async {
-    try {
-      debugPrint('🔍 Checking for duplicate file: $fileName');
+    debugPrint(
+      '⚠️ DEPRECATED: checkDuplicateFile() is deprecated. Use hybridProcessFileUpload instead.',
+    );
 
-      final callable = _functions.httpsCallable('checkDuplicateFile');
-      final result = await callable.call({
-        'fileName': fileName,
-        'fileSize': fileSize,
-        'contentType': contentType,
-        'fileHash': fileHash,
-      });
-
-      debugPrint('✅ Duplicate check completed');
-      return Map<String, dynamic>.from(result.data);
-    } catch (e) {
-      debugPrint('❌ Error checking duplicate file: $e');
-      rethrow;
-    }
+    // Return no duplicates for backward compatibility
+    return {
+      'isDuplicate': false,
+      'message': 'Duplicate checking moved to hybridProcessFileUpload',
+      'deprecated': true,
+    };
   }
 
   /// Get storage quota information

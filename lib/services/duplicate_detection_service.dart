@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'file_hash_service.dart';
-import '../core/config/cloud_functions_config.dart';
+// Removed: cloud_functions_config - duplicate checking moved to hybridProcessFileUpload
 import '../core/config/upload_config.dart';
 
 /// Service for detecting duplicate files using hash comparison
@@ -64,36 +64,22 @@ class DuplicateDetectionService {
   }
 
   /// Check duplicate using Cloud Functions
+  /// DEPRECATED: Duplicate checking is now integrated into hybridProcessFileUpload
   Future<DuplicateCheckResult> _checkWithCloudFunctions(
     XFile file,
     String fileHash,
   ) async {
-    try {
-      final fileSize = await file.length();
-      final contentType = _getContentType(file.name);
+    debugPrint(
+      '⚠️ DEPRECATED: _checkWithCloudFunctions() - duplicate checking moved to hybridProcessFileUpload',
+    );
 
-      final result = await CloudFunctionsConfig.checkDuplicateFile(
-        fileName: file.name,
-        fileSize: fileSize,
-        contentType: contentType,
-        fileHash: fileHash,
-      );
-
-      final isDuplicate = result['isDuplicate'] == true;
-      final existingDocument = result['existingDocument'];
-      final reason = result['reason'] ?? result['message'] ?? 'Unknown';
-
-      return DuplicateCheckResult(
-        isDuplicate: isDuplicate,
-        confidence: isDuplicate ? 1.0 : 0.0,
-        reason: reason,
-        existingDocument: existingDocument,
-        detectionMethod: 'cloud_functions',
-      );
-    } catch (e) {
-      debugPrint('❌ Cloud Functions duplicate check failed: $e');
-      rethrow;
-    }
+    // Return no duplicates since checking is now integrated in hybridProcessFileUpload
+    return DuplicateCheckResult(
+      isDuplicate: false,
+      confidence: 0.0,
+      reason: 'Duplicate checking moved to hybridProcessFileUpload',
+      detectionMethod: 'deprecated',
+    );
   }
 
   /// Local duplicate check (basic implementation)

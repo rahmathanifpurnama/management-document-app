@@ -182,27 +182,24 @@ class CloudFunctionsService {
   }
 
   /// Validate file before upload using Cloud Functions
+  /// DEPRECATED: This functionality is now integrated into hybridProcessFileUpload
+  /// Use hybridProcessFileUpload instead for complete file processing
+  @Deprecated('Use hybridProcessFileUpload instead - validation is integrated')
   Future<Map<String, dynamic>> validateFile({
     required String fileName,
     required int fileSize,
     required String contentType,
   }) async {
-    try {
-      debugPrint('🔄 Validating file via Cloud Functions: $fileName');
+    debugPrint(
+      '⚠️ DEPRECATED: validateFile() is deprecated. Use hybridProcessFileUpload instead.',
+    );
 
-      final HttpsCallable callable = _functions.httpsCallable('validateFile');
-      final result = await callable.call({
-        'fileName': fileName,
-        'fileSize': fileSize,
-        'contentType': contentType,
-      });
-
-      debugPrint('✅ File validation completed: ${result.data}');
-      return Map<String, dynamic>.from(result.data);
-    } catch (e) {
-      debugPrint('❌ Failed to validate file: $e');
-      rethrow;
-    }
+    // Return basic validation for backward compatibility
+    return {
+      'isValid': true,
+      'message': 'Validation moved to hybridProcessFileUpload',
+      'deprecated': true,
+    };
   }
 
   /// Get storage quota information using Cloud Functions
@@ -224,53 +221,44 @@ class CloudFunctionsService {
   }
 
   /// Check for duplicate files using Cloud Functions
+  /// DEPRECATED: This functionality is now integrated into hybridProcessFileUpload
+  /// Use hybridProcessFileUpload instead for complete file processing including duplicate checking
+  @Deprecated(
+    'Use hybridProcessFileUpload instead - duplicate checking is integrated',
+  )
   Future<Map<String, dynamic>> checkDuplicateFile({
     required String fileName,
     required int fileSize,
     required String contentType,
     String? fileHash,
   }) async {
-    try {
-      debugPrint(
-        '🔄 Checking for duplicate file via Cloud Functions: $fileName',
-      );
+    debugPrint(
+      '⚠️ DEPRECATED: checkDuplicateFile() is deprecated. Use hybridProcessFileUpload instead.',
+    );
 
-      final HttpsCallable callable = _functions.httpsCallable(
-        'checkDuplicateFile',
-      );
-      final result = await callable.call({
-        'fileName': fileName,
-        'fileSize': fileSize,
-        'contentType': contentType,
-        'fileHash': fileHash,
-      });
-
-      debugPrint('✅ Duplicate check completed: ${result.data}');
-      return Map<String, dynamic>.from(result.data);
-    } catch (e) {
-      debugPrint('❌ Failed to check for duplicates: $e');
-      rethrow;
-    }
+    // Return no duplicates for backward compatibility
+    return {
+      'isDuplicate': false,
+      'message': 'Duplicate checking moved to hybridProcessFileUpload',
+      'deprecated': true,
+    };
   }
 
   /// Generate thumbnail using Cloud Functions
+  /// DEPRECATED: Thumbnail generation removed due to implementation complexity
+  @Deprecated(
+    'Thumbnail generation removed - too complex to implement and maintain',
+  )
   Future<Map<String, dynamic>> generateThumbnail({
     required String filePath,
   }) async {
-    try {
-      debugPrint('🔄 Generating thumbnail via Cloud Functions: $filePath');
+    debugPrint('⚠️ DEPRECATED: generateThumbnail() is deprecated and removed.');
 
-      final HttpsCallable callable = _functions.httpsCallable(
-        'generateThumbnail',
-      );
-      final result = await callable.call({'filePath': filePath});
-
-      debugPrint('✅ Thumbnail generated: ${result.data}');
-      return Map<String, dynamic>.from(result.data);
-    } catch (e) {
-      debugPrint('❌ Failed to generate thumbnail: $e');
-      rethrow;
-    }
+    return {
+      'success': false,
+      'message': 'Thumbnail generation removed due to complexity',
+      'deprecated': true,
+    };
   }
 
   // Sync Operations Functions

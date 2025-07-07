@@ -345,11 +345,9 @@ const processFileUpload = functions.https.onCall(
         contentType: contentType || fileMetadata.contentType || "",
       });
 
-      // Generate thumbnail for images
+      // REMOVED: Generate thumbnail for images - too complex to implement and maintain
+      // Thumbnail generation has been removed due to implementation complexity
       let thumbnailUrl = null;
-      if (contentType?.startsWith("image/")) {
-        thumbnailUrl = await generateThumbnailInternal(filePath);
-      }
 
       // UNIFIED ID SYSTEM: Use Firestore auto-generated ID as single source of truth
       const docRef = admin.firestore().collection("documents").doc();
@@ -438,6 +436,7 @@ const processFileUpload = functions.https.onCall(
 
 /**
  * Generate thumbnail for images
+ * DEPRECATED: Removed due to implementation complexity
  */
 const generateThumbnail = functions.https.onCall(
   async (data: { filePath: string }, context) => {
@@ -448,19 +447,13 @@ const generateThumbnail = functions.https.onCall(
       );
     }
 
-    // Rate limiting check
-    checkRateLimit(context.auth.uid);
+    console.log("⚠️ DEPRECATED: generateThumbnail function called but is deprecated");
 
-    try {
-      const thumbnailUrl = await generateThumbnailInternal(data.filePath);
-      return { success: true, thumbnailUrl };
-    } catch (error) {
-      console.error("Error generating thumbnail:", error);
-      throw new functions.https.HttpsError(
-        "internal",
-        `Failed to generate thumbnail: ${error}`
-      );
-    }
+    // Return error indicating function is deprecated
+    throw new functions.https.HttpsError(
+      "unimplemented",
+      "Thumbnail generation has been removed due to implementation complexity"
+    );
   }
 );
 
@@ -639,47 +632,9 @@ async function extractMetadataInternal(data: MetadataExtractionData) {
   }
 }
 
-async function generateThumbnailInternal(
-  filePath: string
-): Promise<string | null> {
-  try {
-    const bucket = admin.storage().bucket();
-    const file = bucket.file(filePath);
-
-    // Download the file
-    const [buffer] = await file.download();
-
-    // Generate thumbnail
-    const thumbnailBuffer = await sharp(buffer)
-      .resize(200, 200, {
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .jpeg({ quality: 80 })
-      .toBuffer();
-
-    // Upload thumbnail
-    const thumbnailPath = `thumbnails/${filePath.split("/").pop()}_thumb.jpg`;
-    const thumbnailFile = bucket.file(thumbnailPath);
-
-    await thumbnailFile.save(thumbnailBuffer, {
-      metadata: {
-        contentType: "image/jpeg",
-      },
-    });
-
-    // Get download URL
-    const [url] = await thumbnailFile.getSignedUrl({
-      action: "read",
-      expires: "03-09-2491",
-    });
-
-    return url;
-  } catch (error) {
-    console.error("Error generating thumbnail:", error);
-    return null;
-  }
-}
+// REMOVED: generateThumbnailInternal function
+// Thumbnail generation has been removed due to implementation complexity
+// This function is no longer available
 
 function getFileType(fileName: string): string {
   const extension = fileName.split(".").pop()?.toLowerCase();
@@ -1066,8 +1021,7 @@ const batchProcessFiles = functions.https.onCall(
 
           switch (operation) {
           case "generateThumbnail":
-            result = await generateThumbnailInternal(filePath);
-            break;
+            throw new Error("Thumbnail generation has been removed due to implementation complexity");
           case "extractMetadata":
             result = await extractMetadataInternal({
               filePath,
@@ -1213,10 +1167,10 @@ const streamingUpload = functions.https.onRequest(async (req, res) => {
 
 export const fileUploadFunctions = {
   processFileUpload,
-  generateThumbnail,
-  validateFile,
-  checkDuplicateFile,
-  extractMetadata,
+  generateThumbnail, // DEPRECATED - will be removed
+  validateFile, // DEPRECATED - integrated into hybridProcessFileUpload
+  checkDuplicateFile, // DEPRECATED - integrated into hybridProcessFileUpload
+  extractMetadata, // DEPRECATED - integrated into hybridProcessFileUpload
   getStorageQuota,
   getFileAccessUrl,
   cleanupOrphanedFiles,
