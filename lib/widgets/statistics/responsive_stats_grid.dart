@@ -230,10 +230,22 @@ class StatWidget extends StatelessWidget {
             borderRadius: borderRadius,
           ),
 
+<<<<<<< HEAD
           // Custom spacing between icon and content for row 2
           SizedBox(
             height: showValue ? spacing : 8.0,
           ), // 12px for row 2, 8px for row 1
+=======
+          // Spacing between icon and content
+          if (showValue) ...[
+            // Row 1 spacing (normal)
+            SizedBox(height: spacing),
+          ] else ...[
+            // Row 2 spacing (custom - same as row 1 for now)
+            _buildRow2IconSpacing(spacing: spacing),
+          ],
+
+>>>>>>> 9be2fb3a9ca68470db3ceb8ff36c1e9d18e8b6c3
           // Value section with consistent spacing for visual alignment
           if (showValue) ...[
             if (isLoading)
@@ -260,30 +272,33 @@ class StatWidget extends StatelessWidget {
               height: spacing / 2,
             ), // Unified style - half spacing before title
           ] else ...[
-            // Row 2: Adjust spacing to maintain container height while using 12px icon-to-title spacing
-            // Calculate remaining space to maintain same total height as row 1
-            SizedBox(
-              height:
-                  (valueFontSize * 1.1) +
-                  (spacing / 2) -
-                  4.0, // Reduce by 4px (12px - 8px difference)
-            ), // Adjusted to compensate for the 12px spacing above
-          ],
-          // Title with optimized text wrapping
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: titleFontSize,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary,
-              height:
-                  1.3, // Slightly increased for better wrapped text readability
+            // Row 2: Custom value spacing (same as row 1 for now)
+            _buildRow2ValueSpacing(
+              spacing: spacing,
+              valueFontSize: valueFontSize,
             ),
-            textAlign: TextAlign.center,
-            maxLines: 3, // Allow up to 3 lines for better text wrapping
-            overflow: TextOverflow.visible, // Allow text to wrap naturally
-            softWrap: true, // Enable soft wrapping
-          ),
+          ],
+          // Title with custom styling for each row
+          if (showValue) ...[
+            // Row 1 title (normal)
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                fontSize: titleFontSize,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+                height:
+                    1.3, // Slightly increased for better wrapped text readability
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 3, // Allow up to 3 lines for better text wrapping
+              overflow: TextOverflow.visible, // Allow text to wrap naturally
+              softWrap: true, // Enable soft wrapping
+            ),
+          ] else ...[
+            // Row 2 title (custom - same as row 1 for now)
+            _buildRow2Title(title: title, titleFontSize: titleFontSize),
+          ],
         ],
       ),
     );
@@ -327,6 +342,57 @@ class StatWidget extends StatelessWidget {
           : icon != null
           ? Icon(icon, size: iconSize, color: color)
           : const SizedBox.shrink(),
+    );
+  }
+
+  /// Build custom icon spacing for Row 2 widgets (Recycle Bin & Favorites)
+  /// Currently same as Row 1 - modify values here for custom spacing
+  Widget _buildRow2IconSpacing({required double spacing}) {
+    // Row 2 icon spacing - same as row 1 for now
+    // You can modify this value directly: spacing = 8.0
+    return SizedBox(height: spacing); // Same as row 1 (8px)
+  }
+
+  /// Build custom value spacing for Row 2 widgets (Recycle Bin & Favorites)
+  /// Currently same as Row 1 - modify values here for custom spacing
+  Widget _buildRow2ValueSpacing({
+    required double spacing,
+    required double valueFontSize,
+  }) {
+    // Row 2 value area spacing - same as row 1 for now
+    // You can modify these calculations directly
+    final valueHeight = valueFontSize * 1.1; // Same as row 1 (19.8px)
+    final titleSpacing = spacing / 2; // Same as row 1 (4px)
+
+    return SizedBox(
+      height: valueHeight + titleSpacing, // Same total as row 1 (23.8px)
+    );
+  }
+
+  /// Build custom title for Row 2 widgets (Recycle Bin & Favorites)
+  /// Currently same as Row 1 - modify values here for custom styling
+  Widget _buildRow2Title({
+    required String title,
+    required double titleFontSize,
+  }) {
+    // Row 2 title styling - same as row 1 for now
+    // You can modify these values directly:
+    final customFontSize = titleFontSize; // Same as row 1 (11px)
+    final customLineHeight = 1.3; // Same as row 1
+    final customFontWeight = FontWeight.w500; // Same as row 1
+
+    return Text(
+      title,
+      style: GoogleFonts.poppins(
+        fontSize: customFontSize,
+        fontWeight: customFontWeight,
+        color: AppColors.textSecondary,
+        height: customLineHeight,
+      ),
+      textAlign: TextAlign.center,
+      maxLines: 3, // Allow up to 3 lines for better text wrapping
+      overflow: TextOverflow.visible, // Allow text to wrap naturally
+      softWrap: true, // Enable soft wrapping
     );
   }
 }
