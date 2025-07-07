@@ -184,8 +184,14 @@ class StatWidget extends StatelessWidget {
     const titleFontSize = 11.0;
     const iconSize = 20.0;
 
+    // Special larger icon size for widgets without values (Row 2: Recycle Bin & Favorites)
+    const largeIconSize =
+        28.0; // Increased from 20.0 to 28.0 for better visibility
+    final effectiveIconSize = showValue ? iconSize : largeIconSize;
+
     // Calculate consistent minimum height for all widgets (Unified style)
-    final iconContainerHeight = iconSize + (spacing * 2); // Icon + padding
+    final iconContainerHeight =
+        effectiveIconSize + (spacing * 2); // Icon + padding
     final baseContentHeight =
         iconContainerHeight +
         spacing +
@@ -223,24 +229,10 @@ class StatWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min, // Minimize vertical space
         children: [
           // Icon with Unified style - background container
-          Container(
-            padding: EdgeInsets.all(spacing),
-            decoration: BoxDecoration(
-              color: color.withValues(
-                alpha: 0.1,
-              ), // Unified style - background for icon
-              borderRadius: BorderRadius.circular(borderRadius / 1.5),
-            ),
-            child: iconAsset != null
-                ? SvgPicture.asset(
-                    iconAsset!,
-                    width: iconSize,
-                    height: iconSize,
-                    colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-                  )
-                : icon != null
-                ? Icon(icon, size: iconSize, color: color)
-                : const SizedBox.shrink(),
+          _buildIconContainer(
+            iconSize: effectiveIconSize,
+            spacing: spacing,
+            borderRadius: borderRadius,
           ),
 
           SizedBox(height: spacing),
@@ -309,5 +301,32 @@ class StatWidget extends StatelessWidget {
     }
 
     return content;
+  }
+
+  /// Build icon container with custom sizing for widgets without values
+  Widget _buildIconContainer({
+    required double iconSize,
+    required double spacing,
+    required double borderRadius,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(spacing),
+      decoration: BoxDecoration(
+        color: color.withValues(
+          alpha: 0.1,
+        ), // Unified style - background for icon
+        borderRadius: BorderRadius.circular(borderRadius / 1.5),
+      ),
+      child: iconAsset != null
+          ? SvgPicture.asset(
+              iconAsset!,
+              width: iconSize,
+              height: iconSize,
+              colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+            )
+          : icon != null
+          ? Icon(icon, size: iconSize, color: color)
+          : const SizedBox.shrink(),
+    );
   }
 }
