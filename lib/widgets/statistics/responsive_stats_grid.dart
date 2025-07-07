@@ -6,11 +6,14 @@ import '../../core/constants/app_colors.dart';
 /// Responsive stats grid widget with optimized compact design
 ///
 /// Features:
-/// - Mobile (< 400px): 2 components per row
-/// - Tablet (400-900px): 3-4 components per row
-/// - Desktop (> 900px): Maximum 5 components per row
+/// - Very small screens: 1 widget per row
+/// - Small screens (< 400px): 2 widgets per row
+/// - Medium screens (400-600px): 3 widgets per row
+/// - Current screen width (600-900px): 4 widgets per row
+/// - Extra wide screens (> 900px): 5 widgets per row
 /// - Compact sizing with maintained readability
 /// - SVG icon support for recycle bin and favorites
+/// - Recycle Bin and Favorites widgets display only titles and icons (no values)
 class ResponsiveStatsGrid extends StatelessWidget {
   final Map<String, dynamic> statsData;
   final Function(String)? onStatTap;
@@ -25,49 +28,60 @@ class ResponsiveStatsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final statWidgets = _buildStatWidgets();
 
-    // Optimized responsive layout with refined breakpoints
-    int crossAxisCount;
-    double childAspectRatio;
+        // Calculate responsive layout parameters
+        final layoutConfig = _getLayoutConfig(screenWidth);
+
+        return Wrap(
+          spacing: layoutConfig.spacing,
+          runSpacing: layoutConfig.spacing,
+          children: statWidgets.map((widget) {
+            return SizedBox(width: layoutConfig.itemWidth, child: widget);
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  /// Get layout configuration based on screen width
+  _LayoutConfig _getLayoutConfig(double screenWidth) {
+    int itemsPerRow;
     double spacing;
 
-    if (screenWidth < 400) {
-      // Mobile screens: 2 components per row
-      crossAxisCount = 2;
-      childAspectRatio =
-          1.4; // Slightly taller for better readability on small screens
-      spacing = 4.0; // Reduced spacing for more compact design
+    if (screenWidth < 300) {
+      // Very small screens: 1 widget per row
+      itemsPerRow = 1;
+      spacing = 4.0;
+    } else if (screenWidth < 400) {
+      // Small screens: 2 widgets per row
+      itemsPerRow = 2;
+      spacing = 4.0;
     } else if (screenWidth < 600) {
-      // Large mobile/small tablet: 3 components per row
-      crossAxisCount = 3;
-      childAspectRatio = 1.3; // Optimized aspect ratio
+      // Medium screens: 3 widgets per row
+      itemsPerRow = 3;
       spacing = 6.0;
     } else if (screenWidth < 900) {
-      // Tablet screens: 4 components per row
-      crossAxisCount = 4;
-      childAspectRatio = 1.2; // Balanced aspect ratio for tablets
+      // Current screen width: 4 widgets per row (maintain current behavior)
+      itemsPerRow = 4;
       spacing = 8.0;
     } else {
-      // Desktop screens: Maximum 5 components per row
-      crossAxisCount = 5;
-      childAspectRatio = 1.1; // Compact but readable on large screens
+      // Extra wide screens: 5 widgets per row
+      itemsPerRow = 5;
       spacing = 10.0;
     }
 
-    final statWidgets = _buildStatWidgets();
+    // Calculate item width accounting for spacing
+    final totalSpacing = spacing * (itemsPerRow - 1);
+    final itemWidth = (screenWidth - totalSpacing) / itemsPerRow;
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: crossAxisCount,
-        childAspectRatio: childAspectRatio,
-        crossAxisSpacing: spacing,
-        mainAxisSpacing: spacing,
-      ),
-      itemCount: statWidgets.length,
-      itemBuilder: (context, index) => statWidgets[index],
+    return _LayoutConfig(
+      itemsPerRow: itemsPerRow,
+      spacing: spacing,
+      itemWidth: itemWidth,
     );
   }
 
@@ -80,6 +94,7 @@ class ResponsiveStatsGrid extends StatelessWidget {
         color: AppColors.success,
         onTap: () => onStatTap?.call('recent'),
         isClickable: true,
+        showValue: true,
       ),
       _buildStatWidget(
         title: 'Categories',
@@ -88,6 +103,7 @@ class ResponsiveStatsGrid extends StatelessWidget {
         color: AppColors.info,
         onTap: () => onStatTap?.call('categories'),
         isClickable: true,
+        showValue: true,
       ),
       _buildStatWidget(
         title: 'Users',
@@ -96,6 +112,7 @@ class ResponsiveStatsGrid extends StatelessWidget {
         color: AppColors.warning,
         onTap: () => onStatTap?.call('users'),
         isClickable: true,
+        showValue: true,
       ),
       _buildStatWidget(
         title: 'Total Files',
@@ -104,6 +121,7 @@ class ResponsiveStatsGrid extends StatelessWidget {
         color: AppColors.primary,
         onTap: () => onStatTap?.call('total'),
         isClickable: false,
+        showValue: true,
       ),
       _buildStatWidget(
         title: 'Recycle Bin',
@@ -112,6 +130,7 @@ class ResponsiveStatsGrid extends StatelessWidget {
         color: Colors.grey,
         onTap: () => onStatTap?.call('recycle'),
         isClickable: true,
+        showValue: false, // Remove numeric value for Recycle Bin
       ),
       _buildStatWidget(
         title: 'Favorites',
@@ -120,6 +139,7 @@ class ResponsiveStatsGrid extends StatelessWidget {
         color: Colors.red,
         onTap: () => onStatTap?.call('favorites'),
         isClickable: true,
+        showValue: false, // Remove numeric value for Favorites
       ),
     ];
   }
@@ -132,6 +152,7 @@ class ResponsiveStatsGrid extends StatelessWidget {
     required Color color,
     VoidCallback? onTap,
     bool isClickable = true,
+    bool showValue = true,
   }) {
     return StatWidget(
       title: title,
@@ -141,8 +162,22 @@ class ResponsiveStatsGrid extends StatelessWidget {
       color: color,
       onTap: isClickable ? onTap : null,
       isLoading: isLoading,
+      showValue: showValue,
     );
   }
+}
+
+/// Layout configuration class for responsive grid
+class _LayoutConfig {
+  final int itemsPerRow;
+  final double spacing;
+  final double itemWidth;
+
+  const _LayoutConfig({
+    required this.itemsPerRow,
+    required this.spacing,
+    required this.itemWidth,
+  });
 }
 
 /// Individual stat widget with responsive design
@@ -154,6 +189,7 @@ class StatWidget extends StatelessWidget {
   final Color color;
   final VoidCallback? onTap;
   final bool isLoading;
+  final bool showValue;
 
   const StatWidget({
     super.key,
@@ -164,6 +200,7 @@ class StatWidget extends StatelessWidget {
     required this.color,
     this.onTap,
     this.isLoading = false,
+    this.showValue = true,
   });
 
   @override
@@ -224,31 +261,35 @@ class StatWidget extends StatelessWidget {
 
           SizedBox(height: spacing),
 
-          // Value with optimized loading state
-          if (isLoading)
-            Container(
-              width: isSmallScreen ? 24 : 30, // Responsive loading width
-              height: valueFontSize * 0.8, // Proportional to font size
-              decoration: BoxDecoration(
-                color: Colors.grey.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(3),
+          // Value with optimized loading state (conditionally shown)
+          if (showValue) ...[
+            if (isLoading)
+              Container(
+                width: isSmallScreen ? 24 : 30, // Responsive loading width
+                height: valueFontSize * 0.8, // Proportional to font size
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              )
+            else
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: valueFontSize,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                  height: 1.1, // Tighter line height
+                ),
+                textAlign: TextAlign.center,
               ),
-            )
-          else
-            Text(
-              value,
-              style: GoogleFonts.poppins(
-                fontSize: valueFontSize,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-                height: 1.1, // Tighter line height
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-          SizedBox(
-            height: spacing * 0.7,
-          ), // Reduced spacing between value and title
+            SizedBox(
+              height: spacing * 0.7,
+            ), // Reduced spacing between value and title
+          ] else ...[
+            // When value is hidden, add minimal spacing for better layout
+            SizedBox(height: spacing * 0.3),
+          ],
           // Title with optimized spacing
           Text(
             title,
