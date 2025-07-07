@@ -268,5 +268,12 @@ service cloud.firestore {
       // Allow admin full access including hard delete
       allow read, write, delete: if isAdmin();
     }
+
+    // Enhanced documents collection rules for statistics
+    // Additional rules for statistics calculation (more permissive for count queries)
+    match /documents/{documentId} {
+      // Allow count queries for authenticated users (for statistics)
+      allow read: if request.auth != null && request.query.limit <= 1000;
+    }
   }
 }

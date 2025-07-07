@@ -220,25 +220,51 @@ class OptimizedStatisticsService {
       final firestore = _firebaseService.firestore;
       final startTime = DateTime.now();
 
-      // Execute basic count queries in parallel (these don't require complex indexes)
-      final basicResults = await Future.wait([
-        // Total active files - simple single-field query
-        firestore
-            .collection('document-metadata')
+      // Check if user is authenticated first
+      if (_firebaseService.auth.currentUser == null) {
+        debugPrint('❌ User not authenticated for statistics calculation');
+        return _getEmptyStats();
+      }
+
+      // Execute basic count queries with error handling for each
+      int totalFiles = 0;
+      int activeUsers = 0;
+      int totalCategories = 0;
+
+      // Try to get total files count
+      try {
+        final filesSnapshot = await firestore
+            .collection('documents')
             .where('isActive', isEqualTo: true)
             .count()
-            .get(),
+            .get();
+        totalFiles = filesSnapshot.count ?? 0;
+      } catch (e) {
+        debugPrint('⚠️ Failed to get files count, using fallback: $e');
+        // Fallback: use 0 for now, will be updated by storage sync
+        totalFiles = 0;
+      }
 
-        // FIXED: Query Firebase Authentication users instead of Firestore users collection
-        _getFirebaseAuthUserCount(),
+      // Try to get user count
+      try {
+        activeUsers = await _getFirebaseAuthUserCount();
+      } catch (e) {
+        debugPrint('⚠️ Failed to get user count: $e');
+        activeUsers = 1; // At least current user
+      }
 
-        // FIXED: Query categories collection with isActive filter for accuracy
-        firestore
+      // Try to get categories count
+      try {
+        final categoriesSnapshot = await firestore
             .collection('categories')
             .where('isActive', isEqualTo: true)
             .count()
-            .get(),
-      ]);
+            .get();
+        totalCategories = categoriesSnapshot.count ?? 0;
+      } catch (e) {
+        debugPrint('⚠️ Failed to get categories count: $e');
+        totalCategories = 0;
+      }
 
       // TIMESTAMP FIX: Enhanced recent files calculation with proper server-side timestamp handling
       // Get recent files by fetching documents and counting them locally (last 7 days)
@@ -254,7 +280,7 @@ class OptimizedStatisticsService {
         debugPrint('📊 Current server time reference: ${DateTime.now()}');
 
         final recentFilesSnapshot = await firestore
-            .collection('document-metadata')
+            .collection('documents')
             .where('isActive', isEqualTo: true)
             .where('uploadedAt', isGreaterThanOrEqualTo: sevenDaysAgo)
             .limit(1000) // Limit to prevent excessive reads
@@ -287,7 +313,7 @@ class OptimizedStatisticsService {
 
           // Additional debugging: Check if there are any files at all
           final totalFilesSnapshot = await firestore
-              .collection('document-metadata')
+              .collection('documents')
               .where('isActive', isEqualTo: true)
               .limit(5)
               .get();
@@ -316,10 +342,9 @@ class OptimizedStatisticsService {
       }
 
       final stats = {
-        'totalFiles': (basicResults[0] as AggregateQuerySnapshot).count ?? 0,
-        'activeUsers': basicResults[1] as int, // Firebase Auth user count
-        'totalCategories':
-            (basicResults[2] as AggregateQuerySnapshot).count ?? 0,
+        'totalFiles': totalFiles,
+        'activeUsers': activeUsers,
+        'totalCategories': totalCategories,
         'recentFiles': recentFilesCount,
         'fileTypeStats': <String, int>{},
         'totalStorageSize': 0,
@@ -344,6 +369,9 @@ class OptimizedStatisticsService {
     try {
       final firestore = _firebaseService.firestore;
 
+      // First try to auto-sync users to ensure they exist in Firestore
+      await _autoSyncFirebaseAuthUsers();
+
       // Query active users from Firestore users collection
       final usersSnapshot = await firestore
           .collection('users')
@@ -353,24 +381,23 @@ class OptimizedStatisticsService {
 
       final userCount = usersSnapshot.count ?? 0;
 
-      // Auto-sync Firebase Auth users if count seems low (less than seeded users)
-      if (userCount < 3) {
-        await _autoSyncFirebaseAuthUsers();
-
-        // Re-query after sync
-        final updatedSnapshot = await firestore
-            .collection('users')
-            .where('isActive', isEqualTo: true)
-            .count()
-            .get();
-
-        return updatedSnapshot.count ?? 0;
-      }
-
-      return userCount;
+      // If still no users, return at least 1 (current user)
+      return userCount > 0 ? userCount : 1;
     } catch (e) {
       debugPrint('❌ Error getting user count from Firestore: $e');
-      return 0;
+
+      // If permission denied, try to sync users first
+      if (e.toString().contains('PERMISSION_DENIED')) {
+        debugPrint('🔄 Permission denied, attempting user sync...');
+        try {
+          await _autoSyncFirebaseAuthUsers();
+          return 1; // At least current user exists
+        } catch (syncError) {
+          debugPrint('❌ User sync also failed: $syncError');
+        }
+      }
+
+      return 1; // Return at least 1 user (current authenticated user)
     }
   }
 

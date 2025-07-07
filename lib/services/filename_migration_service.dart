@@ -165,7 +165,7 @@ class FilenameMigrationService {
       debugPrint('🧹 Starting metadata cleanup...');
 
       final querySnapshot = await _firestore
-          .collection('document-metadata')
+          .collection('documents')
           .where('metadata.migrated', isEqualTo: true)
           .get();
 
