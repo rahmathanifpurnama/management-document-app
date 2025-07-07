@@ -232,7 +232,7 @@ class StatWidget extends StatelessWidget {
 
           // Custom spacing between icon and content for row 2
           SizedBox(
-            height: showValue ? spacing : 12.0,
+            height: showValue ? spacing : 8.0,
           ), // 12px for row 2, 8px for row 1
           // Value section with consistent spacing for visual alignment
           if (showValue) ...[
