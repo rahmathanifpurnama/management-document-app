@@ -230,8 +230,22 @@ class StatWidget extends StatelessWidget {
         ? 14.0 // Smaller icons for compact design
         : (isMediumScreen ? 16.0 : (isLargeScreen ? 18.0 : 20.0));
 
+    // Calculate consistent minimum height for all widgets
+    final baseContentHeight =
+        iconSize +
+        spacing +
+        (valueFontSize * 1.1) +
+        (spacing * 0.7) +
+        (titleFontSize *
+            1.2 *
+            2); // Icon + spacing + value area + title (2 lines max)
+    final minHeight = baseContentHeight + (padding.vertical);
+
     Widget content = Container(
       padding: padding,
+      constraints: BoxConstraints(
+        minHeight: minHeight, // Ensure consistent minimum height
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(borderRadius),
@@ -261,7 +275,7 @@ class StatWidget extends StatelessWidget {
 
           SizedBox(height: spacing),
 
-          // Value with optimized loading state (conditionally shown)
+          // Value section with consistent spacing for visual alignment
           if (showValue) ...[
             if (isLoading)
               Container(
@@ -283,12 +297,13 @@ class StatWidget extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-            SizedBox(
-              height: spacing * 0.7,
-            ), // Reduced spacing between value and title
+            SizedBox(height: spacing * 0.7), // Spacing between value and title
           ] else ...[
-            // When value is hidden, add minimal spacing for better layout
-            SizedBox(height: spacing * 0.3),
+            // When value is hidden, maintain same visual space as value + spacing
+            // This ensures consistent container heights across all widgets
+            SizedBox(
+              height: (valueFontSize * 1.1) + (spacing * 0.7),
+            ), // Same total height as value text + spacing
           ],
           // Title with optimized spacing
           Text(
