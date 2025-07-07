@@ -114,14 +114,12 @@ export const processFileUpload = functions
     const fileBuffer = await downloadFileFromStorage(filePath);
     const fileHash = calculateFileHash(fileBuffer);
     const duplicateCheck = await advancedDuplicateDetection(fileHash);
-    const thumbnailUrl = await generateThumbnail(fileBuffer);
     const metadata = await extractFileMetadata(fileBuffer);
     const securityCheck = await performSecurityScan(fileBuffer);
-    
+
     return {
       documentId,
       fileHash,
-      thumbnailUrl,
       extractedMetadata: metadata,
       processingStatus: 'completed',
     };

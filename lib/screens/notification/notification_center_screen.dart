@@ -5,7 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 import '../../providers/notification_provider.dart';
 import '../../models/notification_model.dart';
-import '../../widgets/common/app_scaffold_with_navigation.dart';
+
 import '../../widgets/common/loading_widget.dart';
 
 class NotificationCenterScreen extends StatefulWidget {
@@ -24,47 +24,58 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   Widget build(BuildContext context) {
     return Consumer<NotificationProvider>(
       builder: (context, notificationProvider, child) {
-        return AppScaffoldWithNavigation(
-          title: 'Notifications',
-          currentNavIndex: -1, // No specific nav index for this screen
-          showAppBar: true,
-          actions: [
-            // Mark all as read button
-            if (notificationProvider.hasUnreadNotifications)
-              IconButton(
-                icon: const Icon(Icons.mark_email_read),
-                onPressed: () => _markAllAsRead(notificationProvider),
-                tooltip: 'Mark all as read',
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Notifications'),
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            leading: IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(
+                Icons.chevron_left,
+                size: 28,
+                color: Colors.white,
               ),
-            // Clear all button
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert),
-              onSelected: (value) =>
-                  _handleMenuAction(value, notificationProvider),
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'mark_all_read',
-                  child: Row(
-                    children: [
-                      Icon(Icons.mark_email_read, size: 20),
-                      SizedBox(width: 8),
-                      Text('Mark all as read'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'clear_all',
-                  child: Row(
-                    children: [
-                      Icon(Icons.clear_all, size: 20),
-                      SizedBox(width: 8),
-                      Text('Clear all'),
-                    ],
-                  ),
-                ),
-              ],
+              tooltip: 'Back',
             ),
-          ],
+            actions: [
+              // Mark all as read button
+              if (notificationProvider.hasUnreadNotifications)
+                IconButton(
+                  icon: const Icon(Icons.mark_email_read),
+                  onPressed: () => _markAllAsRead(notificationProvider),
+                  tooltip: 'Mark all as read',
+                ),
+              // Clear all button
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert),
+                onSelected: (value) =>
+                    _handleMenuAction(value, notificationProvider),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: 'mark_all_read',
+                    child: Row(
+                      children: [
+                        Icon(Icons.mark_email_read, size: 20),
+                        SizedBox(width: 8),
+                        Text('Mark all as read'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'clear_all',
+                    child: Row(
+                      children: [
+                        Icon(Icons.clear_all, size: 20),
+                        SizedBox(width: 8),
+                        Text('Clear all'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
           body: RefreshIndicator(
             onRefresh: () => notificationProvider.refresh(),
             child: Column(

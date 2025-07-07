@@ -22,7 +22,7 @@ import '../../core/utils/context_filter_utils.dart';
 import '../../services/ui_refresh_service.dart';
 import '../../services/file_download_service.dart';
 import '../../services/enhanced_download_service.dart';
-import '../../widgets/download/download_overlay_widget.dart';
+
 import '../../services/share_service.dart';
 import '../../services/bulk_operations_service.dart';
 import '../../core/services/greeting_service.dart';
@@ -46,7 +46,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen>
-    with WidgetsBindingObserver, RouteAware, DownloadMixin {
+    with WidgetsBindingObserver, RouteAware {
   bool _dataLoaded = false;
   final TextEditingController _searchController = TextEditingController();
   final ShareService _shareService = ShareService();
@@ -440,20 +440,18 @@ class _HomeScreenState extends State<HomeScreen>
             }
           });
 
-          return DownloadOverlayProvider(
-            child: AppScaffoldWithNavigation(
-              title: 'Beranda',
-              currentNavIndex: 0, // Home is index 0
-              showAppBar: true, // Use standard app bar like other pages
-              actions: const [BellNotificationWidget()],
-              body: Column(
-                children: [
-                  // File selection bar (appears when files are selected)
-                  FileSelectionBar(onExitSelection: _onExitSelectionMode),
-                  // Main dashboard content
-                  Expanded(child: _buildDashboard()),
-                ],
-              ),
+          return AppScaffoldWithNavigation(
+            title: 'Beranda',
+            currentNavIndex: 0, // Home is index 0
+            showAppBar: true, // Use standard app bar like other pages
+            actions: const [BellNotificationWidget()],
+            body: Column(
+              children: [
+                // File selection bar (appears when files are selected)
+                FileSelectionBar(onExitSelection: _onExitSelectionMode),
+                // Main dashboard content
+                Expanded(child: _buildDashboard()),
+              ],
             ),
           );
         },
@@ -1095,14 +1093,36 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  // Download file to device storage with enhanced animated progress
+  // Download file to device storage with native notifications only
   Future<void> _downloadFile(DocumentModel document) async {
     try {
-      // Use the enhanced download service with animated progress
-      await startDownload(document);
+      // Use the enhanced download service with native notifications
+      final downloadService = EnhancedDownloadService();
+      final result = await downloadService.downloadWithProgress(document);
+
+      if (result != null && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Download completed: ${document.fileName}'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
       debugPrint('✅ Enhanced download initiated: ${document.fileName}');
     } catch (e) {
       debugPrint('❌ Enhanced download failed: ${document.fileName} - $e');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Download failed: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+
       // Fallback to basic download service if enhanced fails
       try {
         final downloadService = FileDownloadService();

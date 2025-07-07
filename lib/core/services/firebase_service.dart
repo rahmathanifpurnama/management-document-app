@@ -275,13 +275,8 @@ class FirebaseService {
       // Configure Firestore settings
       await _configureFirestore();
 
-      // Test Firestore availability with a simple operation
-      await FirebaseFirestore.instance
-          .collection('_test')
-          .limit(1)
-          .get()
-          .timeout(const Duration(seconds: 5));
-
+      // Skip test query - just configure for offline use
+      // Test queries require authentication which isn't available during initialization
       service._isFirestoreAvailable = true;
       debugPrint('✅ Firestore initialized');
     } catch (e) {

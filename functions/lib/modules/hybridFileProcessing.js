@@ -32,15 +32,11 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.processFileUpload = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const crypto = __importStar(require("crypto"));
-const sharp_1 = __importDefault(require("sharp"));
 const uuid_1 = require("uuid");
 /**
  * Process uploaded file with heavy server-side operations
@@ -98,33 +94,41 @@ exports.processFileUpload = functions
         }
         console.log(`🚀 Starting heavy processing for: ${fileName}`);
         console.log(`📁 File path: ${filePath}`);
-        console.log(`👤 User: ${context.auth.uid}`);
+        console.log(`📋 Content type: ${contentType}`);
+        console.log(`👤 User: ${context.auth.uid} (${userEmail})`);
+        console.log(`📂 Category: ${categoryId || 'No category'}`);
         // PHASE 1: Download file from storage for processing
+        console.log(`🔄 PHASE 1: Starting file download...`);
         const fileBuffer = await downloadFileFromStorage(filePath);
-        console.log(`📥 Downloaded file: ${fileBuffer.length} bytes`);
+        console.log(`✅ PHASE 1 COMPLETE: Downloaded file: ${fileBuffer.length} bytes`);
         // PHASE 2: Calculate file hash (SHA-256)
+        console.log(`🔄 PHASE 2: Calculating file hash...`);
         const fileHash = calculateFileHash(fileBuffer);
-        console.log(`🔢 File hash calculated: ${fileHash}`);
+        console.log(`✅ PHASE 2 COMPLETE: File hash calculated: ${fileHash}`);
         // PHASE 3: Advanced duplicate detection
+        console.log(`🔄 PHASE 3: Checking for duplicates...`);
         const duplicateCheck = await advancedDuplicateDetection(fileHash, fileName, fileBuffer.length, context.auth.uid);
         if (duplicateCheck.isDuplicate) {
+            console.log(`❌ PHASE 3: Duplicate file detected: ${duplicateCheck.existingDocument.fileName}`);
             throw new functions.https.HttpsError('already-exists', `File already exists: ${duplicateCheck.existingDocument.fileName}`, duplicateCheck.existingDocument);
         }
+        console.log(`✅ PHASE 3 COMPLETE: No duplicates found`);
         // PHASE 4: Extract metadata
+        console.log(`🔄 PHASE 4: Extracting file metadata...`);
         const extractedMetadata = await extractFileMetadata(fileBuffer, fileName, contentType);
-        console.log(`📊 Metadata extracted:`, extractedMetadata);
-        // PHASE 5: Generate thumbnail (for images)
-        let thumbnailUrl;
-        if (isImageFile(contentType)) {
-            thumbnailUrl = await generateThumbnail(fileBuffer, filePath, fileName);
-            console.log(`🖼️ Thumbnail generated: ${thumbnailUrl}`);
-        }
-        // PHASE 6: Content validation and security scanning
+        console.log(`✅ PHASE 4 COMPLETE: Metadata extracted:`, extractedMetadata);
+        // PHASE 5: Content validation and security scanning
+        console.log(`🔄 PHASE 5: Performing security scan...`);
         const securityCheck = await performSecurityScan(fileBuffer, contentType);
         if (!securityCheck.isSecure) {
+            console.log(`❌ PHASE 5: Security scan failed: ${securityCheck.reason}`);
             throw new functions.https.HttpsError('permission-denied', `File failed security scan: ${securityCheck.reason}`);
         }
-        // PHASE 7: Create document record with full metadata
+        console.log(`✅ PHASE 5 COMPLETE: Security scan passed`);
+        // PHASE 6: User information already retrieved from authorization check
+        console.log(`✅ PHASE 6 COMPLETE: User info: ${userFullName} (${userEmail})`);
+        // PHASE 7: Create document record with full metadata including user info
+        console.log(`🔄 PHASE 7: Creating document record...`);
         const documentId = await createEnhancedDocumentRecord({
             fileName,
             filePath,
@@ -135,23 +139,24 @@ exports.processFileUpload = functions
             uploadedBy: userFullName,
             uploadedByUid: context.auth.uid, // Keep UID for internal tracking
             downloadUrl: metadata.downloadUrl,
-            thumbnailUrl,
             extractedMetadata,
             originalMetadata: metadata,
         });
+        console.log(`✅ PHASE 7 COMPLETE: Document record created with ID: ${documentId}`);
         // PHASE 8: Index document for search
+        console.log(`🔄 PHASE 8: Indexing document for search...`);
         await indexDocumentForSearch(documentId, {
             fileName,
             extractedMetadata,
             contentType,
             categoryId,
         });
+        console.log(`✅ PHASE 8 COMPLETE: Document indexed for search`);
         const processingTime = Date.now() - startTime;
         console.log(`✅ Heavy processing completed in ${processingTime}ms`);
         const result = {
             documentId,
             fileHash,
-            thumbnailUrl,
             extractedMetadata,
             processingStatus: 'completed',
             processingTime,
@@ -168,29 +173,75 @@ exports.processFileUpload = functions
     }
 });
 /**
- * Download file from Firebase Storage
+ * Download file from Firebase Storage with retry mechanism
  */
 async function downloadFileFromStorage(filePath) {
-    try {
-        // Use default bucket from Firebase Admin initialization
-        const bucket = admin.storage().bucket();
-        const file = bucket.file(filePath);
-        console.log(`📥 Attempting to download file: ${filePath}`);
-        console.log(`🪣 Using bucket: ${bucket.name}`);
-        // Check if file exists first
-        const [exists] = await file.exists();
-        if (!exists) {
-            throw new Error(`File does not exist: ${filePath}`);
+    const maxRetries = 3;
+    const retryDelay = 2000; // 2 seconds
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`📥 Starting file download process for: ${filePath} (attempt ${attempt}/${maxRetries})`);
+            // Use default bucket from Firebase Admin initialization
+            const bucket = admin.storage().bucket();
+            const file = bucket.file(filePath);
+            console.log(`🪣 Using bucket: ${bucket.name}`);
+            console.log(`📁 Full file path: ${filePath}`);
+            // Add a small delay on first attempt to allow for storage propagation
+            if (attempt === 1) {
+                console.log(`⏳ Waiting 1 second for storage propagation...`);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+            // Check if file exists first with detailed logging
+            console.log(`🔍 Checking if file exists...`);
+            const [exists] = await file.exists();
+            console.log(`📋 File exists check result: ${exists}`);
+            if (!exists) {
+                if (attempt < maxRetries) {
+                    console.log(`⚠️ File not found on attempt ${attempt}, retrying in ${retryDelay}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, retryDelay));
+                    continue;
+                }
+                console.error(`❌ File does not exist in storage after ${maxRetries} attempts: ${filePath}`);
+                console.error(`❌ Bucket: ${bucket.name}`);
+                console.error(`❌ Full path checked: ${filePath}`);
+                throw new Error(`File does not exist in storage: ${filePath}`);
+            }
+            console.log(`📥 File exists, starting download...`);
+            const [fileBuffer] = await file.download();
+            console.log(`✅ File downloaded successfully: ${fileBuffer.length} bytes`);
+            // Validate downloaded buffer
+            if (!fileBuffer || fileBuffer.length === 0) {
+                throw new Error(`Downloaded file is empty or invalid: ${filePath}`);
+            }
+            return fileBuffer;
         }
-        const [fileBuffer] = await file.download();
-        console.log(`✅ File downloaded successfully: ${fileBuffer.length} bytes`);
-        return fileBuffer;
+        catch (error) {
+            console.error(`❌ Download attempt ${attempt} failed for: ${filePath}`);
+            console.error(`❌ Error type: ${error instanceof Error ? error.constructor.name : typeof error}`);
+            console.error(`❌ Error message: ${error instanceof Error ? error.message : String(error)}`);
+            if (attempt === maxRetries) {
+                console.error(`❌ CRITICAL: All ${maxRetries} download attempts failed for: ${filePath}`);
+                console.error(`❌ Full error object:`, error);
+                // Provide more specific error messages
+                if (error instanceof Error) {
+                    if (error.message.includes('does not exist')) {
+                        throw new Error(`File not found in Firebase Storage: ${filePath}. Please ensure the file was uploaded successfully.`);
+                    }
+                    else if (error.message.includes('permission')) {
+                        throw new Error(`Permission denied accessing file: ${filePath}. Check Firebase Storage security rules.`);
+                    }
+                    else if (error.message.includes('network') || error.message.includes('timeout')) {
+                        throw new Error(`Network error downloading file: ${filePath}. Please try again.`);
+                    }
+                }
+                throw new Error(`Failed to download file from storage after ${maxRetries} attempts: ${error instanceof Error ? error.message : String(error)}`);
+            }
+            // Wait before retry
+            console.log(`⏳ Waiting ${retryDelay}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
     }
-    catch (error) {
-        console.error(`❌ Failed to download file: ${filePath}`, error);
-        console.error(`❌ Error details:`, error);
-        throw new Error(`Failed to download file: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    throw new Error(`Unexpected error: download loop completed without success or failure`);
 }
 /**
  * Calculate SHA-256 hash of file
@@ -273,18 +324,6 @@ async function extractFileMetadata(fileBuffer, fileName, contentType) {
         extractedAt: new Date().toISOString(),
     };
     try {
-        if (isImageFile(contentType)) {
-            // Extract image metadata using Sharp
-            const imageMetadata = await (0, sharp_1.default)(fileBuffer).metadata();
-            metadata.image = {
-                width: imageMetadata.width,
-                height: imageMetadata.height,
-                format: imageMetadata.format,
-                colorSpace: imageMetadata.space,
-                hasAlpha: imageMetadata.hasAlpha,
-                density: imageMetadata.density,
-            };
-        }
         // Add file extension info
         const extension = (_a = fileName.split('.').pop()) === null || _a === void 0 ? void 0 : _a.toLowerCase();
         metadata.extension = extension;
@@ -295,41 +334,6 @@ async function extractFileMetadata(fileBuffer, fileName, contentType) {
         // Continue with basic metadata
     }
     return metadata;
-}
-/**
- * Generate thumbnail for images
- */
-async function generateThumbnail(fileBuffer, originalPath, fileName) {
-    try {
-        // Generate thumbnail using Sharp
-        const thumbnailBuffer = await (0, sharp_1.default)(fileBuffer)
-            .resize(300, 300, {
-            fit: 'inside',
-            withoutEnlargement: true,
-        })
-            .jpeg({ quality: 80 })
-            .toBuffer();
-        // Upload thumbnail to storage
-        const bucket = admin.storage().bucket();
-        const thumbnailPath = `thumbnails/${originalPath.replace(/\.[^/.]+$/, '')}_thumb.jpg`;
-        const thumbnailFile = bucket.file(thumbnailPath);
-        await thumbnailFile.save(thumbnailBuffer, {
-            metadata: {
-                contentType: 'image/jpeg',
-                metadata: {
-                    originalFile: fileName,
-                    generatedAt: new Date().toISOString(),
-                },
-            },
-        });
-        // Get download URL
-        await thumbnailFile.makePublic();
-        return `https://storage.googleapis.com/${bucket.name}/${thumbnailPath}`;
-    }
-    catch (error) {
-        console.error('⚠️ Thumbnail generation failed:', error);
-        return undefined;
-    }
 }
 /**
  * Perform security scanning on file
@@ -372,9 +376,6 @@ async function performSecurityScan(fileBuffer, contentType) {
 /**
  * Helper functions
  */
-function isImageFile(contentType) {
-    return contentType.startsWith('image/');
-}
 function categorizeFileType(contentType, extension) {
     if (contentType.startsWith('image/'))
         return 'Image';
@@ -405,7 +406,6 @@ async function createEnhancedDocumentRecord(data) {
             filePath: data.filePath,
             fileHash: data.fileHash,
             downloadUrl: data.downloadUrl,
-            thumbnailUrl: data.thumbnailUrl,
             uploadedBy: data.uploadedBy,
             uploadedByUid: data.uploadedByUid, // Keep UID for internal tracking
             uploadedAt: admin.firestore.FieldValue.serverTimestamp(),

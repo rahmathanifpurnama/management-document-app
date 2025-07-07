@@ -56,7 +56,7 @@ class DownloadNotificationService {
     try {
       // Android initialization settings
       const androidSettings = AndroidInitializationSettings(
-        '@mipmap/launcher_icon',
+        '@mipmap/ic_launcher',
       );
 
       // iOS initialization settings (for future compatibility)
@@ -169,7 +169,7 @@ class DownloadNotificationService {
       autoCancel: false,
       enableVibration: false,
       playSound: false,
-      icon: '@mipmap/launcher_icon',
+      icon: '@mipmap/ic_launcher',
     );
 
     final notificationDetails = NotificationDetails(android: androidDetails);
@@ -235,7 +235,7 @@ class DownloadNotificationService {
       autoCancel: false,
       enableVibration: false,
       playSound: false,
-      icon: '@mipmap/launcher_icon',
+      icon: '@mipmap/ic_launcher',
     );
 
     final notificationDetails = NotificationDetails(android: androidDetails);
@@ -297,7 +297,7 @@ class DownloadNotificationService {
         autoCancel: true, // CRITICAL: Allow swipe to dismiss
         enableVibration: true,
         playSound: true,
-        icon: '@mipmap/launcher_icon',
+        icon: '@mipmap/ic_launcher',
         // Additional properties to ensure dismissible behavior
         category: AndroidNotificationCategory.status,
         visibility: NotificationVisibility.public,
@@ -356,7 +356,7 @@ class DownloadNotificationService {
         autoCancel: true, // CRITICAL: Allow swipe to dismiss
         enableVibration: true,
         playSound: true,
-        icon: '@mipmap/launcher_icon',
+        icon: '@mipmap/ic_launcher',
         // Additional properties to ensure dismissible behavior
         category: AndroidNotificationCategory.error,
         visibility: NotificationVisibility.public,
