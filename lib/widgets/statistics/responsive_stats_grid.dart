@@ -185,14 +185,8 @@ class StatWidget extends StatelessWidget {
     const titleFontSize = 11.0;
     const iconSize = 20.0;
 
-    // Special larger icon size for widgets without values (Row 2: Recycle Bin & Favorites)
-    const largeIconSize =
-        28.0; // Increased from 20.0 to 28.0 for better visibility
-    final effectiveIconSize = showValue ? iconSize : largeIconSize;
-
     // Calculate consistent minimum height for all widgets (Unified style)
-    final iconContainerHeight =
-        effectiveIconSize + (spacing * 2); // Icon + padding
+    final iconContainerHeight = iconSize + (spacing * 2); // Icon + padding
     final baseContentHeight =
         iconContainerHeight +
         spacing +
@@ -231,7 +225,7 @@ class StatWidget extends StatelessWidget {
         children: [
           // Icon with Unified style - background container
           _buildIconContainer(
-            iconSize: effectiveIconSize,
+            iconSize: iconSize,
             spacing: spacing,
             borderRadius: borderRadius,
           ),
@@ -264,17 +258,26 @@ class StatWidget extends StatelessWidget {
               height: spacing / 2,
             ), // Unified style - half spacing before title
           ] else ...[
-            // Row 2 styling: Custom spacing to align with row 1 widgets
-            _buildRow2ValueSpacing(
-              spacing: spacing,
-              valueFontSize: valueFontSize,
-            ),
+            // When value is hidden, maintain same visual space as value + spacing
+            // This ensures consistent container heights across all widgets
+            SizedBox(
+              height: (valueFontSize * 1.1) + (spacing / 2),
+            ), // Same total height as value text + spacing
           ],
-          // Title with custom styling for row 2
-          _buildTitleSection(
-            title: title,
-            titleFontSize: titleFontSize,
-            spacing: spacing,
+          // Title with optimized text wrapping
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: titleFontSize,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+              height:
+                  1.3, // Slightly increased for better wrapped text readability
+            ),
+            textAlign: TextAlign.center,
+            maxLines: 3, // Allow up to 3 lines for better text wrapping
+            overflow: TextOverflow.visible, // Allow text to wrap naturally
+            softWrap: true, // Enable soft wrapping
           ),
         ],
       ),
@@ -319,49 +322,6 @@ class StatWidget extends StatelessWidget {
           : icon != null
           ? Icon(icon, size: iconSize, color: color)
           : const SizedBox.shrink(),
-    );
-  }
-
-  /// Build custom spacing for Row 2 widgets (without values) to align with Row 1
-  Widget _buildRow2ValueSpacing({
-    required double spacing,
-    required double valueFontSize,
-  }) {
-    // Row 2 gets slightly reduced spacing to center the title better
-    // This compensates for the larger icon and creates better visual balance
-    final adjustedSpacing =
-        (valueFontSize * 1.1) +
-        (spacing / 3); // Reduced from spacing/2 to spacing/3
-
-    return SizedBox(height: adjustedSpacing);
-  }
-
-  /// Build title section with custom styling for Row 2 widgets
-  Widget _buildTitleSection({
-    required String title,
-    required double titleFontSize,
-    required double spacing,
-  }) {
-    // Row 2 widgets get slightly larger title font and adjusted spacing for better proportion
-    final effectiveTitleFontSize = showValue
-        ? titleFontSize
-        : titleFontSize + 1.0; // +1px for row 2
-    final effectiveLineHeight = showValue
-        ? 1.3
-        : 1.2; // Tighter line height for row 2
-
-    return Text(
-      title,
-      style: GoogleFonts.poppins(
-        fontSize: effectiveTitleFontSize,
-        fontWeight: FontWeight.w500,
-        color: AppColors.textSecondary,
-        height: effectiveLineHeight,
-      ),
-      textAlign: TextAlign.center,
-      maxLines: 3, // Allow up to 3 lines for better text wrapping
-      overflow: TextOverflow.visible, // Allow text to wrap naturally
-      softWrap: true, // Enable soft wrapping
     );
   }
 }
