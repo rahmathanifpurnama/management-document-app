@@ -538,7 +538,7 @@ class _HomeScreenState extends State<HomeScreen>
                         );
                       },
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 12),
                   ],
 
                   // Search Section - Using new component

@@ -35,7 +35,7 @@ class HomeGreetingSection extends StatelessWidget {
       left: isSmallScreen ? 12.0 : 16.0,
       right: isSmallScreen ? 12.0 : 16.0,
       top: 0,
-      bottom: 6.0, // Add bottom margin for spacing with search
+      bottom: 0, // Add bottom margin for spacing with search
     );
     final responsivePadding = EdgeInsets.all(isSmallScreen ? 12.0 : 16.0);
     final responsiveBorderRadius = isSmallScreen ? 12.0 : 16.0;
