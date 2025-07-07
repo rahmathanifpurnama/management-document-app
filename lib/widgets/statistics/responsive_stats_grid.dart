@@ -20,26 +20,31 @@ class ResponsiveStatsGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
 
-    // Determine grid layout based on screen size
+    // Determine grid layout based on screen size with improved responsive design
     int crossAxisCount;
     double childAspectRatio;
     double spacing;
 
     if (screenWidth < 400) {
-      // Small screens: 2 widgets per row
+      // Small screens (mobile): 2 widgets per row
       crossAxisCount = 2;
+      childAspectRatio = 1.3;
+      spacing = 6.0;
+    } else if (screenWidth < 600) {
+      // Medium screens (large mobile/small tablet): 3 widgets per row
+      crossAxisCount = 3;
       childAspectRatio = 1.2;
       spacing = 8.0;
-    } else if (screenWidth < 600) {
-      // Medium screens: 3 widgets per row
-      crossAxisCount = 3;
-      childAspectRatio = 1.1;
-      spacing = 12.0;
-    } else {
-      // Large screens: 4 widgets per row
+    } else if (screenWidth < 900) {
+      // Large screens (tablet): 4 widgets per row
       crossAxisCount = 4;
+      childAspectRatio = 1.1;
+      spacing = 10.0;
+    } else {
+      // Extra large screens (desktop): 5 widgets per row (maximum)
+      crossAxisCount = 5;
       childAspectRatio = 1.0;
-      spacing = 16.0;
+      spacing = 12.0;
     }
 
     final statWidgets = _buildStatWidgets();
@@ -98,7 +103,7 @@ class ResponsiveStatsGrid extends StatelessWidget {
         iconAsset: 'assets/icon/recycle-bin.svg',
         color: Colors.grey,
         onTap: () => onStatTap?.call('recycle'),
-        isClickable: false, // Not implemented yet
+        isClickable: true,
       ),
       _buildStatWidget(
         title: 'Favorites',
@@ -106,7 +111,7 @@ class ResponsiveStatsGrid extends StatelessWidget {
         iconAsset: 'assets/icon/user-folder.svg',
         color: Colors.red,
         onTap: () => onStatTap?.call('favorites'),
-        isClickable: false, // Not implemented yet
+        isClickable: true,
       ),
     ];
   }
@@ -158,16 +163,25 @@ class StatWidget extends StatelessWidget {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 400;
     final isMediumScreen = screenWidth < 600;
+    final isLargeScreen = screenWidth < 900;
 
-    // Responsive sizing
+    // Responsive sizing - made smaller overall
     final padding = EdgeInsets.all(
-      isSmallScreen ? 8.0 : (isMediumScreen ? 12.0 : 16.0),
+      isSmallScreen
+          ? 6.0
+          : (isMediumScreen ? 8.0 : (isLargeScreen ? 10.0 : 12.0)),
     );
-    final borderRadius = isSmallScreen ? 8.0 : 12.0;
-    final spacing = isSmallScreen ? 4.0 : 8.0;
-    final valueFontSize = isSmallScreen ? 16.0 : (isMediumScreen ? 18.0 : 20.0);
-    final titleFontSize = isSmallScreen ? 10.0 : (isMediumScreen ? 11.0 : 12.0);
-    final iconSize = isSmallScreen ? 18.0 : (isMediumScreen ? 20.0 : 24.0);
+    final borderRadius = isSmallScreen ? 6.0 : 8.0;
+    final spacing = isSmallScreen ? 3.0 : (isMediumScreen ? 4.0 : 6.0);
+    final valueFontSize = isSmallScreen
+        ? 14.0
+        : (isMediumScreen ? 16.0 : (isLargeScreen ? 18.0 : 20.0));
+    final titleFontSize = isSmallScreen
+        ? 9.0
+        : (isMediumScreen ? 10.0 : (isLargeScreen ? 11.0 : 12.0));
+    final iconSize = isSmallScreen
+        ? 16.0
+        : (isMediumScreen ? 18.0 : (isLargeScreen ? 20.0 : 22.0));
 
     Widget content = Container(
       padding: padding,

@@ -277,21 +277,23 @@ class _HomeScreenState extends State<HomeScreen>
         _scrollToRecentFiles();
         break;
       case 'categories':
-        // Navigate to categories page
-        Navigator.pushNamed(context, '/categories');
+        // Navigate to categories page using proper route
+        Navigator.pushNamed(context, AppRoutes.categories);
         break;
       case 'users':
         // Navigate to user management page
-        Navigator.pushNamed(context, '/user-management');
+        Navigator.pushNamed(context, AppRoutes.userManagement);
         break;
       case 'total':
         // No action for total files (non-clickable)
         break;
       case 'recycle':
-        // TODO: Navigate to recycle bin (not implemented yet)
+        // Navigate to recycle bin page
+        Navigator.pushNamed(context, AppRoutes.recycleBin);
         break;
       case 'favorites':
-        // TODO: Navigate to favorites (not implemented yet)
+        // Navigate to favorites page
+        Navigator.pushNamed(context, AppRoutes.favorites);
         break;
     }
   }

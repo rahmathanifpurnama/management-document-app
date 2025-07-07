@@ -17,6 +17,8 @@ class AppRoutes {
   static const String uploadDocument = '/upload-document';
   static const String apiUploadDemo = '/api-upload-demo';
   static const String recentFiles = '/recent-files';
+  static const String recycleBin = '/recycle-bin';
+  static const String favorites = '/favorites';
 
   // Category Routes
   static const String categories = '/categories';
@@ -28,7 +30,7 @@ class AppRoutes {
   static const String categoryDetails = '/category-details';
 
   // Admin Routes
-    static const String userManagement = '/user-management';
+  static const String userManagement = '/user-management';
   static const String createUser = '/create-user';
   static const String editUser = '/edit-user';
   static const String userDetails = '/user-details';

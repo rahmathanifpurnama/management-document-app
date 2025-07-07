@@ -46,6 +46,8 @@ import 'screens/admin/file_approval_screen.dart';
 import 'screens/notification/notification_center_screen.dart';
 import 'screens/upload/upload_document_screen.dart';
 import 'screens/common/file_preview_screen.dart';
+import 'screens/recycle_bin/recycle_bin_screen.dart';
+import 'screens/favorites/favorites_screen.dart';
 import 'services/download_notification_service.dart';
 import 'models/category_model.dart';
 import 'models/user_model.dart';
@@ -284,6 +286,14 @@ class _MyAppState extends State<MyApp> {
                   case AppRoutes.categories:
                     return MaterialPageRoute(
                       builder: (context) => const CategoryScreen(),
+                    );
+                  case AppRoutes.recycleBin:
+                    return MaterialPageRoute(
+                      builder: (context) => const RecycleBinScreen(),
+                    );
+                  case AppRoutes.favorites:
+                    return MaterialPageRoute(
+                      builder: (context) => const FavoritesScreen(),
                     );
                   case AppRoutes.manageCategories:
                     return MaterialPageRoute(
