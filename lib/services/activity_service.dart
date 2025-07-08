@@ -36,7 +36,14 @@ class ActivityService {
       final result = await callable.call();
 
       debugPrint('✅ Activity statistics retrieved via Cloud Function');
-      return Map<String, dynamic>.from(result.data);
+
+      // Safe type casting
+      final data = result.data;
+      if (data is Map) {
+        return Map<String, dynamic>.from(data);
+      } else {
+        throw Exception('Invalid response format from Cloud Function');
+      }
     } catch (e) {
       debugPrint('❌ Error getting activity statistics via Cloud Function: $e');
       rethrow;
@@ -88,20 +95,23 @@ class ActivityService {
       }
 
       // Get suspicious activities count (failed logins, multiple rapid actions, etc.)
+      // Split query to avoid composite index requirement
       final suspiciousQuery = await _firestore
           .collection('activities')
           .where('isSuspicious', isEqualTo: true)
-          .where(
-            'timestamp',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(weekStart),
-          )
           .get();
+
+      // Filter by timestamp in memory to avoid composite index
+      final suspiciousCount = suspiciousQuery.docs.where((doc) {
+        final timestamp = doc.data()['timestamp'] as Timestamp?;
+        return timestamp != null && timestamp.toDate().isAfter(weekStart);
+      }).length;
 
       return {
         'todayCount': todayQuery.docs.length,
         'weekCount': weekQuery.docs.length,
         'activeUsers': activeUserIds.length,
-        'suspiciousCount': suspiciousQuery.docs.length,
+        'suspiciousCount': suspiciousCount,
       };
     } catch (e) {
       debugPrint('Error getting activity statistics: $e');
@@ -255,7 +265,14 @@ class ActivityService {
       });
 
       debugPrint('✅ Filtered activities retrieved via Cloud Function');
-      return Map<String, dynamic>.from(result.data);
+
+      // Safe type casting
+      final data = result.data;
+      if (data is Map) {
+        return Map<String, dynamic>.from(data);
+      } else {
+        throw Exception('Invalid response format from Cloud Function');
+      }
     } catch (e) {
       debugPrint('❌ Error getting filtered activities via Cloud Function: $e');
       rethrow;

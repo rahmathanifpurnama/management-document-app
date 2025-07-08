@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/activity_service.dart';
@@ -70,14 +69,26 @@ class _NewActivityPageState extends State<NewActivityPage> {
     });
 
     try {
-      // Load statistics and initial activities in parallel
-      final futures = await Future.wait([
-        _activityService.getActivityStatistics(),
-        _loadActivities(reset: true),
-      ]);
+      // Load statistics and initial activities separately for better error handling
+      Map<String, dynamic> statistics = {};
+
+      try {
+        statistics = await _activityService.getActivityStatistics();
+      } catch (e) {
+        debugPrint('Error loading statistics: $e');
+        // Set default statistics if loading fails
+        statistics = {
+          'todayCount': 0,
+          'weekCount': 0,
+          'activeUsers': 0,
+          'suspiciousCount': 0,
+        };
+      }
+
+      await _loadActivities(reset: true);
 
       setState(() {
-        _activityStatistics = futures[0] as Map<String, dynamic>;
+        _activityStatistics = statistics;
       });
     } catch (e) {
       setState(() {
@@ -109,9 +120,29 @@ class _NewActivityPageState extends State<NewActivityPage> {
         startAfterTimestamp: _lastTimestamp,
       );
 
-      final newActivities = (result['activities'] as List)
-          .map((data) => _createActivityFromData(data))
-          .toList();
+      // Safe handling of activities list
+      final activitiesData = result['activities'];
+      List<ActivityModel> newActivities = [];
+
+      if (activitiesData is List) {
+        newActivities = activitiesData
+            .map((data) {
+              try {
+                if (data is Map) {
+                  return _createActivityFromData(
+                    Map<String, dynamic>.from(data),
+                  );
+                }
+                return null;
+              } catch (e) {
+                debugPrint('Error parsing activity data: $e');
+                return null;
+              }
+            })
+            .where((activity) => activity != null)
+            .cast<ActivityModel>()
+            .toList();
+      }
 
       setState(() {
         if (reset) {
