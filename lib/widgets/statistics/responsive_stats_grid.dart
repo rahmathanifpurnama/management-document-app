@@ -230,6 +230,10 @@ class StatWidget extends StatelessWidget {
             borderRadius: borderRadius,
           ),
 
+          // Custom spacing between icon and content for row 2
+          SizedBox(
+            height: showValue ? spacing : 8.0,
+          ), // 12px for row 2, 8px for row 1
           // Spacing between icon and content
           if (showValue) ...[
             // Row 1 spacing (normal)
