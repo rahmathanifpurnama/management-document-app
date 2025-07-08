@@ -24,7 +24,7 @@ class QuickAccessWidget extends StatefulWidget {
 
 class _QuickAccessWidgetState extends State<QuickAccessWidget> {
   final ActivityService _activityService = ActivityService();
-  
+
   Map<String, dynamic> _statistics = {};
   bool _isLoading = false;
 
@@ -114,9 +114,7 @@ class _QuickAccessWidgetState extends State<QuickAccessWidget> {
     if (_isLoading && _statistics.isEmpty) {
       return SizedBox(
         height: widget.height ?? 120,
-        child: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        child: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -185,18 +183,14 @@ class _QuickAccessWidgetState extends State<QuickAccessWidget> {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(
-                  card.icon,
-                  color: card.color,
-                  size: 24,
-                ),
-                if (card.key == 'suspicious' && 
-                    int.tryParse(card.value) != null && 
+                Icon(card.icon, color: card.color, size: 24),
+                if (card.key == 'suspicious' &&
+                    int.tryParse(card.value) != null &&
                     int.parse(card.value) > 0)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -219,33 +213,40 @@ class _QuickAccessWidgetState extends State<QuickAccessWidget> {
               ],
             ),
             const SizedBox(height: 8),
-            Text(
-              card.value,
-              style: GoogleFonts.poppins(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: card.color,
+            Flexible(
+              child: Text(
+                card.value,
+                style: GoogleFonts.poppins(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: card.color,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              card.title,
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textPrimary,
+            Flexible(
+              child: Text(
+                card.title,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
-            Text(
-              card.subtitle,
-              style: GoogleFonts.poppins(
-                fontSize: 10,
-                color: AppColors.textSecondary,
+            Flexible(
+              child: Text(
+                card.subtitle,
+                style: GoogleFonts.poppins(
+                  fontSize: 10,
+                  color: AppColors.textSecondary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

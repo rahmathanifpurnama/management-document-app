@@ -22,8 +22,19 @@ class ActivityService {
       debugPrint(
         '⚠️ Cloud Function failed, falling back to local processing: $e',
       );
-      // Fallback to local Firestore processing
-      return await _getActivityStatisticsLocal();
+      try {
+        // Fallback to local Firestore processing
+        return await _getActivityStatisticsLocal();
+      } catch (localError) {
+        debugPrint('❌ Local processing also failed: $localError');
+        // Return default values to prevent app crash
+        return {
+          'todayCount': 0,
+          'weekCount': 0,
+          'activeUsers': 0,
+          'suspiciousCount': 0,
+        };
+      }
     }
   }
 
@@ -168,13 +179,16 @@ class ActivityService {
         }
       }
 
-      // Apply pagination
+      // Order by timestamp (most recent first) first
+      query = query.orderBy('timestamp', descending: true);
+
+      // Apply pagination after ordering
       if (startAfter != null) {
         query = query.startAfterDocument(startAfter);
       }
 
-      // Order by timestamp (most recent first) and limit
-      query = query.orderBy('timestamp', descending: true).limit(limit);
+      // Apply limit
+      query = query.limit(limit);
 
       final querySnapshot = await query.get();
       final activities = <ActivityModel>[];
@@ -228,14 +242,24 @@ class ActivityService {
       debugPrint(
         '⚠️ Cloud Function failed, falling back to local processing: $e',
       );
-      // Fallback to local Firestore processing
-      return await _getFilteredActivitiesLocal(
-        filter: filter,
-        searchQuery: searchQuery,
-        dateRange: dateRange,
-        limit: limit,
-        startAfterTimestamp: startAfterTimestamp,
-      );
+      try {
+        // Fallback to local Firestore processing
+        return await _getFilteredActivitiesLocal(
+          filter: filter,
+          searchQuery: searchQuery,
+          dateRange: dateRange,
+          limit: limit,
+          startAfterTimestamp: startAfterTimestamp,
+        );
+      } catch (localError) {
+        debugPrint('❌ Local processing also failed: $localError');
+        // Return empty result to prevent app crash
+        return {
+          'activities': <Map<String, dynamic>>[],
+          'hasMore': false,
+          'lastTimestamp': null,
+        };
+      }
     }
   }
 

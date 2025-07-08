@@ -46,7 +46,14 @@ class _StorageChartWidgetState extends State<StorageChartWidget> {
     _loadChartData();
   }
 
+  @override
+  void dispose() {
+    // Cancel any ongoing operations if needed
+    super.dispose();
+  }
+
   Future<void> _loadChartData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
@@ -55,14 +62,18 @@ class _StorageChartWidgetState extends State<StorageChartWidget> {
       );
       final stats = await _storageHistoryService.getCurrentStorageStats();
 
-      setState(() {
-        _chartData = data;
-        _currentStats = stats;
-      });
+      if (mounted) {
+        setState(() {
+          _chartData = data;
+          _currentStats = stats;
+        });
+      }
     } catch (e) {
       debugPrint('Error loading chart data: $e');
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -197,8 +208,12 @@ class _StorageChartWidgetState extends State<StorageChartWidget> {
           ),
           titlesData: FlTitlesData(
             show: true,
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
+            topTitles: const AxisTitles(
+              sideTitles: SideTitles(showTitles: false),
+            ),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
@@ -321,7 +336,12 @@ class _StorageChartWidgetState extends State<StorageChartWidget> {
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return AppContainer.info(
       padding: const EdgeInsets.all(12),
       child: Column(
@@ -351,7 +371,9 @@ class _StorageChartWidgetState extends State<StorageChartWidget> {
 
   double _getMaxY() {
     if (_chartData.isEmpty) return 100;
-    final maxValue = _chartData.map((spot) => spot.y).reduce((a, b) => a > b ? a : b);
+    final maxValue = _chartData
+        .map((spot) => spot.y)
+        .reduce((a, b) => a > b ? a : b);
     return maxValue * 1.1; // Add 10% padding
   }
 
@@ -385,7 +407,9 @@ class _StorageChartWidgetState extends State<StorageChartWidget> {
   String _formatBytes(double bytes) {
     if (bytes < 1024) return '${bytes.toInt()}B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
+    }
     return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)}GB';
   }
 }

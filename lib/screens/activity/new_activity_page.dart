@@ -76,6 +76,18 @@ class _NewActivityPageState extends State<NewActivityPage> {
         statistics = await _activityService.getActivityStatistics();
       } catch (e) {
         debugPrint('Error loading statistics: $e');
+        // Show user-friendly error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Unable to load activity statistics. Using cached data.',
+              ),
+              backgroundColor: AppColors.warning,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
         // Set default statistics if loading fails
         statistics = {
           'todayCount': 0,
@@ -155,7 +167,20 @@ class _NewActivityPageState extends State<NewActivityPage> {
       });
     } catch (e) {
       debugPrint('Error loading activities: $e');
-      rethrow;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unable to load activities. Please try again.'),
+            backgroundColor: AppColors.error,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: () => _loadActivities(reset: true),
+            ),
+          ),
+        );
+      }
+      // Don't rethrow to prevent app crash
     }
   }
 
@@ -170,6 +195,14 @@ class _NewActivityPageState extends State<NewActivityPage> {
       await _loadActivities();
     } catch (e) {
       debugPrint('Error loading more activities: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unable to load more activities.'),
+            backgroundColor: AppColors.warning,
+          ),
+        );
+      }
     } finally {
       setState(() {
         _isLoadingMore = false;
@@ -395,6 +428,7 @@ class _NewActivityPageState extends State<NewActivityPage> {
       ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             activity.userName ?? activity.userEmail ?? 'Unknown User',
@@ -402,6 +436,8 @@ class _NewActivityPageState extends State<NewActivityPage> {
               fontSize: 12,
               color: AppColors.textSecondary,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           Text(
             _formatDateTime(activity.timestamp),
@@ -409,6 +445,8 @@ class _NewActivityPageState extends State<NewActivityPage> {
               fontSize: 11,
               color: AppColors.textSecondary,
             ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

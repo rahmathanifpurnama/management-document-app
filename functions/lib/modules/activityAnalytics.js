@@ -138,13 +138,15 @@ exports.getFilteredActivities = functions.https.onCall(async (data, context) => 
                     query = query.where('type', '==', filter);
             }
         }
-        // Apply pagination
+        // Order by timestamp (most recent first) first
+        query = query.orderBy('timestamp', 'desc');
+        // Apply pagination after ordering
         if (startAfterTimestamp) {
             const startAfterDate = admin.firestore.Timestamp.fromDate(new Date(startAfterTimestamp));
             query = query.startAfter(startAfterDate);
         }
-        // Order by timestamp (most recent first) and limit
-        query = query.orderBy('timestamp', 'desc').limit(Math.min(limit, 100)); // Cap at 100
+        // Apply limit
+        query = query.limit(Math.min(limit, 100)); // Cap at 100
         const querySnapshot = await query.get();
         const activities = [];
         querySnapshot.docs.forEach(doc => {

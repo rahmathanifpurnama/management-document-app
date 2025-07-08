@@ -321,6 +321,27 @@ service cloud.firestore {
         && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
+    // Storage history collection for storage analytics
+    match /storage_history/{historyId} {
+      // Allow read for active users (for storage charts and analytics)
+      allow get: if isActiveUser();
+
+      // Allow collection queries for active users with limits
+      allow list: if isActiveUser()
+        && !isAdmin()
+        && request.query.limit <= 100;
+
+      // Allow unlimited queries for admin users
+      allow list: if isAdmin();
+
+      // Allow create for active users (for recording storage snapshots)
+      allow create: if isActiveUser()
+        && request.resource.data.keys().hasAll(['timestamp', 'totalBytes', 'fileCount']);
+
+      // ADMIN-ONLY HARD DELETE: Only admin can delete storage history
+      allow delete: if isAdmin();
+    }
+
     // Enhanced documents collection rules for statistics
     // Additional rules for statistics calculation (more permissive for count queries)
     match /documents/{documentId} {
