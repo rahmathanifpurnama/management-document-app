@@ -36,7 +36,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.manualCleanupActivityLogs = exports.onFileUpload = exports.onUserCreate = exports.onDocumentCreate = exports.api = exports.healthCheck = exports.validateUserSession = exports.handleLogoutOperations = exports.handlePostLoginOperations = exports.onAuthUserDeleted = exports.onAuthUserCreated = exports.onStorageFileDeleted = exports.onStorageFileCreated = exports.processActivityLog = exports.sendNotification = exports.invalidateStatisticsCache = exports.getPaginatedFileStats = exports.getAggregatedStatistics = exports.repairSyncInconsistencies = exports.monitorSyncConsistency = exports.performComprehensiveSync = exports.cleanupOrphanedMetadata = exports.syncStorageToFirestore = exports.syncStorageWithFirestore = exports.generateDocumentReport = exports.bulkDocumentOperations = exports.deleteDocument = exports.rejectDocument = exports.approveDocument = exports.initializeAdmin = exports.debugAuthPermissions = exports.autoSyncFirebaseAuthUsers = exports.setAdminClaims = exports.bulkUserOperations = exports.deleteUser = exports.updateUserPermissions = exports.createUser = exports.refreshCategoryContents = exports.getCategoryDocumentsEnhanced = exports.removeFilesFromCategory = exports.addFilesToCategory = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.hybridProcessFileUpload = exports.batchProcessFiles = exports.cleanupOrphanedFiles = exports.getFileAccessUrl = exports.getStorageQuota = exports.streamingUpload = void 0;
+exports.onUserCreate = exports.onDocumentCreate = exports.api = exports.healthCheck = exports.validateUserSession = exports.handleLogoutOperations = exports.handlePostLoginOperations = exports.onAuthUserDeleted = exports.onAuthUserCreated = exports.onStorageFileDeleted = exports.onStorageFileCreated = exports.getFilteredActivities = exports.getActivityStatistics = exports.processActivityLog = exports.sendNotification = exports.invalidateStatisticsCache = exports.getPaginatedFileStats = exports.getAggregatedStatistics = exports.repairSyncInconsistencies = exports.monitorSyncConsistency = exports.performComprehensiveSync = exports.cleanupOrphanedMetadata = exports.syncStorageToFirestore = exports.syncStorageWithFirestore = exports.generateDocumentReport = exports.bulkDocumentOperations = exports.deleteDocument = exports.rejectDocument = exports.approveDocument = exports.initializeAdmin = exports.debugAuthPermissions = exports.autoSyncFirebaseAuthUsers = exports.setAdminClaims = exports.bulkUserOperations = exports.deleteUser = exports.updateUserPermissions = exports.createUser = exports.refreshCategoryContents = exports.getCategoryDocumentsEnhanced = exports.removeFilesFromCategory = exports.addFilesToCategory = exports.deleteCategory = exports.updateCategory = exports.createCategory = exports.hybridProcessFileUpload = exports.batchProcessFiles = exports.cleanupOrphanedFiles = exports.getFileAccessUrl = exports.getStorageQuota = exports.streamingUpload = void 0;
+exports.manualCleanupActivityLogs = exports.onFileUpload = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const cors_1 = __importDefault(require("cors"));
@@ -122,6 +123,10 @@ exports.invalidateStatisticsCache = syncOperations_1.syncFunctions.invalidateSta
 // Notification Functions
 exports.sendNotification = notifications_1.notificationFunctions.sendNotification;
 exports.processActivityLog = notifications_1.notificationFunctions.processActivityLog;
+// Activity Analytics Functions
+const activityAnalytics = __importStar(require("./modules/activityAnalytics"));
+exports.getActivityStatistics = activityAnalytics.getActivityStatistics;
+exports.getFilteredActivities = activityAnalytics.getFilteredActivities;
 // Real-time Synchronization Functions
 const realTimeSyncFunctions = __importStar(require("./modules/realTimeSync"));
 exports.onStorageFileCreated = realTimeSyncFunctions.onStorageFileCreated;

@@ -1,19 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../services/storage_history_service.dart';
+import '../../core/constants/app_colors.dart';
+import '../../services/storage_history_service.dart';
+import '../common/app_container.dart';
 
-class StorageUsageChart extends StatefulWidget {
+class StorageChartWidget extends StatefulWidget {
   final VoidCallback? onNavigateToHistory;
+  final bool showHeader;
+  final bool showPeriodSelector;
+  final bool showStorageStats;
+  final double? height;
 
-  const StorageUsageChart({super.key, this.onNavigateToHistory});
+  const StorageChartWidget({
+    super.key,
+    this.onNavigateToHistory,
+    this.showHeader = true,
+    this.showPeriodSelector = true,
+    this.showStorageStats = true,
+    this.height,
+  });
 
   @override
-  State<StorageUsageChart> createState() => _StorageUsageChartState();
+  State<StorageChartWidget> createState() => _StorageChartWidgetState();
 }
 
-class _StorageUsageChartState extends State<StorageUsageChart> {
+class _StorageChartWidgetState extends State<StorageChartWidget> {
   final StorageHistoryService _storageHistoryService = StorageHistoryService();
 
   String _selectedPeriod = 'week'; // 'day', 'week', 'month', 'year'
@@ -56,30 +68,17 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+    return AppContainer.card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(),
-          const SizedBox(height: 16),
-          _buildPeriodSelector(),
-          const SizedBox(height: 16),
+          if (widget.showHeader) _buildHeader(),
+          if (widget.showHeader) const SizedBox(height: 16),
+          if (widget.showPeriodSelector) _buildPeriodSelector(),
+          if (widget.showPeriodSelector) const SizedBox(height: 16),
           _buildChart(),
-          const SizedBox(height: 16),
-          _buildStorageStats(),
+          if (widget.showStorageStats) const SizedBox(height: 16),
+          if (widget.showStorageStats) _buildStorageStats(),
         ],
       ),
     );
@@ -90,82 +89,74 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          'Storage Usage Trend',
+          'Storage Usage',
           style: GoogleFonts.poppins(
             fontSize: 18,
             fontWeight: FontWeight.w600,
             color: AppColors.textPrimary,
           ),
         ),
-        Row(
-          children: [
-            if (widget.onNavigateToHistory != null)
-              TextButton.icon(
-                onPressed: widget.onNavigateToHistory,
-                icon: const Icon(Icons.history, size: 16),
-                label: const Text('View History'),
-                style: TextButton.styleFrom(foregroundColor: AppColors.primary),
-              ),
-            IconButton(
-              onPressed: _loadChartData,
-              icon: const Icon(Icons.refresh, size: 20),
-              tooltip: 'Refresh',
-              style: IconButton.styleFrom(
-                backgroundColor: AppColors.primary.withOpacity(0.1),
-                foregroundColor: AppColors.primary,
-              ),
+        if (widget.onNavigateToHistory != null)
+          TextButton.icon(
+            onPressed: widget.onNavigateToHistory,
+            icon: const Icon(Icons.history, size: 16),
+            label: const Text('View History'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              textStyle: GoogleFonts.poppins(fontSize: 12),
             ),
-          ],
-        ),
+          ),
       ],
     );
   }
 
   Widget _buildPeriodSelector() {
-    return Row(
-      children: _periodLabels.entries.map((entry) {
-        final isSelected = _selectedPeriod == entry.key;
-        return Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: ChoiceChip(
-            label: Text(
-              entry.value,
-              style: TextStyle(
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: _periodLabels.entries.map((entry) {
+          final isSelected = _selectedPeriod == entry.key;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilterChip(
+              label: Text(entry.value),
+              selected: isSelected,
+              onSelected: (selected) {
+                if (selected) {
+                  setState(() => _selectedPeriod = entry.key);
+                  _loadChartData();
+                }
+              },
+              backgroundColor: AppColors.background,
+              selectedColor: AppColors.primary.withValues(alpha: 0.1),
+              checkmarkColor: AppColors.primary,
+              labelStyle: GoogleFonts.poppins(
                 fontSize: 12,
-                color: isSelected ? Colors.white : AppColors.textSecondary,
+                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+              ),
+              side: BorderSide(
+                color: isSelected ? AppColors.primary : AppColors.border,
+                width: 1,
               ),
             ),
-            selected: isSelected,
-            onSelected: (selected) {
-              if (selected) {
-                setState(() => _selectedPeriod = entry.key);
-                _loadChartData();
-              }
-            },
-            backgroundColor: Colors.grey.withOpacity(0.1),
-            selectedColor: AppColors.primary,
-            side: BorderSide(
-              color: isSelected
-                  ? AppColors.primary
-                  : Colors.grey.withOpacity(0.3),
-            ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 
   Widget _buildChart() {
     if (_isLoading) {
-      return const SizedBox(
-        height: 200,
-        child: Center(child: CircularProgressIndicator()),
+      return SizedBox(
+        height: widget.height ?? 200,
+        child: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_chartData.isEmpty) {
       return SizedBox(
-        height: 200,
+        height: widget.height ?? 200,
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -173,12 +164,15 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
               Icon(
                 Icons.storage,
                 size: 48,
-                color: AppColors.textSecondary.withOpacity(0.5),
+                color: AppColors.textSecondary.withValues(alpha: 0.5),
               ),
               const SizedBox(height: 8),
               Text(
                 'No storage data available',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                style: GoogleFonts.poppins(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                ),
               ),
             ],
           ),
@@ -187,7 +181,7 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
     }
 
     return SizedBox(
-      height: 200,
+      height: widget.height ?? 200,
       child: LineChart(
         LineChartData(
           gridData: FlGridData(
@@ -196,15 +190,15 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
             horizontalInterval: _getHorizontalInterval(),
             getDrawingHorizontalLine: (value) {
               return FlLine(
-                color: Colors.grey.withOpacity(0.2),
+                color: AppColors.border.withValues(alpha: 0.5),
                 strokeWidth: 1,
               );
             },
           ),
           titlesData: FlTitlesData(
             show: true,
-            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
@@ -215,7 +209,7 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
                     meta: meta,
                     child: Text(
                       _getBottomTitle(value),
-                      style: TextStyle(
+                      style: GoogleFonts.poppins(
                         color: AppColors.textSecondary,
                         fontSize: 10,
                       ),
@@ -227,14 +221,14 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
+                reservedSize: 50,
                 interval: _getHorizontalInterval(),
-                reservedSize: 40,
                 getTitlesWidget: (value, meta) {
                   return SideTitleWidget(
                     meta: meta,
                     child: Text(
                       _formatBytes(value),
-                      style: TextStyle(
+                      style: GoogleFonts.poppins(
                         color: AppColors.textSecondary,
                         fontSize: 10,
                       ),
@@ -244,10 +238,7 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
               ),
             ),
           ),
-          borderData: FlBorderData(
-            show: true,
-            border: Border.all(color: Colors.grey.withOpacity(0.2)),
-          ),
+          borderData: FlBorderData(show: false),
           minX: _chartData.first.x,
           maxX: _chartData.last.x,
           minY: 0,
@@ -257,7 +248,10 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
               spots: _chartData,
               isCurved: true,
               gradient: LinearGradient(
-                colors: [AppColors.primary.withOpacity(0.8), AppColors.primary],
+                colors: [
+                  AppColors.primary.withValues(alpha: 0.8),
+                  AppColors.primary,
+                ],
               ),
               barWidth: 3,
               isStrokeCapRound: true,
@@ -276,8 +270,8 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
                 show: true,
                 gradient: LinearGradient(
                   colors: [
-                    AppColors.primary.withOpacity(0.1),
-                    AppColors.primary.withOpacity(0.05),
+                    AppColors.primary.withValues(alpha: 0.1),
+                    AppColors.primary.withValues(alpha: 0.05),
                   ],
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -285,23 +279,6 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
               ),
             ),
           ],
-          lineTouchData: LineTouchData(
-            enabled: true,
-            touchTooltipData: LineTouchTooltipData(
-              getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
-                return touchedBarSpots.map((barSpot) {
-                  return LineTooltipItem(
-                    '${_formatBytes(barSpot.y)}\n${_getTooltipDate(barSpot.x)}',
-                    const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  );
-                }).toList();
-              },
-            ),
-          ),
         ),
       ),
     );
@@ -322,7 +299,7 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
             AppColors.primary,
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         Expanded(
           child: _buildStatItem(
             'Total Files',
@@ -331,10 +308,10 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
             AppColors.success,
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         Expanded(
           child: _buildStatItem(
-            'Avg File Size',
+            'Avg Size',
             _formatBytes(_currentStats['averageFileSize']?.toDouble() ?? 0),
             Icons.insert_drive_file,
             AppColors.warning,
@@ -344,18 +321,9 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
     );
   }
 
-  Widget _buildStatItem(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
+  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+    return AppContainer.info(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
       child: Column(
         children: [
           Icon(icon, color: color, size: 20),
@@ -370,7 +338,10 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
           ),
           Text(
             label,
-            style: TextStyle(fontSize: 10, color: AppColors.textSecondary),
+            style: GoogleFonts.poppins(
+              fontSize: 10,
+              color: AppColors.textSecondary,
+            ),
             textAlign: TextAlign.center,
           ),
         ],
@@ -380,9 +351,7 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
 
   double _getMaxY() {
     if (_chartData.isEmpty) return 100;
-    final maxValue = _chartData
-        .map((spot) => spot.y)
-        .reduce((a, b) => a > b ? a : b);
+    final maxValue = _chartData.map((spot) => spot.y).reduce((a, b) => a > b ? a : b);
     return maxValue * 1.1; // Add 10% padding
   }
 
@@ -399,7 +368,6 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
 
   String _getBottomTitle(double value) {
     final date = DateTime.fromMillisecondsSinceEpoch(value.toInt());
-
     switch (_selectedPeriod) {
       case 'day':
         return '${date.hour}:00';
@@ -414,16 +382,10 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
     }
   }
 
-  String _getTooltipDate(double value) {
-    final date = DateTime.fromMillisecondsSinceEpoch(value.toInt());
-    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-  }
-
   String _formatBytes(double bytes) {
-    if (bytes < 1024) return '${bytes.toInt()} B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024)
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+    if (bytes < 1024) return '${bytes.toInt()}B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
+    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)}GB';
   }
 }

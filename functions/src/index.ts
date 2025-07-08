@@ -99,6 +99,11 @@ export const invalidateStatisticsCache = syncFunctions.invalidateStatisticsCache
 export const sendNotification = notificationFunctions.sendNotification;
 export const processActivityLog = notificationFunctions.processActivityLog;
 
+// Activity Analytics Functions
+import * as activityAnalytics from "./modules/activityAnalytics";
+export const getActivityStatistics = activityAnalytics.getActivityStatistics;
+export const getFilteredActivities = activityAnalytics.getFilteredActivities;
+
 // Real-time Synchronization Functions
 import * as realTimeSyncFunctions from "./modules/realTimeSync";
 export const onStorageFileCreated = realTimeSyncFunctions.onStorageFileCreated;

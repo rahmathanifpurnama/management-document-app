@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../models/activity_model.dart';
 
 class ActivityService {
@@ -10,9 +11,40 @@ class ActivityService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
-  /// Get activity statistics for dashboard
+  /// Get activity statistics using Cloud Functions (with fallback)
   Future<Map<String, dynamic>> getActivityStatistics() async {
+    try {
+      // Try Cloud Function first for better performance
+      return await _getActivityStatisticsCloudFunction();
+    } catch (e) {
+      debugPrint(
+        '⚠️ Cloud Function failed, falling back to local processing: $e',
+      );
+      // Fallback to local Firestore processing
+      return await _getActivityStatisticsLocal();
+    }
+  }
+
+  /// Get activity statistics using Cloud Functions
+  Future<Map<String, dynamic>> _getActivityStatisticsCloudFunction() async {
+    try {
+      debugPrint('📊 Getting activity statistics via Cloud Function');
+
+      final callable = _functions.httpsCallable('getActivityStatistics');
+      final result = await callable.call();
+
+      debugPrint('✅ Activity statistics retrieved via Cloud Function');
+      return Map<String, dynamic>.from(result.data);
+    } catch (e) {
+      debugPrint('❌ Error getting activity statistics via Cloud Function: $e');
+      rethrow;
+    }
+  }
+
+  /// Get activity statistics using local Firestore processing (fallback)
+  Future<Map<String, dynamic>> _getActivityStatisticsLocal() async {
     try {
       final now = DateTime.now();
       final todayStart = DateTime(now.year, now.month, now.day);
@@ -162,6 +194,146 @@ class ActivityService {
     } catch (e) {
       debugPrint('Error getting activities: $e');
       return [];
+    }
+  }
+
+  /// Get filtered activities using Cloud Functions (with fallback)
+  Future<Map<String, dynamic>> getFilteredActivities({
+    String filter = 'all',
+    String? searchQuery,
+    DateTimeRange? dateRange,
+    int limit = 50,
+    String? startAfterTimestamp,
+  }) async {
+    try {
+      // Try Cloud Function first for better performance
+      return await _getFilteredActivitiesCloudFunction(
+        filter: filter,
+        searchQuery: searchQuery,
+        dateRange: dateRange,
+        limit: limit,
+        startAfterTimestamp: startAfterTimestamp,
+      );
+    } catch (e) {
+      debugPrint(
+        '⚠️ Cloud Function failed, falling back to local processing: $e',
+      );
+      // Fallback to local Firestore processing
+      return await _getFilteredActivitiesLocal(
+        filter: filter,
+        searchQuery: searchQuery,
+        dateRange: dateRange,
+        limit: limit,
+        startAfterTimestamp: startAfterTimestamp,
+      );
+    }
+  }
+
+  /// Get filtered activities using Cloud Functions
+  Future<Map<String, dynamic>> _getFilteredActivitiesCloudFunction({
+    String filter = 'all',
+    String? searchQuery,
+    DateTimeRange? dateRange,
+    int limit = 50,
+    String? startAfterTimestamp,
+  }) async {
+    try {
+      debugPrint('🔍 Getting filtered activities via Cloud Function');
+
+      final callable = _functions.httpsCallable('getFilteredActivities');
+      final result = await callable.call({
+        'filter': filter,
+        'searchQuery': searchQuery,
+        'dateRange': dateRange != null
+            ? {
+                'start': dateRange.start.toIso8601String(),
+                'end': dateRange.end.toIso8601String(),
+              }
+            : null,
+        'limit': limit,
+        'startAfterTimestamp': startAfterTimestamp,
+      });
+
+      debugPrint('✅ Filtered activities retrieved via Cloud Function');
+      return Map<String, dynamic>.from(result.data);
+    } catch (e) {
+      debugPrint('❌ Error getting filtered activities via Cloud Function: $e');
+      rethrow;
+    }
+  }
+
+  /// Get filtered activities using local Firestore processing (fallback)
+  Future<Map<String, dynamic>> _getFilteredActivitiesLocal({
+    String filter = 'all',
+    String? searchQuery,
+    DateTimeRange? dateRange,
+    int limit = 50,
+    String? startAfterTimestamp,
+  }) async {
+    try {
+      // Use existing getActivities method for local processing
+      DocumentSnapshot? startAfter;
+      if (startAfterTimestamp != null) {
+        // Find document by timestamp for pagination
+        final timestampQuery = await _firestore
+            .collection('activities')
+            .where(
+              'timestamp',
+              isEqualTo: Timestamp.fromDate(
+                DateTime.parse(startAfterTimestamp),
+              ),
+            )
+            .limit(1)
+            .get();
+
+        if (timestampQuery.docs.isNotEmpty) {
+          startAfter = timestampQuery.docs.first;
+        }
+      }
+
+      final activities = await getActivities(
+        filter: filter,
+        searchQuery: searchQuery,
+        dateRange: dateRange,
+        limit: limit,
+        startAfter: startAfter,
+      );
+
+      // Convert ActivityModel list to Map format for consistency with Cloud Function
+      final activitiesData = activities
+          .map(
+            (activity) => {
+              'id': activity.id,
+              'userId': activity.userId,
+              'type': activity.type,
+              'description': activity.description,
+              'timestamp': activity.timestamp.toIso8601String(),
+              'userName': activity.userName,
+              'userEmail': activity.userEmail,
+              'documentId': activity.documentId,
+              'categoryId': activity.categoryId,
+              'isSuspicious': activity.isSuspicious,
+              'ipAddress': activity.ipAddress,
+              'userAgent': activity.userAgent,
+              'details': activity.details,
+            },
+          )
+          .toList();
+
+      return {
+        'activities': activitiesData,
+        'hasMore': activities.length == limit,
+        'lastTimestamp': activities.isNotEmpty
+            ? activities.last.timestamp.toIso8601String()
+            : null,
+      };
+    } catch (e) {
+      debugPrint('Error getting filtered activities locally: $e');
+      return {
+        'activities': <Map<String, dynamic>>[],
+        'hasMore': false,
+        'lastTimestamp': null,
+      };
     }
   }
 

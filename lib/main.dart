@@ -49,7 +49,7 @@ import 'screens/common/file_preview_screen.dart';
 import 'screens/files/total_files_screen.dart';
 import 'screens/recycle_bin/recycle_bin_screen.dart';
 import 'screens/favorites/favorites_screen.dart';
-import 'screens/activity/activity_page.dart';
+import 'screens/activity/new_activity_page.dart';
 import 'screens/activity/storage_history_page.dart';
 import 'services/download_notification_service.dart';
 import 'models/category_model.dart';
@@ -362,7 +362,7 @@ class _MyAppState extends State<MyApp> {
 
                   case AppRoutes.activity:
                     return MaterialPageRoute(
-                      builder: (context) => const ActivityPage(),
+                      builder: (context) => const NewActivityPage(),
                     );
 
                   case AppRoutes.storageHistory:

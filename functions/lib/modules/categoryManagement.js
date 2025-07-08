@@ -529,7 +529,7 @@ exports.getCategoryDocumentsEnhanced = functions.https.onCall(async (data, conte
         // Get documents from Firestore with proper ordering
         const documentsSnapshot = await admin
             .firestore()
-            .collection("document-metadata")
+            .collection("documents")
             .where("category", "==", categoryId)
             .orderBy("uploadedAt", "desc")
             .get();
