@@ -287,9 +287,20 @@ class OptimizedStatisticsService {
         totalFiles = 0;
       }
 
-      // Try to get user count
+      // Try to get user count directly from Firestore users collection
       try {
-        activeUsers = await _getFirebaseAuthUserCount();
+        final usersSnapshot = await firestore.collection('users').count().get();
+        activeUsers = usersSnapshot.count ?? 0;
+
+        // If no users found, try with isActive filter
+        if (activeUsers == 0) {
+          final activeUsersSnapshot = await firestore
+              .collection('users')
+              .where('isActive', isEqualTo: true)
+              .count()
+              .get();
+          activeUsers = activeUsersSnapshot.count ?? 1; // At least current user
+        }
       } catch (e) {
         debugPrint('⚠️ Failed to get user count: $e');
         activeUsers = 1; // At least current user

@@ -306,6 +306,50 @@ class _HomeScreenState extends State<HomeScreen>
     // TODO: Implement scroll to recent files section
   }
 
+  /// Build optimized statistics grid using OptimizedStatisticsService
+  Widget _buildOptimizedStatsGrid() {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: OptimizedStatisticsService.instance.getAggregatedStatistics(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return StatsGrid(
+            statsData: const {
+              'recentFiles': 0,
+              'totalCategories': 0,
+              'activeUsers': 0,
+              'totalFiles': 0,
+              'recycleBinCount': 0,
+              'favoritesCount': 0,
+            },
+            onStatTap: _handleStatTap,
+            isLoading: true,
+          );
+        }
+
+        if (snapshot.hasError) {
+          debugPrint('❌ Error loading statistics: ${snapshot.error}');
+          // Fallback to DocumentProvider statistics on error
+          return Consumer<DocumentProvider>(
+            builder: (context, documentProvider, child) {
+              return StatsGrid(
+                statsData: documentProvider.statisticsData,
+                onStatTap: _handleStatTap,
+                isLoading: false,
+              );
+            },
+          );
+        }
+
+        final statsData = snapshot.data ?? {};
+        return StatsGrid(
+          statsData: statsData,
+          onStatTap: _handleStatTap,
+          isLoading: false,
+        );
+      },
+    );
+  }
+
   // SEARCH FIX: Method removed - search handling consolidated in HomeSearchSection
   // This eliminates duplicate listener registration and conflicting debounce timers
 
@@ -523,20 +567,12 @@ class _HomeScreenState extends State<HomeScreen>
                     onProfileTap: () => _showProfileMenu(authProvider),
                   ),
 
-                  // Dashboard Statistics Section (Admin only) - Using ResponsiveStatsGrid
+                  // Dashboard Statistics Section (Admin only) - Using OptimizedStatisticsService
                   if (authProvider.isAdmin) ...[
                     const SizedBox(height: 12),
-                    Consumer<DocumentProvider>(
-                      builder: (context, documentProvider, child) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: StatsGrid(
-                            statsData: documentProvider.statisticsData,
-                            onStatTap: _handleStatTap,
-                            isLoading: documentProvider.isLoading,
-                          ),
-                        );
-                      },
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: _buildOptimizedStatsGrid(),
                     ),
                     const SizedBox(height: 12),
                   ],
