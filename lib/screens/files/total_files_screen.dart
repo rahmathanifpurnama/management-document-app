@@ -6,7 +6,7 @@ import '../../core/constants/app_colors.dart';
 import '../../providers/document_provider.dart';
 import '../../providers/file_selection_provider.dart';
 import '../../models/document_model.dart';
-import '../../widgets/common/app_scaffold_with_navigation.dart';
+
 import '../../widgets/common/file_selection_bar.dart';
 import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/notification/bell_notification_widget.dart';
@@ -727,11 +727,22 @@ class _TotalFilesScreenState extends State<TotalFilesScreen> {
   Widget build(BuildContext context) {
     return Consumer<FileSelectionProvider>(
       builder: (context, selectionProvider, child) {
-        return AppScaffoldWithNavigation(
-          title: 'Semua File',
-          currentNavIndex: -1, // No specific nav index for this page
-          showAppBar: true,
-          actions: const [BellNotificationWidget()],
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Semua File'),
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            actions: const [BellNotificationWidget()],
+            leading: IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(
+                Icons.chevron_left,
+                size: 28,
+                color: Colors.white,
+              ),
+              tooltip: 'Back',
+            ),
+          ),
           body: Column(
             children: [
               // File selection bar (appears when files are selected)
