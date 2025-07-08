@@ -285,7 +285,8 @@ class _HomeScreenState extends State<HomeScreen>
         Navigator.pushNamed(context, AppRoutes.userManagement);
         break;
       case 'total':
-        // No action for total files (non-clickable)
+        // Navigate to total files page
+        Navigator.pushNamed(context, AppRoutes.totalFiles);
         break;
       case 'recycle':
         // Navigate to recycle bin page

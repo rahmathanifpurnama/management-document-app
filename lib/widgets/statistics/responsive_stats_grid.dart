@@ -104,7 +104,7 @@ class StatsGrid extends StatelessWidget {
         icon: Icons.description,
         color: AppColors.primary,
         onTap: () => onStatTap?.call('total'),
-        isClickable: false,
+        isClickable: true,
         showValue: true,
       ),
       _buildStatWidget(
