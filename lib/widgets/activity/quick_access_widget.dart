@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/activity_service.dart';
-import '../common/app_container.dart';
 
 class QuickAccessWidget extends StatefulWidget {
   final VoidCallback? onRefresh;
@@ -63,155 +62,191 @@ class _QuickAccessWidgetState extends State<QuickAccessWidget> {
     }
   }
 
-  Future<void> _handleRefresh() async {
-    await _loadStatistics();
-    widget.onRefresh?.call();
-  }
-
   @override
   Widget build(BuildContext context) {
-    return AppContainer.card(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 16),
-          _buildStatisticsCards(),
-        ],
-      ),
-    );
+    return _buildStatisticsGrid();
   }
 
-  Widget _buildHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildStatisticsGrid() {
+    final widgets = _buildStatWidgets();
+
+    return Column(
       children: [
-        Text(
-          'Quick Access',
-          style: GoogleFonts.poppins(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        if (widget.showRefreshButton)
-          IconButton(
-            onPressed: _isLoading ? null : _handleRefresh,
-            icon: _isLoading
-                ? SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        AppColors.primary,
-                      ),
+        // Single row with 4 widgets
+        Row(
+          children:
+              widgets.map((widget) {
+                  return Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 8.0),
+                      child: widget,
                     ),
-                  )
-                : const Icon(Icons.refresh),
-            iconSize: 20,
-            color: AppColors.primary,
-            tooltip: 'Refresh Statistics',
-          ),
+                  );
+                }).toList()
+                ..last = Expanded(
+                  child: widgets.last,
+                ), // Remove margin from last widget
+        ),
       ],
     );
   }
 
-  Widget _buildStatisticsCards() {
-    if (_isLoading && _statistics.isEmpty) {
-      return SizedBox(
-        height: widget.height ?? 120,
-        child: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    final statCards = [
-      _StatCardData(
+  List<Widget> _buildStatWidgets() {
+    return [
+      _buildStatWidget(
         key: 'today',
         title: "Today's Activities",
         value: (_statistics['todayCount'] ?? 0).toString(),
         icon: Icons.today,
         color: AppColors.primary,
-        subtitle: 'Activities today',
+        isClickable: true,
+        showValue: true,
       ),
-      _StatCardData(
+      _buildStatWidget(
         key: 'week',
         title: 'Weekly Activities',
         value: (_statistics['weekCount'] ?? 0).toString(),
         icon: Icons.date_range,
         color: AppColors.success,
-        subtitle: 'This week',
+        isClickable: true,
+        showValue: true,
       ),
-      _StatCardData(
+      _buildStatWidget(
         key: 'users',
         title: 'Active Users',
         value: (_statistics['activeUsers'] ?? 0).toString(),
         icon: Icons.people,
         color: AppColors.info,
-        subtitle: 'Last 24 hours',
+        isClickable: true,
+        showValue: true,
       ),
-      _StatCardData(
+      _buildStatWidget(
         key: 'suspicious',
         title: 'Suspicious Activities',
         value: (_statistics['suspiciousCount'] ?? 0).toString(),
         icon: Icons.security,
         color: AppColors.warning,
-        subtitle: 'This week',
+        isClickable: true,
+        showValue: true,
       ),
     ];
-
-    return SizedBox(
-      height: widget.height ?? 120,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: statCards.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final card = statCards[index];
-          return _buildStatCard(card);
-        },
-      ),
-    );
   }
 
-  Widget _buildStatCard(_StatCardData card) {
+  Widget _buildStatWidget({
+    required String key,
+    required String title,
+    required String value,
+    IconData? icon,
+    String? iconAsset,
+    required Color color,
+    bool isClickable = true,
+    bool showValue = true,
+  }) {
+    return ActivityStatWidget(
+      title: title,
+      value: value,
+      icon: icon,
+      iconAsset: iconAsset,
+      color: color,
+      onTap: isClickable ? () => widget.onStatTap?.call(key) : null,
+      isLoading: _isLoading,
+      showValue: showValue,
+      showAlert:
+          key == 'suspicious' &&
+          int.tryParse(value) != null &&
+          int.parse(value) > 0,
+    );
+  }
+}
+
+/// Individual activity stat widget with dashboard-style design
+class ActivityStatWidget extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData? icon;
+  final String? iconAsset;
+  final Color color;
+  final VoidCallback? onTap;
+  final bool isLoading;
+  final bool showValue;
+  final bool showAlert;
+
+  const ActivityStatWidget({
+    super.key,
+    required this.title,
+    required this.value,
+    this.icon,
+    this.iconAsset,
+    required this.color,
+    this.onTap,
+    this.isLoading = false,
+    this.showValue = true,
+    this.showAlert = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Fixed sizing similar to dashboard stats
+    const padding = EdgeInsets.all(8.0);
+    const borderRadius = 12.0;
+    const spacing = 4.0;
+    const valueFontSize = 18.0;
+    const titleFontSize = 11.0;
+    const iconSize = 20.0;
+
+    // Calculate consistent minimum height for all widgets
+    final iconContainerHeight = iconSize + (spacing * 2);
+    final baseContentHeight =
+        iconContainerHeight +
+        spacing +
+        (valueFontSize * 1.1) +
+        (spacing / 2) +
+        (titleFontSize * 1.3 * 3);
+    final minHeight = baseContentHeight + (padding.vertical);
+
     return GestureDetector(
-      onTap: () => widget.onStatTap?.call(card.key),
+      onTap: onTap,
       child: Container(
-        width: 140,
-        padding: const EdgeInsets.all(16),
+        height: minHeight,
+        padding: padding,
         decoration: BoxDecoration(
-          color: card.color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: card.color.withValues(alpha: 0.2),
-            width: 1,
-          ),
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(borderRadius),
+          border: Border.all(color: color.withValues(alpha: 0.1), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Icon container with alert badge
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Icon(card.icon, color: card.color, size: 24),
-                if (card.key == 'suspicious' &&
-                    int.tryParse(card.value) != null &&
-                    int.parse(card.value) > 0)
+                _buildIconContainer(
+                  iconSize: iconSize,
+                  spacing: spacing,
+                  borderRadius: borderRadius,
+                ),
+                if (showAlert)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
+                      horizontal: 4,
+                      vertical: 1,
                     ),
                     decoration: BoxDecoration(
                       color: AppColors.error,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       'Alert',
                       style: GoogleFonts.poppins(
-                        fontSize: 8,
+                        fontSize: 7,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
                       ),
@@ -219,106 +254,56 @@ class _QuickAccessWidgetState extends State<QuickAccessWidget> {
                   ),
               ],
             ),
-            const SizedBox(height: 8),
-            Flexible(
-              child: Text(
-                card.value,
+            SizedBox(height: spacing),
+            // Value text (conditional display)
+            if (showValue) ...[
+              Text(
+                isLoading ? '...' : value,
                 style: GoogleFonts.poppins(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: card.color,
+                  fontSize: valueFontSize,
+                  fontWeight: FontWeight.w700,
+                  color: isLoading ? AppColors.textSecondary : color,
                 ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Flexible(
-              child: Text(
-                card.title,
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            Flexible(
-              child: Text(
-                card.subtitle,
-                style: GoogleFonts.poppins(
-                  fontSize: 10,
-                  color: AppColors.textSecondary,
-                ),
+                textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
+              SizedBox(height: spacing / 2),
+            ],
+            // Title text
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                fontSize: titleFontSize,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
+                height: 1.2,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
       ),
     );
   }
-}
 
-class _StatCardData {
-  final String key;
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final String subtitle;
-
-  const _StatCardData({
-    required this.key,
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-    required this.subtitle,
-  });
-}
-
-/// Extension for creating quick access widgets with different configurations
-extension QuickAccessWidgetExtensions on QuickAccessWidget {
-  /// Create a compact version of the quick access widget
-  static QuickAccessWidget compact({
-    VoidCallback? onRefresh,
-    Function(String)? onStatTap,
+  /// Build icon container with unified styling
+  Widget _buildIconContainer({
+    required double iconSize,
+    required double spacing,
+    required double borderRadius,
   }) {
-    return QuickAccessWidget(
-      height: 100,
-      showRefreshButton: false,
-      onRefresh: onRefresh,
-      onStatTap: onStatTap,
-    );
-  }
-
-  /// Create a full-featured version with all options
-  static QuickAccessWidget full({
-    VoidCallback? onRefresh,
-    Function(String)? onStatTap,
-    bool showRefreshButton = true,
-  }) {
-    return QuickAccessWidget(
-      height: 120,
-      showRefreshButton: showRefreshButton,
-      onRefresh: onRefresh,
-      onStatTap: onStatTap,
-    );
-  }
-
-  /// Create a minimal version for dashboard
-  static QuickAccessWidget minimal({
-    VoidCallback? onRefresh,
-    Function(String)? onStatTap,
-  }) {
-    return QuickAccessWidget(
-      height: 80,
-      showRefreshButton: false,
-      onRefresh: onRefresh,
-      onStatTap: onStatTap,
+    return Container(
+      padding: EdgeInsets.all(spacing),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(borderRadius / 1.5),
+      ),
+      child: icon != null
+          ? Icon(icon, size: iconSize, color: color)
+          : const SizedBox.shrink(),
     );
   }
 }
