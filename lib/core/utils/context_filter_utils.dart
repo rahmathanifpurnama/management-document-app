@@ -61,6 +61,9 @@ class ContextFilterUtils {
           }).toList();
         }
         break;
+      case FilterContext.totalFiles:
+        // Total files screen shows all documents (no additional filtering)
+        break;
     }
 
     // Apply sorting
@@ -148,6 +151,8 @@ class ContextFilterUtils {
         return 'Filter Category Files';
       case FilterContext.addFiles:
         return 'Filter Available Files';
+      case FilterContext.totalFiles:
+        return 'Filter Total Files';
     }
   }
 
@@ -160,6 +165,8 @@ class ContextFilterUtils {
         return 'No files in this category match your filters';
       case FilterContext.addFiles:
         return 'No available files match your filters';
+      case FilterContext.totalFiles:
+        return 'No files match your filters';
     }
   }
 
@@ -172,6 +179,8 @@ class ContextFilterUtils {
         return false; // Category screen already filtered by category
       case FilterContext.addFiles:
         return false; // Add files screen excludes target category
+      case FilterContext.totalFiles:
+        return true; // Total files screen can filter by category
     }
   }
 }

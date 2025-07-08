@@ -11,7 +11,7 @@ enum FileFilterMode {
 }
 
 /// Context-aware filter contexts for independent filter state management
-enum FilterContext { homeScreen, categoryFiles, addFiles }
+enum FilterContext { homeScreen, categoryFiles, addFiles, totalFiles }
 
 /// Independent filter state for each context
 class ContextFilterState {
@@ -58,6 +58,7 @@ class FilterStateManager {
     FilterContext.homeScreen: ContextFilterState(),
     FilterContext.categoryFiles: ContextFilterState(),
     FilterContext.addFiles: ContextFilterState(),
+    FilterContext.totalFiles: ContextFilterState(),
   };
 
   /// Get filter state for specific context

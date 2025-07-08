@@ -17,6 +17,7 @@ class AppRoutes {
   static const String uploadDocument = '/upload-document';
   static const String apiUploadDemo = '/api-upload-demo';
   static const String recentFiles = '/recent-files';
+  static const String totalFiles = '/total-files';
   static const String recycleBin = '/recycle-bin';
   static const String favorites = '/favorites';
 
