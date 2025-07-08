@@ -37,113 +37,6 @@ exports.documentFunctions = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 /**
- * Approve a document (simplified without status management)
- */
-const approveDocument = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
-    }
-    try {
-        const { documentId } = data;
-        if (!documentId) {
-            throw new functions.https.HttpsError("invalid-argument", "Document ID is required");
-        }
-        // Check user permissions
-        const userDoc = await admin
-            .firestore()
-            .collection("users")
-            .doc(context.auth.uid)
-            .get();
-        const user = userDoc.data();
-        if (!user || user.role !== "admin") {
-            throw new functions.https.HttpsError("permission-denied", "Only admins can approve documents");
-        }
-        // Update document
-        await admin
-            .firestore()
-            .collection("documents")
-            .doc(documentId)
-            .update({
-            approvedBy: context.auth.uid,
-            approvedAt: admin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        // Log activity
-        await admin
-            .firestore()
-            .collection("activities")
-            .add({
-            type: "document_approved",
-            documentId: documentId,
-            userId: context.auth.uid,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: "Document approved by admin",
-        });
-        return {
-            success: true,
-            message: "Document approved successfully",
-        };
-    }
-    catch (error) {
-        console.error("Error approving document:", error);
-        throw new functions.https.HttpsError("internal", `Failed to approve document: ${error}`);
-    }
-});
-/**
- * Reject a document (simplified without status management)
- */
-const rejectDocument = functions.https.onCall(async (data, context) => {
-    if (!context.auth) {
-        throw new functions.https.HttpsError("unauthenticated", "User must be authenticated");
-    }
-    try {
-        const { documentId, reason } = data;
-        if (!documentId) {
-            throw new functions.https.HttpsError("invalid-argument", "Document ID is required");
-        }
-        // Check user permissions
-        const userDoc = await admin
-            .firestore()
-            .collection("users")
-            .doc(context.auth.uid)
-            .get();
-        const user = userDoc.data();
-        if (!user || user.role !== "admin") {
-            throw new functions.https.HttpsError("permission-denied", "Only admins can reject documents");
-        }
-        // Update document
-        await admin
-            .firestore()
-            .collection("documents")
-            .doc(documentId)
-            .update({
-            rejectedBy: context.auth.uid,
-            rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
-            rejectionReason: reason || "No reason provided",
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        // Log activity
-        await admin
-            .firestore()
-            .collection("activities")
-            .add({
-            type: "document_rejected",
-            documentId: documentId,
-            userId: context.auth.uid,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: `Document rejected by admin: ${reason || "No reason provided"}`,
-        });
-        return {
-            success: true,
-            message: "Document rejected successfully",
-        };
-    }
-    catch (error) {
-        console.error("Error rejecting document:", error);
-        throw new functions.https.HttpsError("internal", `Failed to reject document: ${error}`);
-    }
-});
-/**
  * Bulk document operations
  */
 const bulkDocumentOperations = functions.https.onCall(async (data, context) => {
@@ -155,8 +48,8 @@ const bulkDocumentOperations = functions.https.onCall(async (data, context) => {
         if (!documentIds || !Array.isArray(documentIds) || documentIds.length === 0) {
             throw new functions.https.HttpsError("invalid-argument", "Document IDs array is required");
         }
-        if (!operation || !["approve", "reject", "delete"].includes(operation)) {
-            throw new functions.https.HttpsError("invalid-argument", "Valid operation (approve, reject, delete) is required");
+        if (!operation || !["delete"].includes(operation)) {
+            throw new functions.https.HttpsError("invalid-argument", "Valid operation (delete) is required");
         }
         // Check user permissions
         const userDoc = await admin
@@ -174,21 +67,6 @@ const bulkDocumentOperations = functions.https.onCall(async (data, context) => {
             try {
                 const docRef = admin.firestore().collection("documents").doc(documentId);
                 switch (operation) {
-                    case "approve":
-                        batch.update(docRef, {
-                            approvedBy: context.auth.uid,
-                            approvedAt: admin.firestore.FieldValue.serverTimestamp(),
-                            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                        });
-                        break;
-                    case "reject":
-                        batch.update(docRef, {
-                            rejectedBy: context.auth.uid,
-                            rejectedAt: admin.firestore.FieldValue.serverTimestamp(),
-                            rejectionReason: reason || "Bulk rejection",
-                            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                        });
-                        break;
                     case "delete":
                         // ADMIN HARD DELETE: Permanently delete document for admin operations
                         batch.delete(docRef);
@@ -614,8 +492,6 @@ function getFileTypeFromName(fileName) {
     }
 }
 exports.documentFunctions = {
-    approveDocument,
-    rejectDocument,
     deleteDocument,
     bulkDocumentOperations,
     generateDocumentReport,

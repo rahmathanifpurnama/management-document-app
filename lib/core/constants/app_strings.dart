@@ -69,12 +69,6 @@ class AppStrings {
 
   // Document Status
   static const String pending = 'Menunggu';
-  static const String approved = 'Disetujui';
-  static const String rejected = 'Ditolak';
-  static const String approveDocument = 'Setujui Dokumen';
-  static const String rejectDocument = 'Tolak Dokumen';
-  static const String approvedBy = 'Disetujui Oleh';
-  static const String rejectedBy = 'Ditolak Oleh';
 
   // Categories
   static const String categoryManagement = 'Manajemen Kategori';

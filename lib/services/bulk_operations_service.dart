@@ -8,6 +8,7 @@ import '../services/share_service.dart';
 import '../services/download_notification_service.dart';
 import '../core/constants/app_colors.dart';
 import 'deletion_diagnostics_service.dart';
+import 'activity_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/google_drive_service.dart';
 import '../widgets/dialogs/share_message_editor_dialog.dart';
@@ -147,6 +148,26 @@ class BulkOperationsService {
             failedFiles: failedDownloads,
           );
         }
+      }
+
+      // Log bulk download activity
+      try {
+        final activityService = ActivityService();
+        await activityService.logActivity(
+          type: 'bulk_download',
+          description:
+              'Bulk download completed: ${files.length - failedDownloads}/${files.length} files',
+          additionalData: {
+            'totalFiles': files.length,
+            'successfulDownloads': files.length - failedDownloads,
+            'failedDownloads': failedDownloads,
+            'failedFiles': failedFiles,
+            'userAgent': 'Flutter App',
+            'platform': 'Mobile',
+          },
+        );
+      } catch (activityError) {
+        debugPrint('⚠️ Failed to log bulk download activity: $activityError');
       }
     } catch (e) {
       // Show error notification

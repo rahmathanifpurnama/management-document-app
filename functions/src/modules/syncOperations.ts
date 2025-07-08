@@ -456,16 +456,9 @@ const performComprehensiveSync = functions.https.onCall(
 
       const duration = Date.now() - startTime;
 
-      // Log activity
-      await admin
-        .firestore()
-        .collection("activities")
-        .add({
-          type: "comprehensive_sync_completed",
-          userId: context.auth.uid,
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
-          details: `Comprehensive sync completed in ${duration}ms`,
-        });
+      // DISABLED: Comprehensive sync activity logging removed to prevent unwanted activity entries
+      // Only log to console for debugging
+      console.log(`Comprehensive sync completed in ${duration}ms`);
 
       console.log(`Comprehensive sync completed in ${duration}ms`);
 
@@ -1441,19 +1434,9 @@ const repairSyncInconsistencies = functions.https.onCall(
         }
       }
 
-      // Log repair activity
-      await admin
-        .firestore()
-        .collection("activities")
-        .add({
-          type: "sync_repair_completed",
-          userId: context.auth.uid,
-          timestamp: admin.firestore.FieldValue.serverTimestamp(),
-          details: `Sync repair completed: ${repairedCount} items repaired`,
-          repairType,
-          repairedCount,
-          errorCount: errors.length,
-        });
+      // DISABLED: Sync repair activity logging removed to prevent unwanted activity entries
+      // Only log to console for debugging
+      console.log(`Sync repair completed: ${repairedCount} items repaired, ${errors.length} errors`);
 
       return {
         success: true,

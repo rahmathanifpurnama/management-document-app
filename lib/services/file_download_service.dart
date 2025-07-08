@@ -8,6 +8,7 @@ import 'package:external_path/external_path.dart';
 import '../models/document_model.dart';
 import '../core/services/firebase_service.dart';
 import 'download_notification_service.dart';
+import 'activity_service.dart';
 
 class FileDownloadService {
   static final FileDownloadService _instance = FileDownloadService._internal();
@@ -115,6 +116,25 @@ class FileDownloadService {
           document: document,
           isBulkDownload: false,
         );
+      }
+
+      // Log download activity
+      try {
+        final activityService = ActivityService();
+        await activityService.logActivity(
+          type: 'download',
+          description: 'Document downloaded: ${document.fileName}',
+          documentId: document.id,
+          additionalData: {
+            'fileName': document.fileName,
+            'fileSize': document.fileSize,
+            'downloadPath': filePath,
+            'userAgent': 'Flutter App',
+            'platform': 'Mobile',
+          },
+        );
+      } catch (activityError) {
+        debugPrint('⚠️ Failed to log download activity: $activityError');
       }
 
       return filePath;

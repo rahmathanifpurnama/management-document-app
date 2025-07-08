@@ -85,15 +85,30 @@ async function updateLastLogin(userId: string): Promise<void> {
 }
 
 /**
- * Log user login activity - REMOVED
- * Activity logging has been disabled
+ * Log user login activity
  */
 async function logLoginActivity(
   userId: string,
-  _deviceInfo?: any
+  deviceInfo?: any
 ): Promise<void> {
-  // Activity logging removed - no longer needed
-  logger.info(`Login activity for user: ${userId} (logging disabled)`);
+  try {
+    await db.collection("activities").add({
+      type: "login",
+      userId: userId,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      description: "User Login",
+      details: {
+        userAgent: deviceInfo?.userAgent || "Unknown",
+        platform: deviceInfo?.platform || "Unknown",
+        ipAddress: deviceInfo?.ipAddress,
+      },
+    });
+
+    logger.info(`Login activity logged for user: ${userId}`);
+  } catch (error) {
+    logger.error(`Failed to log login activity for user ${userId}:`, error);
+    // Don't throw - this is non-critical
+  }
 }
 
 /**
@@ -174,15 +189,30 @@ export const handleLogoutOperations = functions.https.onCall(
 );
 
 /**
- * Log user logout activity - REMOVED
- * Activity logging has been disabled
+ * Log user logout activity
  */
 async function logLogoutActivity(
   userId: string,
-  _deviceInfo?: any
+  deviceInfo?: any
 ): Promise<void> {
-  // Activity logging removed - no longer needed
-  logger.info(`Logout activity for user: ${userId} (logging disabled)`);
+  try {
+    await db.collection("activities").add({
+      type: "logout",
+      userId: userId,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      description: "User Logout",
+      details: {
+        userAgent: deviceInfo?.userAgent || "Unknown",
+        platform: deviceInfo?.platform || "Unknown",
+        ipAddress: deviceInfo?.ipAddress,
+      },
+    });
+
+    logger.info(`Logout activity logged for user: ${userId}`);
+  } catch (error) {
+    logger.error(`Failed to log logout activity for user ${userId}:`, error);
+    // Don't throw - this is non-critical
+  }
 }
 
 /**

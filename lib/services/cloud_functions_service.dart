@@ -437,48 +437,6 @@ class CloudFunctionsService {
 
   // Document Management Functions
 
-  /// Approve a document
-  Future<void> approveDocument({
-    required String documentId,
-    String? approvalNotes,
-  }) async {
-    try {
-      debugPrint('🔄 Approving document via Cloud Function: $documentId');
-
-      final callable = _functions.httpsCallable('approveDocument');
-      await callable.call({
-        'documentId': documentId,
-        'approvalNotes': approvalNotes,
-      });
-
-      debugPrint('✅ Document approved successfully');
-    } catch (e) {
-      debugPrint('❌ Error approving document: $e');
-      rethrow;
-    }
-  }
-
-  /// Reject a document
-  Future<void> rejectDocument({
-    required String documentId,
-    required String rejectionReason,
-  }) async {
-    try {
-      debugPrint('🔄 Rejecting document via Cloud Function: $documentId');
-
-      final callable = _functions.httpsCallable('rejectDocument');
-      await callable.call({
-        'documentId': documentId,
-        'rejectionReason': rejectionReason,
-      });
-
-      debugPrint('✅ Document rejected successfully');
-    } catch (e) {
-      debugPrint('❌ Error rejecting document: $e');
-      rethrow;
-    }
-  }
-
   /// Delete a document permanently
   Future<Map<String, dynamic>> deleteDocument(String documentId) async {
     try {

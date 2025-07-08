@@ -11,9 +11,7 @@ enum ActivityType {
   create('create'),
   createUser('create_user'),
   updateUser('update_user'),
-  deleteUser('delete_user'),
-  approve('approve'),
-  reject('reject');
+  deleteUser('delete_user');
 
   const ActivityType(this.value);
   final String value;
@@ -41,10 +39,6 @@ enum ActivityType {
         return '👤✏️';
       case ActivityType.deleteUser:
         return '👤🗑️';
-      case ActivityType.approve:
-        return '✅';
-      case ActivityType.reject:
-        return '❌';
     }
   }
 
@@ -71,10 +65,6 @@ enum ActivityType {
         return 'Update User';
       case ActivityType.deleteUser:
         return 'Delete User';
-      case ActivityType.approve:
-        return 'Approve Action';
-      case ActivityType.reject:
-        return 'Reject Action';
     }
   }
 }
@@ -127,8 +117,27 @@ class ActivityModel {
       isSuspicious: data['isSuspicious'] ?? false,
       ipAddress: data['ipAddress'],
       userAgent: data['userAgent'],
-      details: Map<String, dynamic>.from(data['details'] ?? {}),
+      details: _parseDetails(data['details']),
     );
+  }
+
+  /// Helper method to safely parse details field
+  static Map<String, dynamic> _parseDetails(dynamic details) {
+    if (details == null) {
+      return {};
+    }
+
+    if (details is Map<String, dynamic>) {
+      return details;
+    }
+
+    if (details is String) {
+      // Handle string details by creating a simple map
+      return {'description': details};
+    }
+
+    // For any other type, convert to string and wrap in map
+    return {'value': details.toString()};
   }
 
   /// Convert to Map for Firestore

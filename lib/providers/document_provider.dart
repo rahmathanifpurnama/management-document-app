@@ -27,6 +27,7 @@ import '../core/services/id_reconciliation_service.dart';
 import '../services/document_state_manager.dart';
 import '../services/unified_document_loader.dart';
 import '../services/direct_storage_deletion_service.dart';
+import '../services/activity_service.dart';
 
 import '../services/statistics_notification_service.dart';
 import '../core/utils/circuit_breaker.dart';
@@ -1355,8 +1356,30 @@ class DocumentProvider extends ChangeNotifier {
         debugPrint('✅ UI updated');
       }
 
-      // Log final status with backend deletion details and method used
+      // Log activity for successful deletion
       if (storageDeleted || firestoreDeleted) {
+        try {
+          final activityService = ActivityService();
+          await activityService.logActivity(
+            type: 'delete',
+            description:
+                'Document: ${localDocument?.fileName ?? 'Unknown'} (ID: $documentId)',
+            documentId: documentId,
+            additionalData: {
+              'storageDeleted': storageDeleted,
+              'firestoreDeleted': firestoreDeleted,
+              'deletionMethod': deletionMethod,
+              'userAgent': 'Flutter App',
+              'platform': 'Mobile',
+            },
+          );
+          debugPrint('✅ Activity logged successfully');
+        } catch (activityError) {
+          debugPrint('⚠️ Failed to log activity: $activityError');
+          // Don't throw here as the main deletion operation succeeded
+        }
+
+        // Log final status with backend deletion details and method used
         debugPrint(
           '✅ DocumentProvider: Document removal completed successfully for ID: $documentId (Method: $deletionMethod)',
         );

@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/document_model.dart';
 
-enum BulkOperationType { approve, reject, delete }
+enum BulkOperationType { delete }
 
 class BulkOperationsDialog extends StatefulWidget {
   final List<DocumentModel> selectedDocuments;
@@ -125,33 +125,6 @@ class _BulkOperationsDialogState extends State<BulkOperationsDialog> {
               ),
             ),
 
-            // Reason input for reject operation
-            if (widget.operationType == BulkOperationType.reject) ...[
-              const SizedBox(height: 16),
-              Text(
-                'Rejection Reason *',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _reasonController,
-                decoration: InputDecoration(
-                  hintText: 'Enter reason for rejection...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  filled: true,
-                  fillColor: AppColors.surface,
-                ),
-                maxLines: 3,
-                enabled: !_isProcessing,
-              ),
-            ],
-
             // Warning for delete operation
             if (widget.operationType == BulkOperationType.delete) ...[
               const SizedBox(height: 16),
@@ -217,30 +190,11 @@ class _BulkOperationsDialogState extends State<BulkOperationsDialog> {
   }
 
   void _handleConfirm() {
-    // Validate reason for reject operation
-    if (widget.operationType == BulkOperationType.reject) {
-      final reason = _reasonController.text.trim();
-      if (reason.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please enter a reason for rejection'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-        return;
-      }
-      widget.onConfirm(reason);
-    } else {
-      widget.onConfirm(null);
-    }
+    widget.onConfirm(null);
   }
 
   IconData _getOperationIcon() {
     switch (widget.operationType) {
-      case BulkOperationType.approve:
-        return Icons.check_circle;
-      case BulkOperationType.reject:
-        return Icons.cancel;
       case BulkOperationType.delete:
         return Icons.delete;
     }
@@ -248,10 +202,6 @@ class _BulkOperationsDialogState extends State<BulkOperationsDialog> {
 
   Color _getOperationColor() {
     switch (widget.operationType) {
-      case BulkOperationType.approve:
-        return AppColors.success;
-      case BulkOperationType.reject:
-        return AppColors.warning;
       case BulkOperationType.delete:
         return AppColors.error;
     }
@@ -259,10 +209,6 @@ class _BulkOperationsDialogState extends State<BulkOperationsDialog> {
 
   String _getOperationTitle() {
     switch (widget.operationType) {
-      case BulkOperationType.approve:
-        return 'Bulk Approve';
-      case BulkOperationType.reject:
-        return 'Bulk Reject';
       case BulkOperationType.delete:
         return 'Bulk Delete';
     }
@@ -271,10 +217,6 @@ class _BulkOperationsDialogState extends State<BulkOperationsDialog> {
   String _getOperationDescription() {
     final count = widget.selectedDocuments.length;
     switch (widget.operationType) {
-      case BulkOperationType.approve:
-        return 'Are you sure you want to approve $count document${count > 1 ? 's' : ''}?';
-      case BulkOperationType.reject:
-        return 'Are you sure you want to reject $count document${count > 1 ? 's' : ''}?';
       case BulkOperationType.delete:
         return 'Are you sure you want to delete $count document${count > 1 ? 's' : ''}?';
     }
@@ -282,10 +224,6 @@ class _BulkOperationsDialogState extends State<BulkOperationsDialog> {
 
   String _getConfirmButtonText() {
     switch (widget.operationType) {
-      case BulkOperationType.approve:
-        return 'Approve All';
-      case BulkOperationType.reject:
-        return 'Reject All';
       case BulkOperationType.delete:
         return 'Delete All';
     }

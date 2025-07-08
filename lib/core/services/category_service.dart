@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../../models/category_model.dart';
+import '../../services/activity_service.dart';
 import '../../services/firebase_storage_category_service.dart';
 
 class CategoryService {
@@ -92,6 +93,26 @@ class CategoryService {
       // Add category to Firestore only - no Storage folder creation
       await docRef.set(categoryWithId.toMap());
 
+      // Log activity
+      try {
+        final activityService = ActivityService();
+        await activityService.logActivity(
+          type: 'create',
+          description: 'Category created: ${category.name}',
+          categoryId: docRef.id,
+          additionalData: {
+            'categoryName': category.name,
+            'description': category.description,
+            'userAgent': 'Flutter App',
+            'platform': 'Mobile',
+          },
+        );
+      } catch (activityError) {
+        debugPrint(
+          '⚠️ Failed to log category creation activity: $activityError',
+        );
+      }
+
       debugPrint('✅ Created category in Firestore: ${category.name}');
       return docRef.id;
     } catch (e) {
@@ -106,6 +127,24 @@ class CategoryService {
           .collection(_collection)
           .doc(categoryId)
           .update(category.toMap());
+
+      // Log activity
+      try {
+        final activityService = ActivityService();
+        await activityService.logActivity(
+          type: 'update',
+          description: 'Category updated: ${category.name}',
+          categoryId: categoryId,
+          additionalData: {
+            'categoryName': category.name,
+            'description': category.description,
+            'userAgent': 'Flutter App',
+            'platform': 'Mobile',
+          },
+        );
+      } catch (activityError) {
+        debugPrint('⚠️ Failed to log category update activity: $activityError');
+      }
     } catch (e) {
       throw Exception('Failed to update category: $e');
     }
@@ -129,6 +168,25 @@ class CategoryService {
           debugPrint('⚠️ Failed to delete Storage folder: $storageError');
           // Don't fail the entire operation if Storage folder deletion fails
         }
+
+        // Log activity
+        try {
+          final activityService = ActivityService();
+          await activityService.logActivity(
+            type: 'delete',
+            description: 'Category deleted: ${category.name}',
+            categoryId: categoryId,
+            additionalData: {
+              'categoryName': category.name,
+              'userAgent': 'Flutter App',
+              'platform': 'Mobile',
+            },
+          );
+        } catch (activityError) {
+          debugPrint(
+            '⚠️ Failed to log category deletion activity: $activityError',
+          );
+        }
       }
     } catch (e) {
       throw Exception('Failed to delete category: $e');
@@ -138,10 +196,34 @@ class CategoryService {
   // Toggle category status
   Future<void> toggleCategoryStatus(String categoryId, bool isActive) async {
     try {
+      // Get category details for logging
+      final category = await getCategoryById(categoryId);
+
       await _firestore.collection(_collection).doc(categoryId).update({
         'isActive': isActive,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Log activity
+      try {
+        final activityService = ActivityService();
+        await activityService.logActivity(
+          type: 'update',
+          description:
+              'Category ${isActive ? "activated" : "deactivated"}: ${category?.name ?? "Unknown"}',
+          categoryId: categoryId,
+          additionalData: {
+            'categoryName': category?.name,
+            'statusChanged': isActive ? 'activated' : 'deactivated',
+            'userAgent': 'Flutter App',
+            'platform': 'Mobile',
+          },
+        );
+      } catch (activityError) {
+        debugPrint(
+          '⚠️ Failed to log category status toggle activity: $activityError',
+        );
+      }
     } catch (e) {
       throw Exception('Failed to toggle category status: $e');
     }

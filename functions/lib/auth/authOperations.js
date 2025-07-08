@@ -101,12 +101,27 @@ async function updateLastLogin(userId) {
     }
 }
 /**
- * Log user login activity - REMOVED
- * Activity logging has been disabled
+ * Log user login activity
  */
-async function logLoginActivity(userId, _deviceInfo) {
-    // Activity logging removed - no longer needed
-    firebase_functions_1.logger.info(`Login activity for user: ${userId} (logging disabled)`);
+async function logLoginActivity(userId, deviceInfo) {
+    try {
+        await db.collection("activities").add({
+            type: "login",
+            userId: userId,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            description: "User Login",
+            details: {
+                userAgent: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.userAgent) || "Unknown",
+                platform: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.platform) || "Unknown",
+                ipAddress: deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.ipAddress,
+            },
+        });
+        firebase_functions_1.logger.info(`Login activity logged for user: ${userId}`);
+    }
+    catch (error) {
+        firebase_functions_1.logger.error(`Failed to log login activity for user ${userId}:`, error);
+        // Don't throw - this is non-critical
+    }
 }
 /**
  * Update user statistics
@@ -166,12 +181,27 @@ exports.handleLogoutOperations = functions.https.onCall(async (data, context) =>
     }
 });
 /**
- * Log user logout activity - REMOVED
- * Activity logging has been disabled
+ * Log user logout activity
  */
-async function logLogoutActivity(userId, _deviceInfo) {
-    // Activity logging removed - no longer needed
-    firebase_functions_1.logger.info(`Logout activity for user: ${userId} (logging disabled)`);
+async function logLogoutActivity(userId, deviceInfo) {
+    try {
+        await db.collection("activities").add({
+            type: "logout",
+            userId: userId,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            description: "User Logout",
+            details: {
+                userAgent: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.userAgent) || "Unknown",
+                platform: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.platform) || "Unknown",
+                ipAddress: deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.ipAddress,
+            },
+        });
+        firebase_functions_1.logger.info(`Logout activity logged for user: ${userId}`);
+    }
+    catch (error) {
+        firebase_functions_1.logger.error(`Failed to log logout activity for user ${userId}:`, error);
+        // Don't throw - this is non-critical
+    }
 }
 /**
  * Cloud Function to validate user session

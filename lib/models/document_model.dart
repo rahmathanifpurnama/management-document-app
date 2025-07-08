@@ -320,26 +320,12 @@ class DocumentMetadata {
   final String? contentType;
   final String? downloadUrl;
 
-  // Approval fields
-  final String? approvedBy;
-  final DateTime? approvedAt;
-  final String? rejectedBy;
-  final DateTime? rejectedAt;
-  final String? rejectionReason;
-  final String? status; // 'pending', 'approved', 'rejected'
-
   DocumentMetadata({
     required this.description,
     required this.tags,
     this.version = '1.0',
     this.contentType,
     this.downloadUrl,
-    this.approvedBy,
-    this.approvedAt,
-    this.rejectedBy,
-    this.rejectedAt,
-    this.rejectionReason,
-    this.status,
   });
 
   factory DocumentMetadata.fromMap(Map<String, dynamic> map) {
@@ -349,12 +335,6 @@ class DocumentMetadata {
       version: map['version'] ?? '1.0',
       contentType: map['contentType'],
       downloadUrl: map['downloadUrl'],
-      approvedBy: map['approvedBy'],
-      approvedAt: map['approvedAt']?.toDate(),
-      rejectedBy: map['rejectedBy'],
-      rejectedAt: map['rejectedAt']?.toDate(),
-      rejectionReason: map['rejectionReason'],
-      status: map['status'],
     );
   }
 
@@ -365,12 +345,6 @@ class DocumentMetadata {
       'version': version,
       'contentType': contentType,
       'downloadUrl': downloadUrl,
-      'approvedBy': approvedBy,
-      'approvedAt': approvedAt != null ? Timestamp.fromDate(approvedAt!) : null,
-      'rejectedBy': rejectedBy,
-      'rejectedAt': rejectedAt != null ? Timestamp.fromDate(rejectedAt!) : null,
-      'rejectionReason': rejectionReason,
-      'status': status,
     };
   }
 
@@ -380,12 +354,6 @@ class DocumentMetadata {
     String? version,
     String? contentType,
     String? downloadUrl,
-    String? approvedBy,
-    DateTime? approvedAt,
-    String? rejectedBy,
-    DateTime? rejectedAt,
-    String? rejectionReason,
-    String? status,
   }) {
     return DocumentMetadata(
       description: description ?? this.description,
@@ -393,29 +361,6 @@ class DocumentMetadata {
       version: version ?? this.version,
       contentType: contentType ?? this.contentType,
       downloadUrl: downloadUrl ?? this.downloadUrl,
-      approvedBy: approvedBy ?? this.approvedBy,
-      approvedAt: approvedAt ?? this.approvedAt,
-      rejectedBy: rejectedBy ?? this.rejectedBy,
-      rejectedAt: rejectedAt ?? this.rejectedAt,
-      rejectionReason: rejectionReason ?? this.rejectionReason,
-      status: status ?? this.status,
     );
-  }
-
-  // Helper methods for approval status
-  bool get isApproved => approvedBy != null && approvedAt != null;
-  bool get isRejected => rejectedBy != null && rejectedAt != null;
-  bool get isPending => !isApproved && !isRejected;
-
-  String get approvalStatus {
-    if (isApproved) return 'approved';
-    if (isRejected) return 'rejected';
-    return 'pending';
-  }
-
-  String get approvalStatusDisplayText {
-    if (isApproved) return 'Approved';
-    if (isRejected) return 'Rejected';
-    return 'Pending Approval';
   }
 }

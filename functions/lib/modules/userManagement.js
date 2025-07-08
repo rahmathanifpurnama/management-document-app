@@ -388,6 +388,21 @@ const setAdminClaims = functions.https.onCall(async (data, context) => {
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             updatedBy: context.auth.uid,
         });
+        // Log activity
+        await admin
+            .firestore()
+            .collection("activities")
+            .add({
+            type: "user_role_updated",
+            userId,
+            updatedBy: context.auth.uid,
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            description: `User role ${isAdmin ? "granted" : "revoked"} admin privileges`,
+            details: {
+                previousRole: isAdmin ? "user" : "admin",
+                newRole: isAdmin ? "admin" : "user",
+            },
+        });
         console.log(`Admin claims set for user ${userId}: ${isAdmin}`);
         return {
             success: true,
@@ -482,17 +497,9 @@ const autoSyncFirebaseAuthUsers = functions.https.onCall(async (data, context) =
                 console.error(errorMsg);
             }
         }
-        // Log activity
-        await admin
-            .firestore()
-            .collection("activities")
-            .add({
-            type: "auto_sync_completed",
-            userId: context.auth.uid,
-            createdBy: context.auth.uid,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: `Auto-sync completed: ${syncedCount} users synced, ${errors.length} errors`,
-        });
+        // DISABLED: Auto-sync activity logging removed to prevent unwanted activity entries
+        // Only log to console for debugging
+        console.log(`Auto-sync completed: ${syncedCount} users synced, ${errors.length} errors`);
         console.log(`Auto-sync completed: ${syncedCount} users synced, ${errors.length} errors`);
         return {
             success: true,

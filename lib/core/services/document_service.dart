@@ -20,6 +20,7 @@ class DocumentService {
 
   final FirebaseService _firebaseService = FirebaseService.instance;
   final UnifiedIdSystem _unifiedIdSystem = UnifiedIdSystem.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // HIGH PRIORITY: Get all documents with pagination and optimization
   Future<List<DocumentModel>> getAllDocuments({
@@ -194,6 +195,20 @@ class DocumentService {
       await _firebaseService.documentsCollection
           .doc(document.id)
           .update(document.toMap());
+
+      // Log activity
+      try {
+        final currentUser = _auth.currentUser;
+        if (currentUser != null) {
+          await _logActivity(
+            currentUser.uid,
+            ActivityType.update,
+            'Document: ${document.fileName} (ID: ${document.id})',
+          );
+        }
+      } catch (activityError) {
+        debugPrint('⚠️ Failed to log document update activity: $activityError');
+      }
     } catch (e) {
       throw Exception('Failed to update document: ${e.toString()}');
     }

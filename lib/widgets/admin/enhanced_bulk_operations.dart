@@ -7,8 +7,6 @@ import '../../models/document_model.dart';
 import 'bulk_operations_dialog.dart';
 
 class EnhancedBulkOperations extends StatelessWidget {
-  final Function(List<DocumentModel> documents, String? reason)? onApprove;
-  final Function(List<DocumentModel> documents, String? reason)? onReject;
   final Function(List<DocumentModel> documents)? onDelete;
   final Function(List<DocumentModel> documents)? onDownload;
   final Function(List<DocumentModel> documents)? onMove;
@@ -18,12 +16,10 @@ class EnhancedBulkOperations extends StatelessWidget {
 
   const EnhancedBulkOperations({
     super.key,
-    this.onApprove,
-    this.onReject,
     this.onDelete,
     this.onDownload,
     this.onMove,
-    this.showApprovalActions = true,
+    this.showApprovalActions = false,
     this.showFileActions = true,
     this.showMoveAction = false,
   });
@@ -103,39 +99,6 @@ class EnhancedBulkOperations extends StatelessWidget {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  // Approval actions (only show when files are selected)
-                  if (showApprovalActions &&
-                      onApprove != null &&
-                      selectionProvider.hasSelection)
-                    _buildActionButton(
-                      context: context,
-                      icon: Icons.check_circle,
-                      label: 'Approve',
-                      color: AppColors.success,
-                      onPressed: () => _showBulkDialog(
-                        context,
-                        BulkOperationType.approve,
-                        selectionProvider.selectedFiles,
-                        onApprove!,
-                      ),
-                    ),
-
-                  if (showApprovalActions &&
-                      onReject != null &&
-                      selectionProvider.hasSelection)
-                    _buildActionButton(
-                      context: context,
-                      icon: Icons.cancel,
-                      label: 'Reject',
-                      color: AppColors.warning,
-                      onPressed: () => _showBulkDialog(
-                        context,
-                        BulkOperationType.reject,
-                        selectionProvider.selectedFiles,
-                        onReject!,
-                      ),
-                    ),
-
                   // File actions (only show when files are selected)
                   if (showFileActions &&
                       onDownload != null &&
@@ -249,16 +212,9 @@ class EnhancedBulkOperations extends StatelessWidget {
 
 /// Compact bulk operations bar for smaller spaces
 class CompactBulkOperations extends StatelessWidget {
-  final Function(List<DocumentModel> documents, String? reason)? onApprove;
-  final Function(List<DocumentModel> documents, String? reason)? onReject;
   final Function(List<DocumentModel> documents)? onDelete;
 
-  const CompactBulkOperations({
-    super.key,
-    this.onApprove,
-    this.onReject,
-    this.onDelete,
-  });
+  const CompactBulkOperations({super.key, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -298,30 +254,6 @@ class CompactBulkOperations extends StatelessWidget {
               const Spacer(),
 
               // Action buttons
-              if (onApprove != null)
-                IconButton(
-                  onPressed: () => _showBulkDialog(
-                    context,
-                    BulkOperationType.approve,
-                    selectionProvider.selectedFiles,
-                    onApprove!,
-                  ),
-                  icon: const Icon(Icons.check, color: Colors.white),
-                  tooltip: 'Approve',
-                ),
-
-              if (onReject != null)
-                IconButton(
-                  onPressed: () => _showBulkDialog(
-                    context,
-                    BulkOperationType.reject,
-                    selectionProvider.selectedFiles,
-                    onReject!,
-                  ),
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  tooltip: 'Reject',
-                ),
-
               if (onDelete != null)
                 IconButton(
                   onPressed: () => _showBulkDialog(

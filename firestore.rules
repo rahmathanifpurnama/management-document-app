@@ -103,14 +103,12 @@ service cloud.firestore {
         && request.auth.uid == request.resource.data.uploadedBy
         && request.resource.data.keys().hasAll(['id', 'fileName', 'uploadedAt'])
         && request.resource.data.id == documentId  // Ensure unified ID consistency
-        && request.resource.data.status in ['active', 'pending', 'approved', 'rejected']
+        && request.resource.data.status in ['active', 'pending']
         && request.resource.data.fileName is string
         && request.resource.data.fileName.size() > 0
         && request.resource.data.fileName.size() <= 255;
 
-      // Document approval - only users with approve permission or admin
-      allow update: if (hasDocumentPermission('approve') || isAdmin())
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'approvedBy', 'approvedAt', 'rejectionReason', 'updatedAt']);
+
 
       // ADMIN-ONLY HARD DELETE: Only administrators can permanently delete documents
       // This enforces the admin-only hard delete policy preference

@@ -76,8 +76,6 @@ export const debugAuthPermissions = userFunctions.debugAuthPermissions;
 export const initializeAdmin = userFunctions.initializeAdmin;
 
 // Document Management Functions
-export const approveDocument = documentFunctions.approveDocument;
-export const rejectDocument = documentFunctions.rejectDocument;
 export const deleteDocument = documentFunctions.deleteDocument;
 export const bulkDocumentOperations = documentFunctions.bulkDocumentOperations;
 export const generateDocumentReport = documentFunctions.generateDocumentReport;

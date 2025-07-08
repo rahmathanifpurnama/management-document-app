@@ -35,24 +35,31 @@ class _QuickAccessWidgetState extends State<QuickAccessWidget> {
   }
 
   Future<void> _loadStatistics() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
       final stats = await _activityService.getActivityStatistics();
-      setState(() => _statistics = stats);
+      if (mounted) {
+        setState(() => _statistics = stats);
+      }
     } catch (e) {
       debugPrint('Error loading activity statistics: $e');
       // Set default values on error
-      setState(() {
-        _statistics = {
-          'todayCount': 0,
-          'weekCount': 0,
-          'activeUsers': 0,
-          'suspiciousCount': 0,
-        };
-      });
+      if (mounted) {
+        setState(() {
+          _statistics = {
+            'todayCount': 0,
+            'weekCount': 0,
+            'activeUsers': 0,
+            'suspiciousCount': 0,
+          };
+        });
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

@@ -87,11 +87,7 @@ class DocumentFilterUtils {
   ) {
     switch (statusFilter.toLowerCase()) {
       case 'pending':
-        return documents.where((doc) => doc.metadata.isPending).toList();
-      case 'approved':
-        return documents.where((doc) => doc.metadata.isApproved).toList();
-      case 'rejected':
-        return documents.where((doc) => doc.metadata.isRejected).toList();
+        return documents.toList(); // All documents are considered pending now
       case 'recent':
         final weekAgo = DateTime.now().subtract(const Duration(days: 7));
         return documents
@@ -315,9 +311,8 @@ class DocumentFilterUtils {
     final weekAgo = DateTime.now().subtract(const Duration(days: 7));
 
     for (final document in documents) {
-      if (document.metadata.isPending) pendingCount++;
-      if (document.metadata.isApproved) approvedCount++;
-      if (document.metadata.isRejected) rejectedCount++;
+      // All documents are considered pending now (no approval system)
+      pendingCount++;
       if (document.uploadedAt.isAfter(weekAgo)) recentCount++;
     }
 

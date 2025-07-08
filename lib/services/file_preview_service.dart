@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/document_model.dart';
 import '../core/services/firebase_service.dart';
+import 'activity_service.dart';
 
 enum FilePreviewType { image, pdf, document, video, audio, text, unsupported }
 
@@ -48,21 +49,41 @@ class FilePreviewService {
   /// Get download URL for file preview
   Future<String> getPreviewUrl(DocumentModel document) async {
     try {
+      String downloadUrl;
+
       // If document already has a download URL in filePath, use it
       if (document.filePath.startsWith('http')) {
-        return document.filePath;
-      }
-
-      // Otherwise, get download URL from Firebase Storage using the storage path
-      if (document.filePath.isNotEmpty) {
+        downloadUrl = document.filePath;
+      } else if (document.filePath.isNotEmpty) {
+        // Otherwise, get download URL from Firebase Storage using the storage path
         final storageRef = _firebaseService.storage.ref().child(
           document.filePath,
         );
-        final downloadUrl = await storageRef.getDownloadURL();
-        return downloadUrl;
+        downloadUrl = await storageRef.getDownloadURL();
+      } else {
+        throw Exception('No valid file path found');
       }
 
-      throw Exception('No valid file path found');
+      // Log view activity
+      try {
+        final activityService = ActivityService();
+        await activityService.logActivity(
+          type: 'view',
+          description: 'Document viewed: ${document.fileName}',
+          documentId: document.id,
+          additionalData: {
+            'fileName': document.fileName,
+            'fileType': document.fileType,
+            'previewType': getPreviewType(document).toString(),
+            'userAgent': 'Flutter App',
+            'platform': 'Mobile',
+          },
+        );
+      } catch (activityError) {
+        debugPrint('⚠️ Failed to log view activity: $activityError');
+      }
+
+      return downloadUrl;
     } catch (e) {
       debugPrint('Error getting preview URL: $e');
       rethrow;
