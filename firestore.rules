@@ -269,6 +269,58 @@ service cloud.firestore {
       allow read, write, delete: if isAdmin();
     }
 
+    // Recycle Bin collection for soft-deleted documents
+    match /recycle_bin/{documentId} {
+      // Allow read for users who can view the original document or admin
+      allow get: if hasDocumentPermission('view') || isAdmin();
+
+      // Allow collection queries for users with view permission (with limits)
+      allow list: if hasDocumentPermission('view')
+        && !isAdmin()
+        && request.query.limit <= 50;
+
+      // Allow unlimited queries for admin users
+      allow list: if isAdmin();
+
+      // Allow create when moving documents to recycle bin (users with delete permission)
+      allow create: if isActiveUser()
+        && hasDocumentPermission('delete')
+        && request.resource.data.keys().hasAll(['originalDocumentId', 'deletedBy', 'deletedAt', 'originalLocation'])
+        && request.resource.data.deletedBy == request.auth.uid;
+
+      // Allow update for restore operations (users with delete permission)
+      allow update: if isActiveUser()
+        && hasDocumentPermission('delete');
+
+      // ADMIN-ONLY HARD DELETE: Only admin can permanently delete from recycle bin
+      allow delete: if isAdmin();
+    }
+
+    // Favorites collection for user's favorite folders
+    match /favorites/{favoriteId} {
+      // Allow read for the owner of the favorite or admin
+      allow get: if isActiveUser()
+        && (resource.data.userId == request.auth.uid || isAdmin());
+
+      // Allow collection queries for own favorites only (with limits)
+      allow list: if isActiveUser()
+        && !isAdmin()
+        && request.query.limit <= 100
+        && request.auth.uid in request.query.where.userId;
+
+      // Allow unlimited queries for admin users
+      allow list: if isAdmin();
+
+      // Allow create for active users (own favorites only)
+      allow create: if isActiveUser()
+        && request.resource.data.keys().hasAll(['userId', 'folderPath', 'folderName', 'addedAt'])
+        && request.resource.data.userId == request.auth.uid;
+
+      // Allow update/delete for own favorites or admin
+      allow update, delete: if isActiveUser()
+        && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
     // Enhanced documents collection rules for statistics
     // Additional rules for statistics calculation (more permissive for count queries)
     match /documents/{documentId} {

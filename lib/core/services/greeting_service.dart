@@ -53,15 +53,16 @@ class GreetingService {
 
   /// Get greeting with user's name
   String getPersonalizedGreeting(String? userName) {
-    final firstName = userName?.split(' ').first ?? 'User';
+    // Use full name instead of just first name, with fallback to 'User'
+    final fullName = userName?.trim().isNotEmpty == true ? userName! : 'User';
 
-    // Vary the personal greeting format
+    // Vary the personal greeting format - removed commas and exclamation marks
     final greetingFormats = [
-      'Hi $firstName,',
-      'Hello $firstName!',
-      'Hey $firstName,',
-      'Good to see you, $firstName!',
-      'Welcome $firstName!',
+      'Hi $fullName',
+      'Hello $fullName',
+      'Hey $fullName',
+      'Good to see you $fullName',
+      'Welcome $fullName',
     ];
 
     return greetingFormats[_random.nextInt(greetingFormats.length)];
