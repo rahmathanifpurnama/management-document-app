@@ -84,8 +84,8 @@ class AppBottomNavigation extends StatelessWidget {
         break;
       case 3:
         if (authProvider.isAdmin) {
-          // Add User (Admin only)
-          Navigator.pushNamed(context, AppRoutes.userManagement);
+          // Activity (Admin only)
+          Navigator.pushNamed(context, AppRoutes.activity);
         } else {
           // Profile (Non-admin)
           Navigator.pushNamed(context, AppRoutes.profile);
@@ -221,15 +221,13 @@ class _CustomBottomNavigationBar extends StatelessWidget {
     ];
 
     if (isAdmin) {
-      // Add User (Admin only)
+      // Activity (Admin only)
       items.add(
         _buildNavItem(
           context: context,
           index: 3,
-          iconPath: currentIndex == 3
-              ? 'assets/icon/add-user-filled.svg'
-              : 'assets/icon/add-user.svg',
-          label: 'Add User',
+          iconPath: 'assets/icon/Activity.svg',
+          label: 'Activity',
           isSelected: currentIndex == 3,
           config: config,
         ),
@@ -275,6 +273,8 @@ class _CustomBottomNavigationBar extends StatelessWidget {
       return Icons.folder;
     } else if (iconPath.contains('user') || iconPath.contains('add-user')) {
       return Icons.person;
+    } else if (iconPath.contains('Activity')) {
+      return Icons.analytics;
     } else if (iconPath.contains('plus')) {
       return Icons.add;
     } else {

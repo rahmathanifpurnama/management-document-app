@@ -83,17 +83,31 @@ enum ActivityType {
 class ActivityModel {
   final String id;
   final String userId;
-  final String action;
-  final String resource;
+  final String type;
+  final String description;
   final DateTime timestamp;
+  final String? userName;
+  final String? userEmail;
+  final String? documentId;
+  final String? categoryId;
+  final bool isSuspicious;
+  final String? ipAddress;
+  final String? userAgent;
   final Map<String, dynamic> details;
 
   ActivityModel({
     required this.id,
     required this.userId,
-    required this.action,
-    required this.resource,
+    required this.type,
+    required this.description,
     required this.timestamp,
+    this.userName,
+    this.userEmail,
+    this.documentId,
+    this.categoryId,
+    this.isSuspicious = false,
+    this.ipAddress,
+    this.userAgent,
     this.details = const {},
   });
 
@@ -103,9 +117,16 @@ class ActivityModel {
     return ActivityModel(
       id: doc.id,
       userId: data['userId'] ?? '',
-      action: data['action'] ?? '',
-      resource: data['resource'] ?? '',
+      type: data['type'] ?? data['action'] ?? '',
+      description: data['description'] ?? data['resource'] ?? '',
       timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      userName: data['userName'],
+      userEmail: data['userEmail'],
+      documentId: data['documentId'],
+      categoryId: data['categoryId'],
+      isSuspicious: data['isSuspicious'] ?? false,
+      ipAddress: data['ipAddress'],
+      userAgent: data['userAgent'],
       details: Map<String, dynamic>.from(data['details'] ?? {}),
     );
   }
@@ -114,18 +135,25 @@ class ActivityModel {
   Map<String, dynamic> toMap() {
     return {
       'userId': userId,
-      'action': action,
-      'resource': resource,
+      'type': type,
+      'description': description,
       'timestamp': Timestamp.fromDate(timestamp),
+      'userName': userName,
+      'userEmail': userEmail,
+      'documentId': documentId,
+      'categoryId': categoryId,
+      'isSuspicious': isSuspicious,
+      'ipAddress': ipAddress,
+      'userAgent': userAgent,
       'details': details,
     };
   }
 
-  /// Get ActivityType from action string
+  /// Get ActivityType from type string
   ActivityType get activityType {
-    for (ActivityType type in ActivityType.values) {
-      if (type.value == action) {
-        return type;
+    for (ActivityType activityType in ActivityType.values) {
+      if (activityType.value == type) {
+        return activityType;
       }
     }
     return ActivityType.update; // Default fallback
@@ -141,24 +169,38 @@ class ActivityModel {
   ActivityModel copyWith({
     String? id,
     String? userId,
-    String? action,
-    String? resource,
+    String? type,
+    String? description,
     DateTime? timestamp,
+    String? userName,
+    String? userEmail,
+    String? documentId,
+    String? categoryId,
+    bool? isSuspicious,
+    String? ipAddress,
+    String? userAgent,
     Map<String, dynamic>? details,
   }) {
     return ActivityModel(
       id: id ?? this.id,
       userId: userId ?? this.userId,
-      action: action ?? this.action,
-      resource: resource ?? this.resource,
+      type: type ?? this.type,
+      description: description ?? this.description,
       timestamp: timestamp ?? this.timestamp,
+      userName: userName ?? this.userName,
+      userEmail: userEmail ?? this.userEmail,
+      documentId: documentId ?? this.documentId,
+      categoryId: categoryId ?? this.categoryId,
+      isSuspicious: isSuspicious ?? this.isSuspicious,
+      ipAddress: ipAddress ?? this.ipAddress,
+      userAgent: userAgent ?? this.userAgent,
       details: details ?? this.details,
     );
   }
 
   @override
   String toString() {
-    return 'ActivityModel(id: $id, userId: $userId, action: $action, resource: $resource, timestamp: $timestamp)';
+    return 'ActivityModel(id: $id, userId: $userId, type: $type, description: $description, timestamp: $timestamp)';
   }
 
   @override
@@ -167,8 +209,8 @@ class ActivityModel {
     return other is ActivityModel &&
         other.id == id &&
         other.userId == userId &&
-        other.action == action &&
-        other.resource == resource &&
+        other.type == type &&
+        other.description == description &&
         other.timestamp == timestamp;
   }
 
@@ -176,8 +218,8 @@ class ActivityModel {
   int get hashCode {
     return id.hashCode ^
         userId.hashCode ^
-        action.hashCode ^
-        resource.hashCode ^
+        type.hashCode ^
+        description.hashCode ^
         timestamp.hashCode;
   }
 }

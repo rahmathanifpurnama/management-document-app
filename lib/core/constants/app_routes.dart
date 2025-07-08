@@ -47,8 +47,9 @@ class AppRoutes {
   // Settings Routes
   static const String settings = '/settings';
 
-  // Approval Routes
-  static const String fileApproval = '/file-approval';
+  // Activity Routes
+  static const String activity = '/activity';
+  static const String storageHistory = '/storage-history';
   static const String notificationCenter = '/notification-center';
 
   // Error Routes

@@ -185,9 +185,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: _getActivityColor(
-                  activity.action,
-                ).withValues(alpha: 0.1),
+                color: _getActivityColor(activity.type).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Center(
@@ -214,7 +212,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    activity.resource,
+                    activity.description,
                     style: GoogleFonts.poppins(
                       fontSize: 12,
                       color: AppColors.textSecondary,
@@ -348,7 +346,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildDetailRow('Action', activity.actionDescription),
-            _buildDetailRow('Resource', activity.resource),
+            _buildDetailRow('Resource', activity.description),
             _buildDetailRow('Time', _formatTimestamp(activity.timestamp)),
             _buildDetailRow('User ID', activity.userId),
             if (activity.details.isNotEmpty)

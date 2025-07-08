@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/notification_model.dart';
-import '../core/services/approval_service.dart';
+
 import '../core/services/firebase_service.dart';
 
 class NotificationProvider with ChangeNotifier {
@@ -14,7 +14,7 @@ class NotificationProvider with ChangeNotifier {
   NotificationProvider._internal();
 
   final FirebaseService _firebaseService = FirebaseService.instance;
-  final ApprovalService _approvalService = ApprovalService();
+
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
   // Safe getters for Firebase services
@@ -257,57 +257,6 @@ class NotificationProvider with ChangeNotifier {
     } catch (e) {
       debugPrint('❌ Error clearing all notifications: $e');
     }
-  }
-
-  /// Send notification for file upload
-  Future<void> sendFileUploadNotification({
-    required String userId,
-    required String fileName,
-    required String documentId,
-  }) async {
-    await _approvalService.sendNotificationToUser(
-      userId: userId,
-      title: 'File Uploaded Successfully',
-      message:
-          'Your file "$fileName" has been uploaded and is waiting for admin approval.',
-      type: NotificationType.fileUploaded,
-      documentId: documentId,
-    );
-  }
-
-  /// Send notification for file approval
-  Future<void> sendFileApprovalNotification({
-    required String userId,
-    required String fileName,
-    required String documentId,
-    required String approvedBy,
-  }) async {
-    await _approvalService.sendNotificationToUser(
-      userId: userId,
-      title: 'File Approved',
-      message: 'Your file "$fileName" has been approved and is now available.',
-      type: NotificationType.fileApproved,
-      documentId: documentId,
-      additionalData: {'approvedBy': approvedBy},
-    );
-  }
-
-  /// Send notification for file rejection
-  Future<void> sendFileRejectionNotification({
-    required String userId,
-    required String fileName,
-    required String documentId,
-    required String reason,
-    required String rejectedBy,
-  }) async {
-    await _approvalService.sendNotificationToUser(
-      userId: userId,
-      title: 'File Rejected',
-      message: 'Your file "$fileName" was rejected. Reason: $reason',
-      type: NotificationType.fileRejected,
-      documentId: documentId,
-      additionalData: {'rejectedBy': rejectedBy, 'reason': reason},
-    );
   }
 
   /// Refresh notifications

@@ -615,8 +615,8 @@ class DocumentService {
       ActivityModel activity = ActivityModel(
         id: '',
         userId: userId,
-        action: action.value,
-        resource: resource,
+        type: action.value,
+        description: resource,
         timestamp: DateTime.now(),
         details: {'userAgent': 'Flutter App', 'platform': 'Mobile'},
       );

@@ -8,7 +8,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/upload_ui_constants.dart';
 
 import '../../providers/hybrid_upload_provider.dart';
-import '../../providers/notification_provider.dart';
+
 import '../../widgets/upload/duplicate_file_dialog.dart';
 
 import '../../models/upload_file_model.dart';
@@ -687,11 +687,6 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) return;
 
-      final notificationProvider = Provider.of<NotificationProvider>(
-        context,
-        listen: false,
-      );
-
       // Get completed files that haven't been notified yet
       final completedFiles = uploadProvider.uploadQueue
           .where(
@@ -701,15 +696,9 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
           )
           .toList();
 
-      // Send notification for each completed file
+      // Log completed uploads
       for (final file in completedFiles) {
-        notificationProvider.sendFileUploadNotification(
-          userId: currentUser.uid,
-          fileName: file.fileName,
-          documentId: file.documentId!,
-        );
-
-        debugPrint('📱 Upload notification sent for file: ${file.fileName}');
+        debugPrint('📱 File uploaded successfully: ${file.fileName}');
       }
     } catch (e) {
       debugPrint('❌ Error sending upload notifications: $e');

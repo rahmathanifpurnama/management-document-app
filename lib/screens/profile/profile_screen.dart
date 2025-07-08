@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/notification_provider.dart';
+
 import '../../widgets/common/app_bottom_navigation.dart';
 import '../../models/user_model.dart';
 
@@ -72,27 +72,6 @@ class ProfileScreen extends StatelessWidget {
                         ),
 
                         const SizedBox(height: 16),
-
-                        // Admin-only File Approval menu item with notification badge
-                        if (authProvider.isAdmin) ...[
-                          Consumer<NotificationProvider>(
-                            builder: (context, notificationProvider, child) {
-                              final pendingCount =
-                                  notificationProvider.unreadCount;
-                              return _buildMenuItemWithBadge(
-                                context,
-                                icon: Icons.approval_outlined,
-                                title: 'File Approval',
-                                subtitle: pendingCount > 0
-                                    ? '$pendingCount pending approvals'
-                                    : 'No pending approvals',
-                                badgeCount: pendingCount,
-                                onTap: () => _navigateToFileApproval(context),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                        ],
 
                         _buildMenuItem(
                           context,
@@ -411,10 +390,6 @@ class ProfileScreen extends StatelessWidget {
 
   void _navigateToSettings(BuildContext context) {
     Navigator.of(context).pushNamed(AppRoutes.settings);
-  }
-
-  void _navigateToFileApproval(BuildContext context) {
-    Navigator.of(context).pushNamed(AppRoutes.fileApproval);
   }
 
   void _showLogoutDialog(BuildContext context) {

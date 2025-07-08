@@ -42,13 +42,15 @@ import 'screens/profile/personal_info_screen.dart';
 import 'screens/profile/edit_profile_screen.dart';
 import 'screens/profile/settings_screen.dart';
 import 'screens/profile/change_password_screen.dart';
-import 'screens/admin/file_approval_screen.dart';
+
 import 'screens/notification/notification_center_screen.dart';
 import 'screens/upload/upload_document_screen.dart';
 import 'screens/common/file_preview_screen.dart';
 import 'screens/files/total_files_screen.dart';
 import 'screens/recycle_bin/recycle_bin_screen.dart';
 import 'screens/favorites/favorites_screen.dart';
+import 'screens/activity/activity_page.dart';
+import 'screens/activity/storage_history_page.dart';
 import 'services/download_notification_service.dart';
 import 'models/category_model.dart';
 import 'models/user_model.dart';
@@ -358,9 +360,14 @@ class _MyAppState extends State<MyApp> {
                           UploadDocumentScreen(categoryId: categoryId),
                     );
 
-                  case AppRoutes.fileApproval:
+                  case AppRoutes.activity:
                     return MaterialPageRoute(
-                      builder: (context) => const FileApprovalScreen(),
+                      builder: (context) => const ActivityPage(),
+                    );
+
+                  case AppRoutes.storageHistory:
+                    return MaterialPageRoute(
+                      builder: (context) => const StorageHistoryPage(),
                     );
 
                   case AppRoutes.notificationCenter:
