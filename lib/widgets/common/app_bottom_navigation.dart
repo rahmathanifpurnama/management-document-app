@@ -198,7 +198,7 @@ class _CustomBottomNavigationBar extends StatelessWidget {
         index: 0,
         iconPath: currentIndex == 0
             ? 'assets/icon/home-filled.svg'
-            : 'assets/icon/home.svg',
+            : 'assets/icon/Home.svg', // Fixed: Use correct case (uppercase H)
         label: AppStrings.home,
         isSelected: currentIndex == 0,
         config: config,
@@ -267,6 +267,21 @@ class _CustomBottomNavigationBar extends StatelessWidget {
     return items;
   }
 
+  /// Get fallback icon for missing SVG assets
+  IconData _getFallbackIcon(String iconPath) {
+    if (iconPath.contains('home')) {
+      return Icons.home;
+    } else if (iconPath.contains('folder')) {
+      return Icons.folder;
+    } else if (iconPath.contains('user') || iconPath.contains('add-user')) {
+      return Icons.person;
+    } else if (iconPath.contains('plus')) {
+      return Icons.add;
+    } else {
+      return Icons.help_outline; // Default fallback
+    }
+  }
+
   /// Build regular navigation item with responsive sizing
   Widget _buildNavItem({
     required BuildContext context,
@@ -292,6 +307,14 @@ class _CustomBottomNavigationBar extends StatelessWidget {
                 colorFilter: ColorFilter.mode(
                   isSelected ? AppColors.primary : AppColors.textSecondary,
                   BlendMode.srcIn,
+                ),
+                // Add error handling for missing assets
+                placeholderBuilder: (context) => Icon(
+                  _getFallbackIcon(iconPath),
+                  size: config.regularIconSize,
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
                 ),
               ),
               SizedBox(height: config.verticalPadding / 2),

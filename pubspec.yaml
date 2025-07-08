@@ -179,20 +179,22 @@ flutter:
   assets:
     - assets/
     - assets/icon/
-    - assets/icon/home.svg
-    - assets/icon/folder.svg
-    - assets/icon/home-filled.svg
-    - assets/icon/folder-filled.svg
-    - assets/icon/add-user.svg
-    - assets/icon/add-user-filled.svg
-    - assets/icon/user.svg
-    - assets/icon/user-filled.svg
-    - assets/icon/user-folder.svg
-    - assets/icon/recycle-bin.svg
-    - assets/icon/plus.svg
-    - assets/icon/Activity.svg
-    - assets/icon/Home.svg
-    - assets/icon/fillter.svg
+    # Navigation icons (corrected case sensitivity)
+    - assets/icon/Home.svg              # Actual file name (uppercase H)
+    - assets/icon/home-filled.svg       # Home filled state
+    - assets/icon/folder.svg            # Category icon
+    - assets/icon/folder-filled.svg     # Category filled state
+    - assets/icon/add-user.svg          # Add user icon
+    - assets/icon/add-user-filled.svg   # Add user filled state
+    - assets/icon/user.svg              # User/Profile icon
+    - assets/icon/user-filled.svg       # User/Profile filled state
+    # Additional icons
+    - assets/icon/user-folder.svg       # User folder icon
+    - assets/icon/recycle-bin.svg       # Recycle bin icon
+    - assets/icon/plus.svg              # Plus/Add icon
+    - assets/icon/Activity.svg          # Activity icon
+    - assets/icon/fillter.svg           # Filter icon
+    # App assets
     - assets/app_icon.png
     - assets/Logo.svg
     - assets/animation/
