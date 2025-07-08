@@ -180,7 +180,7 @@ class StatWidget extends StatelessWidget {
     // Fixed sizing without responsive behavior
     const padding = EdgeInsets.all(8.0);
     const borderRadius = 12.0;
-    const spacing = 8.0;
+    const spacing = 4.0;
     const valueFontSize = 18.0;
     const titleFontSize = 11.0;
     const iconSize = 20.0;
@@ -346,7 +346,7 @@ class StatWidget extends StatelessWidget {
   /// Custom spacing between icon and title for better visual balance
   Widget _buildRow2IconSpacing({required double spacing}) {
     // Row 2 icon spacing - reduced to 4px for closer icon-title spacing
-    return SizedBox(height: 4.0); // Reduced from 8px to 4px
+    return SizedBox(height: 0.0); // Reduced from 8px to 4px
   }
 
   /// Build custom value spacing for Row 2 widgets (Recycle Bin & Favorites)
@@ -357,9 +357,9 @@ class StatWidget extends StatelessWidget {
   }) {
     // Row 2 value area spacing - compensate for reduced icon spacing
     // Add 4px to maintain same total height as row 1
-    final valueHeight = valueFontSize * 1.1; // Same as row 1 (19.8px)
+    final valueHeight = valueFontSize / 12; // Same as row 1 (19.8px)
     final titleSpacing = spacing / 2; // Same as row 1 (4px)
-    final compensation = 4.0; // Compensate for 4px reduction in icon spacing
+    final compensation = 0.0; // Compensate for 4px reduction in icon spacing
 
     return SizedBox(
       height:
