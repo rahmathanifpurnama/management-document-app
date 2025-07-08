@@ -35,7 +35,7 @@ function askQuestion(question) {
 // Permission templates - Only admin and user roles
 const PERMISSIONS = {
   admin: {
-    documents: ['view', 'upload', 'delete', 'approve'],
+    documents: ['view', 'upload', 'delete'],
     categories: [],
     system: ['user_management', 'analytics']
   },
@@ -244,7 +244,7 @@ async function seedDocuments() {
         originalName: 'Company Policy 2024.pdf',
         category: 'policies',
         description: 'Updated company policies for 2024',
-        status: 'approved',
+        status: 'active',
         fileSize: 1024000,
         mimeType: 'application/pdf'
       },
@@ -262,7 +262,7 @@ async function seedDocuments() {
         originalName: 'Service Agreement Template.docx',
         category: 'contracts',
         description: 'Standard service agreement template',
-        status: 'approved',
+        status: 'active',
         fileSize: 256000,
         mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       }
@@ -286,9 +286,7 @@ async function seedDocuments() {
         downloadUrl: `gs://your-bucket/documents/${docRef.id}`,
         storagePath: `documents/${docRef.id}`,
         version: 1,
-        tags: [],
-        approvedBy: docData.status === 'approved' ? adminAuthUser.uid : null,
-        approvedAt: docData.status === 'approved' ? admin.firestore.FieldValue.serverTimestamp() : null
+        tags: []
       });
       
       console.log(`✅ Created document: ${docData.fileName}`);

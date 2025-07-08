@@ -107,7 +107,7 @@ firebase login
 2. **Verify admin permissions** by checking:
    - User Management access
    - Analytics access
-   - Document approval capabilities
+   - Document management capabilities
    - All CRUD operations on documents
 
 ### Check Firestore Document
