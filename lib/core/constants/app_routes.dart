@@ -21,7 +21,6 @@ class AppRoutes {
   static const String favorites = '/favorites';
 
   // Category Routes
-  static const String categories = '/categories';
   static const String manageCategories = '/manage-categories';
   static const String categoryFiles = '/category-files';
   static const String addFilesToCategory = '/add-files-to-category';

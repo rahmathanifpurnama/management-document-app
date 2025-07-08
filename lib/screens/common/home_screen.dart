@@ -277,8 +277,8 @@ class _HomeScreenState extends State<HomeScreen>
         _scrollToRecentFiles();
         break;
       case 'categories':
-        // Navigate to categories page using proper route
-        Navigator.pushNamed(context, AppRoutes.categories);
+        // Navigate directly to manage categories page
+        Navigator.pushNamed(context, AppRoutes.manageCategories);
         break;
       case 'users':
         // Navigate to user management page

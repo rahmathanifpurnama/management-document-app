@@ -33,7 +33,7 @@ import 'widgets/app/category_document_sync_initializer.dart';
 import 'screens/admin/create_user_screen.dart';
 import 'screens/admin/edit_user_screen.dart';
 import 'screens/admin/user_details_screen.dart';
-import 'screens/category/category_screen.dart';
+
 import 'screens/category/manage_category_screen.dart';
 import 'screens/category/category_files_screen.dart';
 import 'screens/category/add_files_to_category_screen.dart';
@@ -283,10 +283,7 @@ class _MyAppState extends State<MyApp> {
                     return MaterialPageRoute(
                       builder: (context) => const UserManagementScreen(),
                     );
-                  case AppRoutes.categories:
-                    return MaterialPageRoute(
-                      builder: (context) => const CategoryScreen(),
-                    );
+
                   case AppRoutes.recycleBin:
                     return MaterialPageRoute(
                       builder: (context) => const RecycleBinScreen(),

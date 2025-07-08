@@ -81,7 +81,7 @@ class AppScaffoldWithNavigation extends StatelessWidget {
         Navigator.pushReplacementNamed(context, AppRoutes.home);
         break;
       case 1:
-        Navigator.pushReplacementNamed(context, AppRoutes.categories);
+        Navigator.pushReplacementNamed(context, AppRoutes.manageCategories);
         break;
       case 2:
         Navigator.pushNamed(context, AppRoutes.uploadDocument);
