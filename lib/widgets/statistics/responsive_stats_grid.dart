@@ -230,12 +230,10 @@ class StatWidget extends StatelessWidget {
             borderRadius: borderRadius,
           ),
 
-<<<<<<< HEAD
           // Custom spacing between icon and content for row 2
           SizedBox(
             height: showValue ? spacing : 8.0,
           ), // 12px for row 2, 8px for row 1
-=======
           // Spacing between icon and content
           if (showValue) ...[
             // Row 1 spacing (normal)
@@ -245,7 +243,6 @@ class StatWidget extends StatelessWidget {
             _buildRow2IconSpacing(spacing: spacing),
           ],
 
->>>>>>> 9be2fb3a9ca68470db3ceb8ff36c1e9d18e8b6c3
           // Value section with consistent spacing for visual alignment
           if (showValue) ...[
             if (isLoading)
