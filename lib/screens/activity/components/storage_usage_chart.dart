@@ -212,7 +212,7 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
                 interval: _getBottomInterval(),
                 getTitlesWidget: (value, meta) {
                   return SideTitleWidget(
-                    axisSide: meta.axisSide,
+                    meta: meta,
                     child: Text(
                       _getBottomTitle(value),
                       style: TextStyle(
@@ -231,7 +231,7 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
                 reservedSize: 40,
                 getTitlesWidget: (value, meta) {
                   return SideTitleWidget(
-                    axisSide: meta.axisSide,
+                    meta: meta,
                     child: Text(
                       _formatBytes(value),
                       style: TextStyle(
@@ -288,8 +288,6 @@ class _StorageUsageChartState extends State<StorageUsageChart> {
           lineTouchData: LineTouchData(
             enabled: true,
             touchTooltipData: LineTouchTooltipData(
-              tooltipBgColor: AppColors.primary.withOpacity(0.9),
-              tooltipRoundedRadius: 8,
               getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
                 return touchedBarSpots.map((barSpot) {
                   return LineTooltipItem(
