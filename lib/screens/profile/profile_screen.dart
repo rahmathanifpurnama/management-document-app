@@ -73,6 +73,17 @@ class ProfileScreen extends StatelessWidget {
 
                         const SizedBox(height: 16),
 
+                        // Admin-only User Management menu
+                        if (authProvider.isAdmin) ...[
+                          _buildMenuItem(
+                            context,
+                            icon: Icons.people_outline,
+                            title: 'User Management',
+                            onTap: () => _navigateToUserManagement(context),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
                         _buildMenuItem(
                           context,
                           icon: Icons.settings_outlined,
@@ -268,118 +279,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuItemWithBadge(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    required VoidCallback onTap,
-    int badgeCount = 0,
-    bool isDestructive = false,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.shadow,
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Stack(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isDestructive
-                        ? Colors.red.withValues(alpha: 0.1)
-                        : AppColors.primary.withValues(alpha: 0.1),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 20,
-                    color: isDestructive ? Colors.red : AppColors.primary,
-                  ),
-                ),
-                if (badgeCount > 0)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: AppColors.error,
-                        shape: BoxShape.circle,
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 16,
-                      ),
-                      child: Text(
-                        badgeCount > 9 ? '9+' : badgeCount.toString(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-
-            const SizedBox(width: 16),
-
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: isDestructive ? Colors.red : Colors.black87,
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: badgeCount > 0
-                            ? AppColors.warning
-                            : Colors.grey[600],
-                        fontWeight: badgeCount > 0
-                            ? FontWeight.w500
-                            : FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _navigateToPersonalInfo(BuildContext context) {
     Navigator.of(context).pushNamed(AppRoutes.personalInfo);
   }
@@ -390,6 +289,10 @@ class ProfileScreen extends StatelessWidget {
 
   void _navigateToSettings(BuildContext context) {
     Navigator.of(context).pushNamed(AppRoutes.settings);
+  }
+
+  void _navigateToUserManagement(BuildContext context) {
+    Navigator.of(context).pushNamed(AppRoutes.userManagement);
   }
 
   void _showLogoutDialog(BuildContext context) {
