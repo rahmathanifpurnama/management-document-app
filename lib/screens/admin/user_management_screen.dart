@@ -8,7 +8,6 @@ import '../../core/widgets/optimized_loading_widget.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../models/user_model.dart';
-import '../../widgets/common/app_bottom_navigation.dart';
 import '../../widgets/common/reusable_search_widget.dart';
 
 import '../../widgets/user/user_card.dart';
@@ -102,27 +101,27 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AppScaffoldWithNavigation(
-      title: 'User Management',
-      currentNavIndex: 3, // Add User is index 3 for admin
-      showAppBar: false, // Hide default app bar
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('User Management'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.chevron_left, size: 28, color: Colors.white),
+          tooltip: 'Back',
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: _showFilterDialog,
+          ),
+        ],
+      ),
       body: Column(
         children: [
-          // Custom AppBar without back button
-          AppBar(
-            title: const Text('User Management'),
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            automaticallyImplyLeading: false,
-            elevation: 0,
-            centerTitle: true,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.filter_list),
-                onPressed: _showFilterDialog,
-              ),
-            ],
-          ),
           // Main content
           Expanded(
             child: Consumer2<UserProvider, AuthProvider>(
