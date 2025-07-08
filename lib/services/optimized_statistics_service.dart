@@ -273,14 +273,37 @@ class OptimizedStatisticsService {
       int activeUsers = 0;
       int totalCategories = 0;
 
-      // Try to get total files count
+      // Try to get total files count with multiple fallback strategies
       try {
-        final filesSnapshot = await firestore
+        // First try: count documents with isActive = true
+        final activeFilesSnapshot = await firestore
             .collection('documents')
             .where('isActive', isEqualTo: true)
             .count()
             .get();
-        totalFiles = filesSnapshot.count ?? 0;
+        totalFiles = activeFilesSnapshot.count ?? 0;
+
+        // If no active files found, try with status = 'active'
+        if (totalFiles == 0) {
+          final statusActiveSnapshot = await firestore
+              .collection('documents')
+              .where('status', isEqualTo: 'active')
+              .count()
+              .get();
+          totalFiles = statusActiveSnapshot.count ?? 0;
+        }
+
+        // If still no files found, try without any filter (all documents)
+        if (totalFiles == 0) {
+          final allFilesSnapshot = await firestore
+              .collection('documents')
+              .count()
+              .get();
+          totalFiles = allFilesSnapshot.count ?? 0;
+          debugPrint('📊 Using total documents count (no filter): $totalFiles');
+        }
+
+        debugPrint('📊 Total files count: $totalFiles');
       } catch (e) {
         debugPrint('⚠️ Failed to get files count, using fallback: $e');
         // Fallback: use 0 for now, will be updated by storage sync
@@ -332,30 +355,75 @@ class OptimizedStatisticsService {
         );
         debugPrint('📊 Current server time reference: ${DateTime.now()}');
 
-        final recentFilesSnapshot = await firestore
-            .collection('documents')
-            .where('isActive', isEqualTo: true)
-            .where('uploadedAt', isGreaterThanOrEqualTo: sevenDaysAgo)
-            .limit(1000) // Limit to prevent excessive reads
-            .get();
+        // Try multiple query strategies for recent files
+        QuerySnapshot? recentFilesSnapshot;
 
-        recentFilesCount = recentFilesSnapshot.docs.length;
-        debugPrint('📊 Recent files count (last 7 days): $recentFilesCount');
+        // Strategy 1: isActive = true + recent uploadedAt
+        try {
+          recentFilesSnapshot = await firestore
+              .collection('documents')
+              .where('isActive', isEqualTo: true)
+              .where('uploadedAt', isGreaterThanOrEqualTo: sevenDaysAgo)
+              .limit(1000) // Limit to prevent excessive reads
+              .get();
+          recentFilesCount = recentFilesSnapshot.docs.length;
+          debugPrint('📊 Recent files (isActive=true): $recentFilesCount');
+        } catch (e) {
+          debugPrint('⚠️ Strategy 1 failed: $e');
+        }
+
+        // Strategy 2: status = 'active' + recent uploadedAt (if Strategy 1 failed or returned 0)
+        if (recentFilesCount == 0) {
+          try {
+            recentFilesSnapshot = await firestore
+                .collection('documents')
+                .where('status', isEqualTo: 'active')
+                .where('uploadedAt', isGreaterThanOrEqualTo: sevenDaysAgo)
+                .limit(1000)
+                .get();
+            recentFilesCount = recentFilesSnapshot.docs.length;
+            debugPrint('📊 Recent files (status=active): $recentFilesCount');
+          } catch (e) {
+            debugPrint('⚠️ Strategy 2 failed: $e');
+          }
+        }
+
+        // Strategy 3: All documents + recent uploadedAt (if previous strategies failed)
+        if (recentFilesCount == 0) {
+          try {
+            recentFilesSnapshot = await firestore
+                .collection('documents')
+                .where('uploadedAt', isGreaterThanOrEqualTo: sevenDaysAgo)
+                .limit(1000)
+                .get();
+            recentFilesCount = recentFilesSnapshot.docs.length;
+            debugPrint('📊 Recent files (no status filter): $recentFilesCount');
+          } catch (e) {
+            debugPrint('⚠️ Strategy 3 failed: $e');
+          }
+        }
+
+        debugPrint(
+          '📊 Final recent files count (last 7 days): $recentFilesCount',
+        );
 
         // Enhanced debugging: Log sample recent files with detailed timestamp info
-        if (recentFilesSnapshot.docs.isNotEmpty) {
+        if (recentFilesSnapshot != null &&
+            recentFilesSnapshot.docs.isNotEmpty) {
           debugPrint('📊 Sample recent files for verification:');
           final sampleDocs = recentFilesSnapshot.docs.take(5);
           for (final doc in sampleDocs) {
-            final data = doc.data();
-            final uploadedAt = data['uploadedAt'];
-            final uploadedAtDate = uploadedAt is Timestamp
-                ? uploadedAt.toDate()
-                : uploadedAt;
-            final daysDiff = DateTime.now().difference(uploadedAtDate).inDays;
-            debugPrint(
-              '📄 File: ${data['fileName']} | Uploaded: $uploadedAtDate | Days ago: $daysDiff',
-            );
+            final data = doc.data() as Map<String, dynamic>?;
+            if (data != null) {
+              final uploadedAt = data['uploadedAt'];
+              final uploadedAtDate = uploadedAt is Timestamp
+                  ? uploadedAt.toDate()
+                  : uploadedAt;
+              final daysDiff = DateTime.now().difference(uploadedAtDate).inDays;
+              debugPrint(
+                '📄 File: ${data['fileName']} | Uploaded: $uploadedAtDate | Days ago: $daysDiff',
+              );
+            }
           }
         } else {
           debugPrint('⚠️ No recent files found in the last 7 days');
