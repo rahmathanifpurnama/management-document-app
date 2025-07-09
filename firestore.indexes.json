@@ -70,6 +70,21 @@
         }
       ]
     }
+    ,
+    { 
+      "collectionGroup": "activities",
+      "queryScope": "COLLECTION", 
+      "fields": [
+        {
+          "fieldPath": "isSuspicious",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp", 
+          "order": "ASCENDING"
+        }
+      ]
+    }
   ],
   "fieldOverrides": []
 }
