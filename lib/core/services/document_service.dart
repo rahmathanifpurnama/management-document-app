@@ -20,7 +20,16 @@ class DocumentService {
 
   final FirebaseService _firebaseService = FirebaseService.instance;
   final UnifiedIdSystem _unifiedIdSystem = UnifiedIdSystem.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  // Lazy access to Firebase Auth to prevent initialization errors
+  FirebaseAuth get _auth {
+    try {
+      return _firebaseService.auth;
+    } catch (e) {
+      debugPrint('⚠️ DocumentService: Firebase Auth not available: $e');
+      throw Exception('Firebase Auth not initialized');
+    }
+  }
 
   // HIGH PRIORITY: Get all documents with pagination and optimization
   Future<List<DocumentModel>> getAllDocuments({

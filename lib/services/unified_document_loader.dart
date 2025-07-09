@@ -16,7 +16,11 @@ class UnifiedDocumentLoader {
 
   // Single loading state to prevent race conditions
   bool _isLoading = false;
-  final DocumentService _documentService = DocumentService.instance;
+
+  // Lazy-loaded DocumentService to prevent Firebase initialization errors
+  DocumentService? _documentService;
+  DocumentService get documentService =>
+      _documentService ??= DocumentService.instance;
 
   // Cache for loaded documents
   List<DocumentModel> _cachedDocuments = [];
@@ -102,7 +106,7 @@ class UnifiedDocumentLoader {
         debugPrint('📋 Loading attempt $attempt/$maxRetries');
 
         // ENTERPRISE SCALE: Use unlimited loading for comprehensive data access
-        final documents = await _documentService.getAllDocuments(
+        final documents = await documentService.getAllDocuments(
           limit: FirebaseConfig.shouldEnableUnlimitedFiles
               ? null // No limit for enterprise mode
               : ANRConfig.defaultPageSize *

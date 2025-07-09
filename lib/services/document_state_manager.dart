@@ -23,9 +23,10 @@ class DocumentStateManager {
   // Cache configuration
   static const Duration _cacheExpiry = Duration(minutes: 5);
 
-  // Services - Firebase Storage as primary data source
-  final FirebaseStorageDirectService _storageService =
-      FirebaseStorageDirectService.instance;
+  // Services - Firebase Storage as primary data source (lazy-loaded)
+  FirebaseStorageDirectService? _storageService;
+  FirebaseStorageDirectService get storageService =>
+      _storageService ??= FirebaseStorageDirectService.instance;
 
   // Stream controller for real-time updates
   final StreamController<List<DocumentModel>> _documentsController =
@@ -92,7 +93,7 @@ class DocumentStateManager {
       debugPrint('🔄 Starting Firebase Storage-first document refresh...');
 
       // ENHANCED: Always fetch from Firebase Storage as primary source
-      final freshDocuments = await _storageService.getAllFilesFromStorage();
+      final freshDocuments = await storageService.getAllFilesFromStorage();
 
       if (freshDocuments.isNotEmpty) {
         // ATOMIC UPDATE: Replace all data at once with Storage data

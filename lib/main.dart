@@ -14,6 +14,7 @@ import 'core/constants/app_routes.dart';
 import 'core/utils/anr_detector.dart';
 import 'core/utils/anr_prevention.dart';
 import 'core/utils/anr_recovery.dart';
+import 'core/utils/firebase_initialization_status.dart';
 import 'providers/auth_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/document_provider.dart';
@@ -88,16 +89,34 @@ void main() async {
   await ANRRecovery.initialize();
 
   // Initialize Firebase with optimized timeout and error handling
+  bool firebaseInitialized = false;
   try {
     await ANRPrevention.executeWithTimeout(
       FirebaseService.initialize(),
       timeout: ANRConfig.firebaseInitTimeout, // Use optimized timeout
       operationName: 'Firebase Initialization',
     );
+    firebaseInitialized = true;
+    debugPrint('✅ Firebase initialization completed successfully');
   } catch (e) {
     debugPrint('⚠️ Firebase initialization failed, continuing: $e');
+    firebaseInitialized = false;
+    FirebaseInitializationStatus.lastError = e.toString();
+
+    // Check if it's a network/offline issue
+    final errorString = e.toString().toLowerCase();
+    if (errorString.contains('network') ||
+        errorString.contains('connection') ||
+        errorString.contains('timeout')) {
+      FirebaseInitializationStatus.isOfflineMode = true;
+      debugPrint('📱 Setting offline mode due to network issues');
+    }
+
     // Continue app launch even if Firebase fails
   }
+
+  // Store Firebase initialization status globally
+  FirebaseInitializationStatus.isInitialized = firebaseInitialized;
 
   // REMOVED: Architectural services initialization (DatabaseVersionTracker removed)
   // The architectural services were designed for enterprise-scale version tracking

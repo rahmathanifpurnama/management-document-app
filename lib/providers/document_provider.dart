@@ -7,6 +7,7 @@ import 'dart:convert';
 import '../models/document_model.dart';
 import '../core/services/document_service.dart';
 import '../core/services/firebase_service.dart';
+import '../core/utils/firebase_initialization_status.dart';
 // REMOVED: Sync services that created duplicate documents
 import '../services/file_category_management_service.dart';
 import '../services/cloud_functions_service.dart';
@@ -83,7 +84,7 @@ class DocumentProvider extends ChangeNotifier {
       debugPrint('🚀 DocumentProvider: Scheduling auto-initialization...');
       // Schedule initialization after the provider is created
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _autoInitializeDocuments();
+        _safeAutoInitializeDocuments();
       });
 
       // REMOVED: Immediate cache loading to prevent showing cached count
@@ -99,23 +100,73 @@ class DocumentProvider extends ChangeNotifier {
     await EmptyStorageStateManager.instance.initialize();
   }
 
-  final EnhancedFirebaseStorageService _enhancedStorageService =
-      EnhancedFirebaseStorageService.instance;
-  final EnhancedAuthService _enhancedAuthService = EnhancedAuthService.instance;
+  /// Safe auto-initialization that checks Firebase status first
+  Future<void> _safeAutoInitializeDocuments() async {
+    try {
+      // Check if Firebase is initialized
+      if (!FirebaseInitializationStatus.canInitializeProviders) {
+        debugPrint(
+          '⚠️ DocumentProvider: Firebase not ready, skipping auto-initialization',
+        );
+        debugPrint('   Status: ${FirebaseInitializationStatus.statusMessage}');
+
+        // Set offline mode if needed
+        if (FirebaseInitializationStatus.lastError != null) {
+          FirebaseInitializationStatus.isOfflineMode = true;
+        }
+
+        // Don't crash - just skip initialization
+        return;
+      }
+
+      // Firebase is ready, proceed with normal initialization
+      await _autoInitializeDocuments();
+    } catch (e) {
+      debugPrint('❌ DocumentProvider: Safe auto-initialization failed: $e');
+
+      // Check if it's a Firebase initialization error
+      if (e.toString().contains('Firebase') &&
+          e.toString().contains('no-app')) {
+        debugPrint(
+          '🔄 DocumentProvider: Firebase not initialized, will retry later',
+        );
+        FirebaseInitializationStatus.lastError = e.toString();
+        return;
+      }
+
+      // For other errors, log but don't crash
+      debugPrint('⚠️ DocumentProvider: Continuing with limited functionality');
+    }
+  }
+
+  // Lazy-loaded services to prevent Firebase initialization errors
+  EnhancedFirebaseStorageService? _enhancedStorageService;
+  EnhancedFirebaseStorageService get enhancedStorageService =>
+      _enhancedStorageService ??= EnhancedFirebaseStorageService.instance;
+
+  EnhancedAuthService? _enhancedAuthService;
+  EnhancedAuthService get enhancedAuthService =>
+      _enhancedAuthService ??= EnhancedAuthService.instance;
 
   // ARCHITECTURAL FIX: Centralized state management
-  final DocumentStateManager _stateManager = DocumentStateManager.instance;
+  DocumentStateManager? _stateManager;
+  DocumentStateManager get stateManager =>
+      _stateManager ??= DocumentStateManager.instance;
 
   // UNIFIED LOADING: Use unified document loader to eliminate race conditions
-  final UnifiedDocumentLoader _unifiedLoader = UnifiedDocumentLoader.instance;
+  UnifiedDocumentLoader? _unifiedLoader;
+  UnifiedDocumentLoader get unifiedLoader =>
+      _unifiedLoader ??= UnifiedDocumentLoader.instance;
 
   // STORAGE-FIRST DELETION: Service for direct storage deletion
-  final DirectStorageDeletionService _directStorageService =
-      DirectStorageDeletionService.instance;
+  DirectStorageDeletionService? _directStorageService;
+  DirectStorageDeletionService get directStorageService =>
+      _directStorageService ??= DirectStorageDeletionService.instance;
 
   // STATISTICS NOTIFICATION: Service for real-time statistics updates
-  final StatisticsNotificationService _statisticsService =
-      StatisticsNotificationService.instance;
+  StatisticsNotificationService? _statisticsService;
+  StatisticsNotificationService get statisticsService =>
+      _statisticsService ??= StatisticsNotificationService.instance;
 
   // UNIFIED ID SYSTEM: New architectural services
   final UnifiedIdSystem _unifiedIdSystem = UnifiedIdSystem.instance;
@@ -161,7 +212,7 @@ class DocumentProvider extends ChangeNotifier {
       debugPrint('🔄 Syncing DocumentProvider with UnifiedDocumentLoader...');
 
       // Get latest data from UnifiedDocumentLoader
-      final unifiedDocuments = await _unifiedLoader.loadAllDocuments(
+      final unifiedDocuments = await unifiedLoader.loadAllDocuments(
         forceRefresh: true,
       );
 
@@ -206,9 +257,9 @@ class DocumentProvider extends ChangeNotifier {
     try {
       // PRIORITY 1: Always try Firebase Storage first for consistency
       debugPrint('📁 AUTO-INIT: Attempting Firebase Storage direct load...');
-      await _stateManager.refreshDocuments();
+      await stateManager.refreshDocuments();
 
-      final stateManagerDocs = _stateManager.documents;
+      final stateManagerDocs = stateManager.documents;
       if (stateManagerDocs.isNotEmpty) {
         _documents = List.from(stateManagerDocs);
         _applyFiltersAndSort();
@@ -925,7 +976,7 @@ class DocumentProvider extends ChangeNotifier {
       debugPrint('✅ Added to new category: $categoryId');
 
       // ENHANCED: Update UnifiedDocumentLoader cache for consistency
-      _unifiedLoader.updateDocumentCategory(documentId, categoryId);
+      unifiedLoader.updateDocumentCategory(documentId, categoryId);
 
       // RACE CONDITION FIX: Mark this as a recent category assignment to prevent override
       _lastLoadTime = DateTime.now();
@@ -1321,7 +1372,7 @@ class DocumentProvider extends ChangeNotifier {
 
       // Remove from state manager cache
       try {
-        _stateManager.removeDocument(documentId);
+        stateManager.removeDocument(documentId);
         debugPrint('✅ Removed from state manager cache');
       } catch (e) {
         debugPrint('⚠️ Failed to remove from state manager: $e');
@@ -1386,7 +1437,7 @@ class DocumentProvider extends ChangeNotifier {
 
         // STATISTICS UPDATE: Notify about successful file deletion
         if (localDocument != null && localDocument.id.isNotEmpty) {
-          _statisticsService.notifyFileDeleted(
+          statisticsService.notifyFileDeleted(
             fileId: localDocument.id,
             fileName: localDocument.fileName,
             category: localDocument.category,
@@ -1441,7 +1492,7 @@ class DocumentProvider extends ChangeNotifier {
 
       // Remove from state manager cache
       try {
-        _stateManager.removeDocument(documentId);
+        stateManager.removeDocument(documentId);
         debugPrint('✅ Removed from state manager cache');
       } catch (e) {
         debugPrint('⚠️ Failed to remove from state manager: $e');
@@ -1546,7 +1597,7 @@ class DocumentProvider extends ChangeNotifier {
 
         // Remove from state manager cache
         try {
-          _stateManager.removeDocument(documentId);
+          stateManager.removeDocument(documentId);
           debugPrint('✅ Removed from state manager cache');
         } catch (e) {
           debugPrint('⚠️ Failed to remove from state manager: $e');
@@ -1570,7 +1621,7 @@ class DocumentProvider extends ChangeNotifier {
 
         // STATISTICS UPDATE: Notify about successful file deletion via cloud function
         if (localDocument != null && localDocument.id.isNotEmpty) {
-          _statisticsService.notifyFileDeleted(
+          statisticsService.notifyFileDeleted(
             fileId: localDocument.id,
             fileName: localDocument.fileName,
             category: localDocument.category,
@@ -1630,7 +1681,7 @@ class DocumentProvider extends ChangeNotifier {
         if (localDocument != null) {
           debugPrint('🔄 Attempting direct storage deletion as fallback...');
           try {
-            final directResult = await _directStorageService
+            final directResult = await directStorageService
                 .deleteDocumentDirect(localDocument, forceDelete: true);
             if (directResult.success) {
               debugPrint('✅ Direct storage deletion successful');
@@ -2405,10 +2456,10 @@ class DocumentProvider extends ChangeNotifier {
       debugPrint('🔄 Starting centralized document refresh...');
 
       // Use DocumentStateManager for atomic refresh
-      await _stateManager.refreshDocuments();
+      await stateManager.refreshDocuments();
 
       // Sync local state with state manager
-      final freshDocuments = _stateManager.documents;
+      final freshDocuments = stateManager.documents;
       if (freshDocuments.isNotEmpty) {
         await _atomicDocumentUpdate(freshDocuments);
 
@@ -2510,7 +2561,7 @@ class DocumentProvider extends ChangeNotifier {
     String? categoryFilter,
     String? searchQuery,
   }) async {
-    if (!(await _enhancedAuthService.canPerformUnlimitedQueries())) {
+    if (!(await enhancedAuthService.canPerformUnlimitedQueries())) {
       debugPrint('⚠️ Unlimited queries not available for current user');
       await loadDocuments(); // Fallback to regular loading
       return;
@@ -2557,7 +2608,7 @@ class DocumentProvider extends ChangeNotifier {
 
   /// Load documents from Firebase Storage with unlimited access
   Future<void> loadDocumentsFromStorageUnlimited() async {
-    if (!(await _enhancedAuthService.canAccessStorageManagement())) {
+    if (!(await enhancedAuthService.canAccessStorageManagement())) {
       debugPrint('⚠️ Storage management access denied');
       return;
     }
@@ -2568,7 +2619,7 @@ class DocumentProvider extends ChangeNotifier {
     try {
       debugPrint('📁 Loading documents from Firebase Storage...');
 
-      final storageDocuments = await _enhancedStorageService
+      final storageDocuments = await enhancedStorageService
           .getAllStorageFilesUnlimited();
 
       // Merge with existing documents, avoiding duplicates
@@ -2591,7 +2642,7 @@ class DocumentProvider extends ChangeNotifier {
 
   /// Refresh download URLs for all documents
   Future<void> refreshAllDownloadUrls() async {
-    if (!(await _enhancedAuthService.canAccessStorageManagement())) {
+    if (!(await enhancedAuthService.canAccessStorageManagement())) {
       debugPrint('⚠️ Storage management access denied');
       return;
     }
@@ -2602,7 +2653,7 @@ class DocumentProvider extends ChangeNotifier {
       int refreshedCount = 0;
       for (final document in _documents) {
         if (document.filePath.isNotEmpty) {
-          final newUrl = await _enhancedStorageService.refreshDownloadUrl(
+          final newUrl = await enhancedStorageService.refreshDownloadUrl(
             document.filePath,
           );
           if (newUrl != null) {
@@ -2620,14 +2671,14 @@ class DocumentProvider extends ChangeNotifier {
 
   /// Get document statistics (admin only)
   Future<Map<String, dynamic>> getDocumentStatistics() async {
-    if (!(await _enhancedAuthService.canPerformUnlimitedQueries())) {
+    if (!(await enhancedAuthService.canPerformUnlimitedQueries())) {
       return {'error': 'Admin privileges required'};
     }
 
     try {
       final firestoreStats = await _enhancedDocumentService
           .getDocumentStatistics();
-      final storageStats = await _enhancedStorageService.getStorageStatistics();
+      final storageStats = await enhancedStorageService.getStorageStatistics();
 
       return {
         'firestore': firestoreStats,
@@ -2646,12 +2697,12 @@ class DocumentProvider extends ChangeNotifier {
 
   /// Check if unlimited queries are available for current user
   Future<bool> get canUseUnlimitedQueries async {
-    return await _enhancedAuthService.canPerformUnlimitedQueries();
+    return await enhancedAuthService.canPerformUnlimitedQueries();
   }
 
   /// Check if storage management is available for current user
   Future<bool> get canManageStorage async {
-    return await _enhancedAuthService.canAccessStorageManagement();
+    return await enhancedAuthService.canAccessStorageManagement();
   }
 
   // Get total file size
@@ -2688,8 +2739,8 @@ class DocumentProvider extends ChangeNotifier {
     debugPrint('🔄 Starting Firebase Storage-first document refresh...');
 
     // ENHANCED: Use Firebase Storage as primary source for refresh
-    await _stateManager.refreshDocuments();
-    final freshDocuments = _stateManager.documents;
+    await stateManager.refreshDocuments();
+    final freshDocuments = stateManager.documents;
 
     if (freshDocuments.isNotEmpty) {
       await _atomicDocumentUpdate(freshDocuments);
@@ -3015,7 +3066,7 @@ class DocumentProvider extends ChangeNotifier {
       _isInitialized = false;
 
       // Clear state manager cache
-      _stateManager.clearData();
+      stateManager.clearData();
 
       // Clear smart cache invalidation
       await _cacheInvalidation.invalidateCache();
@@ -3077,7 +3128,7 @@ class DocumentProvider extends ChangeNotifier {
       debugPrint('   Storage documents: ${storageDocuments.length}');
 
       // Check if current user is admin to determine merge strategy
-      final isAdmin = await _enhancedAuthService.isCurrentUserAdmin;
+      final isAdmin = await enhancedAuthService.isCurrentUserAdmin;
       debugPrint('   User type: ${isAdmin ? "Admin" : "User"}');
 
       List<DocumentModel> firestoreDocuments = [];
