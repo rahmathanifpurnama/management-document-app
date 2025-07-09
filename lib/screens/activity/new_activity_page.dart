@@ -38,9 +38,13 @@ class _NewActivityPageState extends State<NewActivityPage> {
   DateTimeRange? _dateRange;
   bool _isFilterExpanded = false;
 
-  // Pagination
+  // Enhanced pagination system
   String? _lastTimestamp;
-  static const int _pageSize = 50;
+  static const int _pageSize = 25; // Reduced for better performance
+  int _currentPage = 0;
+  List<ActivityModel> _allActivities = []; // Store all loaded activities
+  static const int _activitiesPerPage = 25;
+  bool _showPaginationControls = false;
 
   // Debouncing timers
   Timer? _searchDebounceTimer;
@@ -216,6 +220,7 @@ class _NewActivityPageState extends State<NewActivityPage> {
   void _onSearchChanged(String query) {
     setState(() {
       _searchQuery = query;
+      _currentPage = 0; // Reset pagination
     });
 
     // Debounce search changes to prevent excessive API calls
@@ -228,6 +233,7 @@ class _NewActivityPageState extends State<NewActivityPage> {
   void _onDateRangeChanged(DateTimeRange? range) {
     setState(() {
       _dateRange = range;
+      _currentPage = 0; // Reset pagination
     });
 
     // Date range changes are immediate as they're user-initiated actions
@@ -261,6 +267,7 @@ class _NewActivityPageState extends State<NewActivityPage> {
   void _applyDateRangeFilter(DateTimeRange? range) {
     setState(() {
       _dateRange = range;
+      _currentPage = 0; // Reset pagination
     });
     _loadActivitiesQuietly(reset: true);
   }
@@ -269,6 +276,7 @@ class _NewActivityPageState extends State<NewActivityPage> {
   void _applyActivityFilter(String filter) {
     setState(() {
       _selectedFilter = filter;
+      _currentPage = 0; // Reset pagination
     });
     _loadActivitiesQuietly(reset: true);
   }
@@ -481,82 +489,587 @@ class _NewActivityPageState extends State<NewActivityPage> {
 
   Widget _buildActivityList() {
     if (_activities.isEmpty) {
-      return AppContainer.card(
-        child: EmptyStateWidget(
-          icon: Icons.history,
-          title: 'No Activities Found',
-          subtitle:
-              _searchQuery.isNotEmpty ||
-                  _dateRange != null ||
-                  _selectedFilter != 'all'
-              ? 'Try adjusting your filters'
-              : 'No activities have been recorded yet',
-        ),
-      );
+      return _buildEmptyState();
     }
 
+    // Calculate pagination
+    final totalPages = (_activities.length / _activitiesPerPage).ceil();
+    final startIndex = _currentPage * _activitiesPerPage;
+    final endIndex = (startIndex + _activitiesPerPage).clamp(
+      0,
+      _activities.length,
+    );
+    final currentPageActivities = _activities.sublist(startIndex, endIndex);
+
+    return Column(
+      children: [
+        // Activity list with consistent styling
+        _buildActivityListContainer(currentPageActivities),
+
+        // Pagination controls
+        if (totalPages > 1) ...[
+          const SizedBox(height: 16),
+          _buildPaginationControls(totalPages),
+        ],
+
+        // Load more section for infinite scroll
+        if (_hasMoreData && _currentPage == totalPages - 1) ...[
+          const SizedBox(height: 16),
+          _buildLoadMoreSection(),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildEmptyState() {
     return AppContainer.card(
-      padding: EdgeInsets.zero,
-      child: ListView.separated(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: _activities.length,
-        separatorBuilder: (context, index) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final activity = _activities[index];
-          return _buildActivityTile(activity);
-        },
+      child: EmptyStateWidget(
+        icon: Icons.history,
+        title: 'No Activities Found',
+        subtitle:
+            _searchQuery.isNotEmpty ||
+                _dateRange != null ||
+                _selectedFilter != 'all'
+            ? 'Try adjusting your filters'
+            : 'No activities have been recorded yet',
       ),
     );
   }
 
-  Widget _buildActivityTile(ActivityModel activity) {
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: _getActivityColor(
-          activity.type,
-        ).withValues(alpha: 0.1),
-        child: Icon(
-          _getActivityIcon(activity.type),
-          color: _getActivityColor(activity.type),
-          size: 20,
+  /// Build activity list container with consistent styling
+  Widget _buildActivityListContainer(List<ActivityModel> activities) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.3),
+          width: 1,
         ),
-      ),
-      title: Text(
-        activity.description,
-        style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w500),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            activity.userName ?? activity.userEmail ?? 'Unknown User',
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          Text(
-            _formatDateTime(activity.timestamp),
-            style: GoogleFonts.poppins(
-              fontSize: 11,
-              color: AppColors.textSecondary,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      trailing: activity.isSuspicious
-          ? Icon(Icons.warning, color: AppColors.warning, size: 20)
-          : null,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        children: activities.asMap().entries.map((entry) {
+          final index = entry.key;
+          final activity = entry.value;
+          final isLast = index == activities.length - 1;
+
+          return TweenAnimationBuilder<double>(
+            duration: Duration(
+              milliseconds: (300 + (index * 100)).clamp(300, 1000),
+            ),
+            tween: Tween<double>(begin: 0.0, end: 1.0),
+            curve: Curves.easeOutBack,
+            builder: (context, value, child) {
+              final safeOpacity = value.clamp(0.0, 1.0);
+              final safeTranslateValue = (1 - value).clamp(0.0, 1.0);
+
+              return Transform.translate(
+                offset: Offset(0, 20 * safeTranslateValue),
+                child: Opacity(
+                  opacity: safeOpacity,
+                  child: _buildActivityTile(activity, isLast),
+                ),
+              );
+            },
+          );
+        }).toList(),
+      ),
     );
+  }
+
+  /// Build individual activity tile with consistent styling
+  Widget _buildActivityTile(ActivityModel activity, bool isLast) {
+    return Container(
+      decoration: BoxDecoration(
+        border: isLast
+            ? null
+            : Border(
+                bottom: BorderSide(
+                  color: AppColors.border.withValues(alpha: 0.2),
+                  width: 1,
+                ),
+              ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => _showActivityDetails(activity),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                // Enhanced icon with activity type badge
+                Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 22,
+                      backgroundColor: _getActivityColor(
+                        activity.type,
+                      ).withValues(alpha: 0.1),
+                      child: Icon(
+                        _getActivityIcon(activity.type),
+                        color: _getActivityColor(activity.type),
+                        size: 20,
+                      ),
+                    ),
+                    if (activity.isSuspicious)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: AppColors.error,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColors.surface,
+                              width: 1,
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.warning,
+                            size: 8,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 12),
+
+                // Content section
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Title with activity type badge
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              activity.description,
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimary,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getActivityColor(
+                                activity.type,
+                              ).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: _getActivityColor(
+                                  activity.type,
+                                ).withValues(alpha: 0.3),
+                                width: 0.5,
+                              ),
+                            ),
+                            child: Text(
+                              activity.type.toUpperCase(),
+                              style: GoogleFonts.poppins(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                                color: _getActivityColor(activity.type),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+
+                      // User info
+                      Text(
+                        activity.userName ??
+                            activity.userEmail ??
+                            'Unknown User',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w400,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+
+                      // Timestamp with enhanced formatting
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 12,
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.7,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formatDateTime(activity.timestamp),
+                            style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: AppColors.textSecondary.withValues(
+                                alpha: 0.8,
+                              ),
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Trailing arrow for interaction hint
+                Icon(
+                  Icons.chevron_right,
+                  color: AppColors.textSecondary.withValues(alpha: 0.5),
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showActivityDetails(ActivityModel activity) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Activity Details',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildDetailRow('Type', activity.type.toUpperCase()),
+              _buildDetailRow('Description', activity.description),
+              _buildDetailRow(
+                'User',
+                activity.userName ?? activity.userEmail ?? 'Unknown User',
+              ),
+              _buildDetailRow(
+                'Time',
+                _formatDetailDateTime(activity.timestamp),
+              ),
+              if (activity.documentId != null)
+                _buildDetailRow('Document ID', activity.documentId!),
+              if (activity.categoryId != null)
+                _buildDetailRow('Category ID', activity.categoryId!),
+              if (activity.ipAddress != null)
+                _buildDetailRow('IP Address', activity.ipAddress!),
+              if (activity.userAgent != null)
+                _buildDetailRow('User Agent', activity.userAgent!),
+              if (activity.isSuspicious)
+                _buildDetailRow('Status', 'SUSPICIOUS', isWarning: true),
+              if (activity.details.isNotEmpty)
+                ...activity.details.entries.map(
+                  (entry) => _buildDetailRow(
+                    entry.key.toUpperCase(),
+                    entry.value.toString(),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(
+              'Close',
+              style: GoogleFonts.poppins(color: AppColors.primary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, {bool isWarning = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: isWarning ? AppColors.warning : AppColors.textPrimary,
+                fontWeight: isWarning ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDetailDateTime(DateTime dateTime) {
+    return '${dateTime.day}/${dateTime.month}/${dateTime.year} at ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  /// Build pagination controls with smart truncation
+  Widget _buildPaginationControls(int totalPages) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Previous button
+          IconButton(
+            onPressed: _currentPage > 0 ? _goToPreviousPage : null,
+            icon: const Icon(Icons.chevron_left),
+            style: IconButton.styleFrom(
+              backgroundColor: _currentPage > 0
+                  ? AppColors.primary.withValues(alpha: 0.1)
+                  : AppColors.background,
+              foregroundColor: _currentPage > 0
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
+            ),
+          ),
+
+          // Page indicators
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: _buildPageIndicators(totalPages),
+            ),
+          ),
+
+          // Next button
+          IconButton(
+            onPressed: _currentPage < totalPages - 1 ? _goToNextPage : null,
+            icon: const Icon(Icons.chevron_right),
+            style: IconButton.styleFrom(
+              backgroundColor: _currentPage < totalPages - 1
+                  ? AppColors.primary.withValues(alpha: 0.1)
+                  : AppColors.background,
+              foregroundColor: _currentPage < totalPages - 1
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build page indicators with smart truncation for many pages
+  List<Widget> _buildPageIndicators(int totalPages) {
+    const maxVisiblePages = 5;
+    List<Widget> indicators = [];
+
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total is small
+      for (int i = 0; i < totalPages; i++) {
+        indicators.add(_buildPageIndicator(i));
+        if (i < totalPages - 1) {
+          indicators.add(const SizedBox(width: 4));
+        }
+      }
+      return indicators;
+    }
+
+    // Smart truncation for many pages
+    // Always show first page
+    indicators.add(_buildPageIndicator(0));
+    indicators.add(const SizedBox(width: 4));
+
+    if (_currentPage > 2) {
+      indicators.add(_buildEllipsis());
+      indicators.add(const SizedBox(width: 4));
+    }
+
+    // Show current page and neighbors
+    int start = (_currentPage - 1).clamp(1, totalPages - 2);
+    int end = (_currentPage + 1).clamp(1, totalPages - 2);
+
+    for (int i = start; i <= end; i++) {
+      if (i != 0 && i != totalPages - 1) {
+        indicators.add(_buildPageIndicator(i));
+        indicators.add(const SizedBox(width: 4));
+      }
+    }
+
+    if (_currentPage < totalPages - 3) {
+      indicators.add(_buildEllipsis());
+      indicators.add(const SizedBox(width: 4));
+    }
+
+    // Always show last page
+    if (totalPages > 1) {
+      indicators.add(_buildPageIndicator(totalPages - 1));
+    }
+
+    return indicators;
+  }
+
+  Widget _buildPageIndicator(int pageIndex) {
+    final isActive = pageIndex == _currentPage;
+    return GestureDetector(
+      onTap: () => _goToPage(pageIndex),
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: isActive ? AppColors.primary : AppColors.background,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isActive
+                ? AppColors.primary
+                : AppColors.border.withValues(alpha: 0.3),
+            width: 1,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            '${pageIndex + 1}',
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isActive ? Colors.white : AppColors.textSecondary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEllipsis() {
+    return SizedBox(
+      width: 32,
+      height: 32,
+      child: Center(
+        child: Text(
+          '...',
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Build load more section for infinite scroll
+  Widget _buildLoadMoreSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          if (_isLoadingMore) ...[
+            const CircularProgressIndicator(),
+            const SizedBox(height: 8),
+            Text(
+              'Loading more activities...',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ] else ...[
+            ElevatedButton.icon(
+              onPressed: _loadMoreActivities,
+              icon: const Icon(Icons.expand_more),
+              label: Text(
+                'Load More Activities',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // Pagination navigation methods
+  void _goToPreviousPage() {
+    if (_currentPage > 0) {
+      setState(() {
+        _currentPage--;
+      });
+    }
+  }
+
+  void _goToNextPage() {
+    final totalPages = (_activities.length / _activitiesPerPage).ceil();
+    if (_currentPage < totalPages - 1) {
+      setState(() {
+        _currentPage++;
+      });
+    }
+  }
+
+  void _goToPage(int pageIndex) {
+    setState(() {
+      _currentPage = pageIndex;
+    });
   }
 
   Widget _buildErrorState() {
@@ -631,22 +1144,45 @@ class _NewActivityPageState extends State<NewActivityPage> {
     );
   }
 
-  // Helper methods
+  // Enhanced activity icons with distinct visual representation
   IconData _getActivityIcon(String type) {
     switch (type.toLowerCase()) {
       case 'login':
-      case 'logout':
         return Icons.login;
+      case 'logout':
+        return Icons.logout;
       case 'upload':
-        return Icons.upload;
+        return Icons.cloud_upload;
       case 'download':
-        return Icons.download;
+        return Icons.get_app;
       case 'delete':
-        return Icons.delete;
+        return Icons.delete_forever;
       case 'view':
-        return Icons.visibility;
+        return Icons.preview;
+      case 'create':
+      case 'add':
+        return Icons.add_circle;
+      case 'update':
+      case 'edit':
+        return Icons.edit;
+      case 'share':
+        return Icons.share;
+      case 'copy':
+        return Icons.content_copy;
+      case 'move':
+        return Icons.drive_file_move;
+      case 'rename':
+        return Icons.drive_file_rename_outline;
       case 'suspicious_activity':
         return Icons.warning;
+      case 'security':
+        return Icons.security;
+      case 'sync':
+        return Icons.sync;
+      case 'backup':
+        return Icons.backup;
+      case 'restore':
+        return Icons.restore;
       default:
         return Icons.history;
     }
@@ -655,18 +1191,42 @@ class _NewActivityPageState extends State<NewActivityPage> {
   Color _getActivityColor(String type) {
     switch (type.toLowerCase()) {
       case 'login':
+        return AppColors.success; // Green for successful login
       case 'logout':
-        return AppColors.primary;
+        return AppColors.primary; // Blue for logout
       case 'upload':
-        return AppColors.success;
+        return AppColors.success; // Green for uploads
       case 'download':
-        return AppColors.info;
+        return AppColors.info; // Blue for downloads
       case 'delete':
-        return AppColors.error;
+        return AppColors.error; // Red for deletions
       case 'view':
-        return AppColors.textSecondary;
+      case 'preview':
+        return AppColors.textSecondary; // Gray for view actions
+      case 'create':
+      case 'add':
+        return AppColors.success; // Green for creation
+      case 'update':
+      case 'edit':
+        return AppColors.warning; // Orange for edits
+      case 'share':
+        return AppColors.primary; // Blue for sharing
+      case 'copy':
+        return AppColors.info; // Light blue for copy
+      case 'move':
+        return AppColors.warning; // Orange for move
+      case 'rename':
+        return AppColors.warning; // Orange for rename
       case 'suspicious_activity':
-        return AppColors.warning;
+        return AppColors.error; // Red for suspicious
+      case 'security':
+        return AppColors.error; // Red for security issues
+      case 'sync':
+        return AppColors.primary; // Blue for sync
+      case 'backup':
+        return AppColors.success; // Green for backup
+      case 'restore':
+        return AppColors.info; // Blue for restore
       default:
         return AppColors.textSecondary;
     }
