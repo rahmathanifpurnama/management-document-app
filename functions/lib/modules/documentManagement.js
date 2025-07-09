@@ -305,8 +305,8 @@ const deleteDocument = functions.https.onCall(async (data, context) => {
                 documentId: documentId,
                 userId: context.auth.uid,
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                details: `Document permanently deleted: ${fileName}`,
-                metadata: {
+                details: {
+                    message: `Document permanently deleted: ${fileName}`,
                     fileName: fileName,
                     originalFilePath: filePath,
                     actualStoragePath: actualStoragePath,
@@ -446,7 +446,12 @@ const generateDocumentReport = functions.https.onCall(async (data, context) => {
             type: "document_report_generated",
             userId: ((_b = context.auth) === null || _b === void 0 ? void 0 : _b.uid) || "system",
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: `Document report generated for ${documents.length} documents`,
+            details: {
+                message: `Document report generated for ${documents.length} documents`,
+                documentCount: documents.length,
+                filters: { startDate, endDate, categoryId },
+                generatedBy: ((_b = context.auth) === null || _b === void 0 ? void 0 : _b.uid) || "system",
+            },
         });
         return {
             success: true,

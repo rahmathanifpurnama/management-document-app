@@ -132,7 +132,11 @@ const syncStorageWithFirestore = functions.https.onCall(async (data, context) =>
             type: "storage_sync_completed",
             userId: context.auth.uid,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: `Storage sync completed: ${processed} files processed in ${duration}ms`,
+            details: {
+                message: `Storage sync completed: ${processed} files processed in ${duration}ms`,
+                processed: processed,
+                duration: duration,
+            },
         });
         console.log(`Storage sync completed: ${processed} files processed`);
         return {
@@ -232,7 +236,11 @@ const manualCleanupOrphanedMetadata = functions.https.onCall(async (data, contex
             type: "orphaned_cleanup_completed",
             userId: context.auth.uid,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: `Orphaned metadata cleanup completed: ${processed} orphaned documents found in ${duration}ms`,
+            details: {
+                message: `Orphaned metadata cleanup completed: ${processed} orphaned documents found in ${duration}ms`,
+                processed: processed,
+                duration: duration,
+            },
         });
         console.log(`Orphaned metadata cleanup completed: ${processed} orphaned documents`);
         return {
@@ -340,8 +348,10 @@ const syncStorageToFirestore = functions.https.onCall(async (data, context) => {
             type: "storage_firestore_sync",
             userId: context.auth.uid,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: successMessage,
-            results: results,
+            details: {
+                message: successMessage,
+                results: results,
+            },
         });
         return {
             success: true,
@@ -929,8 +939,11 @@ async function createFirestoreRecordForStorageFile(file, adminUserId) {
         documentId: documentId,
         userId: adminUserId,
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        details: `File ${file.name} synced from Storage to Firestore`,
-        syncSource: 'sync_operations',
+        details: {
+            message: `File ${file.name} synced from Storage to Firestore`,
+            fileName: file.name,
+            syncSource: 'sync_operations',
+        },
     });
     // Commit both operations atomically
     await batch.commit();
@@ -1099,8 +1112,11 @@ const monitorSyncConsistency = functions.https.onCall(async (data, context) => {
             type: "sync_consistency_check",
             userId: context.auth.uid,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: `Sync monitoring completed: ${inconsistencies.length} inconsistencies found`,
-            summary,
+            details: {
+                message: `Sync monitoring completed: ${inconsistencies.length} inconsistencies found`,
+                inconsistenciesCount: inconsistencies.length,
+                summary: summary,
+            },
         });
         return {
             success: true,
@@ -1149,7 +1165,12 @@ const repairSyncInconsistencies = functions.https.onCall(async (data, context) =
                         documentId: item.documentId,
                         userId: item.uploadedBy,
                         timestamp: item.uploadedAt || admin.firestore.FieldValue.serverTimestamp(),
-                        details: `File ${item.fileName} uploaded (auto-repaired activity)`,
+                        details: {
+                            message: `File ${item.fileName} uploaded (auto-repaired activity)`,
+                            fileName: item.fileName,
+                            repaired: true,
+                            repairedBy: context.auth.uid,
+                        },
                         repaired: true,
                         repairedBy: context.auth.uid,
                         repairedAt: admin.firestore.FieldValue.serverTimestamp(),

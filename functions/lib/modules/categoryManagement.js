@@ -117,7 +117,12 @@ const createCategory = functions.https.onCall(async (data, context) => {
             categoryId,
             userId: createdBy,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: `Category "${name}" created`,
+            details: {
+                message: `Category "${name}" created`,
+                categoryName: name,
+                categoryId: categoryId,
+                createdBy: createdBy,
+            },
         });
         console.log(`Category created successfully: ${categoryId}`);
         return {

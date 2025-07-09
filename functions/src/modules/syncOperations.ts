@@ -391,8 +391,10 @@ const syncStorageToFirestore = functions.https.onCall(
         type: "storage_firestore_sync",
         userId: context.auth.uid,
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        details: successMessage,
-        results: results,
+        details: {
+          message: successMessage,
+          results: results,
+        },
       });
 
       return {
@@ -1154,8 +1156,11 @@ async function createFirestoreRecordForStorageFile(
     documentId: documentId,
     userId: adminUserId,
     timestamp: admin.firestore.FieldValue.serverTimestamp(),
-    details: `File ${file.name} synced from Storage to Firestore`,
-    syncSource: 'sync_operations',
+    details: {
+      message: `File ${file.name} synced from Storage to Firestore`,
+      fileName: file.name,
+      syncSource: 'sync_operations',
+    },
   });
 
   // Commit both operations atomically
@@ -1418,7 +1423,12 @@ const repairSyncInconsistencies = functions.https.onCall(
                 documentId: item.documentId,
                 userId: item.uploadedBy,
                 timestamp: item.uploadedAt || admin.firestore.FieldValue.serverTimestamp(),
-                details: `File ${item.fileName} uploaded (auto-repaired activity)`,
+                details: {
+                  message: `File ${item.fileName} uploaded (auto-repaired activity)`,
+                  fileName: item.fileName,
+                  repaired: true,
+                  repairedBy: context.auth.uid,
+                },
                 repaired: true,
                 repairedBy: context.auth.uid,
                 repairedAt: admin.firestore.FieldValue.serverTimestamp(),

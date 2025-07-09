@@ -71,17 +71,17 @@
       ]
     }
     ,
-    { 
+    {
       "collectionGroup": "activities",
-      "queryScope": "COLLECTION", 
+      "queryScope": "COLLECTION",
       "fields": [
         {
           "fieldPath": "isSuspicious",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "timestamp", 
-          "order": "ASCENDING"
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
         }
       ]
     }

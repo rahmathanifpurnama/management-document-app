@@ -697,7 +697,30 @@ class _NewActivityPageState extends State<NewActivityPage> {
       isSuspicious: data['isSuspicious'] ?? false,
       ipAddress: data['ipAddress'],
       userAgent: data['userAgent'],
-      details: Map<String, dynamic>.from(data['details'] ?? {}),
+      details: _parseDetailsField(data['details']),
     );
+  }
+
+  /// Helper method to safely parse details field
+  Map<String, dynamic> _parseDetailsField(dynamic details) {
+    if (details == null) {
+      return {};
+    }
+
+    if (details is Map<String, dynamic>) {
+      return details;
+    }
+
+    if (details is Map) {
+      return Map<String, dynamic>.from(details);
+    }
+
+    if (details is String) {
+      // Handle string details by creating a simple map
+      return {'description': details};
+    }
+
+    // For any other type, convert to string and wrap in map
+    return {'value': details.toString()};
   }
 }

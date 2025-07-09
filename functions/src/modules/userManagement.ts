@@ -129,7 +129,13 @@ const createUser = functions.https.onCall(
           userId: userRecord.uid,
           createdBy: context.auth.uid,
           timestamp: admin.firestore.FieldValue.serverTimestamp(),
-          details: `User ${fullName} (${email}) created with role ${role}`,
+          details: {
+            message: `User ${fullName} (${email}) created with role ${role}`,
+            fullName: fullName,
+            email: email,
+            role: role,
+            createdBy: context.auth.uid,
+          },
         });
 
       console.log(`User created successfully: ${userRecord.uid}`);
