@@ -242,19 +242,95 @@ class _NewActivityPageState extends State<NewActivityPage> {
   }
 
   void _onStatTap(String statKey) {
-    // Handle quick access stat tap
+    // Handle quick access stat tap without triggering loading states
     switch (statKey) {
       case 'today':
-        _onDateRangeChanged(_getTodayRange());
+        _applyDateRangeFilter(_getTodayRange());
         break;
       case 'week':
-        _onDateRangeChanged(_getThisWeekRange());
+        _applyDateRangeFilter(_getThisWeekRange());
         break;
       case 'suspicious':
-        _onFilterChanged('suspicious');
+        _applyActivityFilter('suspicious');
         break;
       default:
         break;
+    }
+  }
+
+  // Apply date range filter without loading state
+  void _applyDateRangeFilter(DateTimeRange? range) {
+    setState(() {
+      _dateRange = range;
+    });
+    _loadActivitiesQuietly(reset: true);
+  }
+
+  // Apply activity filter without loading state
+  void _applyActivityFilter(String filter) {
+    setState(() {
+      _selectedFilter = filter;
+    });
+    _loadActivitiesQuietly(reset: true);
+  }
+
+  // Load activities without showing loading indicators to prevent flickering
+  Future<void> _loadActivitiesQuietly({bool reset = false}) async {
+    if (reset) {
+      _activities.clear();
+      _lastTimestamp = null;
+      _hasMoreData = true;
+    }
+
+    if (!_hasMoreData) return;
+
+    try {
+      final result = await _activityService.getFilteredActivities(
+        filter: _selectedFilter,
+        searchQuery: _searchQuery.isNotEmpty ? _searchQuery : null,
+        dateRange: _dateRange,
+        limit: _pageSize,
+        startAfterTimestamp: _lastTimestamp,
+      );
+
+      // Safe handling of activities list
+      final activitiesData = result['activities'];
+      List<ActivityModel> newActivities = [];
+
+      if (activitiesData is List) {
+        newActivities = activitiesData
+            .map((data) {
+              try {
+                if (data is Map) {
+                  return _createActivityFromData(
+                    Map<String, dynamic>.from(data),
+                  );
+                }
+                return null;
+              } catch (e) {
+                debugPrint('Error parsing activity data: $e');
+                return null;
+              }
+            })
+            .where((activity) => activity != null)
+            .cast<ActivityModel>()
+            .toList();
+      }
+
+      if (mounted) {
+        setState(() {
+          if (reset) {
+            _activities = newActivities;
+          } else {
+            _activities.addAll(newActivities);
+          }
+          _hasMoreData = result['hasMore'] ?? false;
+          _lastTimestamp = result['lastTimestamp'];
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading activities quietly: $e');
+      // Don't show error messages for quiet loading to prevent UI disruption
     }
   }
 

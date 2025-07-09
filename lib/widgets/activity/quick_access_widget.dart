@@ -25,7 +25,6 @@ class _QuickAccessWidgetState extends State<QuickAccessWidget> {
   final ActivityService _activityService = ActivityService();
 
   Map<String, dynamic> _statistics = {};
-  bool _isLoading = false;
 
   @override
   void initState() {
@@ -35,7 +34,6 @@ class _QuickAccessWidgetState extends State<QuickAccessWidget> {
 
   Future<void> _loadStatistics() async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
 
     try {
       final stats = await _activityService.getActivityStatistics();
@@ -54,10 +52,6 @@ class _QuickAccessWidgetState extends State<QuickAccessWidget> {
             'suspiciousCount': 0,
           };
         });
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
       }
     }
   }
@@ -149,7 +143,8 @@ class _QuickAccessWidgetState extends State<QuickAccessWidget> {
       iconAsset: iconAsset,
       color: color,
       onTap: isClickable ? () => widget.onStatTap?.call(key) : null,
-      isLoading: _isLoading,
+      isLoading:
+          false, // Never show loading state for stat widgets to prevent flickering
       showValue: showValue,
       showAlert:
           key == 'suspicious' &&
@@ -225,30 +220,37 @@ class ActivityStatWidget extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Icon container with alert badge
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Stack(
               children: [
-                _buildIconContainer(
-                  iconSize: iconSize,
-                  spacing: spacing,
-                  borderRadius: borderRadius,
+                // Centered icon container
+                Center(
+                  child: _buildIconContainer(
+                    iconSize: iconSize,
+                    spacing: spacing,
+                    borderRadius: borderRadius,
+                  ),
                 ),
+                // Alert badge positioned at top-right
                 if (showAlert)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.error,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      'Alert',
-                      style: GoogleFonts.poppins(
-                        fontSize: 7,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 1,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.error,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Alert',
+                        style: GoogleFonts.poppins(
+                          fontSize: 7,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
