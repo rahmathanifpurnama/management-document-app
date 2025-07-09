@@ -44,7 +44,12 @@ class ActivityService {
       debugPrint('📊 Getting activity statistics via Cloud Function');
 
       final callable = _functions.httpsCallable('getActivityStatistics');
-      final result = await callable.call();
+      final result = await callable.call().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('Cloud Function timeout after 10 seconds');
+        },
+      );
 
       debugPrint('✅ Activity statistics retrieved via Cloud Function');
 
