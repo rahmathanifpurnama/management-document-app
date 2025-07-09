@@ -44,10 +44,7 @@ class _ActivityListHeaderState extends State<ActivityListHeader> {
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _buildCountInfo(),
-          _buildActions(),
-        ],
+        children: [_buildCountInfo(), _buildActions()],
       ),
     );
   }
@@ -56,11 +53,7 @@ class _ActivityListHeaderState extends State<ActivityListHeader> {
     return Expanded(
       child: Row(
         children: [
-          Icon(
-            Icons.list_alt,
-            color: AppColors.textSecondary,
-            size: 20,
-          ),
+          Icon(Icons.list_alt, color: AppColors.textSecondary, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
@@ -117,9 +110,7 @@ class _ActivityListHeaderState extends State<ActivityListHeader> {
               height: 16,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  AppColors.primary,
-                ),
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
               ),
             )
           : const Icon(Icons.file_download),
@@ -138,18 +129,20 @@ class _ActivityListHeaderState extends State<ActivityListHeader> {
   Widget _buildRefreshButton() {
     return IconButton(
       onPressed: widget.isLoading ? null : widget.onRefresh,
-      icon: widget.isLoading
-          ? SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  AppColors.primary,
+      icon: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: widget.isLoading
+            ? SizedBox(
+                key: const ValueKey('loading'),
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
                 ),
-              ),
-            )
-          : const Icon(Icons.refresh),
+              )
+            : const Icon(Icons.refresh, key: ValueKey('refresh')),
+      ),
       tooltip: 'Refresh Activities',
       style: IconButton.styleFrom(
         backgroundColor: AppColors.primary.withValues(alpha: 0.1),
@@ -166,7 +159,7 @@ class _ActivityListHeaderState extends State<ActivityListHeader> {
     if (widget.isLoading) {
       return 'Loading activities...';
     }
-    
+
     final count = widget.activityCount;
     if (count == 0) {
       return 'No activities found';
@@ -192,9 +185,9 @@ class _ActivityListHeaderState extends State<ActivityListHeader> {
 
     try {
       _showSnackBar('Exporting activities...');
-      
+
       await _exportService.exportActivitiesToExcel(widget.activities!);
-      
+
       _showSnackBar('Activities exported successfully');
     } catch (e) {
       debugPrint('Export failed: $e');
@@ -208,16 +201,14 @@ class _ActivityListHeaderState extends State<ActivityListHeader> {
 
   void _showSnackBar(String message) {
     if (!mounted) return;
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'dart:async';
 import '../../core/constants/app_colors.dart';
 import '../common/app_container.dart';
 
@@ -36,6 +37,7 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
   late TextEditingController _searchController;
   late AnimationController _animationController;
   late Animation<double> _expandAnimation;
+  Timer? _searchDebounceTimer;
 
   final List<Map<String, dynamic>> _filterOptions = [
     {'value': 'all', 'label': 'All', 'icon': Icons.list},
@@ -84,6 +86,7 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
   void dispose() {
     _searchController.dispose();
     _animationController.dispose();
+    _searchDebounceTimer?.cancel();
     super.dispose();
   }
 
@@ -149,14 +152,18 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
         ),
         filled: true,
         fillColor: AppColors.background,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
         isDense: true,
       ),
       style: GoogleFonts.poppins(fontSize: 14),
       onChanged: (value) {
-        // Debounce search to avoid too many calls
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (_searchController.text == value) {
+        // Improved debouncing to prevent excessive API calls
+        _searchDebounceTimer?.cancel();
+        _searchDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+          if (mounted && _searchController.text == value) {
             widget.onSearchChanged(value);
           }
         });
@@ -179,7 +186,9 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
                   Icon(
                     option['icon'],
                     size: 16,
-                    color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
                   ),
                   const SizedBox(width: 4),
                   Text(option['label']),
@@ -282,7 +291,9 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
                   Icon(
                     option['icon'],
                     size: 14,
-                    color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.textSecondary,
                   ),
                   const SizedBox(width: 4),
                   Text(option['label']),
@@ -332,7 +343,9 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
             const SizedBox(width: 8),
             Expanded(child: _buildQuickDateButton('Week', _getThisWeekRange())),
             const SizedBox(width: 8),
-            Expanded(child: _buildQuickDateButton('Month', _getThisMonthRange())),
+            Expanded(
+              child: _buildQuickDateButton('Month', _getThisMonthRange()),
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -350,9 +363,13 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               side: BorderSide(
-                color: widget.dateRange != null ? AppColors.primary : AppColors.border,
+                color: widget.dateRange != null
+                    ? AppColors.primary
+                    : AppColors.border,
               ),
-              foregroundColor: widget.dateRange != null ? AppColors.primary : AppColors.textSecondary,
+              foregroundColor: widget.dateRange != null
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
             ),
           ),
         ),
@@ -375,7 +392,8 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
   }
 
   Widget _buildQuickDateButton(String label, DateTimeRange range) {
-    final isSelected = widget.dateRange != null &&
+    final isSelected =
+        widget.dateRange != null &&
         widget.dateRange!.start.day == range.start.day &&
         widget.dateRange!.end.day == range.end.day;
 
@@ -386,13 +404,14 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
         side: BorderSide(
           color: isSelected ? AppColors.primary : AppColors.border,
         ),
-        backgroundColor: isSelected ? AppColors.primary.withValues(alpha: 0.1) : null,
-        foregroundColor: isSelected ? AppColors.primary : AppColors.textSecondary,
+        backgroundColor: isSelected
+            ? AppColors.primary.withValues(alpha: 0.1)
+            : null,
+        foregroundColor: isSelected
+            ? AppColors.primary
+            : AppColors.textSecondary,
       ),
-      child: Text(
-        label,
-        style: GoogleFonts.poppins(fontSize: 11),
-      ),
+      child: Text(label, style: GoogleFonts.poppins(fontSize: 11)),
     );
   }
 
@@ -405,9 +424,9 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: AppColors.primary,
-            ),
+            colorScheme: Theme.of(
+              context,
+            ).colorScheme.copyWith(primary: AppColors.primary),
           ),
           child: child!,
         );
@@ -424,27 +443,27 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
     final today = DateTime(now.year, now.month, now.day);
     return DateTimeRange(
       start: today,
-      end: today.add(const Duration(days: 1)).subtract(const Duration(microseconds: 1)),
+      end: today
+          .add(const Duration(days: 1))
+          .subtract(const Duration(microseconds: 1)),
     );
   }
 
   DateTimeRange _getThisWeekRange() {
     final now = DateTime.now();
     final weekStart = now.subtract(Duration(days: now.weekday - 1));
-    final weekStartDay = DateTime(weekStart.year, weekStart.month, weekStart.day);
-    return DateTimeRange(
-      start: weekStartDay,
-      end: now,
+    final weekStartDay = DateTime(
+      weekStart.year,
+      weekStart.month,
+      weekStart.day,
     );
+    return DateTimeRange(start: weekStartDay, end: now);
   }
 
   DateTimeRange _getThisMonthRange() {
     final now = DateTime.now();
     final monthStart = DateTime(now.year, now.month, 1);
-    return DateTimeRange(
-      start: monthStart,
-      end: now,
-    );
+    return DateTimeRange(start: monthStart, end: now);
   }
 
   String _formatDate(DateTime date) {

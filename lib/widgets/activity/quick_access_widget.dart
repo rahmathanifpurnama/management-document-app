@@ -25,6 +25,7 @@ class _QuickAccessWidgetState extends State<QuickAccessWidget> {
   final ActivityService _activityService = ActivityService();
 
   Map<String, dynamic> _statistics = {};
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -33,12 +34,19 @@ class _QuickAccessWidgetState extends State<QuickAccessWidget> {
   }
 
   Future<void> _loadStatistics() async {
-    if (!mounted) return;
+    if (!mounted || _isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       final stats = await _activityService.getActivityStatistics();
       if (mounted) {
-        setState(() => _statistics = stats);
+        setState(() {
+          _statistics = stats;
+          _isLoading = false;
+        });
       }
     } catch (e) {
       debugPrint('Error loading activity statistics: $e');
@@ -51,6 +59,7 @@ class _QuickAccessWidgetState extends State<QuickAccessWidget> {
             'activeUsers': 0,
             'suspiciousCount': 0,
           };
+          _isLoading = false;
         });
       }
     }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'dart:async';
 import '../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/activity_service.dart';
@@ -26,7 +27,6 @@ class _NewActivityPageState extends State<NewActivityPage> {
 
   // State variables
   List<ActivityModel> _activities = [];
-  Map<String, dynamic> _activityStatistics = {};
   bool _isLoading = false;
   bool _isLoadingMore = false;
   bool _hasMoreData = true;
@@ -42,6 +42,10 @@ class _NewActivityPageState extends State<NewActivityPage> {
   String? _lastTimestamp;
   static const int _pageSize = 50;
 
+  // Debouncing timers
+  Timer? _searchDebounceTimer;
+  Timer? _filterDebounceTimer;
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +56,8 @@ class _NewActivityPageState extends State<NewActivityPage> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _searchDebounceTimer?.cancel();
+    _filterDebounceTimer?.cancel();
     super.dispose();
   }
 
@@ -69,39 +75,8 @@ class _NewActivityPageState extends State<NewActivityPage> {
     });
 
     try {
-      // Load statistics and initial activities separately for better error handling
-      Map<String, dynamic> statistics = {};
-
-      try {
-        statistics = await _activityService.getActivityStatistics();
-      } catch (e) {
-        debugPrint('Error loading statistics: $e');
-        // Show user-friendly error message
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Unable to load activity statistics. Using cached data.',
-              ),
-              backgroundColor: AppColors.warning,
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-        // Set default statistics if loading fails
-        statistics = {
-          'todayCount': 0,
-          'weekCount': 0,
-          'activeUsers': 0,
-          'suspiciousCount': 0,
-        };
-      }
-
+      // Load initial activities - statistics are handled by QuickAccessWidget
       await _loadActivities(reset: true);
-
-      setState(() {
-        _activityStatistics = statistics;
-      });
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -115,10 +90,13 @@ class _NewActivityPageState extends State<NewActivityPage> {
   }
 
   Future<void> _loadActivities({bool reset = false}) async {
+    // Store current activities to prevent flickering
+    List<ActivityModel> previousActivities = List.from(_activities);
+
     if (reset) {
-      _activities.clear();
       _lastTimestamp = null;
       _hasMoreData = true;
+      // Don't clear activities immediately to prevent flickering
     }
 
     if (!_hasMoreData) return;
@@ -156,17 +134,26 @@ class _NewActivityPageState extends State<NewActivityPage> {
             .toList();
       }
 
-      setState(() {
-        if (reset) {
-          _activities = newActivities;
-        } else {
-          _activities.addAll(newActivities);
-        }
-        _hasMoreData = result['hasMore'] ?? false;
-        _lastTimestamp = result['lastTimestamp'];
-      });
+      // Only update UI once with final data
+      if (mounted) {
+        setState(() {
+          if (reset) {
+            _activities = newActivities;
+          } else {
+            _activities.addAll(newActivities);
+          }
+          _hasMoreData = result['hasMore'] ?? false;
+          _lastTimestamp = result['lastTimestamp'];
+        });
+      }
     } catch (e) {
       debugPrint('Error loading activities: $e');
+      // Restore previous activities on error to prevent empty state
+      if (mounted && reset) {
+        setState(() {
+          _activities = previousActivities;
+        });
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -218,20 +205,32 @@ class _NewActivityPageState extends State<NewActivityPage> {
     setState(() {
       _selectedFilter = filter;
     });
-    _loadActivities(reset: true);
+
+    // Debounce filter changes to prevent excessive API calls
+    _filterDebounceTimer?.cancel();
+    _filterDebounceTimer = Timer(const Duration(milliseconds: 300), () {
+      _loadActivities(reset: true);
+    });
   }
 
   void _onSearchChanged(String query) {
     setState(() {
       _searchQuery = query;
     });
-    _loadActivities(reset: true);
+
+    // Debounce search changes to prevent excessive API calls
+    _searchDebounceTimer?.cancel();
+    _searchDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+      _loadActivities(reset: true);
+    });
   }
 
   void _onDateRangeChanged(DateTimeRange? range) {
     setState(() {
       _dateRange = range;
     });
+
+    // Date range changes are immediate as they're user-initiated actions
     _loadActivities(reset: true);
   }
 
@@ -276,10 +275,13 @@ class _NewActivityPageState extends State<NewActivityPage> {
 
   // Load activities without showing loading indicators to prevent flickering
   Future<void> _loadActivitiesQuietly({bool reset = false}) async {
+    // Store current activities to prevent flickering during quick access
+    List<ActivityModel> previousActivities = List.from(_activities);
+
     if (reset) {
-      _activities.clear();
       _lastTimestamp = null;
       _hasMoreData = true;
+      // Don't clear activities immediately to prevent flickering
     }
 
     if (!_hasMoreData) return;
@@ -317,6 +319,7 @@ class _NewActivityPageState extends State<NewActivityPage> {
             .toList();
       }
 
+      // Only update UI once with final data to prevent flickering
       if (mounted) {
         setState(() {
           if (reset) {
@@ -330,6 +333,12 @@ class _NewActivityPageState extends State<NewActivityPage> {
       }
     } catch (e) {
       debugPrint('Error loading activities quietly: $e');
+      // Restore previous activities on error to prevent empty state
+      if (mounted && reset) {
+        setState(() {
+          _activities = previousActivities;
+        });
+      }
       // Don't show error messages for quiet loading to prevent UI disruption
     }
   }
@@ -402,20 +411,26 @@ class _NewActivityPageState extends State<NewActivityPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Quick Access Statistics
-            QuickAccessWidget(onRefresh: _refreshData, onStatTap: _onStatTap),
+            // Quick Access Statistics - Optimized to prevent unnecessary rebuilds
+            QuickAccessWidget(
+              key: const ValueKey('quick_access'),
+              onRefresh: _refreshData,
+              onStatTap: _onStatTap,
+            ),
             const SizedBox(height: 16),
 
-            // Storage Chart
+            // Storage Chart - Cached to prevent rebuilds
             StorageChartWidget(
+              key: const ValueKey('storage_chart'),
               showHeader: true,
               showPeriodSelector: true,
               showStorageStats: true,
             ),
             const SizedBox(height: 16),
 
-            // Search and Filter
+            // Search and Filter - Optimized with debouncing
             SearchFilterWidget(
+              key: const ValueKey('search_filter'),
               selectedFilter: _selectedFilter,
               searchQuery: _searchQuery,
               dateRange: _dateRange,
@@ -427,8 +442,9 @@ class _NewActivityPageState extends State<NewActivityPage> {
             ),
             const SizedBox(height: 16),
 
-            // Activity List Header
+            // Activity List Header - Optimized loading states
             ActivityListHeader(
+              key: const ValueKey('activity_header'),
               activityCount: _activities.length,
               onRefresh: _refreshData,
               activities: _activities,
@@ -438,15 +454,25 @@ class _NewActivityPageState extends State<NewActivityPage> {
             ),
             const SizedBox(height: 8),
 
-            // Activity List
-            _buildActivityList(),
+            // Activity List - Optimized rendering
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: _buildActivityList(),
+            ),
 
-            // Load More Indicator
-            if (_isLoadingMore)
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Center(child: CircularProgressIndicator()),
-              ),
+            // Load More Indicator - Smooth animation
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              height: _isLoadingMore ? 60 : 0,
+              child: _isLoadingMore
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
           ],
         ),
       ),
