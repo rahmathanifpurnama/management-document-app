@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 import '../../utils/date_formatter.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
-import '../../providers/document_provider.dart';
-import '../../providers/auth_provider.dart';
+import '../../features/documents/bloc/document_bloc.dart';
+import '../../features/documents/bloc/document_event.dart';
+import '../../features/documents/bloc/document_state.dart';
+import '../../features/auth/bloc/auth_bloc.dart';
 import '../../models/category_model.dart';
 import '../../models/document_model.dart';
 import '../../widgets/common/custom_app_bar.dart';
@@ -55,32 +57,22 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
   }
 
   void _initializeCategory() {
-    // Initialize empty category in DocumentProvider if it doesn't exist
+    // Initialize category documents using DocumentBloc
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
-      );
-
       debugPrint(
         '📁 Category screen: Initializing category ${widget.category.id}',
       );
-      documentProvider.initializeCategory(widget.category.id);
 
-      // Always try to load documents from Firebase to ensure fresh data
-      debugPrint('📁 Category screen: Loading documents...');
-      await documentProvider.loadDocuments();
-
-      // If category is still empty, try async Firebase query
-      final categoryDocuments = documentProvider.getDocumentsByCategory(
-        widget.category.id,
+      // Load documents for this category using BLoC
+      context.read<DocumentBloc>().add(
+        DocumentEvent.loadDocumentsByCategory(
+          category: widget.category.id,
+          limit: null,
+        ),
       );
-      if (categoryDocuments.isEmpty) {
-        debugPrint(
-          '🔄 Category ${widget.category.id} is empty, trying Firebase query...',
-        );
-        await documentProvider.getDocumentsByCategoryAsync(widget.category.id);
-      }
+
+      // Also load all documents to ensure fresh data
+      context.read<DocumentBloc>().add(const DocumentEvent.loadDocuments());
 
       debugPrint('📁 Category screen: Initialization completed');
     });
@@ -176,8 +168,8 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
             ),
             // Main content
             Expanded(
-              child: Consumer<DocumentProvider>(
-                builder: (context, documentProvider, child) {
+              child: BlocBuilder<DocumentBloc, DocumentState>(
+                builder: (context, documentState) {
                   // Get category filter state
                   final categoryFilterState = FilterStateManager.getState(
                     FilterContext.categoryFiles,
@@ -188,9 +180,13 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                     categoryFilterState.searchQuery = _searchQuery;
                   }
 
-                  // Get all category documents first
-                  final allCategoryDocuments = documentProvider
-                      .getDocumentsByCategory(widget.category.id);
+                  // Get all category documents first from BLoC state
+                  final allCategoryDocuments = documentState.maybeMap(
+                    loaded: (state) => state.documents
+                        .where((doc) => doc.category == widget.category.id)
+                        .toList(),
+                    orElse: () => <DocumentModel>[],
+                  );
 
                   // Apply context-aware filtering to category documents only
                   final filteredDocuments =
@@ -216,18 +212,19 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                   );
 
                   // IMPROVED: Better loading and empty state logic
-                  final isInitialLoading =
-                      documentProvider.isLoading &&
-                      allCategoryDocuments.isEmpty;
+                  final isInitialLoading = documentState.maybeMap(
+                    loading: (_) => allCategoryDocuments.isEmpty,
+                    orElse: () => false,
+                  );
                   final isCategoryLoading = _isRefreshing;
 
-                  debugPrint('🔍 CategoryFilesScreen Consumer rebuild:');
+                  debugPrint('🔍 CategoryFilesScreen BlocBuilder rebuild:');
                   debugPrint('   Category ID: ${widget.category.id}');
                   debugPrint(
                     '   Documents found: ${allCategoryDocuments.length}',
                   );
                   debugPrint(
-                    '   Provider loading: ${documentProvider.isLoading}',
+                    '   State loading: ${documentState.maybeMap(loading: (_) => true, orElse: () => false)}',
                   );
                   debugPrint('   Is refreshing: $_isRefreshing');
                   debugPrint('   Initial loading: $isInitialLoading');
@@ -255,17 +252,17 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                       });
 
                       try {
-                        final documentProvider = Provider.of<DocumentProvider>(
-                          context,
-                          listen: false,
+                        // Use DocumentBloc for refresh instead of Provider
+                        context.read<DocumentBloc>().add(
+                          const DocumentEvent.loadDocuments(),
                         );
 
-                        // Force refresh folder contents from Firebase
-                        await documentProvider.refreshFolderContents();
-
-                        // Also try async Firebase query for this specific category
-                        await documentProvider.getDocumentsByCategoryAsync(
-                          widget.category.id,
+                        // Also load documents for this specific category
+                        context.read<DocumentBloc>().add(
+                          DocumentEvent.loadDocumentsByCategory(
+                            category: widget.category.id,
+                            limit: null,
+                          ),
                         );
 
                         debugPrint(
@@ -297,7 +294,6 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
                           _buildFileListSection(
                             allCategoryDocuments,
                             filteredDocuments,
-                            documentProvider,
                           ),
                           // Add bottom spacing for better UX
                           const SizedBox(height: 100),
@@ -325,64 +321,71 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
   Widget _buildFileListSection(
     List<DocumentModel> allCategoryDocuments,
     List<DocumentModel> filteredDocuments,
-    DocumentProvider documentProvider,
   ) {
-    // IMPROVED: Better loading state logic
-    final isInitialLoading =
-        documentProvider.isLoading && allCategoryDocuments.isEmpty;
-    final isCategoryLoading = _isRefreshing;
+    // IMPROVED: Better loading state logic using BLoC state
+    return BlocBuilder<DocumentBloc, DocumentState>(
+      builder: (context, documentState) {
+        final isInitialLoading = documentState.maybeMap(
+          loading: (_) => allCategoryDocuments.isEmpty,
+          orElse: () => false,
+        );
+        final isCategoryLoading = _isRefreshing;
 
-    // Show loading state during refresh or initial loading
-    if (isCategoryLoading || isInitialLoading) {
-      debugPrint('📱 FileListSection: Showing loading widget');
-      return _buildLoadingWidget();
-    }
+        // Show loading state during refresh or initial loading
+        if (isCategoryLoading || isInitialLoading) {
+          debugPrint('📱 FileListSection: Showing loading widget');
+          return _buildLoadingWidget();
+        }
 
-    // Show search results or file list
-    if (filteredDocuments.isEmpty && _searchQuery.isNotEmpty) {
-      debugPrint('🔍 FileListSection: Showing no search results');
-      return NoSearchResultsWidget(searchQuery: _searchQuery);
-    }
+        // Show search results or file list
+        if (filteredDocuments.isEmpty && _searchQuery.isNotEmpty) {
+          debugPrint('🔍 FileListSection: Showing no search results');
+          return NoSearchResultsWidget(searchQuery: _searchQuery);
+        }
 
-    if (filteredDocuments.isEmpty) {
-      debugPrint('📭 FileListSection: Showing empty state');
-      return CategoryEmptyStateWidget(
-        categoryName: widget.category.name,
-        onAddExisting: () => _navigateToAddFiles(),
-        onUploadNew: () => _navigateToUpload(),
-      );
-    }
-
-    debugPrint('📋 FileListSection: Showing ${filteredDocuments.length} files');
-
-    // Show files in selected view mode
-    return _currentViewMode == ViewMode.list
-        ? ReusableFileListWidget(
-            documents: filteredDocuments,
-            title: widget.category.name,
-            onDocumentTap: _navigateToFilePreview,
-            onDocumentMenu: _showDocumentMenu,
-            onFilterTap: _showFilterMenu,
-            showFilter: true,
-            showPagination: true,
-            itemsPerPage: 25,
-            emptyStateMessage: 'No files in this category',
-            emptyStateIcon: Icons.folder_open,
-            categoryId: widget.category.id,
-          )
-        : ReusableFileGridWidget(
-            documents: filteredDocuments,
-            title: widget.category.name,
-            onDocumentTap: _navigateToFilePreview,
-            onDocumentMenu: _showDocumentMenu,
-            onFilterTap: _showFilterMenu,
-            showFilter: true,
-            showPagination: true,
-            itemsPerPage: 25,
-            emptyStateMessage: 'No files in this category',
-            emptyStateIcon: Icons.folder_open,
-            categoryId: widget.category.id,
+        if (filteredDocuments.isEmpty) {
+          debugPrint('📭 FileListSection: Showing empty state');
+          return CategoryEmptyStateWidget(
+            categoryName: widget.category.name,
+            onAddExisting: () => _navigateToAddFiles(),
+            onUploadNew: () => _navigateToUpload(),
           );
+        }
+
+        debugPrint(
+          '📋 FileListSection: Showing ${filteredDocuments.length} files',
+        );
+
+        // Show files in selected view mode
+        return _currentViewMode == ViewMode.list
+            ? ReusableFileListWidget(
+                documents: filteredDocuments,
+                title: widget.category.name,
+                onDocumentTap: _navigateToFilePreview,
+                onDocumentMenu: _showDocumentMenu,
+                onFilterTap: _showFilterMenu,
+                showFilter: true,
+                showPagination: true,
+                itemsPerPage: 25,
+                emptyStateMessage: 'No files in this category',
+                emptyStateIcon: Icons.folder_open,
+                categoryId: widget.category.id,
+              )
+            : ReusableFileGridWidget(
+                documents: filteredDocuments,
+                title: widget.category.name,
+                onDocumentTap: _navigateToFilePreview,
+                onDocumentMenu: _showDocumentMenu,
+                onFilterTap: _showFilterMenu,
+                showFilter: true,
+                showPagination: true,
+                itemsPerPage: 25,
+                emptyStateMessage: 'No files in this category',
+                emptyStateIcon: Icons.folder_open,
+                categoryId: widget.category.id,
+              );
+      },
+    );
   }
 
   /// Build loading widget for file list section only
@@ -514,15 +517,13 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
 
   void _removeFileFromCategory(DocumentModel document) async {
     try {
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
+      // Use DocumentBloc to update document category
+      final updatedDocument = document.copyWith(
+        category: '', // Empty string makes file available for categorization
       );
 
-      // Remove document from this category (make it available for categorization)
-      await documentProvider.updateDocumentCategory(
-        document.id,
-        '', // Empty string makes file available for categorization
+      context.read<DocumentBloc>().add(
+        DocumentEvent.updateDocument(document: updatedDocument),
       );
 
       if (mounted) {
@@ -572,25 +573,16 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
 
     // FIXED: Smart refresh - only refresh if needed, don't override local changes
     if (mounted && result == true) {
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
+      // Use DocumentBloc to refresh documents
+      context.read<DocumentBloc>().add(
+        DocumentEvent.loadDocumentsByCategory(
+          category: widget.category.id,
+          limit: null,
+        ),
       );
 
-      // Check if category has files in local cache
-      final localCategoryFiles = documentProvider.getDocumentsByCategory(
-        widget.category.id,
-      );
-
-      debugPrint('📊 Local category files count: ${localCategoryFiles.length}');
-
-      // Only refresh from Firebase if local cache is empty (which shouldn't happen now)
-      if (localCategoryFiles.isEmpty) {
-        debugPrint('⚠️ Local cache empty, refreshing from Firebase...');
-        await documentProvider.getDocumentsByCategoryAsync(widget.category.id);
-      } else {
-        debugPrint('✅ Local cache has files, no refresh needed');
-      }
+      // Also refresh all documents to ensure consistency
+      context.read<DocumentBloc>().add(const DocumentEvent.loadDocuments());
 
       // Trigger UI rebuild to reflect any changes
       setState(() {});
@@ -733,9 +725,11 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
   /// Check if current user is admin
   bool _isCurrentUserAdmin() {
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final currentUser = authProvider.currentUser;
-      return currentUser?.isAdmin ?? false;
+      final authState = context.read<AuthBloc>().state;
+      return authState.maybeMap(
+        authenticated: (state) => state.user.isAdmin,
+        orElse: () => false,
+      );
     } catch (e) {
       debugPrint('⚠️ Error checking admin status: $e');
       return false;
@@ -782,15 +776,19 @@ class _CategoryFilesScreenState extends State<CategoryFilesScreen> {
       );
 
       // Get current user ID for logging
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final currentUserId = authProvider.currentUser?.id ?? 'unknown';
-
-      // Get document provider and remove the document permanently
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
+      final authState = context.read<AuthBloc>().state;
+      final currentUserId = authState.maybeMap(
+        authenticated: (state) => state.user.id,
+        orElse: () => 'unknown',
       );
-      await documentProvider.removeDocument(document.id, currentUserId);
+
+      // Use DocumentBloc to permanently delete the document
+      context.read<DocumentBloc>().add(
+        DocumentEvent.permanentlyDeleteDocument(
+          documentId: document.id,
+          userId: currentUserId,
+        ),
+      );
 
       // Show success message
       if (mounted) {

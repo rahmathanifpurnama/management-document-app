@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
-import '../providers/document_provider.dart';
-import '../providers/category_provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../features/documents/bloc/document_bloc.dart';
+import '../features/documents/bloc/document_event.dart';
+import '../features/category/bloc/category_bloc.dart';
+import '../features/category/bloc/category_event.dart' as category_events;
 import '../core/services/firebase_service.dart';
-import '../models/document_model.dart';
 
 /// Service untuk menangani real-time category assignment dan removal
 class RealtimeCategorySyncService {
@@ -18,7 +19,7 @@ class RealtimeCategorySyncService {
   final FirebaseService _firebaseService = FirebaseService.instance;
   StreamSubscription<QuerySnapshot>? _documentSubscription;
   BuildContext? _context;
-  
+
   // Track last known category states to detect changes
   final Map<String, String> _lastKnownCategories = {};
 
@@ -64,17 +65,12 @@ class RealtimeCategorySyncService {
     if (_context == null) return;
 
     try {
-      final documentProvider = Provider.of<DocumentProvider>(
-        _context!,
-        listen: false,
-      );
-
       bool hasRelevantChanges = false;
 
       for (final change in changes) {
         final doc = change.doc;
         final data = doc.data() as Map<String, dynamic>?;
-        
+
         if (data == null) continue;
 
         final documentId = doc.id;
@@ -82,27 +78,23 @@ class RealtimeCategorySyncService {
         final lastKnownCategory = _lastKnownCategories[documentId] ?? '';
 
         // Detect category change
-        if (change.type == DocumentChangeType.modified && 
+        if (change.type == DocumentChangeType.modified &&
             currentCategory != lastKnownCategory) {
-          
           debugPrint('🔄 Category change detected:');
           debugPrint('   Document: $documentId');
           debugPrint('   From: "$lastKnownCategory" → To: "$currentCategory"');
-          
+
           hasRelevantChanges = true;
-          
+
           // Update local tracking
           _lastKnownCategories[documentId] = currentCategory;
-          
-          // Update local document provider immediately
-          _updateLocalDocumentCategory(documentProvider, documentId, currentCategory);
         }
-        
+
         // Track new documents
         if (change.type == DocumentChangeType.added) {
           _lastKnownCategories[documentId] = currentCategory;
         }
-        
+
         // Clean up removed documents
         if (change.type == DocumentChangeType.removed) {
           _lastKnownCategories.remove(documentId);
@@ -113,63 +105,28 @@ class RealtimeCategorySyncService {
       if (hasRelevantChanges) {
         debugPrint('🔄 Triggering UI refresh for category changes');
         Future.microtask(() {
-          documentProvider.notifyListeners();
+          // Refresh both document and category data
+          _context!.read<DocumentBloc>().add(
+            const DocumentEvent.refreshDocuments(),
+          );
+          _context!.read<CategoryBloc>().add(
+            const category_events.CategoryEvent.loadCategories(),
+          );
         });
       }
-
     } catch (e) {
       debugPrint('❌ Error handling category changes: $e');
     }
   }
 
-  /// Update local document category tanpa Firebase call
-  void _updateLocalDocumentCategory(
-    DocumentProvider documentProvider, 
-    String documentId, 
-    String newCategory
-  ) {
-    try {
-      // Find document in local cache
-      final documents = documentProvider.documents;
-      final docIndex = documents.indexWhere((doc) => doc.id == documentId);
-      
-      if (docIndex == -1) {
-        debugPrint('⚠️ Document $documentId not found in local cache');
-        return;
-      }
-
-      final oldDocument = documents[docIndex];
-      final oldCategory = oldDocument.category;
-      
-      // Create updated document
-      final updatedDocument = oldDocument.copyWith(category: newCategory);
-      
-      // Update in main documents list
-      documents[docIndex] = updatedDocument;
-      
-      // Update category-specific storage
-      documentProvider.updateCategoryDocuments(
-        documentId, 
-        oldCategory, 
-        newCategory, 
-        updatedDocument
-      );
-      
-      debugPrint('✅ Local document category updated: $documentId');
-      
-    } catch (e) {
-      debugPrint('❌ Failed to update local document category: $e');
-    }
-  }
-
   /// Manually trigger category assignment (untuk immediate UI update)
   Future<void> assignDocumentToCategory(
-    String documentId, 
-    String categoryId
+    String documentId,
+    String categoryId,
   ) async {
     try {
       debugPrint('🎯 Assigning document $documentId to category $categoryId');
-      
+
       // Update Firestore - ini akan trigger real-time listener
       await _firebaseService.firestore
           .collection('documents')
@@ -178,9 +135,8 @@ class RealtimeCategorySyncService {
             'category': categoryId,
             'updatedAt': FieldValue.serverTimestamp(),
           });
-          
+
       debugPrint('✅ Document category updated in Firestore');
-      
     } catch (e) {
       debugPrint('❌ Failed to assign document to category: $e');
       rethrow;
@@ -191,18 +147,14 @@ class RealtimeCategorySyncService {
   Future<void> removeDocumentFromCategory(String documentId) async {
     try {
       debugPrint('🎯 Removing document $documentId from category');
-      
+
       // Update Firestore - set category to empty string
       await _firebaseService.firestore
           .collection('documents')
           .doc(documentId)
-          .update({
-            'category': '',
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
-          
+          .update({'category': '', 'updatedAt': FieldValue.serverTimestamp()});
+
       debugPrint('✅ Document removed from category in Firestore');
-      
     } catch (e) {
       debugPrint('❌ Failed to remove document from category: $e');
       rethrow;
@@ -211,28 +163,29 @@ class RealtimeCategorySyncService {
 
   /// Batch assign multiple documents to category
   Future<void> assignMultipleDocumentsToCategory(
-    List<String> documentIds, 
-    String categoryId
+    List<String> documentIds,
+    String categoryId,
   ) async {
     try {
-      debugPrint('🎯 Batch assigning ${documentIds.length} documents to category $categoryId');
-      
+      debugPrint(
+        '🎯 Batch assigning ${documentIds.length} documents to category $categoryId',
+      );
+
       final batch = _firebaseService.firestore.batch();
-      
+
       for (final documentId in documentIds) {
         final docRef = _firebaseService.firestore
             .collection('documents')
             .doc(documentId);
-            
+
         batch.update(docRef, {
           'category': categoryId,
           'updatedAt': FieldValue.serverTimestamp(),
         });
       }
-      
+
       await batch.commit();
       debugPrint('✅ Batch category assignment completed');
-      
     } catch (e) {
       debugPrint('❌ Failed to batch assign documents to category: $e');
       rethrow;

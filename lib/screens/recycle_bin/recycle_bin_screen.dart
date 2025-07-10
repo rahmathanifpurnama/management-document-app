@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../models/document_model.dart';
-import '../../providers/document_provider.dart';
+import '../../features/documents/bloc/document_bloc.dart';
+import '../../features/documents/bloc/document_event.dart';
+import '../../features/documents/bloc/document_state.dart';
 import '../../widgets/common/reusable_file_list_widget.dart';
 import '../../widgets/common/empty_state_widget.dart';
 import '../../widgets/common/custom_app_bar.dart';
@@ -30,11 +32,9 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
   Future<void> _loadRecycleBinFiles() async {
     setState(() => _isLoading = true);
     try {
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
-      );
-      await documentProvider.loadDocuments();
+      context.read<DocumentBloc>().add(const DocumentEvent.loadDocuments());
+      // Wait a moment for the BLoC to process the event
+      await Future.delayed(const Duration(milliseconds: 300));
     } catch (e) {
       debugPrint('Error loading recycle bin files: $e');
     } finally {
@@ -54,9 +54,14 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          Consumer<DocumentProvider>(
-            builder: (context, documentProvider, child) {
-              final recycleBinFiles = documentProvider.getRecycleBinFiles();
+          BlocBuilder<DocumentBloc, DocumentState>(
+            builder: (context, documentState) {
+              final recycleBinFiles = documentState.maybeMap(
+                loaded: (state) => state.documents
+                    .where((doc) => doc.status == 'deleted')
+                    .toList(),
+                orElse: () => <DocumentModel>[],
+              );
               if (recycleBinFiles.isNotEmpty) {
                 return PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
@@ -104,13 +109,22 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
   }
 
   Widget _buildBody() {
-    return Consumer<DocumentProvider>(
-      builder: (context, documentProvider, child) {
-        if (_isLoading || documentProvider.isLoading) {
+    return BlocBuilder<DocumentBloc, DocumentState>(
+      builder: (context, documentState) {
+        final isLoading = documentState.maybeMap(
+          loading: (_) => true,
+          orElse: () => false,
+        );
+
+        if (_isLoading || isLoading) {
           return _buildLoadingState();
         }
 
-        final recycleBinFiles = documentProvider.getRecycleBinFiles();
+        final recycleBinFiles = documentState.maybeMap(
+          loaded: (state) =>
+              state.documents.where((doc) => doc.status == 'deleted').toList(),
+          orElse: () => <DocumentModel>[],
+        );
 
         if (recycleBinFiles.isEmpty) {
           return _buildEmptyState();
@@ -334,11 +348,12 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
 
   Future<void> _restoreFile(DocumentModel document) async {
     try {
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
+      context.read<DocumentBloc>().add(
+        DocumentEvent.restoreDocument(
+          documentId: document.id,
+          userId: 'current_user', // TODO: Get actual user ID from AuthBloc
+        ),
       );
-      await documentProvider.restoreFromRecycleBin(document.id);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -365,11 +380,12 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
     if (!confirmed || !mounted) return;
 
     try {
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
+      context.read<DocumentBloc>().add(
+        DocumentEvent.permanentlyDeleteDocument(
+          documentId: document.id,
+          userId: 'current_user', // TODO: Get actual user ID from AuthBloc
+        ),
       );
-      await documentProvider.permanentlyDeleteDocument(document.id);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -496,14 +512,22 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
 
   Future<void> _emptyRecycleBin() async {
     try {
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
+      // Get recycle bin files from current state
+      final documentState = context.read<DocumentBloc>().state;
+      final recycleBinFiles = documentState.maybeMap(
+        loaded: (state) =>
+            state.documents.where((doc) => doc.status == 'deleted').toList(),
+        orElse: () => <DocumentModel>[],
       );
-      final recycleBinFiles = documentProvider.getRecycleBinFiles();
 
+      // Permanently delete each file
       for (final document in recycleBinFiles) {
-        await documentProvider.permanentlyDeleteDocument(document.id);
+        context.read<DocumentBloc>().add(
+          DocumentEvent.permanentlyDeleteDocument(
+            documentId: document.id,
+            userId: 'current_user', // TODO: Get actual user ID from AuthBloc
+          ),
+        );
       }
 
       if (mounted) {
@@ -528,14 +552,22 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
 
   Future<void> _restoreAllFiles() async {
     try {
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
+      // Get recycle bin files from current state
+      final documentState = context.read<DocumentBloc>().state;
+      final recycleBinFiles = documentState.maybeMap(
+        loaded: (state) =>
+            state.documents.where((doc) => doc.status == 'deleted').toList(),
+        orElse: () => <DocumentModel>[],
       );
-      final recycleBinFiles = documentProvider.getRecycleBinFiles();
 
+      // Restore each file
       for (final document in recycleBinFiles) {
-        await documentProvider.restoreFromRecycleBin(document.id);
+        context.read<DocumentBloc>().add(
+          DocumentEvent.restoreDocument(
+            documentId: document.id,
+            userId: 'current_user', // TODO: Get actual user ID from AuthBloc
+          ),
+        );
       }
 
       if (mounted) {

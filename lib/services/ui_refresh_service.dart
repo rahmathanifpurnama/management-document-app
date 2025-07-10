@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/document_provider.dart';
-import '../providers/category_provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../features/documents/bloc/document_bloc.dart';
+import '../features/documents/bloc/document_event.dart';
+import '../features/category/bloc/category_bloc.dart';
+import '../features/category/bloc/category_event.dart' as category_events;
 
 /// Service untuk menangani refresh UI secara global setelah upload
 class UIRefreshService {
@@ -11,31 +13,20 @@ class UIRefreshService {
 
   UIRefreshService._();
 
-  /// Trigger comprehensive UI refresh across all relevant providers
+  /// Trigger comprehensive UI refresh across all relevant BLoCs
   static Future<void> refreshAllProviders(BuildContext context) async {
     try {
       debugPrint('🔄 Starting comprehensive UI refresh...');
 
-      // Get all providers
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
+      // Refresh DocumentBloc
+      context.read<DocumentBloc>().add(const DocumentEvent.refreshDocuments());
+      debugPrint('✅ Document BLoC refreshed');
+
+      // Refresh CategoryBloc
+      context.read<CategoryBloc>().add(
+        const category_events.CategoryEvent.loadCategories(),
       );
-      final categoryProvider = Provider.of<CategoryProvider>(
-        context,
-        listen: false,
-      );
-
-      // Refresh document provider
-      documentProvider.forceRefresh();
-      debugPrint('✅ Document provider refreshed');
-
-      // Refresh category provider
-      await categoryProvider.refreshCategories();
-      debugPrint('✅ Category provider refreshed');
-
-      // Removed secondary refresh to reduce Firebase calls
-      debugPrint('✅ Single refresh completed');
+      debugPrint('✅ Category BLoC refreshed');
 
       debugPrint('🎉 Comprehensive UI refresh completed successfully');
     } catch (e) {
@@ -90,11 +81,10 @@ class UIRefreshService {
       // If uploaded to specific category, ensure category view is updated
       if (categoryId != null && context.mounted) {
         debugPrint('📁 Refreshing category-specific views for: $categoryId');
-        final documentProvider = Provider.of<DocumentProvider>(
-          context,
-          listen: false,
+        // Refresh documents for the specific category
+        context.read<DocumentBloc>().add(
+          DocumentEvent.loadDocumentsByCategory(category: categoryId),
         );
-        documentProvider.forceRefresh();
       }
 
       // Schedule additional refresh to ensure persistence

@@ -1,13 +1,13 @@
 part of '../home_screen.dart';
 
 class HomeGreetingSection extends StatelessWidget {
-  final AuthProvider authProvider;
+  final AuthState authState;
   final GreetingSet currentGreeting;
   final VoidCallback? onProfileTap;
 
   const HomeGreetingSection({
     super.key,
-    required this.authProvider,
+    required this.authState,
     required this.currentGreeting,
     this.onProfileTap,
   });
@@ -17,9 +17,9 @@ class HomeGreetingSection extends StatelessWidget {
     required GreetingSet greeting,
     VoidCallback? onProfileTap,
   }) {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authState = context.read<AuthBloc>().state;
     return HomeGreetingSection(
-      authProvider: authProvider,
+      authState: authState,
       currentGreeting: greeting,
       onProfileTap: onProfileTap,
     );
@@ -98,10 +98,10 @@ class HomeGreetingSection extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius - 2),
         child:
-            authProvider.currentUser?.profileImage != null &&
-                authProvider.currentUser!.profileImage!.isNotEmpty
+            authState.currentUser?.profileImage != null &&
+                authState.currentUser!.profileImage!.isNotEmpty
             ? Image.network(
-                authProvider.currentUser!.profileImage!,
+                authState.currentUser!.profileImage!,
                 fit: BoxFit.cover,
                 errorBuilder: (context, error, stackTrace) =>
                     _buildDefaultAvatar(context),

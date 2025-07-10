@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart' as provider;
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
@@ -8,7 +8,9 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 
 import '../../features/file_selection/providers/file_selection_providers.dart';
-import '../../providers/document_provider.dart';
+import '../../features/documents/bloc/document_bloc.dart';
+import '../../features/documents/bloc/document_event.dart';
+import '../../features/documents/bloc/document_state.dart';
 import '../../models/category_model.dart';
 import '../../models/document_model.dart';
 import '../../widgets/common/app_bottom_navigation.dart';
@@ -70,52 +72,21 @@ class _AddFilesToCategoryScreenState
     });
 
     try {
-      // FIXED: Use DocumentProvider instead of UnifiedDocumentLoader to avoid permission issues
-      final documentProvider = provider.Provider.of<DocumentProvider>(
-        context,
-        listen: false,
+      // Use DocumentBloc to load documents
+      debugPrint('🔄 Loading documents via DocumentBloc');
+
+      // Load all documents to ensure we have fresh data
+      context.read<DocumentBloc>().add(
+        const DocumentEvent.loadDocuments(forceRefresh: true),
       );
 
-      // RACE CONDITION FIX: Only force refresh if cache is empty or stale
-      // This prevents overwriting recent category assignments
-      final shouldForceRefresh =
-          documentProvider.documents.isEmpty ||
-          documentProvider.lastLoadTime == null ||
-          DateTime.now().difference(documentProvider.lastLoadTime!).inMinutes >
-              5;
-
-      if (shouldForceRefresh) {
-        debugPrint('🔄 Force refreshing documents (cache empty or stale)');
-        await documentProvider.loadDocuments(forceRefresh: true);
-      } else {
-        debugPrint('📋 Using cached documents to preserve recent changes');
-        // Just ensure documents are loaded without force refresh
-        await documentProvider.loadDocuments(forceRefresh: false);
-      }
-
       debugPrint(
-        '✅ Successfully loaded documents for Add Files screen via DocumentProvider',
+        '✅ Successfully triggered document loading for Add Files screen via DocumentBloc',
       );
     } catch (e) {
       debugPrint('❌ Failed to load documents: $e');
 
-      // FALLBACK: Try to use existing cached data if available
-      if (mounted) {
-        try {
-          final documentProvider = provider.Provider.of<DocumentProvider>(
-            context,
-            listen: false,
-          );
-          if (documentProvider.documents.isNotEmpty) {
-            debugPrint('📋 Using cached documents as fallback');
-            return; // Use cached data
-          }
-        } catch (cacheError) {
-          debugPrint('❌ Cache fallback also failed: $cacheError');
-        }
-      }
-
-      // Show user-friendly error message only if no cached data available
+      // Show user-friendly error message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -160,12 +131,7 @@ class _AddFilesToCategoryScreenState
     });
   }
 
-  List<DocumentModel> _getAvailableDocuments() {
-    // FIXED: Use DocumentProvider instead of UnifiedDocumentLoader to avoid permission issues
-    final documentProvider = provider.Provider.of<DocumentProvider>(
-      context,
-      listen: false,
-    );
+  List<DocumentModel> _getAvailableDocuments(List<DocumentModel> allDocuments) {
     final searchQuery = _searchController.text.toLowerCase().trim();
 
     // Get add files filter state for additional filtering
@@ -178,8 +144,8 @@ class _AddFilesToCategoryScreenState
       addFilesFilterState.searchQuery = searchQuery;
     }
 
-    // Get all documents from DocumentProvider
-    var availableDocuments = documentProvider.documents.where((doc) {
+    // Get all documents from BLoC state
+    var availableDocuments = allDocuments.where((doc) {
       // DEFINITIVE FIX: Simple and robust filtering logic
       // Since DocumentProvider now loads documents with correct categories from Firestore,
       // we can rely on the category data being accurate
@@ -276,7 +242,7 @@ class _AddFilesToCategoryScreenState
     final categorizedFiles = <String>[];
     final uncategorizedFiles = <String>[];
 
-    for (final doc in documentProvider.documents) {
+    for (final doc in allDocuments) {
       final category = doc.category.trim();
       final displayCategory = category.isEmpty ? 'empty' : category;
       categoryBreakdown[displayCategory] =
@@ -298,9 +264,7 @@ class _AddFilesToCategoryScreenState
     debugPrint('🔍 AddFilesToCategory DEBUG REPORT:');
     debugPrint('   Target Category: ${widget.category.id}');
     debugPrint('   Available documents: ${availableDocuments.length}');
-    debugPrint(
-      '   Total documents in provider: ${documentProvider.documents.length}',
-    );
+    debugPrint('   Total documents in BLoC: ${allDocuments.length}');
     debugPrint('   Search query: "$searchQuery"');
     debugPrint('📊 Category breakdown: $categoryBreakdown');
     debugPrint(
@@ -330,13 +294,24 @@ class _AddFilesToCategoryScreenState
         leading: const IOSBackButton(),
       ),
       bottomNavigationBar: const AppBottomNavigation(currentIndex: 1),
-      body: provider.Consumer<DocumentProvider>(
-        builder: (context, documentProvider, child) {
-          // FIXED: Get available documents from DocumentProvider
-          final availableDocuments = _getAvailableDocuments();
+      body: BlocBuilder<DocumentBloc, DocumentState>(
+        builder: (context, documentState) {
+          // Get all documents from BLoC state
+          final allDocuments = documentState.maybeMap(
+            loaded: (state) => state.documents,
+            orElse: () => <DocumentModel>[],
+          );
+
+          // Get available documents using BLoC data
+          final availableDocuments = _getAvailableDocuments(allDocuments);
 
           // Show loading state if documents are being loaded
-          if ((_isLoadingDocuments || documentProvider.isLoading) &&
+          final isLoading = documentState.maybeMap(
+            loading: (_) => true,
+            orElse: () => false,
+          );
+
+          if ((_isLoadingDocuments || isLoading) &&
               availableDocuments.isEmpty) {
             return Column(
               children: [
@@ -376,7 +351,7 @@ class _AddFilesToCategoryScreenState
                         _buildFilterSection(),
 
                         // Files List with proper loading states
-                        (_isLoadingDocuments || documentProvider.isLoading)
+                        (_isLoadingDocuments || isLoading)
                             ? _buildLoadingState()
                             : availableDocuments.isEmpty
                             ? const AvailableFilesEmptyStateWidget()
@@ -555,21 +530,18 @@ class _AddFilesToCategoryScreenState
     }
 
     try {
-      // FIXED: Use DocumentProvider directly for reliable updates
-      final documentProvider = provider.Provider.of<DocumentProvider>(
-        context,
-        listen: false,
-      );
       final selectedFiles = state.availableFiles
           .where((file) => state.selectedFileIds.contains(file.id))
           .toList();
 
       // RACE CONDITION FIX: Process files sequentially to avoid conflicts
       for (final file in selectedFiles) {
-        await documentProvider.updateDocumentCategory(
-          file.id,
-          widget.category.id,
+        // Use DocumentBloc to update document category
+        final updatedDocument = file.copyWith(category: widget.category.id);
+        context.read<DocumentBloc>().add(
+          DocumentEvent.updateDocument(document: updatedDocument),
         );
+
         debugPrint(
           '✅ File ${file.fileName} assigned to category ${widget.category.id}',
         );

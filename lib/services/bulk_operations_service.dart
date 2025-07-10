@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../models/document_model.dart';
-import '../providers/document_provider.dart';
-import '../providers/auth_provider.dart';
+import '../features/documents/repositories/document_repository_impl.dart';
+import '../features/category/repositories/category_repository_impl.dart';
+import '../features/documents/bloc/document_bloc.dart';
+import '../features/documents/bloc/document_event.dart';
+import '../features/auth/providers/auth_providers.dart';
 import '../services/file_download_service.dart';
 import '../services/share_service.dart';
 import '../services/download_notification_service.dart';
@@ -287,16 +291,12 @@ class BulkOperationsService {
     required BuildContext context,
     required List<DocumentModel> files,
   }) async {
-    // Get providers before any async operations to avoid context issues
-    final documentProvider = Provider.of<DocumentProvider>(
-      context,
-      listen: false,
-    );
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    // Get ProviderContainer to access Riverpod providers
+    final container = ProviderScope.containerOf(context);
 
-    // Run enhanced diagnostics first
-    final isAdmin = await authProvider.isCurrentUserAdmin;
-    final currentUserId = authProvider.currentUser?.id ?? 'unknown';
+    // Get current user info from Riverpod providers
+    final isAdmin = container.read(isAdminProvider);
+    final currentUserId = container.read(userIdProvider) ?? 'unknown';
 
     final diagnostics =
         await DeletionDiagnosticsService.analyzeDeletionOperation(
@@ -428,8 +428,16 @@ class BulkOperationsService {
             // Track deletion start time for diagnostics
             final startTime = DateTime.now();
 
-            // Use storage-first deletion approach via DocumentProvider
-            await documentProvider.removeDocument(file.id, currentUserId);
+            // Use DocumentRepository for deletion
+            final repository = DocumentRepositoryImpl.instance;
+            final success = await repository.deleteDocument(
+              file.id,
+              currentUserId,
+            );
+
+            if (!success) {
+              throw Exception('Failed to delete document ${file.fileName}');
+            }
 
             final duration = DateTime.now().difference(startTime);
             completedDeletes++;
@@ -620,11 +628,8 @@ class BulkOperationsService {
       '🚀 Starting bulk remove operation for ${files.length} files from category $categoryId',
     );
 
-    // Get the provider before any async operations
-    final documentProvider = Provider.of<DocumentProvider>(
-      context,
-      listen: false,
-    );
+    // Get repository instances
+    final categoryRepository = CategoryRepositoryImpl.instance;
 
     // Show confirmation dialog
     final confirmed = await showDialog<bool>(
@@ -691,35 +696,39 @@ class BulkOperationsService {
       int successCount = 0;
       int failureCount = 0;
 
-      for (final file in files) {
-        try {
-          debugPrint(
-            '🔄 Removing file ${file.fileName} (${file.id}) from category $categoryId',
-          );
-          await documentProvider.removeFileFromCategory(file.id, categoryId);
-          successCount++;
-          debugPrint('✅ Successfully removed ${file.fileName} from category');
-        } catch (e) {
-          failureCount++;
-          debugPrint('❌ Failed to remove ${file.fileName} from category: $e');
-          // Continue with other files even if one fails
-        }
+      // Use CategoryRepository to remove files from category
+      try {
+        final documentIds = files.map((file) => file.id).toList();
+        await categoryRepository.removeFilesFromCategory(
+          categoryId,
+          documentIds,
+        );
+        successCount = files.length;
+        debugPrint(
+          '✅ Successfully removed ${files.length} files from category',
+        );
+      } catch (e) {
+        failureCount = files.length;
+        debugPrint('❌ Failed to remove files from category: $e');
       }
 
       debugPrint(
         '📊 Bulk remove operation completed: $successCount success, $failureCount failures',
       );
 
-      // Force refresh the DocumentProvider to ensure UI reflects changes
+      // Force refresh the document and category data to ensure UI reflects changes
       if (context.mounted && successCount > 0) {
         try {
-          debugPrint(
-            '🔄 Refreshing DocumentProvider after bulk remove operation',
+          debugPrint('🔄 Refreshing document data after bulk remove operation');
+
+          // Refresh document data using DocumentBloc
+          context.read<DocumentBloc>().add(
+            const DocumentEvent.refreshDocuments(),
           );
-          await documentProvider.refreshFolderContents();
-          debugPrint('✅ DocumentProvider refresh completed');
+
+          debugPrint('✅ Document refresh completed');
         } catch (refreshError) {
-          debugPrint('⚠️ Failed to refresh DocumentProvider: $refreshError');
+          debugPrint('⚠️ Failed to refresh document data: $refreshError');
           // Continue anyway, the operation was successful
         }
       }
@@ -926,8 +935,8 @@ class _BulkOperationsMenu extends StatelessWidget {
   /// Check if current user has admin permissions
   Future<bool> _checkAdminPermission(BuildContext context) async {
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      return await authProvider.isCurrentUserAdmin;
+      final container = ProviderScope.containerOf(context);
+      return container.read(isAdminProvider);
     } catch (e) {
       debugPrint('❌ Error checking admin permission: $e');
       return false;

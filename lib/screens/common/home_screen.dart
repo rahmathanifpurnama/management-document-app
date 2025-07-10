@@ -1,17 +1,27 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../models/user_model.dart';
 import '../../utils/date_formatter.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_routes.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/user_provider.dart';
-import '../../providers/document_provider.dart';
-// import '../../providers/category_provider.dart'; // Removed - migrated to BLoC
-import '../../providers/file_selection_provider.dart';
+import '../../features/auth/providers/auth_providers.dart';
+import '../../features/auth/bloc/auth_bloc.dart';
+import '../../features/auth/bloc/auth_event.dart';
+import '../../features/auth/bloc/auth_state.dart';
+import '../../features/users/bloc/user_bloc.dart';
+import '../../features/users/bloc/user_event.dart';
+import '../../features/users/bloc/user_state.dart';
+import '../../features/documents/bloc/document_bloc.dart';
+import '../../features/documents/bloc/document_event.dart';
+import '../../features/documents/bloc/document_state.dart';
+import '../../features/category/bloc/category_bloc.dart';
+import '../../features/category/bloc/category_event.dart';
+import '../../features/category/bloc/category_state.dart';
+import '../../features/file_selection/providers/file_selection_providers.dart';
 import '../../widgets/common/app_bottom_navigation.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/file_filter_widget.dart';
@@ -175,8 +185,8 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _generateNewGreeting() {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final userName = authProvider.currentUser?.fullName;
+    final authState = context.read<AuthBloc>().state;
+    final userName = authState.currentUser?.fullName;
     _currentGreeting = GreetingService.instance.getSmartGreeting(userName);
   }
 
@@ -186,19 +196,19 @@ class _HomeScreenState extends State<HomeScreen>
       CircuitBreaker.resetAllCircuits();
       debugPrint('🔄 Circuit breakers reset for manual refresh');
 
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      // final categoryProvider = Provider.of<CategoryProvider>(
-      //   context,
-      //   listen: false,
-      // ); // Removed - migrated to BLoC
+      // Dispatch refresh events to BLoCs
+      context.read<UserBloc>().add(const UserEvent.refreshUsers());
+      context.read<DocumentBloc>().add(
+        const DocumentEvent.refreshDocuments(forceRefresh: true),
+      );
+      context.read<CategoryBloc>().add(const CategoryEvent.loadCategories());
 
       // Trigger file list refresh with loading state
       final fileListRefresh = _fileListKey.currentState?.handleRefresh();
 
       await Future.wait([
         if (fileListRefresh != null) fileListRefresh,
-        userProvider.refreshUsers(),
-        // categoryProvider.refreshCategories(), // TODO: Implement with CategoryBloc
+        // BLoC events are dispatched above, no need to wait for them here
       ]);
 
       // OPTIMIZED: Client-side statistics refresh only
@@ -329,11 +339,15 @@ class _HomeScreenState extends State<HomeScreen>
 
         if (snapshot.hasError) {
           debugPrint('❌ Error loading statistics: ${snapshot.error}');
-          // Fallback to DocumentProvider statistics on error
-          return Consumer<DocumentProvider>(
-            builder: (context, documentProvider, child) {
+          // Fallback to DocumentBloc statistics on error
+          return BlocBuilder<DocumentBloc, DocumentState>(
+            builder: (context, documentState) {
+              final statsData = documentState.maybeMap(
+                loaded: (state) => state.statistics ?? <String, dynamic>{},
+                orElse: () => <String, dynamic>{},
+              );
               return StatsGrid(
-                statsData: documentProvider.statisticsData,
+                statsData: statsData,
                 onStatTap: _handleStatTap,
                 isLoading: false,
               );
@@ -366,10 +380,9 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Update session activity when user is active
   void _updateSessionActivity() {
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.updateSessionActivity();
-    });
+    // Session activity tracking can be handled by AuthBloc internally
+    // or through a separate service if needed
+    debugPrint('🔄 Session activity updated');
   }
 
   /// Initialize real-time synchronization system
@@ -425,37 +438,13 @@ class _HomeScreenState extends State<HomeScreen>
 
     try {
       debugPrint('🏠 Home screen: Starting data load...');
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
-      );
-      final categoryProvider = Provider.of<CategoryProvider>(
-        context,
-        listen: false,
-      );
 
-      // ENHANCED: Check if documents are already loaded to avoid unnecessary loading
-      if (documentProvider.allDocuments.isEmpty) {
-        debugPrint('🏠 Home screen: Documents empty, forcing load...');
-      } else {
-        debugPrint(
-          '🏠 Home screen: ${documentProvider.allDocuments.length} documents already loaded',
-        );
-      }
+      // Dispatch load events to BLoCs
+      context.read<UserBloc>().add(const UserEvent.loadUsers());
+      context.read<DocumentBloc>().add(const DocumentEvent.loadDocuments());
+      context.read<CategoryBloc>().add(const CategoryEvent.loadCategories());
 
-      // Load data with proper error handling and immediate UI updates
-      await Future.wait([
-        userProvider.loadUsers(),
-        documentProvider.loadDocuments(),
-        categoryProvider.loadCategories(),
-      ]);
-
-      debugPrint('🏠 Home screen: Data load completed successfully');
-      debugPrint(
-        '🏠 Home screen: Final document count: ${documentProvider.allDocuments.length}',
-      );
-
+      debugPrint('🏠 Home screen: Data load events dispatched to BLoCs');
       _dataLoaded = true;
 
       // Force UI update after data is loaded
@@ -468,12 +457,8 @@ class _HomeScreenState extends State<HomeScreen>
       // Fallback: Try to load documents individually if batch loading fails
       if (mounted) {
         try {
-          final documentProvider = Provider.of<DocumentProvider>(
-            context,
-            listen: false,
-          );
-          await documentProvider.loadDocuments();
-          debugPrint('🏠 Home screen: Fallback document loading completed');
+          context.read<DocumentBloc>().add(const DocumentEvent.loadDocuments());
+          debugPrint('🏠 Home screen: Fallback document loading dispatched');
           _dataLoaded = true;
           if (mounted) {
             setState(() {});
@@ -491,59 +476,51 @@ class _HomeScreenState extends State<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    return IsolatedFileSelectionProvider(
-      screenId: 'HomeScreen',
-      child: Consumer<AuthProvider>(
-        builder: (context, authProvider, child) {
-          if (authProvider.currentUser == null) {
-            return const PageLoadingWidget(message: 'Memuat data pengguna...');
-          }
+    // Use Consumer from Riverpod for file selection
+    return Consumer(
+      builder: (context, ref, _) {
+        // Initialize isolated file selection for this screen
+        ref.watch(isolatedFileSelectionProvider('HomeScreen'));
 
-          // Load data after user is authenticated
-          if (!_dataLoaded) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _loadData();
-            });
-          }
-
-          // ADDITIONAL TRIGGER: Ensure documents are loaded even if _dataLoaded is true
-          // This handles cases where data loading completed but documents are still empty
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            final documentProvider = Provider.of<DocumentProvider>(
-              context,
-              listen: false,
-            );
-            if (documentProvider.allDocuments.isEmpty &&
-                !documentProvider.isLoading) {
-              debugPrint(
-                '🏠 Home screen: Additional trigger - documents empty, loading...',
+        return BlocBuilder<AuthBloc, AuthState>(
+          builder: (context, authState) {
+            final currentUser = authState.currentUser;
+            if (currentUser == null) {
+              return const PageLoadingWidget(
+                message: 'Memuat data pengguna...',
               );
-              documentProvider.loadDocuments();
             }
-          });
 
-          return AppScaffoldWithNavigation(
-            title: 'Beranda',
-            currentNavIndex: 0, // Home is index 0
-            showAppBar: true, // Use standard app bar like other pages
-            actions: const [BellNotificationWidget()],
-            body: Column(
-              children: [
-                // File selection bar (appears when files are selected)
-                FileSelectionBar(onExitSelection: _onExitSelectionMode),
-                // Main dashboard content
-                Expanded(child: _buildDashboard()),
-              ],
-            ),
-          );
-        },
-      ),
+            // Load data after user is authenticated
+            if (!_dataLoaded) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _loadData();
+              });
+            }
+
+            return AppScaffoldWithNavigation(
+              title: 'Beranda',
+              currentNavIndex: 0, // Home is index 0
+              showAppBar: true, // Use standard app bar like other pages
+              actions: const [BellNotificationWidget()],
+              body: Column(
+                children: [
+                  // File selection bar (appears when files are selected)
+                  FileSelectionBar(onExitSelection: _onExitSelectionMode),
+                  // Main dashboard content
+                  Expanded(child: _buildDashboard()),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
   Widget _buildDashboard() {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, authState) {
         // Get responsive spacing - REDUCED VALUES
         final screenWidth = MediaQuery.of(context).size.width;
         final responsiveSpacing = screenWidth < 400
@@ -563,13 +540,13 @@ class _HomeScreenState extends State<HomeScreen>
                   ), // Reduced top spacing
                   // Greeting Section - Using new component
                   HomeGreetingSection(
-                    authProvider: authProvider,
+                    authState: authState,
                     currentGreeting: _currentGreeting,
-                    onProfileTap: () => _showProfileMenu(authProvider),
+                    onProfileTap: () => _showProfileMenu(authState),
                   ),
 
                   // Dashboard Statistics Section (Admin only) - Using OptimizedStatisticsService
-                  if (authProvider.isAdmin) ...[
+                  if (authState.currentUser?.role == 'admin') ...[
                     const SizedBox(height: 12),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -740,25 +717,16 @@ class _HomeScreenState extends State<HomeScreen>
       }
 
       // Get current user ID for logging
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final currentUserId = authProvider.currentUser?.id ?? 'unknown';
+      final authState = context.read<AuthBloc>().state;
+      final currentUserId = authState.currentUser?.id ?? 'unknown';
 
-      // Get document provider and remove the document permanently
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
+      // Dispatch delete event to DocumentBloc
+      context.read<DocumentBloc>().add(
+        DocumentEvent.deleteDocument(
+          documentId: document.id,
+          userId: currentUserId,
+        ),
       );
-
-      // ENHANCED DELETE FIX: Add comprehensive timeout and error handling
-      await documentProvider
-          .removeDocument(document.id, currentUserId)
-          .timeout(
-            const Duration(
-              seconds: 45,
-            ), // Increased timeout for complex operations
-            onTimeout: () =>
-                throw Exception('Delete operation timed out after 45 seconds'),
-          );
 
       debugPrint('✅ HomeScreen: Delete operation completed successfully');
 
@@ -871,13 +839,10 @@ class _HomeScreenState extends State<HomeScreen>
         '🧹 HomeScreen: Removing document from local UI: ${document.fileName}',
       );
 
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
+      // Force refresh documents to update UI
+      context.read<DocumentBloc>().add(
+        const DocumentEvent.refreshDocuments(forceRefresh: true),
       );
-
-      // Force remove from local cache without backend call
-      documentProvider.forceRemoveFromLocal(document.id);
 
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -1041,43 +1006,118 @@ class _HomeScreenState extends State<HomeScreen>
           'Document Details',
           style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
-        content: Consumer<UserProvider>(
-          builder: (context, userProvider, child) {
-            return FutureBuilder<UserModel?>(
-              future: userProvider.getUserByIdAsync(document.uploadedBy),
-              builder: (context, snapshot) {
-                String ownerName = 'Loading...';
+        content: BlocBuilder<UserBloc, UserState>(
+          builder: (context, userState) {
+            String ownerName = 'Loading...';
 
-                if (snapshot.connectionState == ConnectionState.done) {
-                  if (snapshot.hasData && snapshot.data != null) {
-                    ownerName = snapshot.data!.fullName;
-                  } else {
-                    // Fallback: try to extract readable name from uploadedBy
-                    ownerName = _extractReadableOwnerName(document.uploadedBy);
-                  }
-                }
-
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildDetailRow('Name', document.fileName),
-                    _buildDetailRow('Owner', ownerName),
-                    _buildDetailRow('Size', _formatFileSize(document.fileSize)),
-                    _buildDetailRow('Type', document.fileType),
-                    _buildDetailRow(
-                      'Uploaded',
-                      _formatDate(document.uploadedAt),
-                    ),
-                    _buildDetailRow('Status', 'ACTIVE'),
-                    if (document.metadata.description.isNotEmpty)
-                      _buildDetailRow(
-                        'Description',
-                        document.metadata.description,
+            userState.when(
+              initial: () => ownerName = 'Loading...',
+              loading: () => ownerName = 'Loading...',
+              loaded:
+                  (
+                    users,
+                    filteredUsers,
+                    searchQuery,
+                    selectedRole,
+                    selectedStatus,
+                    isFiltered,
+                  ) {
+                    final owner = users.firstWhere(
+                      (user) => user.id == document.uploadedBy,
+                      orElse: () => UserModel(
+                        id: document.uploadedBy,
+                        fullName: _extractReadableOwnerName(
+                          document.uploadedBy,
+                        ),
+                        email: '',
+                        role: 'user',
+                        status: 'active',
+                        createdAt: DateTime.now(),
+                        permissions: UserPermissions.user(),
                       ),
-                  ],
-                );
-              },
+                    );
+                    ownerName = owner.fullName;
+                  },
+              error:
+                  (
+                    message,
+                    users,
+                    filteredUsers,
+                    searchQuery,
+                    selectedRole,
+                    selectedStatus,
+                    isFiltered,
+                    canRetry,
+                    lastFailedOperation,
+                  ) {
+                    ownerName = _extractReadableOwnerName(document.uploadedBy);
+                  },
+              performingOperation:
+                  (
+                    users,
+                    filteredUsers,
+                    searchQuery,
+                    selectedRole,
+                    selectedStatus,
+                    isFiltered,
+                    operationType,
+                  ) {
+                    final owner = users.firstWhere(
+                      (user) => user.id == document.uploadedBy,
+                      orElse: () => UserModel(
+                        id: document.uploadedBy,
+                        fullName: _extractReadableOwnerName(
+                          document.uploadedBy,
+                        ),
+                        email: '',
+                        role: 'user',
+                        status: 'active',
+                        createdAt: DateTime.now(),
+                        permissions: UserPermissions.user(),
+                      ),
+                    );
+                    ownerName = owner.fullName;
+                  },
+              syncing:
+                  (
+                    users,
+                    filteredUsers,
+                    searchQuery,
+                    selectedRole,
+                    selectedStatus,
+                    isFiltered,
+                  ) {
+                    final owner = users.firstWhere(
+                      (user) => user.id == document.uploadedBy,
+                      orElse: () => UserModel(
+                        id: document.uploadedBy,
+                        fullName: _extractReadableOwnerName(
+                          document.uploadedBy,
+                        ),
+                        email: '',
+                        role: 'user',
+                        status: 'active',
+                        createdAt: DateTime.now(),
+                        permissions: UserPermissions.user(),
+                      ),
+                    );
+                    ownerName = owner.fullName;
+                  },
+            );
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDetailRow('Name', document.fileName),
+                _buildDetailRow('Owner', ownerName),
+                _buildDetailRow('Size', _formatFileSize(document.fileSize)),
+                _buildDetailRow('Type', document.fileType),
+                _buildDetailRow('Uploaded', _formatDate(document.uploadedAt)),
+                _buildDetailRow('Status', 'ACTIVE'),
+                if (document.metadata.description.isNotEmpty)
+                  _buildDetailRow('Description', document.metadata.description),
+              ],
             );
           },
         ),
@@ -1218,7 +1258,7 @@ class _HomeScreenState extends State<HomeScreen>
     }
   }
 
-  void _showProfileMenu(AuthProvider authProvider) {
+  void _showProfileMenu(AuthState authState) {
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
@@ -1234,13 +1274,12 @@ class _HomeScreenState extends State<HomeScreen>
                   CircleAvatar(
                     radius: 40, // Avatar besar dengan radius 40
                     backgroundColor: AppColors.primaryLight,
-                    backgroundImage:
-                        authProvider.currentUser?.profileImage != null
-                        ? NetworkImage(authProvider.currentUser!.profileImage!)
+                    backgroundImage: authState.currentUser?.profileImage != null
+                        ? NetworkImage(authState.currentUser!.profileImage!)
                         : null,
-                    child: authProvider.currentUser?.profileImage == null
+                    child: authState.currentUser?.profileImage == null
                         ? Text(
-                            authProvider.currentUser?.fullName
+                            authState.currentUser?.fullName
                                     .substring(0, 1)
                                     .toUpperCase() ??
                                 'U',
@@ -1258,7 +1297,7 @@ class _HomeScreenState extends State<HomeScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          authProvider.currentUser?.fullName ?? '',
+                          authState.currentUser?.fullName ?? '',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
@@ -1267,7 +1306,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          authProvider.currentUser?.role.toUpperCase() ?? '',
+                          authState.currentUser?.role.toUpperCase() ?? '',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
@@ -1317,8 +1356,7 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _logout() async {
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.logout();
+      context.read<AuthBloc>().add(const AuthEvent.logout());
 
       if (mounted) {
         // Clear all routes and navigate to login

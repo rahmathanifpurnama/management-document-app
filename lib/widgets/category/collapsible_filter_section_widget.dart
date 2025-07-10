@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
-import '../../providers/document_provider.dart';
 import '../../widgets/common/embedded_file_filter_widget.dart';
 
 /// Reusable collapsible filter section widget with responsive design
@@ -43,25 +41,21 @@ class _CollapsibleFilterSectionWidgetState
     final isTablet = screenWidth >= 768;
     final isSmallScreen = screenWidth < 400;
 
-    return Consumer<DocumentProvider>(
-      builder: (context, documentProvider, child) {
-        final hasActiveFilters = _hasActiveFilters(documentProvider);
+    final hasActiveFilters = _hasActiveFilters();
 
-        return Container(
-          margin:
-              widget.margin ??
-              EdgeInsets.symmetric(
-                horizontal: isSmallScreen ? 12 : 16,
-                vertical: 8,
-              ),
-          child: Column(
-            children: [
-              _buildHeader(hasActiveFilters, isSmallScreen, isTablet),
-              _buildCollapsibleContent(isSmallScreen),
-            ],
+    return Container(
+      margin:
+          widget.margin ??
+          EdgeInsets.symmetric(
+            horizontal: isSmallScreen ? 12 : 16,
+            vertical: 8,
           ),
-        );
-      },
+      child: Column(
+        children: [
+          _buildHeader(hasActiveFilters, isSmallScreen, isTablet),
+          _buildCollapsibleContent(isSmallScreen),
+        ],
+      ),
     );
   }
 
@@ -172,9 +166,8 @@ class _CollapsibleFilterSectionWidgetState
     );
   }
 
-  bool _hasActiveFilters(DocumentProvider documentProvider) {
-    return documentProvider.selectedFileType != 'all' ||
-        documentProvider.sortBy != 'uploadedAt' ||
-        documentProvider.sortAscending != false;
+  bool _hasActiveFilters() {
+    // TODO: Implement active filters detection
+    return false;
   }
 }

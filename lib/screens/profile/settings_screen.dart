@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/settings_provider.dart';
+import '../../features/settings/providers/settings_providers.dart';
+import '../../features/auth/providers/auth_providers.dart';
 import 'help_center_screen.dart';
 import 'privacy_policy_screen.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -50,17 +50,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildSectionHeader('Preferences'),
             const SizedBox(height: 16),
 
-            Consumer<SettingsProvider>(
-              builder: (context, settingsProvider, child) {
+            Consumer(
+              builder: (context, ref, child) {
+                final settings = ref.watch(settingsProvider);
+                final settingsNotifier = ref.read(settingsProvider.notifier);
+
                 return Column(
                   children: [
                     _buildSwitchTile(
                       icon: Icons.notifications_outlined,
                       title: 'Push Notifications',
                       subtitle: 'Receive notifications about updates',
-                      value: settingsProvider.notificationsEnabled,
+                      value: settings.notificationsEnabled,
                       onChanged: (value) {
-                        settingsProvider.setNotificationsEnabled(value);
+                        settingsNotifier.setNotificationsEnabled(value);
                       },
                     ),
 
@@ -70,15 +73,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.dark_mode_outlined,
                       title: 'Dark Mode',
                       subtitle: 'Switch to dark theme',
-                      value: settingsProvider.darkModeEnabled,
+                      value: settings.darkModeEnabled,
                       onChanged: (value) {
-                        settingsProvider.setDarkModeEnabled(value);
+                        settingsNotifier.setDarkModeEnabled(value);
                       },
                     ),
 
                     const SizedBox(height: 12),
 
-                    _buildLanguageTile(settingsProvider),
+                    _buildLanguageTile(settings, settingsNotifier),
                   ],
                 );
               },
@@ -232,12 +235,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildLanguageTile(SettingsProvider settingsProvider) {
+  Widget _buildLanguageTile(dynamic settings, dynamic settingsNotifier) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
     return InkWell(
-      onTap: () => _showLanguageDialog(settingsProvider),
+      onTap: () => _showLanguageDialog(settings, settingsNotifier),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -279,7 +282,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    settingsProvider.selectedLanguage,
+                    settings.selectedLanguage,
                     style: TextStyle(
                       fontSize: 12,
                       color: theme.textTheme.bodySmall?.color,
@@ -376,7 +379,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void _showLanguageDialog(SettingsProvider settingsProvider) {
+  void _showLanguageDialog(dynamic settings, dynamic settingsNotifier) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -390,15 +393,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            children: settingsProvider.availableLanguages.map((language) {
+            children: settings.availableLanguages.map<Widget>((language) {
               return RadioListTile<String>(
                 title: Text(language),
                 value: language,
-                groupValue: settingsProvider.selectedLanguage,
+                groupValue: settings.selectedLanguage,
                 activeColor: AppColors.primary,
                 onChanged: (String? value) {
                   if (value != null) {
-                    settingsProvider.setSelectedLanguage(value);
+                    settingsNotifier.setSelectedLanguage(value);
                   }
                   Navigator.of(context).pop();
                 },
@@ -525,8 +528,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
       }
 
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.logout();
+      final authService = ref.read(authServiceProvider);
+      await authService.logout();
 
       if (context.mounted) {
         // Clear all routes and navigate to login

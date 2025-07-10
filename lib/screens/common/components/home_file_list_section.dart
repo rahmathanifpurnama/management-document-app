@@ -146,14 +146,15 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         const Duration(milliseconds: 1000),
       );
 
-      // Get document provider
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
+      // Force refresh documents from database using BLoC
+      context.read<DocumentBloc>().add(
+        const DocumentEvent.refreshDocuments(forceRefresh: true),
       );
 
-      // Force refresh documents from database
-      final dataLoadingFuture = documentProvider.refreshDocuments();
+      // Create a future that completes after a short delay to simulate loading
+      final dataLoadingFuture = Future.delayed(
+        const Duration(milliseconds: 500),
+      );
 
       // Wait for both minimum loading time and data loading
       await Future.wait([minimumLoadingTime, dataLoadingFuture]);
@@ -200,15 +201,12 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         const Duration(milliseconds: 1000),
       );
 
-      // Get document provider
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
-      );
+      // Force load documents from database using BLoC
+      context.read<DocumentBloc>().add(const DocumentEvent.loadDocuments());
 
-      // Force load documents from database
-      final dataLoadingFuture = documentProvider.loadDocuments(
-        forceRefresh: true,
+      // Create a future that completes after a short delay to simulate loading
+      final dataLoadingFuture = Future.delayed(
+        const Duration(milliseconds: 500),
       );
 
       // Wait for both minimum loading time and data loading
@@ -269,15 +267,12 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         const Duration(milliseconds: 1000),
       );
 
-      // Get document provider
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
-      );
+      // Refresh documents when page resumes using BLoC
+      context.read<DocumentBloc>().add(const DocumentEvent.loadDocuments());
 
-      // Refresh documents when page resumes
-      final dataLoadingFuture = documentProvider.loadDocuments(
-        forceRefresh: false, // Use cache if available
+      // Create a future that completes after a short delay to simulate loading
+      final dataLoadingFuture = Future.delayed(
+        const Duration(milliseconds: 300),
       );
 
       // Wait for both minimum loading time and data loading
@@ -307,38 +302,50 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<DocumentProvider, FileSelectionProvider>(
-      builder: (context, documentProvider, selectionProvider, child) {
-        // Get home screen filter state
-        final homeFilterState = FilterStateManager.getState(
-          FilterContext.homeScreen,
-        );
+    return BlocBuilder<DocumentBloc, DocumentState>(
+      builder: (context, documentState) {
+        return Consumer(
+          builder: (context, ref, child) {
+            final selectionState = ref.watch(fileSelectionProvider);
+            final selectionActions = ref.watch(fileSelectionActionsProvider);
+            // Get all documents from BLoC state
+            final allDocuments = documentState.maybeMap(
+              loaded: (state) => state.documents,
+              orElse: () => <DocumentModel>[],
+            );
 
-        // Update search query in filter state if different
-        if (homeFilterState.searchQuery != widget.searchQuery) {
-          homeFilterState.searchQuery = widget.searchQuery;
-        }
+            // Get home screen filter state
+            final homeFilterState = FilterStateManager.getState(
+              FilterContext.homeScreen,
+            );
 
-        // Apply context-aware filtering to all documents
-        final displayDocuments = ContextFilterUtils.applyContextFilters(
-          documents: documentProvider.allDocuments,
-          context: FilterContext.homeScreen,
-          filterState: homeFilterState,
-        );
+            // Update search query in filter state if different
+            if (homeFilterState.searchQuery != widget.searchQuery) {
+              homeFilterState.searchQuery = widget.searchQuery;
+            }
 
-        // Update available files for selection only when necessary
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (selectionProvider.isSelectionMode) {
-            selectionProvider.updateAvailableFiles(displayDocuments);
-          }
-        });
+            // Apply context-aware filtering to all documents
+            final displayDocuments = ContextFilterUtils.applyContextFilters(
+              documents: allDocuments,
+              context: FilterContext.homeScreen,
+              filterState: homeFilterState,
+            );
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Files Section with Pagination
-            _buildRecentFilesSection(displayDocuments, selectionProvider),
-          ],
+            // Update available files for selection only when necessary
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (selectionState.isSelectionMode) {
+                selectionActions.updateAvailableFiles(displayDocuments);
+              }
+            });
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Files Section with Pagination
+                _buildRecentFilesSection(displayDocuments, selectionState),
+              ],
+            );
+          },
         );
       },
     );
@@ -524,8 +531,8 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
     List<DocumentModel> documents,
     FileSelectionProvider selectionProvider,
   ) {
-    return Consumer<DocumentProvider>(
-      builder: (context, documentProvider, child) {
+    return BlocBuilder<DocumentBloc, DocumentState>(
+      builder: (context, documentState) {
         // PRIORITY 1: Show first-time loading state for login users
         if (_isFirstTimeLoading || !_hasDataCheckCompleted) {
           // Responsive design implementation
@@ -619,9 +626,12 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         }
 
         // PRIORITY 3: Show empty state after data check is complete
-        if (documents.isEmpty &&
-            !documentProvider.isLoading &&
-            _hasDataCheckCompleted) {
+        final isLoading = documentState.maybeMap(
+          loading: (_) => true,
+          orElse: () => false,
+        );
+
+        if (documents.isEmpty && !isLoading && _hasDataCheckCompleted) {
           return _buildEmptyState();
         }
 
@@ -1438,15 +1448,14 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
       }
     } else {
       // Enter selection mode with this file
-      // We need to get all available documents from the provider
-      final documentProvider = Provider.of<DocumentProvider>(
-        context,
-        listen: false,
+      // We need to get all available documents from the BLoC
+      final documentState = context.read<DocumentBloc>().state;
+      final allDocuments = documentState.maybeMap(
+        loaded: (state) => state.documents,
+        orElse: () => <DocumentModel>[],
       );
-      selectionProvider.enterSelectionMode(
-        document,
-        documentProvider.documents,
-      );
+
+      selectionProvider.enterSelectionMode(document, allDocuments);
     }
   }
 }

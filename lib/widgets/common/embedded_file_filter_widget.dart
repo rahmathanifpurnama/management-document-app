@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
-import '../../providers/document_provider.dart';
 
 class EmbeddedFileFilterWidget extends StatelessWidget {
   final VoidCallback? onFilterApplied;
@@ -17,78 +15,77 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<DocumentProvider>(
-      builder: (context, documentProvider, child) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with close button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Header with close button
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Filter',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  if (onClose != null)
-                    IconButton(
-                      onPressed: onClose,
-                      icon: const Icon(
-                        Icons.close,
-                        color: AppColors.textSecondary,
-                        size: 20,
-                      ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // File Type Filter Section
-              _buildSectionTitle('File Type'),
-              const SizedBox(height: 8),
-              _buildFileTypeFilters(context, documentProvider),
-
-              const SizedBox(height: 16),
-
-              // Sort Section
-              _buildSectionTitle('Sort Files'),
-              const SizedBox(height: 8),
-              _buildSortOptions(context, documentProvider),
-
-              const SizedBox(height: 16),
-
-              // Clear Filter Button
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    documentProvider.clearFilters();
-                    onFilterApplied?.call();
-                  },
-                  icon: const Icon(Icons.clear, color: AppColors.textSecondary),
-                  label: Text(
-                    'Clear All Filters',
-                    style: GoogleFonts.poppins(color: AppColors.textSecondary),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.border),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
+              Text(
+                'Filter',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
                 ),
               ),
+              if (onClose != null)
+                IconButton(
+                  onPressed: onClose,
+                  icon: const Icon(
+                    Icons.close,
+                    color: AppColors.textSecondary,
+                    size: 20,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 24,
+                    minHeight: 24,
+                  ),
+                ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 12),
+
+          // File Type Filter Section
+          _buildSectionTitle('File Type'),
+          const SizedBox(height: 8),
+          _buildFileTypeFilters(context),
+
+          const SizedBox(height: 16),
+
+          // Sort Section
+          _buildSectionTitle('Sort Files'),
+          const SizedBox(height: 8),
+          _buildSortOptions(context),
+
+          const SizedBox(height: 16),
+
+          // Clear Filter Button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                // TODO: Implement clear filters logic
+                onFilterApplied?.call();
+              },
+              icon: const Icon(Icons.clear, color: AppColors.textSecondary),
+              label: Text(
+                'Clear All Filters',
+                style: GoogleFonts.poppins(color: AppColors.textSecondary),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.border),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -103,10 +100,7 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildFileTypeFilters(
-    BuildContext context,
-    DocumentProvider documentProvider,
-  ) {
+  Widget _buildFileTypeFilters(BuildContext context) {
     final fileTypes = [
       {'key': 'all', 'label': 'All Files', 'icon': Icons.folder_open},
       {'key': 'PDF', 'label': 'PDF', 'icon': Icons.picture_as_pdf},
@@ -122,11 +116,11 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
       spacing: 6,
       runSpacing: 6,
       children: fileTypes.map((fileType) {
-        final isSelected = documentProvider.selectedFileType == fileType['key'];
+        final isSelected = false; // TODO: Implement filter state management
         return FilterChip(
           selected: isSelected,
           onSelected: (selected) {
-            documentProvider.filterByFileType(fileType['key'] as String);
+            // TODO: Implement filter logic
             onFilterApplied?.call();
           },
           avatar: Icon(
@@ -153,10 +147,7 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildSortOptions(
-    BuildContext context,
-    DocumentProvider documentProvider,
-  ) {
+  Widget _buildSortOptions(BuildContext context) {
     final sortOptions = [
       {
         'key': 'uploadedAt',
@@ -186,15 +177,16 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
 
     return Column(
       children: sortOptions.map((option) {
-        final isSelected =
-            documentProvider.sortBy == option['key'] &&
-            documentProvider.sortAscending == option['ascending'];
+        final isSelected = false; // TODO: Implement sort state management
 
         return Container(
           margin: const EdgeInsets.only(bottom: 2),
           child: ListTile(
             dense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 8,
+              vertical: 2,
+            ),
             leading: Icon(
               option['icon'] as IconData,
               color: isSelected ? AppColors.primary : AppColors.textSecondary,
@@ -212,10 +204,7 @@ class EmbeddedFileFilterWidget extends StatelessWidget {
                 ? const Icon(Icons.check, color: AppColors.primary, size: 18)
                 : null,
             onTap: () {
-              documentProvider.sortDocuments(
-                option['key'] as String,
-                ascending: option['ascending'] as bool,
-              );
+              // TODO: Implement sort logic
               onFilterApplied?.call();
             },
             shape: RoundedRectangleBorder(

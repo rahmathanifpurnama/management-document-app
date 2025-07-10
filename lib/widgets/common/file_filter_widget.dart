@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colors.dart';
-import '../../providers/document_provider.dart';
 
 enum FileFilterMode {
   modal, // Modal bottom sheet (default)
@@ -167,115 +165,108 @@ class _FileFilterWidgetState extends State<FileFilterWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<DocumentProvider>(
-      builder: (context, documentProvider, child) {
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: widget.mode == FileFilterMode.modal
-              ? const BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                )
-              : null,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with mode-specific styling
-              if (widget.mode == FileFilterMode.embedded) ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Filter',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    if (widget.onClose != null)
-                      IconButton(
-                        onPressed: widget.onClose,
-                        icon: const Icon(
-                          Icons.close,
-                          color: AppColors.textSecondary,
-                          size: 20,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 24,
-                          minHeight: 24,
-                        ),
-                      ),
-                  ],
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: widget.mode == FileFilterMode.modal
+          ? const BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            )
+          : null,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with mode-specific styling
+          if (widget.mode == FileFilterMode.embedded) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Filter',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ] else ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Filter Files',
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
+                if (widget.onClose != null)
+                  IconButton(
+                    onPressed: widget.onClose,
+                    icon: const Icon(
+                      Icons.close,
+                      color: AppColors.textSecondary,
+                      size: 20,
                     ),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(
-                        Icons.close,
-                        color: AppColors.textSecondary,
-                      ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 24,
+                      minHeight: 24,
                     ),
-                  ],
+                  ),
+              ],
+            ),
+          ] else ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Filter Files',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: AppColors.textSecondary),
                 ),
               ],
-              const SizedBox(height: 16),
+            ),
+          ],
+          const SizedBox(height: 16),
 
-              // File Type Filter Section
-              _buildSectionTitle('File Type'),
-              const SizedBox(height: 8),
-              _buildFileTypeFilters(context),
+          // File Type Filter Section
+          _buildSectionTitle('File Type'),
+          const SizedBox(height: 8),
+          _buildFileTypeFilters(context),
 
-              const SizedBox(height: 20),
+          const SizedBox(height: 20),
 
-              // Sort Section
-              _buildSectionTitle('Sort Files'),
-              const SizedBox(height: 8),
-              _buildSortOptions(context),
+          // Sort Section
+          _buildSectionTitle('Sort Files'),
+          const SizedBox(height: 8),
+          _buildSortOptions(context),
 
-              const SizedBox(height: 20),
+          const SizedBox(height: 20),
 
-              // Clear Filter Button
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    _currentState.reset();
-                    widget.onFilterApplied?.call();
-                    if (widget.mode == FileFilterMode.modal) {
-                      Navigator.pop(context);
-                    }
-                    setState(() {}); // Refresh UI
-                  },
-                  icon: const Icon(Icons.clear, color: AppColors.textSecondary),
-                  label: Text(
-                    'Clear All Filters',
-                    style: GoogleFonts.poppins(color: AppColors.textSecondary),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.border),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
+          // Clear Filter Button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                _currentState.reset();
+                widget.onFilterApplied?.call();
+                if (widget.mode == FileFilterMode.modal) {
+                  Navigator.pop(context);
+                }
+                setState(() {}); // Refresh UI
+              },
+              icon: const Icon(Icons.clear, color: AppColors.textSecondary),
+              label: Text(
+                'Clear All Filters',
+                style: GoogleFonts.poppins(color: AppColors.textSecondary),
               ),
-              const SizedBox(height: 8),
-            ],
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppColors.border),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
           ),
-        );
-      },
+          const SizedBox(height: 8),
+        ],
+      ),
     );
   }
 

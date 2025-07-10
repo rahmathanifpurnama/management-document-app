@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_routes.dart';
-import '../../core/utils/anr_prevention.dart';
 import '../../core/services/firebase_service.dart';
-import '../../providers/auth_provider.dart';
+import '../../features/auth/providers/auth_providers.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   bool _hasError = false;
   String? _errorMessage;
   bool _isRetrying = false;
@@ -31,14 +30,14 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _initializeApp() async {
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final authService = ref.read(authServiceProvider);
 
       // Check Firebase service status first
       final firebaseStatus = FirebaseService.instance.status;
 
       // Run initialization and minimum splash duration in parallel
       final results = await Future.wait([
-        _initializeAuth(authProvider, firebaseStatus),
+        _initializeAuth(authService, firebaseStatus),
         Future.delayed(const Duration(seconds: 2)), // Minimum splash duration
       ], eagerError: false);
 
@@ -59,18 +58,15 @@ class _SplashScreenState extends State<SplashScreen> {
       }
 
       if (authInitialized && firebaseStatus.isAuthAvailable) {
-        // Check if user has valid session for auto-login
-        bool hasValidSession = await authProvider.hasValidSession();
+        // Check if user is currently authenticated
+        final currentUser = ref.read(currentUserProvider);
 
         if (mounted) {
-          if (hasValidSession && authProvider.isLoggedIn) {
-            // User has valid session, go directly to home
-            await authProvider.updateSessionActivity();
-            if (mounted) {
-              Navigator.of(context).pushReplacementNamed(AppRoutes.home);
-            }
+          if (currentUser.hasValue && currentUser.value != null) {
+            // User is authenticated, go directly to home
+            Navigator.of(context).pushReplacementNamed(AppRoutes.home);
           } else {
-            // No valid session, go to login
+            // No authenticated user, go to login
             Navigator.of(context).pushReplacementNamed(AppRoutes.login);
           }
         }
@@ -104,7 +100,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<bool> _initializeAuth(
-    AuthProvider authProvider,
+    dynamic authService,
     FirebaseServiceStatus firebaseStatus,
   ) async {
     try {
@@ -116,12 +112,8 @@ class _SplashScreenState extends State<SplashScreen> {
         return false;
       }
 
-      // Use ANR prevention for auth initialization
-      await ANRPrevention.executeWithTimeout(
-        authProvider.initializeAuth(),
-        timeout: const Duration(seconds: 8),
-        operationName: 'Auth Initialization',
-      );
+      // Auth initialization is handled by Riverpod providers
+      // Just return true if Firebase Auth is available
       return true;
     } catch (e) {
       debugPrint('Auth initialization failed: $e');

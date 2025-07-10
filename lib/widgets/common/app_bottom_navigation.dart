@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_routes.dart';
-import '../../providers/auth_provider.dart';
+import '../../features/auth/providers/auth_providers.dart';
 
 /// Responsive configuration for navigation bar
 class _ResponsiveNavConfig {
@@ -30,7 +30,7 @@ class _ResponsiveNavConfig {
   });
 }
 
-class AppBottomNavigation extends StatelessWidget {
+class AppBottomNavigation extends ConsumerWidget {
   final int currentIndex;
   final Function(int)? onTap;
 
@@ -41,23 +41,17 @@ class AppBottomNavigation extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        return _CustomBottomNavigationBar(
-          currentIndex: currentIndex,
-          isAdmin: authProvider.isAdmin,
-          onTap: (index) => _handleNavigation(context, index, authProvider),
-        );
-      },
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isAdmin = ref.watch(isAdminProvider);
+
+    return _CustomBottomNavigationBar(
+      currentIndex: currentIndex,
+      isAdmin: isAdmin,
+      onTap: (index) => _handleNavigation(context, index, ref),
     );
   }
 
-  void _handleNavigation(
-    BuildContext context,
-    int index,
-    AuthProvider authProvider,
-  ) {
+  void _handleNavigation(BuildContext context, int index, WidgetRef ref) {
     // Call the onTap callback if provided
     if (onTap != null) {
       onTap!(index);
@@ -83,7 +77,8 @@ class AppBottomNavigation extends StatelessWidget {
         Navigator.pushNamed(context, AppRoutes.uploadDocument);
         break;
       case 3:
-        if (authProvider.isAdmin) {
+        final isAdmin = ref.read(isAdminProvider);
+        if (isAdmin) {
           // Activity (Admin only)
           Navigator.pushNamed(context, AppRoutes.activity);
         } else {
@@ -93,7 +88,8 @@ class AppBottomNavigation extends StatelessWidget {
         break;
       case 4:
         // Profile (Admin only - index 4)
-        if (authProvider.isAdmin) {
+        final isAdminProfile = ref.read(isAdminProvider);
+        if (isAdminProfile) {
           Navigator.pushNamed(context, AppRoutes.profile);
         }
         break;

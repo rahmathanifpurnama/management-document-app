@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/document_provider.dart';
-import '../providers/category_provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../features/documents/bloc/document_bloc.dart';
+import '../features/documents/bloc/document_event.dart';
+import '../features/category/bloc/category_bloc.dart';
+import '../features/category/bloc/category_event.dart' as category_events;
 import '../core/services/firebase_service.dart';
 
 /// Service to handle real-time synchronization between Firebase and UI components
@@ -36,19 +38,10 @@ class RealtimeSyncService {
         return;
       }
 
-      // CRITICAL FIX: Check if DocumentProvider already has a listener
-      final documentProvider = Provider.of<DocumentProvider>(
-        _context!,
-        listen: false,
+      // Note: DocumentBloc handles its own sync, so we can proceed with real-time updates
+      debugPrint(
+        '🔄 Starting real-time document sync with DocumentBloc integration',
       );
-
-      // Don't start duplicate listener if DocumentProvider is already handling Firebase sync
-      if (documentProvider.isFirebaseSyncActive) {
-        debugPrint(
-          '⚠️ DocumentProvider Firebase sync already active, skipping RealtimeSyncService listener',
-        );
-        return;
-      }
 
       // Cancel existing subscription
       _subscriptions['documents']?.cancel();
@@ -80,14 +73,11 @@ class RealtimeSyncService {
     if (_context == null) return;
 
     try {
-      final documentProvider = Provider.of<DocumentProvider>(
-        _context!,
-        listen: false,
-      );
-
-      // Trigger refresh to sync with Firebase data
+      // Trigger refresh to sync with Firebase data using DocumentBloc
       Future.microtask(() {
-        documentProvider.forceRefresh();
+        _context!.read<DocumentBloc>().add(
+          const DocumentEvent.refreshDocuments(),
+        );
       });
     } catch (e) {
       debugPrint('Error handling document changes: $e');
@@ -99,13 +89,10 @@ class RealtimeSyncService {
     if (_context == null) return;
 
     try {
-      final documentProvider = Provider.of<DocumentProvider>(
-        _context!,
-        listen: false,
+      // Single refresh using DocumentBloc instead of multiple timers to reduce Firebase calls
+      _context!.read<DocumentBloc>().add(
+        const DocumentEvent.refreshDocuments(),
       );
-
-      // Single refresh instead of multiple timers to reduce Firebase calls
-      documentProvider.forceRefresh();
       debugPrint('🔄 UI refresh triggered (single call)');
     } catch (e) {
       debugPrint('Error triggering UI refresh: $e');
@@ -122,17 +109,15 @@ class RealtimeSyncService {
     // Additional category-specific refresh if needed
     if (categoryId != null && _context != null) {
       try {
-        final categoryProvider = Provider.of<CategoryProvider>(
-          _context!,
-          listen: false,
-        );
-        // Refresh category data if provider supports it
+        // Refresh category data using CategoryBloc
         Future.microtask(() {
           // Force refresh categories to update file counts
-          categoryProvider.refreshCategories();
+          _context!.read<CategoryBloc>().add(
+            const category_events.CategoryEvent.loadCategories(),
+          );
         });
       } catch (e) {
-        debugPrint('Error refreshing category provider: $e');
+        debugPrint('Error refreshing category BLoC: $e');
       }
     }
   }
