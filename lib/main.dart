@@ -7,6 +7,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 // New Riverpod + BLoC imports
 import 'features/settings/providers/settings_providers.dart';
+import 'features/file_selection/providers/file_selection_providers.dart';
+import 'features/notification/providers/notification_providers.dart';
 import 'core/services/firebase_service.dart';
 import 'core/services/memory_management_service.dart';
 import 'core/services/optimized_network_service.dart';
