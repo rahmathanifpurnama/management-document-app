@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../providers/file_selection_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Widget that provides an isolated FileSelectionProvider instance for a specific screen
 /// This prevents global state conflicts between different screens
-class IsolatedFileSelectionProvider extends StatefulWidget {
+///
+/// NOTE: This widget is now deprecated in favor of using isolatedFileSelectionProvider
+/// directly with Riverpod. It's kept for backward compatibility during migration.
+@Deprecated('Use isolatedFileSelectionProvider directly with Riverpod instead')
+class IsolatedFileSelectionProvider extends ConsumerWidget {
   final Widget child;
   final String? screenId; // Optional identifier for debugging
 
@@ -15,82 +18,84 @@ class IsolatedFileSelectionProvider extends StatefulWidget {
   });
 
   @override
-  State<IsolatedFileSelectionProvider> createState() =>
-      _IsolatedFileSelectionProviderState();
-}
-
-class _IsolatedFileSelectionProviderState
-    extends State<IsolatedFileSelectionProvider> {
-  late FileSelectionProvider _localProvider;
-
-  @override
-  void initState() {
-    super.initState();
-    _localProvider = FileSelectionProvider();
+  Widget build(BuildContext context, WidgetRef ref) {
+    // This widget now just passes through the child since Riverpod
+    // handles isolated providers automatically via family providers
     debugPrint(
-      'IsolatedFileSelectionProvider: Created local provider for screen: ${widget.screenId ?? "unknown"}',
+      'IsolatedFileSelectionProvider: Using Riverpod isolated provider for screen: ${screenId ?? "unknown"}',
     );
-  }
 
-  @override
-  void dispose() {
-    debugPrint(
-      'IsolatedFileSelectionProvider: Disposing local provider for screen: ${widget.screenId ?? "unknown"}',
-    );
-    _localProvider.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider<FileSelectionProvider>.value(
-      value: _localProvider,
-      child: widget.child,
-    );
+    return child;
   }
 }
 
 /// Extension to easily wrap screens with isolated file selection provider
+///
+/// NOTE: This extension is deprecated. Use isolatedFileSelectionProvider
+/// directly with Riverpod family providers instead.
+@Deprecated('Use isolatedFileSelectionProvider directly with Riverpod instead')
 extension ScreenIsolation on Widget {
   /// Wraps the widget with an isolated FileSelectionProvider
+  @Deprecated(
+    'Use isolatedFileSelectionProvider directly with Riverpod instead',
+  )
   Widget withIsolatedFileSelection({String? screenId}) {
-    return IsolatedFileSelectionProvider(
-      screenId: screenId,
-      child: this,
-    );
+    return IsolatedFileSelectionProvider(screenId: screenId, child: this);
   }
 }
 
-/// Mixin for screens that need isolated file selection
-mixin IsolatedFileSelectionMixin<T extends StatefulWidget> on State<T> {
-  late FileSelectionProvider _isolatedProvider;
-
-  @override
-  void initState() {
-    super.initState();
-    _isolatedProvider = FileSelectionProvider();
-    debugPrint(
-      'IsolatedFileSelectionMixin: Created isolated provider for ${T.toString()}',
-    );
+/// Helper class for migrating from old isolated file selection pattern
+///
+/// Usage example:
+/// ```dart
+/// // Old way (deprecated):
+/// IsolatedFileSelectionProvider(
+///   screenId: 'MyScreen',
+///   child: MyWidget(),
+/// )
+///
+/// // New way (recommended):
+/// class MyWidget extends ConsumerWidget {
+///   @override
+///   Widget build(BuildContext context, WidgetRef ref) {
+///     final screenId = 'MyScreen';
+///     final selectionState = ref.watch(isolatedFileSelectionProvider(screenId));
+///     final actions = ref.read(isolatedFileSelectionActionsProvider(screenId));
+///     // ... use selectionState and actions
+///   }
+/// }
+/// ```
+class IsolatedFileSelectionHelper {
+  /// Get the screen ID for a given widget type
+  static String getScreenId(Type widgetType) {
+    return widgetType.toString();
   }
 
-  @override
-  void dispose() {
-    debugPrint(
-      'IsolatedFileSelectionMixin: Disposing isolated provider for ${T.toString()}',
-    );
-    _isolatedProvider.dispose();
-    super.dispose();
-  }
+  /// Documentation for migration patterns
+  static const String migrationGuide = '''
+Migration from IsolatedFileSelectionProvider to Riverpod:
 
-  /// Get the isolated file selection provider
-  FileSelectionProvider get isolatedFileSelectionProvider => _isolatedProvider;
+1. Convert your widget to ConsumerWidget or ConsumerStatefulWidget
+2. Use isolatedFileSelectionProvider(screenId) to watch state
+3. Use isolatedFileSelectionActionsProvider(screenId) for actions
+4. Remove IsolatedFileSelectionProvider wrapper
 
-  /// Wrap a widget with the isolated provider
-  Widget wrapWithIsolatedProvider(Widget child) {
-    return ChangeNotifierProvider<FileSelectionProvider>.value(
-      value: _isolatedProvider,
-      child: child,
-    );
-  }
+Example:
+// Before:
+IsolatedFileSelectionProvider(
+  screenId: 'MyScreen',
+  child: Consumer<FileSelectionProvider>(
+    builder: (context, provider, child) => Text('\${provider.selectedCount}'),
+  ),
+)
+
+// After:
+Consumer(
+  builder: (context, ref, child) {
+    final count = ref.watch(isolatedFileSelectionProvider('MyScreen')
+        .select((state) => state.selectedFileIds.length));
+    return Text('\$count');
+  },
+)
+''';
 }

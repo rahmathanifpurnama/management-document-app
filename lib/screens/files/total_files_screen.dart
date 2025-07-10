@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../providers/document_provider.dart';
-import '../../providers/file_selection_provider.dart';
+import '../../features/file_selection/providers/file_selection_providers.dart';
 import '../../models/document_model.dart';
 
 import '../../widgets/common/file_selection_bar.dart';
@@ -14,7 +14,7 @@ import '../../core/constants/app_routes.dart';
 import '../../core/utils/context_filter_utils.dart';
 
 /// File list section component for Total Files screen
-class TotalFilesListSection extends StatefulWidget {
+class TotalFilesListSection extends ConsumerStatefulWidget {
   final String searchQuery;
   final Function(DocumentModel)? onDocumentTap;
   final Function(DocumentModel)? onDocumentMenu;
@@ -29,10 +29,11 @@ class TotalFilesListSection extends StatefulWidget {
   });
 
   @override
-  State<TotalFilesListSection> createState() => _TotalFilesListSectionState();
+  ConsumerState<TotalFilesListSection> createState() =>
+      _TotalFilesListSectionState();
 }
 
-class _TotalFilesListSectionState extends State<TotalFilesListSection> {
+class _TotalFilesListSectionState extends ConsumerState<TotalFilesListSection> {
   bool _isFirstTimeLoading = true;
   bool _hasDataCheckCompleted = false;
 
@@ -43,9 +44,8 @@ class _TotalFilesListSectionState extends State<TotalFilesListSection> {
   }
 
   Future<void> _initializeData() async {
-    final documentProvider = Provider.of<DocumentProvider>(
-      context,
-      listen: false,
+    final documentProvider = ref.read(
+      ChangeNotifierProvider((ref) => DocumentProvider()),
     );
 
     // Force refresh to ensure we have the latest data
@@ -61,47 +61,47 @@ class _TotalFilesListSectionState extends State<TotalFilesListSection> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<DocumentProvider, FileSelectionProvider>(
-      builder: (context, documentProvider, selectionProvider, child) {
-        // Get total files filter state
-        final totalFilesFilterState = FilterStateManager.getState(
-          FilterContext.totalFiles,
-        );
+    final documentProvider = ref.watch(
+      ChangeNotifierProvider((ref) => DocumentProvider()),
+    );
+    final isSelectionMode = ref.watch(isSelectionModeProvider);
 
-        // Update search query in filter state if different
-        if (totalFilesFilterState.searchQuery != widget.searchQuery) {
-          totalFilesFilterState.searchQuery = widget.searchQuery;
-        }
+    // Get total files filter state
+    final totalFilesFilterState = FilterStateManager.getState(
+      FilterContext.totalFiles,
+    );
 
-        // Apply context-aware filtering to all documents
-        final displayDocuments = ContextFilterUtils.applyContextFilters(
-          documents: documentProvider.allDocuments,
-          context: FilterContext.totalFiles,
-          filterState: totalFilesFilterState,
-        );
+    // Update search query in filter state if different
+    if (totalFilesFilterState.searchQuery != widget.searchQuery) {
+      totalFilesFilterState.searchQuery = widget.searchQuery;
+    }
 
-        // Update available files for selection only when necessary
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (selectionProvider.isSelectionMode) {
-            selectionProvider.updateAvailableFiles(displayDocuments);
-          }
-        });
+    // Apply context-aware filtering to all documents
+    final displayDocuments = ContextFilterUtils.applyContextFilters(
+      documents: documentProvider.allDocuments,
+      context: FilterContext.totalFiles,
+      filterState: totalFilesFilterState,
+    );
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Files Section
-            _buildFilesSection(displayDocuments, selectionProvider),
-          ],
-        );
-      },
+    // Update available files for selection only when necessary
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (isSelectionMode) {
+        ref
+            .read(fileSelectionProvider.notifier)
+            .updateAvailableFiles(displayDocuments);
+      }
+    });
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Files Section
+        _buildFilesSection(displayDocuments),
+      ],
     );
   }
 
-  Widget _buildFilesSection(
-    List<DocumentModel> documents,
-    FileSelectionProvider selectionProvider,
-  ) {
+  Widget _buildFilesSection(List<DocumentModel> documents) {
     final screenWidth = MediaQuery.of(context).size.width;
     final responsiveMargin = EdgeInsets.symmetric(
       horizontal: screenWidth < 400 ? 12.0 : 16.0,
@@ -116,7 +116,7 @@ class _TotalFilesListSectionState extends State<TotalFilesListSection> {
           _buildFilesHeader(documents),
           const SizedBox(height: 12),
           // Files list
-          _buildFilesList(documents, selectionProvider),
+          _buildFilesList(documents),
         ],
       ),
     );
@@ -139,96 +139,91 @@ class _TotalFilesListSectionState extends State<TotalFilesListSection> {
     );
   }
 
-  Widget _buildFilesList(
-    List<DocumentModel> documents,
-    FileSelectionProvider selectionProvider,
-  ) {
-    return Consumer<DocumentProvider>(
-      builder: (context, documentProvider, child) {
-        // Show loading state for first-time loading
-        if (_isFirstTimeLoading || !_hasDataCheckCompleted) {
-          final screenWidth = MediaQuery.of(context).size.width;
-          final isSmallScreen = screenWidth < 400;
-          final progressIndicatorSize = isSmallScreen ? 48.0 : 56.0;
-          final textSpacing = isSmallScreen ? 12.0 : 16.0;
-          final fontSize = isSmallScreen ? 15.0 : 16.0;
+  Widget _buildFilesList(List<DocumentModel> documents) {
+    final documentProvider = ref.watch(
+      ChangeNotifierProvider((ref) => DocumentProvider()),
+    );
 
-          return Container(
-            padding: const EdgeInsets.symmetric(vertical: 40),
-            child: Column(
+    // Show loading state for first-time loading
+    if (_isFirstTimeLoading || !_hasDataCheckCompleted) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      final isSmallScreen = screenWidth < 400;
+      final progressIndicatorSize = isSmallScreen ? 48.0 : 56.0;
+      final textSpacing = isSmallScreen ? 12.0 : 16.0;
+      final fontSize = isSmallScreen ? 15.0 : 16.0;
+
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: progressIndicatorSize,
+              height: progressIndicatorSize,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+            SizedBox(height: textSpacing),
+            Text(
+              'Memuat semua file...',
+              style: GoogleFonts.poppins(
+                fontSize: fontSize,
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Show loading indicator during refresh
+    if (documentProvider.isLoading && documents.isNotEmpty) {
+      return Column(
+        children: [
+          _buildActualFilesList(documents),
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(
-                  width: progressIndicatorSize,
-                  height: progressIndicatorSize,
+                  width: 16,
+                  height: 16,
                   child: CircularProgressIndicator(
-                    strokeWidth: 3,
+                    strokeWidth: 2,
                     valueColor: AlwaysStoppedAnimation<Color>(
                       AppColors.primary,
                     ),
                   ),
                 ),
-                SizedBox(height: textSpacing),
+                const SizedBox(width: 8),
                 Text(
-                  'Memuat semua file...',
+                  'Memperbarui...',
                   style: GoogleFonts.poppins(
-                    fontSize: fontSize,
+                    fontSize: 12,
                     color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w500,
                   ),
-                  textAlign: TextAlign.center,
                 ),
               ],
             ),
-          );
-        }
+          ),
+        ],
+      );
+    }
 
-        // Show loading indicator during refresh
-        if (documentProvider.isLoading && documents.isNotEmpty) {
-          return Column(
-            children: [
-              _buildActualFilesList(documents, selectionProvider),
-              Container(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          AppColors.primary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Memperbarui...',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-        }
+    // Show empty state after data check is complete
+    if (documents.isEmpty &&
+        !documentProvider.isLoading &&
+        _hasDataCheckCompleted) {
+      return _buildEmptyState();
+    }
 
-        // Show empty state after data check is complete
-        if (documents.isEmpty &&
-            !documentProvider.isLoading &&
-            _hasDataCheckCompleted) {
-          return _buildEmptyState();
-        }
-
-        // Return the actual files list
-        return _buildActualFilesList(documents, selectionProvider);
-      },
-    );
+    // Return the actual files list
+    return _buildActualFilesList(documents);
   }
 
   Widget _buildEmptyState() {
@@ -276,10 +271,7 @@ class _TotalFilesListSectionState extends State<TotalFilesListSection> {
     );
   }
 
-  Widget _buildActualFilesList(
-    List<DocumentModel> documents,
-    FileSelectionProvider selectionProvider,
-  ) {
+  Widget _buildActualFilesList(List<DocumentModel> documents) {
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -287,18 +279,15 @@ class _TotalFilesListSectionState extends State<TotalFilesListSection> {
       separatorBuilder: (context, index) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final document = documents[index];
-        final isSelected = selectionProvider.isFileSelected(document.id);
+        final selectedFileIds = ref.watch(selectedFileIdsProvider);
+        final isSelected = selectedFileIds.contains(document.id);
 
-        return _buildFileItem(document, isSelected, selectionProvider);
+        return _buildFileItem(document, isSelected);
       },
     );
   }
 
-  Widget _buildFileItem(
-    DocumentModel document,
-    bool isSelected,
-    FileSelectionProvider selectionProvider,
-  ) {
+  Widget _buildFileItem(DocumentModel document, bool isSelected) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 400;
     final responsiveElevation = 2.0;
@@ -329,23 +318,25 @@ class _TotalFilesListSectionState extends State<TotalFilesListSection> {
         child: InkWell(
           borderRadius: BorderRadius.circular(responsiveBorderRadius),
           onTap: () {
-            if (selectionProvider.isSelectionMode) {
-              selectionProvider.toggleFileSelection(document.id);
+            final isSelectionMode = ref.read(isSelectionModeProvider);
+            if (isSelectionMode) {
+              ref
+                  .read(fileSelectionProvider.notifier)
+                  .toggleFileSelection(document.id);
             } else {
               widget.onDocumentTap?.call(document);
             }
           },
           onLongPress: () {
-            if (!selectionProvider.isSelectionMode) {
+            final isSelectionMode = ref.read(isSelectionModeProvider);
+            if (!isSelectionMode) {
               // Get all available documents from the provider
-              final documentProvider = Provider.of<DocumentProvider>(
-                context,
-                listen: false,
+              final documentProvider = ref.read(
+                ChangeNotifierProvider((ref) => DocumentProvider()),
               );
-              selectionProvider.enterSelectionMode(
-                document,
-                documentProvider.allDocuments,
-              );
+              ref
+                  .read(fileSelectionProvider.notifier)
+                  .enterSelectionMode(document, documentProvider.allDocuments);
             }
           },
           child: Padding(
@@ -353,11 +344,13 @@ class _TotalFilesListSectionState extends State<TotalFilesListSection> {
             child: Row(
               children: [
                 // Selection checkbox (when in selection mode)
-                if (selectionProvider.isSelectionMode) ...[
+                if (ref.watch(isSelectionModeProvider)) ...[
                   Checkbox(
                     value: isSelected,
                     onChanged: (value) {
-                      selectionProvider.toggleFileSelection(document.id);
+                      ref
+                          .read(fileSelectionProvider.notifier)
+                          .toggleFileSelection(document.id);
                     },
                     activeColor: AppColors.primary,
                   ),
@@ -372,7 +365,7 @@ class _TotalFilesListSectionState extends State<TotalFilesListSection> {
                 Expanded(child: _buildFileInfo(document)),
 
                 // Menu button (when not in selection mode)
-                if (!selectionProvider.isSelectionMode)
+                if (!ref.watch(isSelectionModeProvider))
                   IconButton(
                     onPressed: () => widget.onDocumentMenu?.call(document),
                     icon: Icon(
@@ -645,14 +638,14 @@ class _SearchField extends StatelessWidget {
   }
 }
 
-class TotalFilesScreen extends StatefulWidget {
+class TotalFilesScreen extends ConsumerStatefulWidget {
   const TotalFilesScreen({super.key});
 
   @override
-  State<TotalFilesScreen> createState() => _TotalFilesScreenState();
+  ConsumerState<TotalFilesScreen> createState() => _TotalFilesScreenState();
 }
 
-class _TotalFilesScreenState extends State<TotalFilesScreen> {
+class _TotalFilesScreenState extends ConsumerState<TotalFilesScreen> {
   final TextEditingController _searchController = TextEditingController();
   final GlobalKey<_TotalFilesListSectionState> _fileListKey = GlobalKey();
 
@@ -669,9 +662,8 @@ class _TotalFilesScreenState extends State<TotalFilesScreen> {
   }
 
   Future<void> _initializeData() async {
-    final documentProvider = Provider.of<DocumentProvider>(
-      context,
-      listen: false,
+    final documentProvider = ref.read(
+      ChangeNotifierProvider((ref) => DocumentProvider()),
     );
     await documentProvider.loadDocuments();
   }
@@ -708,51 +700,38 @@ class _TotalFilesScreenState extends State<TotalFilesScreen> {
   }
 
   void _onExitSelectionMode() {
-    final selectionProvider = Provider.of<FileSelectionProvider>(
-      context,
-      listen: false,
-    );
-    selectionProvider.exitSelectionMode();
+    ref.read(fileSelectionProvider.notifier).exitSelectionMode();
   }
 
   Future<void> _refreshData() async {
-    final documentProvider = Provider.of<DocumentProvider>(
-      context,
-      listen: false,
+    final documentProvider = ref.read(
+      ChangeNotifierProvider((ref) => DocumentProvider()),
     );
     await documentProvider.refreshDocuments();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<FileSelectionProvider>(
-      builder: (context, selectionProvider, child) {
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Semua File'),
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            actions: const [BellNotificationWidget()],
-            leading: IconButton(
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(
-                Icons.chevron_left,
-                size: 28,
-                color: Colors.white,
-              ),
-              tooltip: 'Back',
-            ),
-          ),
-          body: Column(
-            children: [
-              // File selection bar (appears when files are selected)
-              FileSelectionBar(onExitSelection: _onExitSelectionMode),
-              // Main content
-              Expanded(child: _buildContent()),
-            ],
-          ),
-        );
-      },
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Semua File'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        actions: const [BellNotificationWidget()],
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.chevron_left, size: 28, color: Colors.white),
+          tooltip: 'Back',
+        ),
+      ),
+      body: Column(
+        children: [
+          // File selection bar (appears when files are selected)
+          FileSelectionBar(onExitSelection: _onExitSelectionMode),
+          // Main content
+          Expanded(child: _buildContent()),
+        ],
+      ),
     );
   }
 

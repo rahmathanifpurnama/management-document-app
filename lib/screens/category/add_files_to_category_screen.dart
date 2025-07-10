@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart' as provider;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 import '../../utils/date_formatter.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 
-import '../../providers/file_selection_provider.dart';
+import '../../features/file_selection/providers/file_selection_providers.dart';
 import '../../providers/document_provider.dart';
 import '../../models/category_model.dart';
 import '../../models/document_model.dart';
@@ -14,24 +15,25 @@ import '../../widgets/common/app_bottom_navigation.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/ios_back_button.dart';
 import '../../widgets/common/reusable_file_list_widget.dart';
-import '../../widgets/common/isolated_file_selection_provider.dart';
-import '../../widgets/category/add_only_selection_bar_widget.dart';
+
 import '../../widgets/category/available_files_empty_state_widget.dart';
+import '../../widgets/category/add_only_selection_bar_widget.dart';
 import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/reusable_search_widget.dart';
 import '../../core/utils/context_filter_utils.dart';
 
-class AddFilesToCategoryScreen extends StatefulWidget {
+class AddFilesToCategoryScreen extends ConsumerStatefulWidget {
   final CategoryModel category;
 
   const AddFilesToCategoryScreen({super.key, required this.category});
 
   @override
-  State<AddFilesToCategoryScreen> createState() =>
+  ConsumerState<AddFilesToCategoryScreen> createState() =>
       _AddFilesToCategoryScreenState();
 }
 
-class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
+class _AddFilesToCategoryScreenState
+    extends ConsumerState<AddFilesToCategoryScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _searchTimer;
   bool _isLoadingDocuments = false;
@@ -69,7 +71,7 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
 
     try {
       // FIXED: Use DocumentProvider instead of UnifiedDocumentLoader to avoid permission issues
-      final documentProvider = Provider.of<DocumentProvider>(
+      final documentProvider = provider.Provider.of<DocumentProvider>(
         context,
         listen: false,
       );
@@ -100,7 +102,7 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
       // FALLBACK: Try to use existing cached data if available
       if (mounted) {
         try {
-          final documentProvider = Provider.of<DocumentProvider>(
+          final documentProvider = provider.Provider.of<DocumentProvider>(
             context,
             listen: false,
           );
@@ -160,7 +162,7 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
 
   List<DocumentModel> _getAvailableDocuments() {
     // FIXED: Use DocumentProvider instead of UnifiedDocumentLoader to avoid permission issues
-    final documentProvider = Provider.of<DocumentProvider>(
+    final documentProvider = provider.Provider.of<DocumentProvider>(
       context,
       listen: false,
     );
@@ -316,96 +318,89 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return IsolatedFileSelectionProvider(
-      screenId: 'AddFilesToCategoryScreen',
-      child: Consumer<FileSelectionProvider>(
-        builder: (context, selectionProvider, child) {
-          return Scaffold(
-            backgroundColor: AppColors.background,
-            appBar: CustomAppBar(
-              title: 'Add Files to ${widget.category.name}',
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.textWhite,
-              leading: const IOSBackButton(),
-            ),
-            bottomNavigationBar: const AppBottomNavigation(currentIndex: 1),
-            body: Consumer2<FileSelectionProvider, DocumentProvider>(
-              builder: (context, selectionProvider, documentProvider, child) {
-                // FIXED: Get available documents from DocumentProvider
-                final availableDocuments = _getAvailableDocuments();
+    // Use isolated file selection for this screen
+    final screenId = 'AddFilesToCategoryScreen';
 
-                // Show loading state if documents are being loaded
-                if ((_isLoadingDocuments || documentProvider.isLoading) &&
-                    availableDocuments.isEmpty) {
-                  return Column(
-                    children: [
-                      // Custom selection bar for add-only functionality
-                      AddOnlySelectionBarWidget(
-                        selectionProvider: selectionProvider,
-                        onAdd: () => _addSelectedFiles(selectionProvider),
-                      ),
-                      Expanded(child: _buildLoadingState()),
-                    ],
-                  );
-                }
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: CustomAppBar(
+        title: 'Add Files to ${widget.category.name}',
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.textWhite,
+        leading: const IOSBackButton(),
+      ),
+      bottomNavigationBar: const AppBottomNavigation(currentIndex: 1),
+      body: provider.Consumer<DocumentProvider>(
+        builder: (context, documentProvider, child) {
+          // FIXED: Get available documents from DocumentProvider
+          final availableDocuments = _getAvailableDocuments();
 
-                // Don't call updateAvailableFiles here to prevent race conditions
-                // The available files are properly set when entering selection mode
-                // This prevents the "removing invalid selections" issue
+          // Show loading state if documents are being loaded
+          if ((_isLoadingDocuments || documentProvider.isLoading) &&
+              availableDocuments.isEmpty) {
+            return Column(
+              children: [
+                // Custom selection bar for add-only functionality
+                AddOnlySelectionBarWidget(
+                  screenId: screenId,
+                  onAdd: () => _addSelectedFiles(),
+                ),
+                Expanded(child: _buildLoadingState()),
+              ],
+            );
+          }
 
-                return Column(
-                  children: [
-                    // Custom selection bar for add-only functionality
-                    AddOnlySelectionBarWidget(
-                      selectionProvider: selectionProvider,
-                      onAdd: () => _addSelectedFiles(selectionProvider),
+          // Don't call updateAvailableFiles here to prevent race conditions
+          // The available files are properly set when entering selection mode
+          // This prevents the "removing invalid selections" issue
+
+          return Column(
+            children: [
+              // Custom selection bar for add-only functionality
+              AddOnlySelectionBarWidget(
+                screenId: screenId,
+                onAdd: () => _addSelectedFiles(),
+              ),
+
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _loadData,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      children: [
+                        // Search Section
+                        _buildSearchSection(),
+
+                        // Filter Section (consistent with home screen)
+                        _buildFilterSection(),
+
+                        // Files List with proper loading states
+                        (_isLoadingDocuments || documentProvider.isLoading)
+                            ? _buildLoadingState()
+                            : availableDocuments.isEmpty
+                            ? const AvailableFilesEmptyStateWidget()
+                            : ReusableFileListWidget(
+                                documents: availableDocuments,
+                                title: '', // Empty title to avoid duplication
+                                showFilter:
+                                    false, // Filter already handled above
+                                showPagination: true,
+                                itemsPerPage:
+                                    25, // STANDARDIZED: 25 items per page across all screens
+                                emptyStateMessage: 'No available files found',
+                                emptyStateIcon: Icons.folder_open,
+                                onDocumentTap:
+                                    null, // No tap action needed, only selection
+                                onDocumentMenu:
+                                    _showDocumentMenu, // Enable menu for individual file operations
+                              ),
+                      ],
                     ),
-
-                    Expanded(
-                      child: RefreshIndicator(
-                        onRefresh: _loadData,
-                        child: SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          child: Column(
-                            children: [
-                              // Search Section
-                              _buildSearchSection(),
-
-                              // Filter Section (consistent with home screen)
-                              _buildFilterSection(),
-
-                              // Files List with proper loading states
-                              (_isLoadingDocuments ||
-                                      documentProvider.isLoading)
-                                  ? _buildLoadingState()
-                                  : availableDocuments.isEmpty
-                                  ? const AvailableFilesEmptyStateWidget()
-                                  : ReusableFileListWidget(
-                                      documents: availableDocuments,
-                                      title:
-                                          '', // Empty title to avoid duplication
-                                      showFilter:
-                                          false, // Filter already handled above
-                                      showPagination: true,
-                                      itemsPerPage:
-                                          25, // STANDARDIZED: 25 items per page across all screens
-                                      emptyStateMessage:
-                                          'No available files found',
-                                      emptyStateIcon: Icons.folder_open,
-                                      onDocumentTap:
-                                          null, // No tap action needed, only selection
-                                      onDocumentMenu:
-                                          _showDocumentMenu, // Enable menu for individual file operations
-                                    ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -525,10 +520,12 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
     );
   }
 
-  Future<void> _addSelectedFiles(
-    FileSelectionProvider selectionProvider,
-  ) async {
-    if (!selectionProvider.hasSelection) return;
+  Future<void> _addSelectedFiles() async {
+    final screenId = 'AddFilesToCategoryScreen';
+    final state = ref.read(isolatedFileSelectionProvider(screenId));
+    final actions = ref.read(isolatedFileSelectionActionsProvider(screenId));
+
+    if (state.selectedFileIds.isEmpty) return;
 
     // Show loading indicator
     if (mounted) {
@@ -546,7 +543,7 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
               ),
               const SizedBox(width: 12),
               Text(
-                'Adding ${selectionProvider.selectedCount} file(s)...',
+                'Adding ${state.selectedFileIds.length} file(s)...',
                 style: GoogleFonts.poppins(),
               ),
             ],
@@ -559,11 +556,13 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
 
     try {
       // FIXED: Use DocumentProvider directly for reliable updates
-      final documentProvider = Provider.of<DocumentProvider>(
+      final documentProvider = provider.Provider.of<DocumentProvider>(
         context,
         listen: false,
       );
-      final selectedFiles = selectionProvider.selectedFiles;
+      final selectedFiles = state.availableFiles
+          .where((file) => state.selectedFileIds.contains(file.id))
+          .toList();
 
       // RACE CONDITION FIX: Process files sequentially to avoid conflicts
       for (final file in selectedFiles) {
@@ -598,7 +597,7 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
         );
 
         // Clear selection and exit selection mode
-        selectionProvider.exitSelectionMode();
+        actions.exitSelectionMode();
 
         // Navigate back to category files screen with success result
         Navigator.of(context).pop(true);
@@ -654,7 +653,7 @@ class _AddFilesToCategoryScreenState extends State<AddFilesToCategoryScreen> {
             action: SnackBarAction(
               label: 'Retry',
               textColor: Colors.white,
-              onPressed: () => _addSelectedFiles(selectionProvider),
+              onPressed: () => _addSelectedFiles(),
             ),
           ),
         );

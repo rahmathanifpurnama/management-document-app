@@ -4,9 +4,10 @@ import '../notifiers/file_selection_notifier.dart';
 import '../models/file_selection_state.dart';
 
 /// Main file selection provider
-final fileSelectionProvider = StateNotifierProvider<FileSelectionNotifier, FileSelectionState>((ref) {
-  return FileSelectionNotifier();
-});
+final fileSelectionProvider =
+    StateNotifierProvider<FileSelectionNotifier, FileSelectionState>((ref) {
+      return FileSelectionNotifier();
+    });
 
 /// Computed providers for specific file selection properties
 final isSelectionModeProvider = Provider<bool>((ref) {
@@ -59,12 +60,16 @@ final fileSelectionActionsProvider = Provider<FileSelectionActions>((ref) {
 /// File selection actions class for easy access to notifier methods
 class FileSelectionActions {
   final Ref _ref;
-  
+
   FileSelectionActions(this._ref);
 
-  FileSelectionNotifier get _notifier => _ref.read(fileSelectionProvider.notifier);
+  FileSelectionNotifier get _notifier =>
+      _ref.read(fileSelectionProvider.notifier);
 
-  void enterSelectionMode(DocumentModel initialFile, List<DocumentModel> availableFiles) {
+  void enterSelectionMode(
+    DocumentModel initialFile,
+    List<DocumentModel> availableFiles,
+  ) {
     _notifier.enterSelectionMode(initialFile, availableFiles);
   }
 
@@ -90,25 +95,35 @@ class FileSelectionActions {
 }
 
 /// Provider for isolated file selection (for screens that need separate instances)
-final isolatedFileSelectionProvider = StateNotifierProvider.family<FileSelectionNotifier, FileSelectionState, String>((ref, screenId) {
-  return FileSelectionNotifier();
-});
+final isolatedFileSelectionProvider =
+    StateNotifierProvider.family<
+      FileSelectionNotifier,
+      FileSelectionState,
+      String
+    >((ref, screenId) {
+      return FileSelectionNotifier();
+    });
 
 /// Actions provider for isolated file selection
-final isolatedFileSelectionActionsProvider = Provider.family<FileSelectionActions, String>((ref, screenId) {
-  return IsolatedFileSelectionActions(ref, screenId);
-});
+final isolatedFileSelectionActionsProvider =
+    Provider.family<IsolatedFileSelectionActions, String>((ref, screenId) {
+      return IsolatedFileSelectionActions(ref, screenId);
+    });
 
 /// Isolated file selection actions class
 class IsolatedFileSelectionActions {
   final Ref _ref;
   final String _screenId;
-  
+
   IsolatedFileSelectionActions(this._ref, this._screenId);
 
-  FileSelectionNotifier get _notifier => _ref.read(isolatedFileSelectionProvider(_screenId).notifier);
+  FileSelectionNotifier get _notifier =>
+      _ref.read(isolatedFileSelectionProvider(_screenId).notifier);
 
-  void enterSelectionMode(DocumentModel initialFile, List<DocumentModel> availableFiles) {
+  void enterSelectionMode(
+    DocumentModel initialFile,
+    List<DocumentModel> availableFiles,
+  ) {
     _notifier.enterSelectionMode(initialFile, availableFiles);
   }
 

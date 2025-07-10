@@ -1,99 +1,91 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
-import '../../providers/notification_provider.dart';
+import '../../features/notification/providers/notification_providers.dart';
 import '../../models/notification_model.dart';
 
 import '../../widgets/common/loading_widget.dart';
 
-class NotificationCenterScreen extends StatefulWidget {
+class NotificationCenterScreen extends ConsumerStatefulWidget {
   const NotificationCenterScreen({super.key});
 
   @override
-  State<NotificationCenterScreen> createState() =>
+  ConsumerState<NotificationCenterScreen> createState() =>
       _NotificationCenterScreenState();
 }
 
-class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
+class _NotificationCenterScreenState
+    extends ConsumerState<NotificationCenterScreen> {
   String _selectedFilter = 'all';
   final List<String> _filterOptions = ['all', 'unread', 'approval', 'system'];
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<NotificationProvider>(
-      builder: (context, notificationProvider, child) {
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Notifications'),
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            leading: IconButton(
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(
-                Icons.chevron_left,
-                size: 28,
-                color: Colors.white,
-              ),
-              tooltip: 'Back',
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Notifications'),
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.chevron_left, size: 28, color: Colors.white),
+          tooltip: 'Back',
+        ),
+        actions: [
+          // Mark all as read button
+          if (ref.watch(hasUnreadNotificationsProvider))
+            IconButton(
+              icon: const Icon(Icons.mark_email_read),
+              onPressed: () => _markAllAsRead(),
+              tooltip: 'Mark all as read',
             ),
-            actions: [
-              // Mark all as read button
-              if (notificationProvider.hasUnreadNotifications)
-                IconButton(
-                  icon: const Icon(Icons.mark_email_read),
-                  onPressed: () => _markAllAsRead(notificationProvider),
-                  tooltip: 'Mark all as read',
+          // Clear all button
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) => _handleMenuAction(value),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'mark_all_read',
+                child: Row(
+                  children: [
+                    Icon(Icons.mark_email_read, size: 20),
+                    SizedBox(width: 8),
+                    Text('Mark all as read'),
+                  ],
                 ),
-              // Clear all button
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert),
-                onSelected: (value) =>
-                    _handleMenuAction(value, notificationProvider),
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'mark_all_read',
-                    child: Row(
-                      children: [
-                        Icon(Icons.mark_email_read, size: 20),
-                        SizedBox(width: 8),
-                        Text('Mark all as read'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'clear_all',
-                    child: Row(
-                      children: [
-                        Icon(Icons.clear_all, size: 20),
-                        SizedBox(width: 8),
-                        Text('Clear all'),
-                      ],
-                    ),
-                  ),
-                ],
+              ),
+              const PopupMenuItem(
+                value: 'clear_all',
+                child: Row(
+                  children: [
+                    Icon(Icons.clear_all, size: 20),
+                    SizedBox(width: 8),
+                    Text('Clear all'),
+                  ],
+                ),
               ),
             ],
           ),
-          body: RefreshIndicator(
-            onRefresh: () => notificationProvider.refresh(),
-            child: Column(
-              children: [
-                // Filter tabs
-                _buildFilterTabs(notificationProvider),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: () => ref.read(notificationActionsProvider).refresh(),
+        child: Column(
+          children: [
+            // Filter tabs
+            _buildFilterTabs(),
 
-                // Notification list
-                Expanded(child: _buildNotificationList(notificationProvider)),
-              ],
-            ),
-          ),
-        );
-      },
+            // Notification list
+            Expanded(child: _buildNotificationList()),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildFilterTabs(NotificationProvider provider) {
+  Widget _buildFilterTabs() {
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -104,7 +96,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       child: Row(
         children: _filterOptions.map((filter) {
           final isSelected = _selectedFilter == filter;
-          final count = _getFilterCount(filter, provider);
+          final count = _getFilterCount(filter);
 
           return Expanded(
             child: GestureDetector(
@@ -165,12 +157,13 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     );
   }
 
-  Widget _buildNotificationList(NotificationProvider provider) {
-    if (provider.isLoading) {
+  Widget _buildNotificationList() {
+    final isLoading = ref.watch(isNotificationLoadingProvider);
+    if (isLoading) {
       return const Center(child: LoadingWidget());
     }
 
-    final filteredNotifications = _getFilteredNotifications(provider);
+    final filteredNotifications = _getFilteredNotifications();
 
     if (filteredNotifications.isEmpty) {
       return _buildEmptyState();
@@ -181,15 +174,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       itemCount: filteredNotifications.length,
       itemBuilder: (context, index) {
         final notification = filteredNotifications[index];
-        return _buildNotificationItem(notification, provider);
+        return _buildNotificationItem(notification);
       },
     );
   }
 
-  Widget _buildNotificationItem(
-    NotificationModel notification,
-    NotificationProvider provider,
-  ) {
+  Widget _buildNotificationItem(NotificationModel notification) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -275,8 +265,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         ),
         trailing: PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert, size: 20),
-          onSelected: (value) =>
-              _handleNotificationAction(value, notification, provider),
+          onSelected: (value) => _handleNotificationAction(value, notification),
           itemBuilder: (context) => [
             if (!notification.isRead)
               const PopupMenuItem(
@@ -301,7 +290,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
             ),
           ],
         ),
-        onTap: () => _handleNotificationTap(notification, provider),
+        onTap: () => _handleNotificationTap(notification),
       ),
     );
   }
@@ -340,14 +329,13 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   }
 
   // Helper methods
-  List<NotificationModel> _getFilteredNotifications(
-    NotificationProvider provider,
-  ) {
+  List<NotificationModel> _getFilteredNotifications() {
     switch (_selectedFilter) {
       case 'unread':
-        return provider.unreadNotifications;
+        return ref.watch(unreadNotificationsProvider);
       case 'approval':
-        return provider.notifications
+        return ref
+            .watch(notificationsProvider)
             .where(
               (n) =>
                   n.type == NotificationType.fileApproved ||
@@ -356,20 +344,22 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
             )
             .toList();
       case 'system':
-        return provider.notifications
+        return ref
+            .watch(notificationsProvider)
             .where((n) => n.type == NotificationType.systemNotification)
             .toList();
       default:
-        return provider.notifications;
+        return ref.watch(notificationsProvider);
     }
   }
 
-  int _getFilterCount(String filter, NotificationProvider provider) {
+  int _getFilterCount(String filter) {
     switch (filter) {
       case 'unread':
-        return provider.unreadCount;
+        return ref.watch(unreadCountProvider);
       case 'approval':
-        return provider.notifications
+        return ref
+            .watch(notificationsProvider)
             .where(
               (n) =>
                   n.type == NotificationType.fileApproved ||
@@ -378,11 +368,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
             )
             .length;
       case 'system':
-        return provider.notifications
+        return ref
+            .watch(notificationsProvider)
             .where((n) => n.type == NotificationType.systemNotification)
             .length;
       default:
-        return provider.notifications.length;
+        return ref.watch(notificationsProvider).length;
     }
   }
 
@@ -429,13 +420,10 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     }
   }
 
-  void _handleNotificationTap(
-    NotificationModel notification,
-    NotificationProvider provider,
-  ) {
+  void _handleNotificationTap(NotificationModel notification) {
     // Mark as read if not already read
     if (!notification.isRead) {
-      provider.markAsRead(notification.id);
+      ref.read(notificationActionsProvider).markAsRead(notification.id);
     }
 
     // Navigate to relevant screen if actionUrl is provided
@@ -454,40 +442,36 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   void _handleNotificationAction(
     String action,
     NotificationModel notification,
-    NotificationProvider provider,
   ) {
     switch (action) {
       case 'mark_read':
-        provider.markAsRead(notification.id);
+        ref.read(notificationActionsProvider).markAsRead(notification.id);
         break;
       case 'delete':
-        _showDeleteConfirmation(notification, provider);
+        _showDeleteConfirmation(notification);
         break;
     }
   }
 
-  void _handleMenuAction(String action, NotificationProvider provider) {
+  void _handleMenuAction(String action) {
     switch (action) {
       case 'mark_all_read':
-        _markAllAsRead(provider);
+        _markAllAsRead();
         break;
       case 'clear_all':
-        _showClearAllConfirmation(provider);
+        _showClearAllConfirmation();
         break;
     }
   }
 
-  void _markAllAsRead(NotificationProvider provider) {
-    provider.markAllAsRead();
+  void _markAllAsRead() {
+    ref.read(notificationActionsProvider).markAllAsRead();
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('All notifications marked as read')),
     );
   }
 
-  void _showDeleteConfirmation(
-    NotificationModel notification,
-    NotificationProvider provider,
-  ) {
+  void _showDeleteConfirmation(NotificationModel notification) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -502,7 +486,9 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           ),
           TextButton(
             onPressed: () {
-              provider.deleteNotification(notification.id);
+              ref
+                  .read(notificationActionsProvider)
+                  .deleteNotification(notification.id);
               Navigator.pop(context);
             },
             child: const Text('Delete'),
@@ -512,7 +498,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     );
   }
 
-  void _showClearAllConfirmation(NotificationProvider provider) {
+  void _showClearAllConfirmation() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -527,7 +513,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           ),
           TextButton(
             onPressed: () {
-              provider.clearAllNotifications();
+              ref.read(notificationActionsProvider).clearAllNotifications();
               Navigator.pop(context);
             },
             child: const Text('Clear All'),

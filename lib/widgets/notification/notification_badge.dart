@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
-import '../../providers/notification_provider.dart';
+import '../../features/notification/providers/notification_providers.dart';
 
-class NotificationBadge extends StatelessWidget {
+class NotificationBadge extends ConsumerWidget {
   final Widget child;
   final bool showBadge;
   final int? customCount;
@@ -25,54 +25,50 @@ class NotificationBadge extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (!showBadge) return child;
 
-    return Consumer<NotificationProvider>(
-      builder: (context, notificationProvider, _) {
-        final count = customCount ?? notificationProvider.unreadCount;
+    final count = customCount ?? ref.watch(unreadCountProvider);
 
-        if (count <= 0) return child;
+    if ((count ?? 0) <= 0) return child;
 
-        return Stack(
-          clipBehavior: Clip.none,
-          children: [
-            child,
-            Positioned(
-              right: (badgeOffset?.right ?? -8),
-              top: (badgeOffset?.top ?? -8),
-              child: Container(
-                width: badgeSize ?? 18,
-                height: badgeSize ?? 18,
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                decoration: BoxDecoration(
-                  color: badgeColor ?? AppColors.error,
-                  borderRadius: BorderRadius.circular((badgeSize ?? 18) / 2),
-                  border: Border.all(color: Colors.white, width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.2),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        child,
+        Positioned(
+          right: (badgeOffset?.right ?? -8),
+          top: (badgeOffset?.top ?? -8),
+          child: Container(
+            width: badgeSize ?? 18,
+            height: badgeSize ?? 18,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            decoration: BoxDecoration(
+              color: badgeColor ?? AppColors.error,
+              borderRadius: BorderRadius.circular((badgeSize ?? 18) / 2),
+              border: Border.all(color: Colors.white, width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.2),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
                 ),
-                child: Center(
-                  child: Text(
-                    count > 99 ? '99+' : count.toString(),
-                    style: GoogleFonts.poppins(
-                      fontSize: (badgeSize ?? 18) * 0.6,
-                      fontWeight: FontWeight.w600,
-                      color: textColor ?? Colors.white,
-                      height: 1,
-                    ),
-                  ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                (count ?? 0) > 99 ? '99+' : (count ?? 0).toString(),
+                style: GoogleFonts.poppins(
+                  fontSize: (badgeSize ?? 18) * 0.6,
+                  fontWeight: FontWeight.w600,
+                  color: textColor ?? Colors.white,
+                  height: 1,
                 ),
               ),
             ),
-          ],
-        );
-      },
+          ),
+        ),
+      ],
     );
   }
 }
@@ -162,85 +158,75 @@ class NotificationMenuItem extends StatelessWidget {
   }
 }
 
-class NotificationSummaryCard extends StatelessWidget {
+class NotificationSummaryCard extends ConsumerWidget {
   final VoidCallback? onTap;
 
   const NotificationSummaryCard({super.key, this.onTap});
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer<NotificationProvider>(
-      builder: (context, notificationProvider, child) {
-        final stats = notificationProvider.stats;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stats = ref.watch(notificationStatsProvider);
 
-        return Card(
-          elevation: 2,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return Card(
+      elevation: 2,
+      margin: const EdgeInsets.all(16),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.notifications,
-                        color: AppColors.primary,
-                        size: 20,
+                  Icon(Icons.notifications, color: AppColors.primary, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Notifications',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (stats.unreadCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Notifications',
+                      decoration: BoxDecoration(
+                        color: AppColors.error,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        stats.unreadCount.toString(),
                         style: GoogleFonts.poppins(
-                          fontSize: 16,
+                          fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                          color: Colors.white,
                         ),
                       ),
-                      const Spacer(),
-                      if (stats.unreadCount > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.error,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            stats.unreadCount.toString(),
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      _buildStatItem('Total', stats.totalCount.toString()),
-                      const SizedBox(width: 16),
-                      _buildStatItem('Unread', stats.unreadCount.toString()),
-                      const SizedBox(width: 16),
-                      _buildStatItem('Today', stats.todayCount.toString()),
-                    ],
-                  ),
+                    ),
                 ],
               ),
-            ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _buildStatItem('Total', stats.totalCount.toString()),
+                  const SizedBox(width: 16),
+                  _buildStatItem('Unread', stats.unreadCount.toString()),
+                  const SizedBox(width: 16),
+                  _buildStatItem('Today', stats.todayCount.toString()),
+                ],
+              ),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -268,32 +254,30 @@ class NotificationSummaryCard extends StatelessWidget {
   }
 }
 
-class NotificationFloatingButton extends StatelessWidget {
+class NotificationFloatingButton extends ConsumerWidget {
   final VoidCallback? onPressed;
 
   const NotificationFloatingButton({super.key, this.onPressed});
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer<NotificationProvider>(
-      builder: (context, notificationProvider, child) {
-        if (notificationProvider.unreadCount <= 0) {
-          return const SizedBox.shrink();
-        }
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unreadCount = ref.watch(unreadCountProvider);
 
-        return Positioned(
-          bottom: 100,
-          right: 16,
-          child: NotificationBadge(
-            badgeOffset: const EdgeInsets.only(right: -4, top: -4),
-            child: FloatingActionButton(
-              onPressed: onPressed,
-              backgroundColor: AppColors.primary,
-              child: const Icon(Icons.notifications, color: Colors.white),
-            ),
-          ),
-        );
-      },
+    if (unreadCount <= 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Positioned(
+      bottom: 100,
+      right: 16,
+      child: NotificationBadge(
+        badgeOffset: const EdgeInsets.only(right: -4, top: -4),
+        child: FloatingActionButton(
+          onPressed: onPressed,
+          backgroundColor: AppColors.primary,
+          child: const Icon(Icons.notifications, color: Colors.white),
+        ),
+      ),
     );
   }
 }

@@ -211,14 +211,7 @@ class _MyAppState extends State<MyApp> {
                 create: (_) => HybridUploadProvider(),
                 lazy: true, // Initialize when needed to prevent startup delay
               ),
-              ChangeNotifierProvider(
-                create: (_) => FileSelectionProvider(),
-                lazy: true, // Initialize when needed to prevent startup delay
-              ),
-              ChangeNotifierProvider(
-                create: (_) => NotificationProvider(),
-                lazy: true, // Initialize when needed to prevent startup delay
-              ),
+
               ChangeNotifierProvider(
                 create: (_) => SyncProvider(),
                 lazy: true, // Initialize when needed to prevent startup delay

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
-import '../../providers/file_selection_provider.dart';
+import '../../features/file_selection/providers/file_selection_providers.dart';
 
 /// Reusable add-only selection bar widget with responsive design
-class AddOnlySelectionBarWidget extends StatelessWidget {
-  final FileSelectionProvider selectionProvider;
+class AddOnlySelectionBarWidget extends ConsumerWidget {
+  final String screenId; // Required for isolated file selection
   final VoidCallback? onAdd;
   final VoidCallback? onClose;
   final String? addButtonText;
@@ -13,7 +14,7 @@ class AddOnlySelectionBarWidget extends StatelessWidget {
 
   const AddOnlySelectionBarWidget({
     super.key,
-    required this.selectionProvider,
+    required this.screenId,
     this.onAdd,
     this.onClose,
     this.addButtonText,
@@ -21,8 +22,11 @@ class AddOnlySelectionBarWidget extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    if (!selectionProvider.isSelectionMode) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectionState = ref.watch(isolatedFileSelectionProvider(screenId));
+    final actions = ref.read(isolatedFileSelectionActionsProvider(screenId));
+
+    if (!selectionState.isSelectionMode) {
       return const SizedBox.shrink();
     }
 
@@ -44,27 +48,34 @@ class AddOnlySelectionBarWidget extends StatelessWidget {
           ),
         ),
       ),
-      child: isSmallScreen 
-        ? _buildCompactLayout()
-        : _buildStandardLayout(isTablet),
+      child: isSmallScreen
+          ? _buildCompactLayout(selectionState, actions)
+          : _buildStandardLayout(isTablet, selectionState, actions),
     );
   }
 
-  Widget _buildCompactLayout() {
+  Widget _buildCompactLayout(selectionState, actions) {
     return Column(
       children: [
         Row(
           children: [
-            _buildCloseButton(true),
+            _buildCloseButton(true, actions),
             const SizedBox(width: 8),
-            Expanded(child: _buildSelectionText(true, false)),
+            Expanded(child: _buildSelectionText(true, false, selectionState)),
           ],
         ),
-        if (selectionProvider.hasSelection) ...[
+        if (selectionState.selectedFileIds.isNotEmpty) ...[
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(child: _buildSelectAllButton(true, false)),
+              Expanded(
+                child: _buildSelectAllButton(
+                  true,
+                  false,
+                  selectionState,
+                  actions,
+                ),
+              ),
               const SizedBox(width: 8),
               Expanded(child: _buildAddButton(true, false)),
             ],
@@ -74,14 +85,14 @@ class AddOnlySelectionBarWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildStandardLayout(bool isTablet) {
+  Widget _buildStandardLayout(bool isTablet, selectionState, actions) {
     return Row(
       children: [
-        _buildCloseButton(false),
+        _buildCloseButton(false, actions),
         const SizedBox(width: 12),
-        Expanded(child: _buildSelectionText(false, isTablet)),
-        if (selectionProvider.hasSelection) ...[
-          _buildSelectAllButton(false, isTablet),
+        Expanded(child: _buildSelectionText(false, isTablet, selectionState)),
+        if (selectionState.selectedFileIds.isNotEmpty) ...[
+          _buildSelectAllButton(false, isTablet, selectionState, actions),
           const SizedBox(width: 8),
           _buildAddButton(false, isTablet),
         ],
@@ -89,9 +100,9 @@ class AddOnlySelectionBarWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildCloseButton(bool isSmallScreen) {
+  Widget _buildCloseButton(bool isSmallScreen, actions) {
     return IconButton(
-      onPressed: onClose ?? () => selectionProvider.exitSelectionMode(),
+      onPressed: onClose ?? () => actions.exitSelectionMode(),
       icon: const Icon(Icons.close),
       color: AppColors.primary,
       padding: EdgeInsets.zero,
@@ -102,9 +113,14 @@ class AddOnlySelectionBarWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildSelectionText(bool isSmallScreen, bool isTablet) {
+  Widget _buildSelectionText(
+    bool isSmallScreen,
+    bool isTablet,
+    selectionState,
+  ) {
     return Text(
-      selectionText ?? '${selectionProvider.selectedCount} file(s) selected',
+      selectionText ??
+          '${selectionState.selectedFileIds.length} file(s) selected',
       style: GoogleFonts.poppins(
         fontSize: isSmallScreen ? 14 : (isTablet ? 18 : 16),
         fontWeight: FontWeight.w600,
@@ -113,13 +129,21 @@ class AddOnlySelectionBarWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildSelectAllButton(bool isSmallScreen, bool isTablet) {
+  Widget _buildSelectAllButton(
+    bool isSmallScreen,
+    bool isTablet,
+    selectionState,
+    actions,
+  ) {
+    final isAllSelected =
+        selectionState.availableFiles.isNotEmpty &&
+        selectionState.selectedFileIds.length ==
+            selectionState.availableFiles.length;
+
     return TextButton(
-      onPressed: selectionProvider.isAllSelected
-        ? selectionProvider.clearSelection
-        : selectionProvider.selectAll,
+      onPressed: isAllSelected ? actions.clearSelection : actions.selectAll,
       child: Text(
-        selectionProvider.isAllSelected ? 'Clear All' : 'Select All',
+        isAllSelected ? 'Clear All' : 'Select All',
         style: GoogleFonts.poppins(
           fontSize: isSmallScreen ? 12 : (isTablet ? 16 : 14),
           fontWeight: FontWeight.w500,
@@ -147,9 +171,7 @@ class AddOnlySelectionBarWidget extends StatelessWidget {
           horizontal: isSmallScreen ? 12 : 16,
           vertical: isSmallScreen ? 6 : 8,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }

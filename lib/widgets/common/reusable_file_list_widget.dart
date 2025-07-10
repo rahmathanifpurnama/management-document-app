@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../utils/date_formatter.dart';
 
 import '../../models/document_model.dart';
-import '../../providers/file_selection_provider.dart';
+import '../../features/file_selection/providers/file_selection_providers.dart';
 import '../../providers/document_provider.dart';
 import '../../services/bulk_operations_service.dart';
 
 /// Reusable file list widget that can be used across different screens
-class ReusableFileListWidget extends StatefulWidget {
+class ReusableFileListWidget extends ConsumerStatefulWidget {
   final List<DocumentModel> documents;
   final String title;
   final Function(DocumentModel)? onDocumentTap;
@@ -39,10 +39,11 @@ class ReusableFileListWidget extends StatefulWidget {
   });
 
   @override
-  State<ReusableFileListWidget> createState() => _ReusableFileListWidgetState();
+  ConsumerState<ReusableFileListWidget> createState() =>
+      _ReusableFileListWidgetState();
 }
 
-class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
+class _ReusableFileListWidgetState extends ConsumerState<ReusableFileListWidget>
     with TickerProviderStateMixin {
   int _currentPage = 0;
   bool _isTransitioning = false;
@@ -85,106 +86,102 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
         : widget.documents.length;
     final currentPageDocuments = widget.documents.sublist(startIndex, endIndex);
 
-    return Consumer2<FileSelectionProvider, DocumentProvider>(
-      builder: (context, selectionProvider, documentProvider, child) {
-        // CRITICAL FIX: Remove problematic updateAvailableFiles call that causes race conditions
-        // Available files are already set when entering selection mode in enterSelectionMode()
-        // This prevents multiple widgets from updating the same provider simultaneously
+    final documentProvider = ref.watch(
+      ChangeNotifierProvider((ref) => DocumentProvider()),
+    );
 
-        // Show loading state if documents are being loaded and no documents available
-        if (documentProvider.isLoading && widget.documents.isEmpty) {
-          return Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header with title and filter
-                if (widget.title.isNotEmpty)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        widget.title,
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      if (widget.showFilter && widget.onFilterTap != null)
-                        IconButton(
-                          onPressed: widget.onFilterTap,
-                          icon: const Icon(
-                            Icons.filter_list,
-                            color: AppColors.textSecondary,
-                            size: 20,
-                          ),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 24,
-                            minHeight: 24,
-                          ),
-                          tooltip: 'Filter Files',
-                        ),
-                    ],
+    // Show loading state if documents are being loaded and no documents available
+    if (documentProvider.isLoading && widget.documents.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header with title and filter
+            if (widget.title.isNotEmpty)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    widget.title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                // Loading indicator
-                _buildLoadingState(),
+                  if (widget.showFilter && widget.onFilterTap != null)
+                    IconButton(
+                      onPressed: widget.onFilterTap,
+                      icon: const Icon(
+                        Icons.filter_list,
+                        color: AppColors.textSecondary,
+                        size: 20,
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 24,
+                        minHeight: 24,
+                      ),
+                      tooltip: 'Filter Files',
+                    ),
+                ],
+              ),
+            // Loading indicator
+            _buildLoadingState(),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header with title and filter
+          if (widget.title.isNotEmpty)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  widget.title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                if (widget.showFilter && widget.onFilterTap != null)
+                  IconButton(
+                    onPressed: widget.onFilterTap,
+                    icon: const Icon(
+                      Icons.filter_list,
+                      color: AppColors.textSecondary,
+                      size: 20,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 24,
+                      minHeight: 24,
+                    ),
+                    tooltip: 'Filter Files',
+                  ),
               ],
             ),
-          );
-        }
 
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header with title and filter
-              if (widget.title.isNotEmpty)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      widget.title,
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    if (widget.showFilter && widget.onFilterTap != null)
-                      IconButton(
-                        onPressed: widget.onFilterTap,
-                        icon: const Icon(
-                          Icons.filter_list,
-                          color: AppColors.textSecondary,
-                          size: 20,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 24,
-                          minHeight: 24,
-                        ),
-                        tooltip: 'Filter Files',
-                      ),
-                  ],
-                ),
+          // Files List
+          _buildFilesList(currentPageDocuments),
 
-              // Files List
-              _buildFilesList(currentPageDocuments, selectionProvider),
-
-              // Pagination Controls
-              if (widget.showPagination && totalPages > 1) ...[
-                const SizedBox(height: 16),
-                _buildPaginationControls(totalPages),
-              ],
-            ],
-          ),
-        );
-      },
+          // Pagination Controls
+          if (widget.showPagination && totalPages > 1) ...[
+            const SizedBox(height: 16),
+            _buildPaginationControls(totalPages),
+          ],
+        ],
+      ),
     );
   }
 
@@ -227,10 +224,7 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
   }
 
   /// Build files list widget
-  Widget _buildFilesList(
-    List<DocumentModel> documents,
-    FileSelectionProvider selectionProvider,
-  ) {
+  Widget _buildFilesList(List<DocumentModel> documents) {
     // Show loading state during transitions
     if (_isTransitioning) {
       return Container(
@@ -307,7 +301,7 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
             final document = entry.value;
             final isLast = index == documents.length - 1;
 
-            return _buildFileListItem(document, isLast, selectionProvider);
+            return _buildFileListItem(document, isLast);
           }).toList(),
         ),
       ),
@@ -315,13 +309,10 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
   }
 
   /// Build individual file list item
-  Widget _buildFileListItem(
-    DocumentModel document,
-    bool isLast,
-    FileSelectionProvider selectionProvider,
-  ) {
-    final isSelected = selectionProvider.isFileSelected(document.id);
-    final isSelectionMode = selectionProvider.isSelectionMode;
+  Widget _buildFileListItem(DocumentModel document, bool isLast) {
+    final selectedFileIds = ref.watch(selectedFileIdsProvider);
+    final isSelectionMode = ref.watch(isSelectionModeProvider);
+    final isSelected = selectedFileIds.contains(document.id);
     return Container(
       decoration: BoxDecoration(
         color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : null,
@@ -338,8 +329,8 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () => _handleTap(document, selectionProvider),
-          onLongPress: () => _handleLongPress(document, selectionProvider),
+          onTap: () => _handleTap(document),
+          onLongPress: () => _handleLongPress(document),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -349,7 +340,9 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
                   Checkbox(
                     value: isSelected,
                     onChanged: (value) {
-                      selectionProvider.toggleFileSelection(document.id);
+                      ref
+                          .read(fileSelectionProvider.notifier)
+                          .toggleFileSelection(document.id);
                     },
                     activeColor: AppColors.primary,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -731,13 +724,12 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
   }
 
   /// Handle tap on file item
-  void _handleTap(
-    DocumentModel document,
-    FileSelectionProvider selectionProvider,
-  ) {
-    if (selectionProvider.isSelectionMode) {
+  void _handleTap(DocumentModel document) {
+    final isSelectionMode = ref.read(isSelectionModeProvider);
+
+    if (isSelectionMode) {
       // In selection mode, toggle selection
-      selectionProvider.toggleFileSelection(document.id);
+      ref.read(fileSelectionProvider.notifier).toggleFileSelection(document.id);
     } else {
       // Normal mode, call the document tap callback
       widget.onDocumentTap?.call(document);
@@ -745,22 +737,23 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
   }
 
   /// Handle long press on file item
-  void _handleLongPress(
-    DocumentModel document,
-    FileSelectionProvider selectionProvider,
-  ) {
-    if (selectionProvider.isSelectionMode) {
+  void _handleLongPress(DocumentModel document) {
+    final isSelectionMode = ref.read(isSelectionModeProvider);
+    final hasSelection = ref.read(hasSelectionProvider);
+    final selectedFiles = ref.read(selectedFilesProvider);
+
+    if (isSelectionMode) {
       // In selection mode, show bulk operations menu
-      if (selectionProvider.hasSelection) {
+      if (hasSelection) {
         BulkOperationsService.showBulkOperationsMenu(
           context: context,
-          selectedFiles: selectionProvider.selectedFiles,
+          selectedFiles: selectedFiles,
           categoryId: widget
               .categoryId, // Pass categoryId for folder-specific operations
           onOperationComplete: () async {
             try {
               // Exit selection mode safely
-              selectionProvider.exitSelectionMode();
+              ref.read(fileSelectionProvider.notifier).exitSelectionMode();
 
               // Use smooth transition for better UX
               await _handleSmoothTransition();
@@ -778,7 +771,9 @@ class _ReusableFileListWidgetState extends State<ReusableFileListWidget>
       }
     } else {
       // Enter selection mode with this file
-      selectionProvider.enterSelectionMode(document, widget.documents);
+      ref
+          .read(fileSelectionProvider.notifier)
+          .enterSelectionMode(document, widget.documents);
     }
   }
 }

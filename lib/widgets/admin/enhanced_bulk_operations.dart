@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
-import '../../providers/file_selection_provider.dart';
+import '../../features/file_selection/providers/file_selection_providers.dart';
 import '../../models/document_model.dart';
 import 'bulk_operations_dialog.dart';
 
-class EnhancedBulkOperations extends StatelessWidget {
+class EnhancedBulkOperations extends ConsumerWidget {
   final Function(List<DocumentModel> documents)? onDelete;
   final Function(List<DocumentModel> documents)? onDownload;
   final Function(List<DocumentModel> documents)? onMove;
@@ -25,134 +25,123 @@ class EnhancedBulkOperations extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer<FileSelectionProvider>(
-      builder: (context, selectionProvider, child) {
-        // Show UI when in selection mode, regardless of selection count
-        if (!selectionProvider.shouldShowSelectionUI) {
-          return const SizedBox.shrink();
-        }
+  Widget build(BuildContext context, WidgetRef ref) {
+    final shouldShowSelectionUI = ref.watch(shouldShowSelectionUIProvider);
 
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.shadow.withValues(alpha: 0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+    // Show UI when in selection mode, regardless of selection count
+    if (!shouldShowSelectionUI) {
+      return const SizedBox.shrink();
+    }
+
+    final selectedCount = ref.watch(selectedCountProvider);
+    final hasSelection = ref.watch(hasSelectionProvider);
+    final isAllSelected = ref.watch(isAllSelectedProvider);
+    final selectedFiles = ref.watch(selectedFilesProvider);
+    final actions = ref.read(fileSelectionActionsProvider);
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          child: Column(
+        ],
+      ),
+      child: Column(
+        children: [
+          // Selection summary
+          Row(
             children: [
-              // Selection summary
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      '${selectionProvider.selectedCount} selected',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  '$selectedCount selected',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
                   ),
-                  const Spacer(),
-                  // Select All / Clear All toggle
-                  TextButton.icon(
-                    onPressed: () => _toggleSelectAll(selectionProvider),
-                    icon: Icon(
-                      selectionProvider.isAllSelected
-                          ? Icons.deselect
-                          : Icons.select_all,
-                      size: 16,
-                    ),
-                    label: Text(
-                      selectionProvider.isAllSelected
-                          ? 'Clear All'
-                          : 'Select All',
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                    ),
-                  ),
-                ],
+                ),
               ),
-              const SizedBox(height: 12),
-
-              // Action buttons
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  // File actions (only show when files are selected)
-                  if (showFileActions &&
-                      onDownload != null &&
-                      selectionProvider.hasSelection)
-                    _buildActionButton(
-                      context: context,
-                      icon: Icons.download,
-                      label: 'Download',
-                      color: AppColors.primary,
-                      onPressed: () =>
-                          onDownload!(selectionProvider.selectedFiles),
-                    ),
-
-                  if (showMoveAction &&
-                      onMove != null &&
-                      selectionProvider.hasSelection)
-                    _buildActionButton(
-                      context: context,
-                      icon: Icons.folder_open,
-                      label: 'Move',
-                      color: AppColors.primary,
-                      onPressed: () => onMove!(selectionProvider.selectedFiles),
-                    ),
-
-                  if (showFileActions &&
-                      onDelete != null &&
-                      selectionProvider.hasSelection)
-                    _buildActionButton(
-                      context: context,
-                      icon: Icons.delete,
-                      label: 'Delete',
-                      color: AppColors.error,
-                      onPressed: () => _showBulkDialog(
-                        context,
-                        BulkOperationType.delete,
-                        selectionProvider.selectedFiles,
-                        (documents, reason) => onDelete!(documents),
-                      ),
-                    ),
-
-                  // Exit selection mode button (always show when in selection mode)
-                  _buildActionButton(
-                    context: context,
-                    icon: Icons.close,
-                    label: 'Exit',
-                    color: AppColors.textSecondary,
-                    onPressed: () => selectionProvider.exitSelectionMode(),
-                  ),
-                ],
+              const Spacer(),
+              // Select All / Clear All toggle
+              TextButton.icon(
+                onPressed: () => _toggleSelectAll(ref),
+                icon: Icon(
+                  isAllSelected ? Icons.deselect : Icons.select_all,
+                  size: 16,
+                ),
+                label: Text(isAllSelected ? 'Clear All' : 'Select All'),
+                style: TextButton.styleFrom(foregroundColor: AppColors.primary),
               ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 12),
+
+          // Action buttons
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              // File actions (only show when files are selected)
+              if (showFileActions && onDownload != null && hasSelection)
+                _buildActionButton(
+                  context: context,
+                  icon: Icons.download,
+                  label: 'Download',
+                  color: AppColors.primary,
+                  onPressed: () => onDownload!(selectedFiles),
+                ),
+
+              if (showMoveAction && onMove != null && hasSelection)
+                _buildActionButton(
+                  context: context,
+                  icon: Icons.folder_open,
+                  label: 'Move',
+                  color: AppColors.primary,
+                  onPressed: () => onMove!(selectedFiles),
+                ),
+
+              if (showFileActions && onDelete != null && hasSelection)
+                _buildActionButton(
+                  context: context,
+                  icon: Icons.delete,
+                  label: 'Delete',
+                  color: AppColors.error,
+                  onPressed: () => _showBulkDialog(
+                    context,
+                    BulkOperationType.delete,
+                    selectedFiles,
+                    (documents, reason) => onDelete!(documents),
+                  ),
+                ),
+
+              // Exit selection mode button (always show when in selection mode)
+              _buildActionButton(
+                context: context,
+                icon: Icons.close,
+                label: 'Exit',
+                color: AppColors.textSecondary,
+                onPressed: () => actions.exitSelectionMode(),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -180,11 +169,14 @@ class EnhancedBulkOperations extends StatelessWidget {
     );
   }
 
-  void _toggleSelectAll(FileSelectionProvider selectionProvider) {
-    if (selectionProvider.isAllSelected) {
-      selectionProvider.clearSelection();
+  void _toggleSelectAll(WidgetRef ref) {
+    final actions = ref.read(fileSelectionActionsProvider);
+    final isAllSelected = ref.read(isAllSelectedProvider);
+
+    if (isAllSelected) {
+      actions.clearSelection();
     } else {
-      selectionProvider.selectAll();
+      actions.selectAll();
     }
   }
 
@@ -211,19 +203,23 @@ class EnhancedBulkOperations extends StatelessWidget {
 }
 
 /// Compact bulk operations bar for smaller spaces
-class CompactBulkOperations extends StatelessWidget {
+class CompactBulkOperations extends ConsumerWidget {
   final Function(List<DocumentModel> documents)? onDelete;
 
   const CompactBulkOperations({super.key, this.onDelete});
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer<FileSelectionProvider>(
-      builder: (context, selectionProvider, child) {
-        // Show UI when in selection mode, regardless of selection count
-        if (!selectionProvider.shouldShowSelectionUI) {
-          return const SizedBox.shrink();
-        }
+  Widget build(BuildContext context, WidgetRef ref) {
+    final shouldShowSelectionUI = ref.watch(shouldShowSelectionUIProvider);
+
+    // Show UI when in selection mode, regardless of selection count
+    if (!shouldShowSelectionUI) {
+      return const SizedBox.shrink();
+    }
+
+    final selectedCount = ref.watch(selectedCountProvider);
+    final selectedFiles = ref.watch(selectedFilesProvider);
+    final actions = ref.read(fileSelectionActionsProvider);
 
         return Container(
           height: 56,
@@ -244,7 +240,7 @@ class CompactBulkOperations extends StatelessWidget {
             children: [
               // Selection count
               Text(
-                '${selectionProvider.selectedCount} selected',
+                '$selectedCount selected',
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -259,7 +255,7 @@ class CompactBulkOperations extends StatelessWidget {
                   onPressed: () => _showBulkDialog(
                     context,
                     BulkOperationType.delete,
-                    selectionProvider.selectedFiles,
+                    selectedFiles,
                     (documents, reason) => onDelete!(documents),
                   ),
                   icon: const Icon(Icons.delete, color: Colors.white),
@@ -268,15 +264,14 @@ class CompactBulkOperations extends StatelessWidget {
 
               // Clear selection
               IconButton(
-                onPressed: () => selectionProvider.clearSelection(),
+                onPressed: () => actions.clearSelection(),
                 icon: const Icon(Icons.clear, color: Colors.white),
                 tooltip: 'Clear selection',
               ),
             ],
           ),
         );
-      },
-    );
+  }
   }
 
   void _showBulkDialog(

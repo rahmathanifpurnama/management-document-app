@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/document_model.dart';
-import '../../providers/file_selection_provider.dart';
+import '../../features/file_selection/providers/file_selection_providers.dart';
 import '../../providers/document_provider.dart';
 import '../../services/bulk_operations_service.dart';
 import '../../theme/app_colors.dart';
@@ -13,7 +13,7 @@ import '../../utils/date_formatter.dart';
 import '../common/responsive_layout_widget.dart';
 
 /// Reusable file grid widget with pagination support
-class ReusableFileGridWidget extends StatefulWidget {
+class ReusableFileGridWidget extends ConsumerStatefulWidget {
   final List<DocumentModel> documents;
   final String title;
   final Function(DocumentModel)? onDocumentTap;
@@ -43,10 +43,12 @@ class ReusableFileGridWidget extends StatefulWidget {
   });
 
   @override
-  State<ReusableFileGridWidget> createState() => _ReusableFileGridWidgetState();
+  ConsumerState<ReusableFileGridWidget> createState() =>
+      _ReusableFileGridWidgetState();
 }
 
-class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
+class _ReusableFileGridWidgetState
+    extends ConsumerState<ReusableFileGridWidget> {
   int _currentPage = 0;
 
   @override
@@ -62,53 +64,56 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
         : widget.documents.length;
     final currentPageDocuments = widget.documents.sublist(startIndex, endIndex);
 
-    return Consumer2<FileSelectionProvider, DocumentProvider>(
-      builder: (context, selectionProvider, documentProvider, child) {
-        // Update available files for selection only when necessary
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (selectionProvider.isSelectionMode) {
-            // Only update if we're in selection mode to avoid unnecessary calls
-            selectionProvider.updateAvailableFiles(widget.documents);
-          }
-        });
+    final isSelectionMode = ref.watch(isSelectionModeProvider);
+    final documentProvider = ref.watch(
+      ChangeNotifierProvider((ref) => DocumentProvider()),
+    );
 
-        // Show loading state if documents are being loaded and no documents available
-        if (documentProvider.isLoading && widget.documents.isEmpty) {
-          return Container(
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: Column(
-              children: [
-                // Filter Header
-                if (widget.showFilter) _buildFilterHeader(),
-                // Loading indicator
-                _buildLoadingState(),
-              ],
-            ),
-          );
-        }
+    // Update available files for selection only when necessary
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (isSelectionMode) {
+        // Only update if we're in selection mode to avoid unnecessary calls
+        ref
+            .read(fileSelectionProvider.notifier)
+            .updateAvailableFiles(widget.documents);
+      }
+    });
 
-        return Container(
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Column(
-            children: [
-              // Filter Header
-              if (widget.showFilter) _buildFilterHeader(),
+    // Show loading state if documents are being loaded and no documents available
+    if (documentProvider.isLoading && widget.documents.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          children: [
+            // Filter Header
+            if (widget.showFilter) _buildFilterHeader(),
+            // Loading indicator
+            _buildLoadingState(),
+          ],
+        ),
+      );
+    }
 
-              // Grid View
-              if (currentPageDocuments.isEmpty)
-                _buildEmptyState()
-              else
-                _buildGrid(currentPageDocuments, selectionProvider),
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        children: [
+          // Filter Header
+          if (widget.showFilter) _buildFilterHeader(),
 
-              // Pagination Controls
-              if (widget.showPagination && totalPages > 1) ...[
-                const SizedBox(height: 16),
-                _buildPaginationControls(totalPages),
-              ],
-            ],
-          ),
-        );
-      },
+          // Grid View
+          if (currentPageDocuments.isEmpty)
+            _buildEmptyState()
+          else
+            _buildGrid(currentPageDocuments),
+
+          // Pagination Controls
+          if (widget.showPagination && totalPages > 1) ...[
+            const SizedBox(height: 16),
+            _buildPaginationControls(totalPages),
+          ],
+        ],
+      ),
     );
   }
 
@@ -175,10 +180,7 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
   }
 
   /// Build grid view with responsive layout
-  Widget _buildGrid(
-    List<DocumentModel> documents,
-    FileSelectionProvider selectionProvider,
-  ) {
+  Widget _buildGrid(List<DocumentModel> documents) {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -202,21 +204,19 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
       itemCount: documents.length,
       itemBuilder: (context, index) {
         final document = documents[index];
-        return _buildGridItem(document, selectionProvider);
+        return _buildGridItem(document);
       },
     );
   }
 
   /// Build individual grid item
-  Widget _buildGridItem(
-    DocumentModel document,
-    FileSelectionProvider selectionProvider,
-  ) {
-    final isSelected = selectionProvider.isFileSelected(document.id);
+  Widget _buildGridItem(DocumentModel document) {
+    final selectedFileIds = ref.watch(selectedFileIdsProvider);
+    final isSelected = selectedFileIds.contains(document.id);
 
     return GestureDetector(
-      onTap: () => _handleGridItemTap(document, selectionProvider),
-      onLongPress: () => _handleGridItemLongPress(document, selectionProvider),
+      onTap: () => _handleGridItemTap(document),
+      onLongPress: () => _handleGridItemLongPress(document),
       child: Container(
         decoration: BoxDecoration(
           color: isSelected
@@ -261,7 +261,7 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
                       ),
                     ),
                     // Selection indicator (only show in selection mode)
-                    if (selectionProvider.isSelectionMode)
+                    if (ref.watch(isSelectionModeProvider))
                       Positioned(
                         top: 0,
                         right: 0,
@@ -322,7 +322,7 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
                           ),
                         ),
                         // Menu button (only show when NOT in selection mode)
-                        if (!selectionProvider.isSelectionMode) ...[
+                        if (!ref.watch(isSelectionModeProvider)) ...[
                           const SizedBox(width: 4),
                           GestureDetector(
                             onTap: widget.onDocumentMenu != null
@@ -490,13 +490,12 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
   }
 
   /// Handle tap on grid item
-  void _handleGridItemTap(
-    DocumentModel document,
-    FileSelectionProvider selectionProvider,
-  ) {
-    if (selectionProvider.isSelectionMode) {
+  void _handleGridItemTap(DocumentModel document) {
+    final isSelectionMode = ref.read(isSelectionModeProvider);
+
+    if (isSelectionMode) {
       // In selection mode, toggle selection
-      selectionProvider.toggleFileSelection(document.id);
+      ref.read(fileSelectionProvider.notifier).toggleFileSelection(document.id);
     } else {
       // Normal mode, call onDocumentTap if provided
       widget.onDocumentTap?.call(document);
@@ -504,21 +503,22 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
   }
 
   /// Handle long press on grid item
-  void _handleGridItemLongPress(
-    DocumentModel document,
-    FileSelectionProvider selectionProvider,
-  ) {
-    if (selectionProvider.isSelectionMode) {
+  void _handleGridItemLongPress(DocumentModel document) {
+    final isSelectionMode = ref.read(isSelectionModeProvider);
+    final hasSelection = ref.read(hasSelectionProvider);
+    final selectedFiles = ref.read(selectedFilesProvider);
+
+    if (isSelectionMode) {
       // In selection mode, show bulk operations menu
-      if (selectionProvider.hasSelection) {
+      if (hasSelection) {
         BulkOperationsService.showBulkOperationsMenu(
           context: context,
-          selectedFiles: selectionProvider.selectedFiles,
+          selectedFiles: selectedFiles,
           categoryId: widget.categoryId,
           onOperationComplete: () async {
             try {
               // Exit selection mode safely
-              selectionProvider.exitSelectionMode();
+              ref.read(fileSelectionProvider.notifier).exitSelectionMode();
             } catch (e) {
               // Handle any errors gracefully
               debugPrint('Error during bulk operation completion: $e');
@@ -528,7 +528,9 @@ class _ReusableFileGridWidgetState extends State<ReusableFileGridWidget> {
       }
     } else {
       // Enter selection mode with this file
-      selectionProvider.enterSelectionMode(document, widget.documents);
+      ref
+          .read(fileSelectionProvider.notifier)
+          .enterSelectionMode(document, widget.documents);
     }
   }
 }
