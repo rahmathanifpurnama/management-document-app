@@ -221,57 +221,56 @@ class CompactBulkOperations extends ConsumerWidget {
     final selectedFiles = ref.watch(selectedFilesProvider);
     final actions = ref.read(fileSelectionActionsProvider);
 
-        return Container(
-          height: 56,
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.shadow.withValues(alpha: 0.2),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+    return Container(
+      height: 56,
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.shadow.withValues(alpha: 0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
-          child: Row(
-            children: [
-              // Selection count
-              Text(
-                '$selectedCount selected',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-              const Spacer(),
-
-              // Action buttons
-              if (onDelete != null)
-                IconButton(
-                  onPressed: () => _showBulkDialog(
-                    context,
-                    BulkOperationType.delete,
-                    selectedFiles,
-                    (documents, reason) => onDelete!(documents),
-                  ),
-                  icon: const Icon(Icons.delete, color: Colors.white),
-                  tooltip: 'Delete',
-                ),
-
-              // Clear selection
-              IconButton(
-                onPressed: () => actions.clearSelection(),
-                icon: const Icon(Icons.clear, color: Colors.white),
-                tooltip: 'Clear selection',
-              ),
-            ],
+        ],
+      ),
+      child: Row(
+        children: [
+          // Selection count
+          Text(
+            '$selectedCount selected',
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
           ),
-        );
-  }
+          const Spacer(),
+
+          // Action buttons
+          if (onDelete != null)
+            IconButton(
+              onPressed: () => _showBulkDialog(
+                context,
+                BulkOperationType.delete,
+                selectedFiles,
+                (documents, reason) => onDelete!(documents),
+              ),
+              icon: const Icon(Icons.delete, color: Colors.white),
+              tooltip: 'Delete',
+            ),
+
+          // Clear selection
+          IconButton(
+            onPressed: () => actions.clearSelection(),
+            icon: const Icon(Icons.clear, color: Colors.white),
+            tooltip: 'Clear selection',
+          ),
+        ],
+      ),
+    );
   }
 
   void _showBulkDialog(
