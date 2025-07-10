@@ -10,6 +10,8 @@ import 'features/settings/providers/settings_providers.dart';
 import 'features/upload/bloc/upload_bloc.dart';
 import 'features/category/bloc/category_bloc.dart';
 import 'features/category/bloc/category_event.dart' as category_events;
+import 'features/sync/bloc/sync_bloc.dart';
+import 'features/sync/bloc/sync_event.dart' as sync_events;
 import 'core/services/firebase_service.dart';
 import 'core/services/memory_management_service.dart';
 import 'core/services/optimized_network_service.dart';
@@ -180,6 +182,11 @@ class _MyAppState extends State<MyApp> {
               create: (context) =>
                   CategoryBloc()
                     ..add(const category_events.CategoryEvent.loadCategories()),
+            ),
+            // Sync BLoC
+            BlocProvider<SyncBloc>(
+              create: (context) =>
+                  SyncBloc()..add(const sync_events.SyncEvent.initialize()),
             ),
           ],
           child: provider.MultiProvider(
