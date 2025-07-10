@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/config/upload_config.dart';
-import '../../models/upload_file_model.dart';
-import '../../providers/hybrid_upload_provider.dart';
+import '../../features/upload/models/upload_file_model.dart';
+import '../../features/upload/bloc/upload_bloc.dart';
+import '../../features/upload/bloc/upload_state.dart' as upload_states;
+import '../../features/upload/bloc/upload_event.dart' as upload_events;
 
 /// Enhanced upload progress widget with queue management
 class EnhancedUploadProgressWidget extends StatelessWidget {
@@ -21,10 +23,10 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<HybridUploadProvider>(
-      builder: (context, uploadProvider, child) {
-        final queuedFiles = uploadProvider.uploadQueue;
-        final isProcessing = uploadProvider.isUploading;
+    return BlocBuilder<UploadBloc, upload_states.UploadState>(
+      builder: (context, state) {
+        final queuedFiles = state.currentFiles;
+        final isProcessing = state.isUploading;
         final hasActiveFiles = queuedFiles.any(
           (file) =>
               file.status == UploadStatus.uploading ||
@@ -53,23 +55,24 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header with queue stats
-              if (showQueueStats) _buildHeader(uploadProvider),
+              if (showQueueStats) _buildHeader(state),
 
               // Queue management controls
               if (allowQueueManagement && queuedFiles.isNotEmpty)
-                _buildQueueControls(uploadProvider),
+                _buildQueueControls(context, state),
 
               // Individual file progress with enhanced visibility
               if (showIndividualProgress) ...[
                 _buildScrollableFileList(
+                  context,
                   queuedFiles,
-                  uploadProvider,
+                  state,
                   isProcessing,
                 ),
               ],
 
               // Overall progress
-              if (isProcessing) _buildOverallProgress(uploadProvider),
+              if (isProcessing) _buildOverallProgress(state),
             ],
           ),
         );
@@ -77,9 +80,9 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(HybridUploadProvider uploadProvider) {
-    final queuedFiles = uploadProvider.uploadQueue;
-    final isProcessing = uploadProvider.isUploading;
+  Widget _buildHeader(upload_states.UploadState state) {
+    final queuedFiles = state.currentFiles;
+    final isProcessing = state.isUploading;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -140,7 +143,10 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildQueueControls(HybridUploadProvider uploadProvider) {
+  Widget _buildQueueControls(
+    BuildContext context,
+    upload_states.UploadState state,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -148,12 +154,14 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
           _buildControlButton(
             icon: Icons.clear_all,
             label: 'Clear Queue',
-            onPressed: uploadProvider.clearAll,
+            onPressed: () => context.read<UploadBloc>().add(
+              const upload_events.UploadEvent.clearQueue(),
+            ),
             color: AppColors.textSecondary,
           ),
           const Spacer(),
           Text(
-            '${uploadProvider.uploadQueue.length} files in queue',
+            '${state.currentFiles.length} files in queue',
             style: GoogleFonts.poppins(
               fontSize: 12,
               color: AppColors.textSecondary,
@@ -183,8 +191,9 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
 
   /// Build scrollable file list with enhanced visibility for bulk uploads
   Widget _buildScrollableFileList(
+    BuildContext context,
     List<UploadFileModel> queuedFiles,
-    HybridUploadProvider uploadProvider,
+    upload_states.UploadState state,
     bool isProcessing,
   ) {
     final maxVisibleItems = UploadConfig.maxVisibleQueueItems;
@@ -201,8 +210,9 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
                 .take(3)
                 .map(
                   (file) => _buildFileProgressItem(
+                    context,
                     file,
-                    uploadProvider,
+                    state,
                     isActive: isProcessing,
                   ),
                 ),
@@ -225,8 +235,9 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
                     itemBuilder: (context, index) {
                       final file = queuedFiles[index + 3];
                       return _buildFileProgressItem(
+                        context,
                         file,
-                        uploadProvider,
+                        state,
                         isActive: isProcessing,
                       );
                     },
@@ -246,8 +257,9 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
         children: queuedFiles
             .map(
               (file) => _buildFileProgressItem(
+                context,
                 file,
-                uploadProvider,
+                state,
                 isActive: isProcessing,
               ),
             )
@@ -257,8 +269,9 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
   }
 
   Widget _buildFileProgressItem(
+    BuildContext context,
     UploadFileModel file,
-    HybridUploadProvider uploadProvider, {
+    upload_states.UploadState state, {
     required bool isActive,
   }) {
     return Container(
@@ -303,7 +316,7 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
                   ],
                 ),
               ),
-              _buildFileActions(file, uploadProvider, isActive),
+              _buildFileActions(context, file, state, isActive),
             ],
           ),
 
@@ -370,8 +383,9 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
   }
 
   Widget _buildFileActions(
+    BuildContext context,
     UploadFileModel file,
-    HybridUploadProvider uploadProvider,
+    upload_states.UploadState state,
     bool isActive,
   ) {
     switch (file.status) {
@@ -381,12 +395,16 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
           children: [
             IconButton(
               icon: const Icon(Icons.refresh, size: 18),
-              onPressed: uploadProvider.retryFailed,
+              onPressed: () => context.read<UploadBloc>().add(
+                upload_events.UploadEvent.retryUpload(fileId: file.id),
+              ),
               tooltip: 'Retry upload',
             ),
             IconButton(
               icon: const Icon(Icons.close, size: 18),
-              onPressed: () => uploadProvider.removeFile(file.id),
+              onPressed: () => context.read<UploadBloc>().add(
+                upload_events.UploadEvent.removeFile(fileId: file.id),
+              ),
               tooltip: 'Remove',
             ),
           ],
@@ -394,13 +412,17 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
       case UploadStatus.completed:
         return IconButton(
           icon: const Icon(Icons.check_circle, size: 18, color: Colors.green),
-          onPressed: () => uploadProvider.removeFile(file.id),
+          onPressed: () => context.read<UploadBloc>().add(
+            upload_events.UploadEvent.removeFile(fileId: file.id),
+          ),
           tooltip: 'Remove from list',
         );
       default:
         return IconButton(
           icon: const Icon(Icons.remove_circle_outline, size: 18),
-          onPressed: () => uploadProvider.removeFile(file.id),
+          onPressed: () => context.read<UploadBloc>().add(
+            upload_events.UploadEvent.removeFile(fileId: file.id),
+          ),
           tooltip: 'Remove from queue',
         );
     }
@@ -508,10 +530,33 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildOverallProgress(HybridUploadProvider uploadProvider) {
-    final total = uploadProvider.totalFiles;
-    final completed = uploadProvider.completedFiles;
-    final progress = total > 0 ? uploadProvider.overallProgress : 0.0;
+  Widget _buildOverallProgress(upload_states.UploadState state) {
+    final total = state.totalFiles;
+    final completed = state.when(
+      initial: () => 0,
+      validating: (_) => 0,
+      ready: (_, __, ___, ____, _____) => 0,
+      uploading:
+          (
+            _,
+            __,
+            completedFiles,
+            ___,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+          ) => completedFiles,
+      paused: (_, completedFiles, __, ___, ____, _____, ______, _______) =>
+          completedFiles,
+      completed: (_, completedFiles, __, ___, ____, _____, ______) =>
+          completedFiles,
+      error: (_, __, ___, ____) => 0,
+      cancelled: (_, completedFiles, __) => completedFiles,
+    );
+    final progress = state.progress;
 
     return Container(
       padding: const EdgeInsets.all(16),

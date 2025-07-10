@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../providers/document_provider.dart';
-import '../../providers/category_provider.dart';
+// import '../../providers/category_provider.dart'; // Removed - migrated to BLoC
 import '../../providers/notification_provider.dart';
 
 enum SyncStatus { idle, syncing, success, error }
@@ -140,7 +140,7 @@ class AutoSyncService {
   /// Sync with providers (to be called from UI layer)
   Future<void> syncWithProviders({
     DocumentProvider? documentProvider,
-    CategoryProvider? categoryProvider,
+    // CategoryProvider? categoryProvider, // Removed - migrated to BLoC
     NotificationProvider? notificationProvider,
   }) async {
     if (_syncStatus == SyncStatus.syncing) return;
@@ -157,11 +157,11 @@ class AutoSyncService {
         debugPrint('  ✅ Documents synced');
       }
 
-      // Sync categories
-      if (categoryProvider != null) {
-        await categoryProvider.refreshCategories();
-        debugPrint('  ✅ Categories synced');
-      }
+      // Sync categories - TODO: Implement with CategoryBloc
+      // if (categoryProvider != null) {
+      //   await categoryProvider.refreshCategories();
+      //   debugPrint('  ✅ Categories synced');
+      // }
 
       // Sync notifications
       if (notificationProvider != null) {
@@ -207,7 +207,7 @@ class AutoSyncService {
 
     await syncWithProviders(
       documentProvider: documentProvider,
-      categoryProvider: categoryProvider,
+      // categoryProvider: categoryProvider, // Removed - migrated to BLoC
       notificationProvider: notificationProvider,
     );
   }

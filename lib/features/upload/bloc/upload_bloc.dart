@@ -1,14 +1,12 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:file_selector/file_selector.dart';
 
 import '../models/upload_file_model.dart';
 import '../repositories/upload_repository.dart';
 import '../repositories/upload_repository_impl.dart';
-import 'upload_event.dart' hide UploadCompleted, UploadError;
-import 'upload_state.dart' hide UploadCompleted, UploadError;
-import 'upload_event.dart' as events show UploadCompleted, UploadError;
+import 'upload_event.dart' as events;
+import 'upload_state.dart' as states;
 
 /// Upload BLoC
 ///
@@ -24,7 +22,7 @@ import 'upload_event.dart' as events show UploadCompleted, UploadError;
 /// - File validation
 /// - Duplicate detection
 /// - Upload statistics
-class UploadBloc extends Bloc<UploadEvent, UploadState> {
+class UploadBloc extends Bloc<events.UploadEvent, states.UploadState> {
   final UploadRepository _repository;
 
   // Stream subscriptions for real-time updates
@@ -39,42 +37,50 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
 
   UploadBloc({UploadRepository? repository})
     : _repository = repository ?? UploadRepositoryImpl.instance,
-      super(const UploadState.initial()) {
+      super(const states.UploadState.initial()) {
     // Register event handlers
-    on<AddFiles>(_onAddFiles);
-    on<StartUpload>(_onStartUpload);
-    on<PauseUpload>(_onPauseUpload);
-    on<ResumeUpload>(_onResumeUpload);
-    on<CancelUpload>(_onCancelUpload);
-    on<RetryUpload>(_onRetryUpload);
-    on<RemoveFile>(_onRemoveFromQueue);
-    on<ClearQueue>(_onClearQueue);
-    on<UpdateProgress>(_onUpdateProgress);
-    on<FileCompleted>(_onFileCompleted);
-    on<FileFailed>(_onFileFailed);
-    on<UpdateSettings>(_onUpdateSettings);
-    on<ValidateFiles>(_onValidateFiles);
-    on<ResetState>(_onResetState);
-    on<SetCategory>(_onSetCategory);
-    on<SetMetadata>(_onSetMetadata);
-    on<ProcessQueue>(_onProcessQueue);
+    on<events.AddFiles>(_onAddFiles);
+    on<events.StartUpload>(_onStartUpload);
+    on<events.PauseUpload>(_onPauseUpload);
+    on<events.ResumeUpload>(_onResumeUpload);
+    on<events.CancelUpload>(_onCancelUpload);
+    on<events.RetryUpload>(_onRetryUpload);
+    on<events.RemoveFile>(_onRemoveFromQueue);
+    on<events.ClearQueue>(_onClearQueue);
+    on<events.UpdateProgress>(_onUpdateProgress);
+    on<events.FileCompleted>(_onFileCompleted);
+    on<events.FileFailed>(_onFileFailed);
+    on<events.UpdateSettings>(_onUpdateSettings);
+    on<events.ValidateFiles>(_onValidateFiles);
+    on<events.ResetState>(_onResetState);
+    on<events.SetCategory>(_onSetCategory);
+    on<events.SetMetadata>(_onSetMetadata);
+    on<events.ProcessQueue>(_onProcessQueue);
     on<events.UploadCompleted>(_onUploadCompleted);
     on<events.UploadError>(_onUploadError);
+
+    // Additional event handlers for missing events
+    on<events.OverallProgressUpdated>(_onOverallProgressUpdated);
+    on<events.FileProgressUpdated>(_onFileProgressUpdated);
+    on<events.FileStatusUpdated>(_onFileStatusUpdated);
 
     // Start listening to overall progress
     _startListeningToOverallProgress();
   }
 
   /// Add files to upload queue
-  Future<void> _onAddFiles(AddFiles event, Emitter<UploadState> emit) async {
+  Future<void> _onAddFiles(
+    events.AddFiles event,
+    Emitter<states.UploadState> emit,
+  ) async {
     try {
-      emit(const UploadState.validating(message: 'Validating files...'));
+      emit(const states.UploadState.validating(message: 'Validating files...'));
 
       // Validate files first
       final validationErrors = await _repository.validateFiles(event.files);
       if (validationErrors.isNotEmpty) {
         emit(
-          UploadState.error(
+          states.UploadState.error(
             message: 'File validation failed: ${validationErrors.join(', ')}',
             canRetry: false,
           ),
@@ -99,7 +105,7 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
       final currentQueue = _repository.getUploadQueue();
 
       emit(
-        UploadState.ready(
+        states.UploadState.ready(
           files: currentQueue,
           totalFiles: currentQueue.length,
           totalSize: currentQueue.fold(0, (sum, file) => sum + file.fileSize),
@@ -109,7 +115,7 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
       debugPrint('📁 UploadBloc: Added ${uploadFiles.length} files to queue');
     } catch (e) {
       emit(
-        UploadState.error(
+        states.UploadState.error(
           message: 'Failed to add files to queue: ${e.toString()}',
           canRetry: true,
         ),
@@ -168,8 +174,8 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
 
   /// Pause upload for specific file
   Future<void> _onPauseUpload(
-    PauseUpload event,
-    Emitter<UploadState> emit,
+    events.PauseUpload event,
+    Emitter<states.UploadState> emit,
   ) async {
     try {
       if (event.fileId != null) {
@@ -183,7 +189,7 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
       final currentQueue = _repository.getUploadQueue();
 
       emit(
-        UploadState.paused(
+        states.UploadState.paused(
           files: currentQueue,
           completedFiles: currentQueue
               .where((f) => f.status == UploadStatus.completed)
@@ -207,8 +213,8 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
 
   /// Resume upload for specific file
   Future<void> _onResumeUpload(
-    ResumeUpload event,
-    Emitter<UploadState> emit,
+    events.ResumeUpload event,
+    Emitter<states.UploadState> emit,
   ) async {
     try {
       if (event.fileId != null) {
@@ -222,7 +228,7 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
       final currentQueue = _repository.getUploadQueue();
 
       emit(
-        UploadState.uploading(
+        states.UploadState.uploading(
           files: currentQueue,
           activeUploads: currentQueue
               .where((f) => f.status == UploadStatus.uploading)
@@ -246,8 +252,8 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
 
   /// Cancel upload for specific file
   Future<void> _onCancelUpload(
-    CancelUpload event,
-    Emitter<UploadState> emit,
+    events.CancelUpload event,
+    Emitter<states.UploadState> emit,
   ) async {
     try {
       if (event.fileId != null) {
@@ -263,7 +269,7 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
       final currentQueue = _repository.getUploadQueue();
 
       emit(
-        UploadState.cancelled(
+        states.UploadState.cancelled(
           files: currentQueue,
           completedFiles: currentQueue
               .where((f) => f.status == UploadStatus.completed)
@@ -282,8 +288,8 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
 
   /// Retry failed upload
   Future<void> _onRetryUpload(
-    RetryUpload event,
-    Emitter<UploadState> emit,
+    events.RetryUpload event,
+    Emitter<states.UploadState> emit,
   ) async {
     try {
       await _repository.retryUpload(event.fileId);
@@ -291,7 +297,7 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
       final currentQueue = _repository.getUploadQueue();
 
       emit(
-        UploadState.uploading(
+        states.UploadState.uploading(
           files: currentQueue,
           activeUploads: currentQueue
               .where((f) => f.status == UploadStatus.uploading)
@@ -315,8 +321,8 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
 
   /// Remove file from queue
   Future<void> _onRemoveFromQueue(
-    RemoveFile event,
-    Emitter<UploadState> emit,
+    events.RemoveFile event,
+    Emitter<states.UploadState> emit,
   ) async {
     try {
       await _repository.removeFromQueue(event.fileId);
@@ -325,16 +331,18 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
       _stopListeningToFile(event.fileId);
 
       final currentQueue = _repository.getUploadQueue();
-      final statistics = _repository.getUploadStatistics();
 
-      emit(
-        UploadState.queueUpdated(
-          files: currentQueue,
-          statistics: statistics,
-          isUploading: _repository.isUploading,
-          overallProgress: _calculateOverallProgress(currentQueue),
-        ),
-      );
+      if (currentQueue.isEmpty) {
+        emit(const states.UploadState.initial());
+      } else {
+        emit(
+          states.UploadState.ready(
+            files: currentQueue,
+            totalFiles: currentQueue.length,
+            totalSize: currentQueue.fold(0, (sum, file) => sum + file.fileSize),
+          ),
+        );
+      }
 
       debugPrint('🗑️ UploadBloc: Removed file ${event.fileId} from queue');
     } catch (e) {
@@ -344,8 +352,8 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
 
   /// Clear upload queue
   Future<void> _onClearQueue(
-    ClearQueue event,
-    Emitter<UploadState> emit,
+    events.ClearQueue event,
+    Emitter<states.UploadState> emit,
   ) async {
     try {
       await _repository.clearQueue();
@@ -353,21 +361,7 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
       // Stop all progress listeners
       _stopAllListeners();
 
-      emit(
-        const UploadState.queueUpdated(
-          files: [],
-          statistics: {
-            'total': 0,
-            'completed': 0,
-            'failed': 0,
-            'pending': 0,
-            'uploading': 0,
-            'success_rate': '0.0',
-          },
-          isUploading: false,
-          overallProgress: 0.0,
-        ),
-      );
+      emit(const states.UploadState.initial());
 
       debugPrint('🧹 UploadBloc: Cleared upload queue');
     } catch (e) {
@@ -377,19 +371,17 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
 
   /// Handle progress updates
   Future<void> _onUpdateProgress(
-    UpdateProgress event,
-    Emitter<UploadState> emit,
+    events.UpdateProgress event,
+    Emitter<states.UploadState> emit,
   ) async {
     final currentQueue = _repository.getUploadQueue();
-    final statistics = _repository.getUploadStatistics();
     final overallProgress = _calculateOverallProgress(currentQueue);
 
     final currentState = state;
-    if (currentState is UploadUploading) {
+    if (currentState is states.UploadUploading) {
       emit(
         currentState.copyWith(
           files: currentQueue,
-          statistics: statistics,
           overallProgress: overallProgress,
         ),
       );
@@ -398,8 +390,8 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
 
   /// Handle file completion
   Future<void> _onFileCompleted(
-    FileCompleted event,
-    Emitter<UploadState> emit,
+    events.FileCompleted event,
+    Emitter<states.UploadState> emit,
   ) async {
     debugPrint('✅ UploadBloc: File ${event.fileId} completed successfully');
 
@@ -413,8 +405,8 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
 
   /// Handle file failure
   Future<void> _onFileFailed(
-    FileFailed event,
-    Emitter<UploadState> emit,
+    events.FileFailed event,
+    Emitter<states.UploadState> emit,
   ) async {
     debugPrint('❌ UploadBloc: File ${event.fileId} failed: ${event.error}');
 
@@ -425,8 +417,8 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
 
   /// Update upload settings
   Future<void> _onUpdateSettings(
-    UpdateSettings event,
-    Emitter<UploadState> emit,
+    events.UpdateSettings event,
+    Emitter<states.UploadState> emit,
   ) async {
     if (event.maxConcurrentUploads != null) {
       _maxConcurrentUploads = event.maxConcurrentUploads!;
@@ -454,28 +446,27 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
 
   /// Validate files
   Future<void> _onValidateFiles(
-    ValidateFiles event,
-    Emitter<UploadState> emit,
+    events.ValidateFiles event,
+    Emitter<states.UploadState> emit,
   ) async {
     try {
-      emit(const UploadState.validating(message: 'Validating files...'));
+      emit(const states.UploadState.validating(message: 'Validating files...'));
 
       final validationErrors = await _repository.validateFiles(event.files);
 
       if (validationErrors.isNotEmpty) {
         emit(
-          UploadState.error(
-            message: 'File validation failed',
-            details: validationErrors,
+          states.UploadState.error(
+            message: 'File validation failed: ${validationErrors.join(', ')}',
             canRetry: false,
           ),
         );
       } else {
-        emit(const UploadState.initial());
+        emit(const states.UploadState.initial());
       }
     } catch (e) {
       emit(
-        UploadState.error(
+        states.UploadState.error(
           message: 'Validation error: ${e.toString()}',
           canRetry: true,
         ),
@@ -485,8 +476,8 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
 
   /// Reset state to initial
   Future<void> _onResetState(
-    ResetState event,
-    Emitter<UploadState> emit,
+    events.ResetState event,
+    Emitter<states.UploadState> emit,
   ) async {
     // Stop all listeners
     _stopAllListeners();
@@ -494,14 +485,14 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
     // Clear repository
     await _repository.clearQueue();
 
-    emit(const UploadState.initial());
+    emit(const states.UploadState.initial());
     debugPrint('🔄 UploadBloc: State reset to initial');
   }
 
   /// Set category for uploads
   Future<void> _onSetCategory(
-    SetCategory event,
-    Emitter<UploadState> emit,
+    events.SetCategory event,
+    Emitter<states.UploadState> emit,
   ) async {
     // This would be used for setting default category for new uploads
     debugPrint('📁 UploadBloc: Set default category to ${event.categoryId}');
@@ -509,8 +500,8 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
 
   /// Set metadata for uploads
   Future<void> _onSetMetadata(
-    SetMetadata event,
-    Emitter<UploadState> emit,
+    events.SetMetadata event,
+    Emitter<states.UploadState> emit,
   ) async {
     // This would be used for setting default metadata for new uploads
     debugPrint('📝 UploadBloc: Set default metadata');
@@ -518,25 +509,29 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
 
   /// Process upload queue
   Future<void> _onProcessQueue(
-    ProcessQueue event,
-    Emitter<UploadState> emit,
+    events.ProcessQueue event,
+    Emitter<states.UploadState> emit,
   ) async {
-    add(const StartUpload());
+    add(const events.StartUpload());
   }
 
   /// Handle upload completion
   Future<void> _onUploadCompleted(
-    UploadCompleted event,
-    Emitter<UploadState> emit,
+    events.UploadCompleted event,
+    Emitter<states.UploadState> emit,
   ) async {
     final currentQueue = _repository.getUploadQueue();
-    final statistics = _repository.getUploadStatistics();
 
     emit(
-      UploadState.completed(
+      states.UploadState.completed(
         files: currentQueue,
-        statistics: statistics,
-        message: 'All uploads completed successfully',
+        completedFiles: currentQueue
+            .where((f) => f.status == UploadStatus.completed)
+            .length,
+        failedFiles: currentQueue
+            .where((f) => f.status == UploadStatus.failed)
+            .length,
+        totalFiles: currentQueue.length,
       ),
     );
 
@@ -545,19 +540,55 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
 
   /// Handle upload error
   Future<void> _onUploadError(
-    UploadError event,
-    Emitter<UploadState> emit,
+    events.UploadError event,
+    Emitter<states.UploadState> emit,
   ) async {
-    emit(UploadState.error(message: event.error, canRetry: true));
+    emit(states.UploadState.error(message: event.error, canRetry: true));
 
     debugPrint('❌ UploadBloc: Upload error: ${event.error}');
+  }
+
+  /// Handle overall progress update
+  Future<void> _onOverallProgressUpdated(
+    events.OverallProgressUpdated event,
+    Emitter<states.UploadState> emit,
+  ) async {
+    final currentQueue = _repository.getUploadQueue();
+    final currentState = state;
+
+    if (currentState is states.UploadUploading) {
+      emit(
+        currentState.copyWith(
+          files: currentQueue,
+          overallProgress: event.progress,
+        ),
+      );
+    }
+  }
+
+  /// Handle file progress update
+  Future<void> _onFileProgressUpdated(
+    events.FileProgressUpdated event,
+    Emitter<states.UploadState> emit,
+  ) async {
+    final currentQueue = _repository.getUploadQueue();
+    _emitUpdatedState(emit, currentQueue);
+  }
+
+  /// Handle file status update
+  Future<void> _onFileStatusUpdated(
+    events.FileStatusUpdated event,
+    Emitter<states.UploadState> emit,
+  ) async {
+    final currentQueue = _repository.getUploadQueue();
+    _emitUpdatedState(emit, currentQueue);
   }
 
   /// Start listening to overall progress
   void _startListeningToOverallProgress() {
     _overallProgressSubscription = _repository.getOverallProgress().listen(
       (progress) {
-        add(OverallProgressUpdated(progress: progress));
+        add(events.OverallProgressUpdated(progress: progress));
       },
       onError: (error) {
         debugPrint('❌ UploadBloc: Overall progress stream error: $error');
@@ -571,7 +602,7 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
         .getUploadProgress(fileId)
         .listen(
           (progress) {
-            add(FileProgressUpdated(fileId: fileId, progress: progress));
+            add(events.FileProgressUpdated(fileId: fileId, progress: progress));
           },
           onError: (error) {
             debugPrint(
@@ -587,13 +618,24 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
         .getUploadStatus(fileId)
         .listen(
           (status) {
-            add(FileStatusUpdated(fileId: fileId, status: status));
+            add(events.FileStatusUpdated(fileId: fileId, status: status));
 
             // Handle completion and failure
             if (status == UploadStatus.completed) {
-              add(FileCompleted(fileId: fileId));
+              // Get the file to extract download URL
+              final file = _repository.getUploadQueue().firstWhere(
+                (f) => f.id == fileId,
+                orElse: () => throw StateError('File not found'),
+              );
+              add(
+                events.FileCompleted(
+                  fileId: fileId,
+                  downloadUrl: file.downloadUrl ?? '',
+                  documentId: file.documentId,
+                ),
+              );
             } else if (status == UploadStatus.failed) {
-              add(FileFailed(fileId: fileId, error: 'Upload failed'));
+              add(events.FileFailed(fileId: fileId, error: 'Upload failed'));
             }
           },
           onError: (error) {
@@ -638,6 +680,69 @@ class UploadBloc extends Bloc<UploadEvent, UploadState> {
     );
 
     return totalProgress / files.length;
+  }
+
+  /// Emit updated state based on current queue
+  void _emitUpdatedState(
+    Emitter<states.UploadState> emit,
+    List<UploadFileModel> files,
+  ) {
+    final overallProgress = _calculateOverallProgress(files);
+    final isUploading = _repository.isUploading;
+
+    final activeUploads = files
+        .where((f) => f.status == UploadStatus.uploading)
+        .length;
+    final completedFiles = files
+        .where((f) => f.status == UploadStatus.completed)
+        .length;
+    final failedFiles = files
+        .where((f) => f.status == UploadStatus.failed)
+        .length;
+    final pausedFiles = files
+        .where((f) => f.status == UploadStatus.paused)
+        .length;
+
+    if (isUploading && activeUploads > 0) {
+      emit(
+        states.UploadState.uploading(
+          files: files,
+          activeUploads: activeUploads,
+          completedFiles: completedFiles,
+          failedFiles: failedFiles,
+          totalFiles: files.length,
+          overallProgress: overallProgress,
+        ),
+      );
+    } else if (pausedFiles > 0) {
+      emit(
+        states.UploadState.paused(
+          files: files,
+          completedFiles: completedFiles,
+          failedFiles: failedFiles,
+          totalFiles: files.length,
+          overallProgress: overallProgress,
+          pausedFiles: pausedFiles,
+        ),
+      );
+    } else if (completedFiles == files.length && files.isNotEmpty) {
+      emit(
+        states.UploadState.completed(
+          files: files,
+          completedFiles: completedFiles,
+          failedFiles: failedFiles,
+          totalFiles: files.length,
+        ),
+      );
+    } else if (files.isNotEmpty) {
+      emit(
+        states.UploadState.ready(
+          files: files,
+          totalFiles: files.length,
+          totalSize: files.fold(0, (sum, file) => sum + file.fileSize),
+        ),
+      );
+    }
   }
 
   @override

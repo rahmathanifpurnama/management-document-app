@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart' as provider;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 // New Riverpod + BLoC imports
 import 'features/settings/providers/settings_providers.dart';
-import 'features/file_selection/providers/file_selection_providers.dart';
-import 'features/notification/providers/notification_providers.dart';
+import 'features/upload/bloc/upload_bloc.dart';
+import 'features/category/bloc/category_bloc.dart';
+import 'features/category/bloc/category_event.dart' as category_events;
 import 'core/services/firebase_service.dart';
 import 'core/services/memory_management_service.dart';
 import 'core/services/optimized_network_service.dart';
@@ -25,11 +26,8 @@ import 'core/utils/firebase_initialization_status.dart';
 import 'providers/auth_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/document_provider.dart';
-import 'providers/category_provider.dart';
-import 'providers/hybrid_upload_provider.dart';
-import 'providers/file_selection_provider.dart';
+
 import 'providers/settings_provider.dart';
-import 'providers/notification_provider.dart';
 import 'providers/sync_provider.dart';
 import 'screens/auth/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
@@ -37,7 +35,7 @@ import 'screens/common/home_screen.dart';
 import 'screens/admin/user_management_screen.dart';
 import 'widgets/app/statistics_initializer.dart';
 import 'widgets/app/realtime_category_initializer.dart';
-import 'widgets/app/category_document_sync_initializer.dart';
+
 import 'screens/admin/create_user_screen.dart';
 import 'screens/admin/edit_user_screen.dart';
 import 'screens/admin/user_details_screen.dart';
@@ -175,44 +173,43 @@ class _MyAppState extends State<MyApp> {
         child: MultiBlocProvider(
           // BLoC root
           providers: [
-            // BLoC providers will be added here as we migrate
+            // Upload BLoC
+            BlocProvider<UploadBloc>(create: (context) => UploadBloc()),
+            // Category BLoC
+            BlocProvider<CategoryBloc>(
+              create: (context) =>
+                  CategoryBloc()
+                    ..add(const category_events.CategoryEvent.loadCategories()),
+            ),
           ],
-          child: MultiProvider(
+          child: provider.MultiProvider(
             // Keep existing Provider during migration
             providers: [
-              ChangeNotifierProvider(
+              provider.ChangeNotifierProvider(
                 create: (_) => AuthProvider(),
                 lazy: false,
               ),
               // SettingsProvider will be removed after migration
-              ChangeNotifierProvider(
+              provider.ChangeNotifierProvider(
                 create: (_) {
-                  final provider = SettingsProvider();
+                  final settingsProvider = SettingsProvider();
                   // Initialize settings immediately
-                  provider.loadSettings();
-                  return provider;
+                  settingsProvider.loadSettings();
+                  return settingsProvider;
                 },
                 lazy: false, // Initialize immediately for theme support
               ),
-              ChangeNotifierProvider(
+              provider.ChangeNotifierProvider(
                 create: (_) => UserProvider(),
                 lazy: true, // Initialize when needed to prevent startup delay
               ),
-              ChangeNotifierProvider(
+              provider.ChangeNotifierProvider(
                 create: (_) => DocumentProvider(),
                 lazy:
                     false, // ENTERPRISE SCALE: Initialize immediately for auto-loading
               ),
-              ChangeNotifierProvider(
-                create: (_) => CategoryProvider(),
-                lazy: true, // Initialize when needed to prevent startup delay
-              ),
-              ChangeNotifierProvider(
-                create: (_) => HybridUploadProvider(),
-                lazy: true, // Initialize when needed to prevent startup delay
-              ),
 
-              ChangeNotifierProvider(
+              provider.ChangeNotifierProvider(
                 create: (_) => SyncProvider(),
                 lazy: true, // Initialize when needed to prevent startup delay
               ),
@@ -222,10 +219,11 @@ class _MyAppState extends State<MyApp> {
               builder: (context, ref, child) {
                 // Use Riverpod settings provider for theme
                 final settings = ref.watch(settingsProvider);
+                final themeData = ref.watch(themeDataProvider);
                 return MaterialApp(
                   title: AppStrings.appName,
                   debugShowCheckedModeBanner: false,
-                  theme: settings.themeData.copyWith(
+                  theme: themeData.copyWith(
                     primaryColor: AppColors.primary,
                     scaffoldBackgroundColor: settings.darkModeEnabled
                         ? const Color(0xFF121212)
@@ -310,11 +308,9 @@ class _MyAppState extends State<MyApp> {
                       case AppRoutes.home:
                         return MaterialPageRoute(
                           builder: (context) =>
-                              const CategoryDocumentSyncInitializer(
-                                child: RealtimeCategoryInitializer(
-                                  child: StatisticsInitializer(
-                                    child: HomeScreen(),
-                                  ),
+                              const RealtimeCategoryInitializer(
+                                child: StatisticsInitializer(
+                                  child: HomeScreen(),
                                 ),
                               ),
                         );

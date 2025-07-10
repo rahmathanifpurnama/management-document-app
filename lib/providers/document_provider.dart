@@ -14,7 +14,7 @@ import '../services/cloud_functions_service.dart';
 import '../core/config/anr_config.dart';
 
 import '../config/firebase_config.dart';
-import 'category_provider.dart';
+// import 'category_provider.dart'; // Removed - migrated to BLoC
 
 import '../services/enhanced_document_service.dart';
 import '../services/enhanced_firebase_storage_service.dart';

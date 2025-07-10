@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
 import '../../models/category_model.dart';
-import '../../providers/category_provider.dart';
-import '../../providers/auth_provider.dart';
+import '../../features/category/bloc/category_bloc.dart';
+import '../../features/category/bloc/category_state.dart' as category_states;
+import '../../features/category/bloc/category_event.dart' as category_events;
 import '../../widgets/common/app_bottom_navigation.dart';
 import '../../widgets/category/category_item_widget.dart';
 import '../../widgets/common/empty_state_widget.dart';
@@ -41,11 +42,9 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
   }
 
   Future<void> _loadCategories() async {
-    final categoryProvider = Provider.of<CategoryProvider>(
-      context,
-      listen: false,
+    context.read<CategoryBloc>().add(
+      const category_events.CategoryEvent.loadCategories(),
     );
-    await categoryProvider.loadCategories();
   }
 
   void _onSearchChanged(String query) {
@@ -130,54 +129,87 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
   }
 
   Widget _buildBody() {
-    return Consumer<CategoryProvider>(
-      builder: (context, categoryProvider, child) {
-        if (categoryProvider.isLoading) {
-          return _buildLoadingState();
-        }
+    return BlocBuilder<CategoryBloc, category_states.CategoryState>(
+      builder: (context, state) {
+        return state.when(
+          initial: () => _buildLoadingState(),
+          loading: (_) => _buildLoadingState(),
+          loaded:
+              (
+                categories,
+                filteredCategories,
+                searchQuery,
+                isActiveFilter,
+                userIdFilter,
+                sortBy,
+                sortAscending,
+                isListening,
+                statistics,
+                lastLoadTime,
+              ) {
+                final activeCategories = categories
+                    .where((c) => c.isActive)
+                    .toList();
+                final finalFilteredCategories = _filterCategories(
+                  activeCategories,
+                );
 
-        if (categoryProvider.errorMessage != null) {
-          return _buildErrorState(categoryProvider.errorMessage!);
-        }
-
-        final categories = categoryProvider.activeCategories;
-        final filteredCategories = _filterCategories(categories);
-
-        return RefreshIndicator(
-          onRefresh: _loadCategories,
-          color: AppColors.primary,
-          child: Column(
-            children: [
-              // Search Widget
-              _buildSearchWidget(),
-              // Categories List
-              Expanded(
-                child: categories.isEmpty
-                    ? EmptyStateWidget.noCategories(
-                        actionButton: ElevatedButton.icon(
-                          onPressed: _showAddCategoryDialog,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 32,
-                              vertical: 16,
-                            ),
-                          ),
-                          icon: const Icon(Icons.add),
-                          label: Text(
-                            'Create Category',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      )
-                    : _buildCategoriesListWithAddButton(filteredCategories),
-              ),
-            ],
-          ),
+                return RefreshIndicator(
+                  onRefresh: _loadCategories,
+                  color: AppColors.primary,
+                  child: Column(
+                    children: [
+                      // Search Widget
+                      _buildSearchWidget(),
+                      // Categories List
+                      Expanded(
+                        child: activeCategories.isEmpty
+                            ? EmptyStateWidget.noCategories(
+                                actionButton: ElevatedButton.icon(
+                                  onPressed: _showAddCategoryDialog,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 32,
+                                      vertical: 16,
+                                    ),
+                                  ),
+                                  icon: const Icon(Icons.add),
+                                  label: Text(
+                                    'Create Category',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : _buildCategoriesListWithAddButton(
+                                finalFilteredCategories,
+                              ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+          error: (message, canRetry, previousState) =>
+              _buildErrorState(message),
+          processing: (message, categories) => _buildLoadingState(),
+          success: (message, categories, operation) {
+            // Show success message and return to loaded state view
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(message),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              }
+            });
+            return _buildLoadingState(); // Will transition to loaded state
+          },
         );
       },
     );
@@ -448,24 +480,23 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
     });
 
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final categoryProvider = Provider.of<CategoryProvider>(
-        context,
-        listen: false,
-      );
+      // For now, use a placeholder user ID - this should be replaced with proper auth
+      final userId = 'current-user'; // TODO: Get from auth provider
 
       final newCategory = CategoryModel(
         id: _uuid.v4(),
         name: name,
         description: description,
-        createdBy: authProvider.currentUser?.id ?? 'unknown',
+        createdBy: userId,
         createdAt: DateTime.now(),
         permissions: [],
         isActive: true,
         documentCount: 0, // Initialize with 0 documents
       );
 
-      categoryProvider.addCategory(newCategory);
+      context.read<CategoryBloc>().add(
+        category_events.CategoryEvent.addCategory(category: newCategory),
+      );
 
       Navigator.of(context).pop(); // Close dialog
 
@@ -499,17 +530,14 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
     });
 
     try {
-      final categoryProvider = Provider.of<CategoryProvider>(
-        context,
-        listen: false,
-      );
-
       final updatedCategory = category.copyWith(
         name: name,
         description: description,
       );
 
-      categoryProvider.updateCategory(updatedCategory);
+      context.read<CategoryBloc>().add(
+        category_events.CategoryEvent.updateCategory(category: updatedCategory),
+      );
 
       Navigator.of(context).pop(); // Close dialog
 
@@ -647,11 +675,12 @@ class _ManageCategoryScreenState extends State<ManageCategoryScreen> {
       );
 
       try {
-        final categoryProvider = Provider.of<CategoryProvider>(
-          context,
-          listen: false,
+        context.read<CategoryBloc>().add(
+          category_events.CategoryEvent.deleteCategory(
+            categoryId: category.id,
+            userId: 'current-user', // TODO: Get from auth provider
+          ),
         );
-        await categoryProvider.removeCategory(category.id);
 
         // Close loading dialog
         if (mounted) Navigator.of(context).pop();

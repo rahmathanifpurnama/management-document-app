@@ -10,7 +10,7 @@ import '../../core/constants/app_routes.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/document_provider.dart';
-import '../../providers/category_provider.dart';
+// import '../../providers/category_provider.dart'; // Removed - migrated to BLoC
 import '../../providers/file_selection_provider.dart';
 import '../../widgets/common/app_bottom_navigation.dart';
 import '../../widgets/common/loading_widget.dart';
@@ -187,10 +187,10 @@ class _HomeScreenState extends State<HomeScreen>
       debugPrint('🔄 Circuit breakers reset for manual refresh');
 
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final categoryProvider = Provider.of<CategoryProvider>(
-        context,
-        listen: false,
-      );
+      // final categoryProvider = Provider.of<CategoryProvider>(
+      //   context,
+      //   listen: false,
+      // ); // Removed - migrated to BLoC
 
       // Trigger file list refresh with loading state
       final fileListRefresh = _fileListKey.currentState?.handleRefresh();
@@ -198,7 +198,7 @@ class _HomeScreenState extends State<HomeScreen>
       await Future.wait([
         if (fileListRefresh != null) fileListRefresh,
         userProvider.refreshUsers(),
-        categoryProvider.refreshCategories(),
+        // categoryProvider.refreshCategories(), // TODO: Implement with CategoryBloc
       ]);
 
       // OPTIMIZED: Client-side statistics refresh only

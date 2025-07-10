@@ -60,6 +60,11 @@ mixin _$UploadEvent {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>({
@@ -100,6 +105,9 @@ mixin _$UploadEvent {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>({
@@ -140,6 +148,9 @@ mixin _$UploadEvent {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
@@ -163,6 +174,10 @@ mixin _$UploadEvent {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult? mapOrNull<TResult extends Object?>({
@@ -185,6 +200,9 @@ mixin _$UploadEvent {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) => throw _privateConstructorUsedError;
   @optionalTypeArgs
   TResult maybeMap<TResult extends Object?>({
@@ -207,6 +225,9 @@ mixin _$UploadEvent {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) => throw _privateConstructorUsedError;
 }
@@ -407,6 +428,11 @@ class _$AddFilesImpl implements AddFiles {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return addFiles(files, categoryId, customMetadata, checkDuplicates);
   }
@@ -451,6 +477,9 @@ class _$AddFilesImpl implements AddFiles {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return addFiles?.call(files, categoryId, customMetadata, checkDuplicates);
   }
@@ -495,6 +524,9 @@ class _$AddFilesImpl implements AddFiles {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (addFiles != null) {
@@ -525,6 +557,10 @@ class _$AddFilesImpl implements AddFiles {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return addFiles(this);
   }
@@ -551,6 +587,9 @@ class _$AddFilesImpl implements AddFiles {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return addFiles?.call(this);
   }
@@ -577,6 +616,9 @@ class _$AddFilesImpl implements AddFiles {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (addFiles != null) {
@@ -690,6 +732,11 @@ class _$StartUploadImpl implements StartUpload {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return startUpload();
   }
@@ -734,6 +781,9 @@ class _$StartUploadImpl implements StartUpload {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return startUpload?.call();
   }
@@ -778,6 +828,9 @@ class _$StartUploadImpl implements StartUpload {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (startUpload != null) {
@@ -808,6 +861,10 @@ class _$StartUploadImpl implements StartUpload {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return startUpload(this);
   }
@@ -834,6 +891,9 @@ class _$StartUploadImpl implements StartUpload {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return startUpload?.call(this);
   }
@@ -860,6 +920,9 @@ class _$StartUploadImpl implements StartUpload {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (startUpload != null) {
@@ -984,6 +1047,11 @@ class _$PauseUploadImpl implements PauseUpload {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return pauseUpload(fileId);
   }
@@ -1028,6 +1096,9 @@ class _$PauseUploadImpl implements PauseUpload {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return pauseUpload?.call(fileId);
   }
@@ -1072,6 +1143,9 @@ class _$PauseUploadImpl implements PauseUpload {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (pauseUpload != null) {
@@ -1102,6 +1176,10 @@ class _$PauseUploadImpl implements PauseUpload {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return pauseUpload(this);
   }
@@ -1128,6 +1206,9 @@ class _$PauseUploadImpl implements PauseUpload {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return pauseUpload?.call(this);
   }
@@ -1154,6 +1235,9 @@ class _$PauseUploadImpl implements PauseUpload {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (pauseUpload != null) {
@@ -1286,6 +1370,11 @@ class _$ResumeUploadImpl implements ResumeUpload {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return resumeUpload(fileId);
   }
@@ -1330,6 +1419,9 @@ class _$ResumeUploadImpl implements ResumeUpload {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return resumeUpload?.call(fileId);
   }
@@ -1374,6 +1466,9 @@ class _$ResumeUploadImpl implements ResumeUpload {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (resumeUpload != null) {
@@ -1404,6 +1499,10 @@ class _$ResumeUploadImpl implements ResumeUpload {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return resumeUpload(this);
   }
@@ -1430,6 +1529,9 @@ class _$ResumeUploadImpl implements ResumeUpload {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return resumeUpload?.call(this);
   }
@@ -1456,6 +1558,9 @@ class _$ResumeUploadImpl implements ResumeUpload {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (resumeUpload != null) {
@@ -1588,6 +1693,11 @@ class _$CancelUploadImpl implements CancelUpload {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return cancelUpload(fileId);
   }
@@ -1632,6 +1742,9 @@ class _$CancelUploadImpl implements CancelUpload {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return cancelUpload?.call(fileId);
   }
@@ -1676,6 +1789,9 @@ class _$CancelUploadImpl implements CancelUpload {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (cancelUpload != null) {
@@ -1706,6 +1822,10 @@ class _$CancelUploadImpl implements CancelUpload {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return cancelUpload(this);
   }
@@ -1732,6 +1852,9 @@ class _$CancelUploadImpl implements CancelUpload {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return cancelUpload?.call(this);
   }
@@ -1758,6 +1881,9 @@ class _$CancelUploadImpl implements CancelUpload {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (cancelUpload != null) {
@@ -1890,6 +2016,11 @@ class _$RetryUploadImpl implements RetryUpload {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return retryUpload(fileId);
   }
@@ -1934,6 +2065,9 @@ class _$RetryUploadImpl implements RetryUpload {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return retryUpload?.call(fileId);
   }
@@ -1978,6 +2112,9 @@ class _$RetryUploadImpl implements RetryUpload {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (retryUpload != null) {
@@ -2008,6 +2145,10 @@ class _$RetryUploadImpl implements RetryUpload {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return retryUpload(this);
   }
@@ -2034,6 +2175,9 @@ class _$RetryUploadImpl implements RetryUpload {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return retryUpload?.call(this);
   }
@@ -2060,6 +2204,9 @@ class _$RetryUploadImpl implements RetryUpload {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (retryUpload != null) {
@@ -2192,6 +2339,11 @@ class _$RemoveFileImpl implements RemoveFile {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return removeFile(fileId);
   }
@@ -2236,6 +2388,9 @@ class _$RemoveFileImpl implements RemoveFile {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return removeFile?.call(fileId);
   }
@@ -2280,6 +2435,9 @@ class _$RemoveFileImpl implements RemoveFile {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (removeFile != null) {
@@ -2310,6 +2468,10 @@ class _$RemoveFileImpl implements RemoveFile {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return removeFile(this);
   }
@@ -2336,6 +2498,9 @@ class _$RemoveFileImpl implements RemoveFile {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return removeFile?.call(this);
   }
@@ -2362,6 +2527,9 @@ class _$RemoveFileImpl implements RemoveFile {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (removeFile != null) {
@@ -2467,6 +2635,11 @@ class _$ClearQueueImpl implements ClearQueue {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return clearQueue();
   }
@@ -2511,6 +2684,9 @@ class _$ClearQueueImpl implements ClearQueue {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return clearQueue?.call();
   }
@@ -2555,6 +2731,9 @@ class _$ClearQueueImpl implements ClearQueue {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (clearQueue != null) {
@@ -2585,6 +2764,10 @@ class _$ClearQueueImpl implements ClearQueue {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return clearQueue(this);
   }
@@ -2611,6 +2794,9 @@ class _$ClearQueueImpl implements ClearQueue {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return clearQueue?.call(this);
   }
@@ -2637,6 +2823,9 @@ class _$ClearQueueImpl implements ClearQueue {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (clearQueue != null) {
@@ -2804,6 +2993,11 @@ class _$UpdateProgressImpl implements UpdateProgress {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return updateProgress(fileId, progress, bytesUploaded, totalBytes);
   }
@@ -2848,6 +3042,9 @@ class _$UpdateProgressImpl implements UpdateProgress {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return updateProgress?.call(fileId, progress, bytesUploaded, totalBytes);
   }
@@ -2892,6 +3089,9 @@ class _$UpdateProgressImpl implements UpdateProgress {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (updateProgress != null) {
@@ -2922,6 +3122,10 @@ class _$UpdateProgressImpl implements UpdateProgress {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return updateProgress(this);
   }
@@ -2948,6 +3152,9 @@ class _$UpdateProgressImpl implements UpdateProgress {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return updateProgress?.call(this);
   }
@@ -2974,6 +3181,9 @@ class _$UpdateProgressImpl implements UpdateProgress {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (updateProgress != null) {
@@ -3138,6 +3348,11 @@ class _$FileCompletedImpl implements FileCompleted {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return fileCompleted(fileId, downloadUrl, documentId);
   }
@@ -3182,6 +3397,9 @@ class _$FileCompletedImpl implements FileCompleted {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return fileCompleted?.call(fileId, downloadUrl, documentId);
   }
@@ -3226,6 +3444,9 @@ class _$FileCompletedImpl implements FileCompleted {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (fileCompleted != null) {
@@ -3256,6 +3477,10 @@ class _$FileCompletedImpl implements FileCompleted {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return fileCompleted(this);
   }
@@ -3282,6 +3507,9 @@ class _$FileCompletedImpl implements FileCompleted {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return fileCompleted?.call(this);
   }
@@ -3308,6 +3536,9 @@ class _$FileCompletedImpl implements FileCompleted {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (fileCompleted != null) {
@@ -3453,6 +3684,11 @@ class _$FileFailedImpl implements FileFailed {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return fileFailed(fileId, error);
   }
@@ -3497,6 +3733,9 @@ class _$FileFailedImpl implements FileFailed {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return fileFailed?.call(fileId, error);
   }
@@ -3541,6 +3780,9 @@ class _$FileFailedImpl implements FileFailed {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (fileFailed != null) {
@@ -3571,6 +3813,10 @@ class _$FileFailedImpl implements FileFailed {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return fileFailed(this);
   }
@@ -3597,6 +3843,9 @@ class _$FileFailedImpl implements FileFailed {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return fileFailed?.call(this);
   }
@@ -3623,6 +3872,9 @@ class _$FileFailedImpl implements FileFailed {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (fileFailed != null) {
@@ -3788,6 +4040,11 @@ class _$UpdateSettingsImpl implements UpdateSettings {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return updateSettings(maxConcurrentUploads, chunkSize, retryAttempts);
   }
@@ -3832,6 +4089,9 @@ class _$UpdateSettingsImpl implements UpdateSettings {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return updateSettings?.call(maxConcurrentUploads, chunkSize, retryAttempts);
   }
@@ -3876,6 +4136,9 @@ class _$UpdateSettingsImpl implements UpdateSettings {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (updateSettings != null) {
@@ -3906,6 +4169,10 @@ class _$UpdateSettingsImpl implements UpdateSettings {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return updateSettings(this);
   }
@@ -3932,6 +4199,9 @@ class _$UpdateSettingsImpl implements UpdateSettings {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return updateSettings?.call(this);
   }
@@ -3958,6 +4228,9 @@ class _$UpdateSettingsImpl implements UpdateSettings {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (updateSettings != null) {
@@ -4103,6 +4376,11 @@ class _$ValidateFilesImpl implements ValidateFiles {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return validateFiles(files);
   }
@@ -4147,6 +4425,9 @@ class _$ValidateFilesImpl implements ValidateFiles {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return validateFiles?.call(files);
   }
@@ -4191,6 +4472,9 @@ class _$ValidateFilesImpl implements ValidateFiles {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (validateFiles != null) {
@@ -4221,6 +4505,10 @@ class _$ValidateFilesImpl implements ValidateFiles {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return validateFiles(this);
   }
@@ -4247,6 +4535,9 @@ class _$ValidateFilesImpl implements ValidateFiles {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return validateFiles?.call(this);
   }
@@ -4273,6 +4564,9 @@ class _$ValidateFilesImpl implements ValidateFiles {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (validateFiles != null) {
@@ -4379,6 +4673,11 @@ class _$ResetStateImpl implements ResetState {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return resetState();
   }
@@ -4423,6 +4722,9 @@ class _$ResetStateImpl implements ResetState {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return resetState?.call();
   }
@@ -4467,6 +4769,9 @@ class _$ResetStateImpl implements ResetState {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (resetState != null) {
@@ -4497,6 +4802,10 @@ class _$ResetStateImpl implements ResetState {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return resetState(this);
   }
@@ -4523,6 +4832,9 @@ class _$ResetStateImpl implements ResetState {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return resetState?.call(this);
   }
@@ -4549,6 +4861,9 @@ class _$ResetStateImpl implements ResetState {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (resetState != null) {
@@ -4674,6 +4989,11 @@ class _$SetCategoryImpl implements SetCategory {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return setCategory(categoryId);
   }
@@ -4718,6 +5038,9 @@ class _$SetCategoryImpl implements SetCategory {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return setCategory?.call(categoryId);
   }
@@ -4762,6 +5085,9 @@ class _$SetCategoryImpl implements SetCategory {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (setCategory != null) {
@@ -4792,6 +5118,10 @@ class _$SetCategoryImpl implements SetCategory {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return setCategory(this);
   }
@@ -4818,6 +5148,9 @@ class _$SetCategoryImpl implements SetCategory {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return setCategory?.call(this);
   }
@@ -4844,6 +5177,9 @@ class _$SetCategoryImpl implements SetCategory {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (setCategory != null) {
@@ -4984,6 +5320,11 @@ class _$SetMetadataImpl implements SetMetadata {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return setMetadata(metadata);
   }
@@ -5028,6 +5369,9 @@ class _$SetMetadataImpl implements SetMetadata {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return setMetadata?.call(metadata);
   }
@@ -5072,6 +5416,9 @@ class _$SetMetadataImpl implements SetMetadata {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (setMetadata != null) {
@@ -5102,6 +5449,10 @@ class _$SetMetadataImpl implements SetMetadata {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return setMetadata(this);
   }
@@ -5128,6 +5479,9 @@ class _$SetMetadataImpl implements SetMetadata {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return setMetadata?.call(this);
   }
@@ -5154,6 +5508,9 @@ class _$SetMetadataImpl implements SetMetadata {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (setMetadata != null) {
@@ -5260,6 +5617,11 @@ class _$ProcessQueueImpl implements ProcessQueue {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return processQueue();
   }
@@ -5304,6 +5666,9 @@ class _$ProcessQueueImpl implements ProcessQueue {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return processQueue?.call();
   }
@@ -5348,6 +5713,9 @@ class _$ProcessQueueImpl implements ProcessQueue {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (processQueue != null) {
@@ -5378,6 +5746,10 @@ class _$ProcessQueueImpl implements ProcessQueue {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return processQueue(this);
   }
@@ -5404,6 +5776,9 @@ class _$ProcessQueueImpl implements ProcessQueue {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return processQueue?.call(this);
   }
@@ -5430,6 +5805,9 @@ class _$ProcessQueueImpl implements ProcessQueue {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (processQueue != null) {
@@ -5527,6 +5905,11 @@ class _$UploadCompletedImpl implements UploadCompleted {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return uploadCompleted();
   }
@@ -5571,6 +5954,9 @@ class _$UploadCompletedImpl implements UploadCompleted {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return uploadCompleted?.call();
   }
@@ -5615,6 +6001,9 @@ class _$UploadCompletedImpl implements UploadCompleted {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (uploadCompleted != null) {
@@ -5645,6 +6034,10 @@ class _$UploadCompletedImpl implements UploadCompleted {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return uploadCompleted(this);
   }
@@ -5671,6 +6064,9 @@ class _$UploadCompletedImpl implements UploadCompleted {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return uploadCompleted?.call(this);
   }
@@ -5697,6 +6093,9 @@ class _$UploadCompletedImpl implements UploadCompleted {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (uploadCompleted != null) {
@@ -5821,6 +6220,11 @@ class _$UploadErrorImpl implements UploadError {
     required TResult Function() processQueue,
     required TResult Function() uploadCompleted,
     required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
   }) {
     return uploadError(error);
   }
@@ -5865,6 +6269,9 @@ class _$UploadErrorImpl implements UploadError {
     TResult? Function()? processQueue,
     TResult? Function()? uploadCompleted,
     TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
   }) {
     return uploadError?.call(error);
   }
@@ -5909,6 +6316,9 @@ class _$UploadErrorImpl implements UploadError {
     TResult Function()? processQueue,
     TResult Function()? uploadCompleted,
     TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (uploadError != null) {
@@ -5939,6 +6349,10 @@ class _$UploadErrorImpl implements UploadError {
     required TResult Function(ProcessQueue value) processQueue,
     required TResult Function(UploadCompleted value) uploadCompleted,
     required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
   }) {
     return uploadError(this);
   }
@@ -5965,6 +6379,9 @@ class _$UploadErrorImpl implements UploadError {
     TResult? Function(ProcessQueue value)? processQueue,
     TResult? Function(UploadCompleted value)? uploadCompleted,
     TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
   }) {
     return uploadError?.call(this);
   }
@@ -5991,6 +6408,9 @@ class _$UploadErrorImpl implements UploadError {
     TResult Function(ProcessQueue value)? processQueue,
     TResult Function(UploadCompleted value)? uploadCompleted,
     TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
     required TResult orElse(),
   }) {
     if (uploadError != null) {
@@ -6009,5 +6429,1012 @@ abstract class UploadError implements UploadEvent {
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$UploadErrorImplCopyWith<_$UploadErrorImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$OverallProgressUpdatedImplCopyWith<$Res> {
+  factory _$$OverallProgressUpdatedImplCopyWith(
+    _$OverallProgressUpdatedImpl value,
+    $Res Function(_$OverallProgressUpdatedImpl) then,
+  ) = __$$OverallProgressUpdatedImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({double progress});
+}
+
+/// @nodoc
+class __$$OverallProgressUpdatedImplCopyWithImpl<$Res>
+    extends _$UploadEventCopyWithImpl<$Res, _$OverallProgressUpdatedImpl>
+    implements _$$OverallProgressUpdatedImplCopyWith<$Res> {
+  __$$OverallProgressUpdatedImplCopyWithImpl(
+    _$OverallProgressUpdatedImpl _value,
+    $Res Function(_$OverallProgressUpdatedImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of UploadEvent
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? progress = null}) {
+    return _then(
+      _$OverallProgressUpdatedImpl(
+        progress: null == progress
+            ? _value.progress
+            : progress // ignore: cast_nullable_to_non_nullable
+                  as double,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+
+class _$OverallProgressUpdatedImpl implements OverallProgressUpdated {
+  const _$OverallProgressUpdatedImpl({required this.progress});
+
+  @override
+  final double progress;
+
+  @override
+  String toString() {
+    return 'UploadEvent.overallProgressUpdated(progress: $progress)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$OverallProgressUpdatedImpl &&
+            (identical(other.progress, progress) ||
+                other.progress == progress));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, progress);
+
+  /// Create a copy of UploadEvent
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$OverallProgressUpdatedImplCopyWith<_$OverallProgressUpdatedImpl>
+  get copyWith =>
+      __$$OverallProgressUpdatedImplCopyWithImpl<_$OverallProgressUpdatedImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(
+      List<XFile> files,
+      String? categoryId,
+      Map<String, String>? customMetadata,
+      bool checkDuplicates,
+    )
+    addFiles,
+    required TResult Function() startUpload,
+    required TResult Function(String? fileId) pauseUpload,
+    required TResult Function(String? fileId) resumeUpload,
+    required TResult Function(String? fileId) cancelUpload,
+    required TResult Function(String fileId) retryUpload,
+    required TResult Function(String fileId) removeFile,
+    required TResult Function() clearQueue,
+    required TResult Function(
+      String fileId,
+      double progress,
+      int bytesUploaded,
+      int totalBytes,
+    )
+    updateProgress,
+    required TResult Function(
+      String fileId,
+      String downloadUrl,
+      String? documentId,
+    )
+    fileCompleted,
+    required TResult Function(String fileId, String error) fileFailed,
+    required TResult Function(
+      int? maxConcurrentUploads,
+      int? chunkSize,
+      int? retryAttempts,
+    )
+    updateSettings,
+    required TResult Function(List<XFile> files) validateFiles,
+    required TResult Function() resetState,
+    required TResult Function(String categoryId) setCategory,
+    required TResult Function(Map<String, String> metadata) setMetadata,
+    required TResult Function() processQueue,
+    required TResult Function() uploadCompleted,
+    required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
+  }) {
+    return overallProgressUpdated(progress);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(
+      List<XFile> files,
+      String? categoryId,
+      Map<String, String>? customMetadata,
+      bool checkDuplicates,
+    )?
+    addFiles,
+    TResult? Function()? startUpload,
+    TResult? Function(String? fileId)? pauseUpload,
+    TResult? Function(String? fileId)? resumeUpload,
+    TResult? Function(String? fileId)? cancelUpload,
+    TResult? Function(String fileId)? retryUpload,
+    TResult? Function(String fileId)? removeFile,
+    TResult? Function()? clearQueue,
+    TResult? Function(
+      String fileId,
+      double progress,
+      int bytesUploaded,
+      int totalBytes,
+    )?
+    updateProgress,
+    TResult? Function(String fileId, String downloadUrl, String? documentId)?
+    fileCompleted,
+    TResult? Function(String fileId, String error)? fileFailed,
+    TResult? Function(
+      int? maxConcurrentUploads,
+      int? chunkSize,
+      int? retryAttempts,
+    )?
+    updateSettings,
+    TResult? Function(List<XFile> files)? validateFiles,
+    TResult? Function()? resetState,
+    TResult? Function(String categoryId)? setCategory,
+    TResult? Function(Map<String, String> metadata)? setMetadata,
+    TResult? Function()? processQueue,
+    TResult? Function()? uploadCompleted,
+    TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
+  }) {
+    return overallProgressUpdated?.call(progress);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(
+      List<XFile> files,
+      String? categoryId,
+      Map<String, String>? customMetadata,
+      bool checkDuplicates,
+    )?
+    addFiles,
+    TResult Function()? startUpload,
+    TResult Function(String? fileId)? pauseUpload,
+    TResult Function(String? fileId)? resumeUpload,
+    TResult Function(String? fileId)? cancelUpload,
+    TResult Function(String fileId)? retryUpload,
+    TResult Function(String fileId)? removeFile,
+    TResult Function()? clearQueue,
+    TResult Function(
+      String fileId,
+      double progress,
+      int bytesUploaded,
+      int totalBytes,
+    )?
+    updateProgress,
+    TResult Function(String fileId, String downloadUrl, String? documentId)?
+    fileCompleted,
+    TResult Function(String fileId, String error)? fileFailed,
+    TResult Function(
+      int? maxConcurrentUploads,
+      int? chunkSize,
+      int? retryAttempts,
+    )?
+    updateSettings,
+    TResult Function(List<XFile> files)? validateFiles,
+    TResult Function()? resetState,
+    TResult Function(String categoryId)? setCategory,
+    TResult Function(Map<String, String> metadata)? setMetadata,
+    TResult Function()? processQueue,
+    TResult Function()? uploadCompleted,
+    TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
+    required TResult orElse(),
+  }) {
+    if (overallProgressUpdated != null) {
+      return overallProgressUpdated(progress);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(AddFiles value) addFiles,
+    required TResult Function(StartUpload value) startUpload,
+    required TResult Function(PauseUpload value) pauseUpload,
+    required TResult Function(ResumeUpload value) resumeUpload,
+    required TResult Function(CancelUpload value) cancelUpload,
+    required TResult Function(RetryUpload value) retryUpload,
+    required TResult Function(RemoveFile value) removeFile,
+    required TResult Function(ClearQueue value) clearQueue,
+    required TResult Function(UpdateProgress value) updateProgress,
+    required TResult Function(FileCompleted value) fileCompleted,
+    required TResult Function(FileFailed value) fileFailed,
+    required TResult Function(UpdateSettings value) updateSettings,
+    required TResult Function(ValidateFiles value) validateFiles,
+    required TResult Function(ResetState value) resetState,
+    required TResult Function(SetCategory value) setCategory,
+    required TResult Function(SetMetadata value) setMetadata,
+    required TResult Function(ProcessQueue value) processQueue,
+    required TResult Function(UploadCompleted value) uploadCompleted,
+    required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
+  }) {
+    return overallProgressUpdated(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(AddFiles value)? addFiles,
+    TResult? Function(StartUpload value)? startUpload,
+    TResult? Function(PauseUpload value)? pauseUpload,
+    TResult? Function(ResumeUpload value)? resumeUpload,
+    TResult? Function(CancelUpload value)? cancelUpload,
+    TResult? Function(RetryUpload value)? retryUpload,
+    TResult? Function(RemoveFile value)? removeFile,
+    TResult? Function(ClearQueue value)? clearQueue,
+    TResult? Function(UpdateProgress value)? updateProgress,
+    TResult? Function(FileCompleted value)? fileCompleted,
+    TResult? Function(FileFailed value)? fileFailed,
+    TResult? Function(UpdateSettings value)? updateSettings,
+    TResult? Function(ValidateFiles value)? validateFiles,
+    TResult? Function(ResetState value)? resetState,
+    TResult? Function(SetCategory value)? setCategory,
+    TResult? Function(SetMetadata value)? setMetadata,
+    TResult? Function(ProcessQueue value)? processQueue,
+    TResult? Function(UploadCompleted value)? uploadCompleted,
+    TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
+  }) {
+    return overallProgressUpdated?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(AddFiles value)? addFiles,
+    TResult Function(StartUpload value)? startUpload,
+    TResult Function(PauseUpload value)? pauseUpload,
+    TResult Function(ResumeUpload value)? resumeUpload,
+    TResult Function(CancelUpload value)? cancelUpload,
+    TResult Function(RetryUpload value)? retryUpload,
+    TResult Function(RemoveFile value)? removeFile,
+    TResult Function(ClearQueue value)? clearQueue,
+    TResult Function(UpdateProgress value)? updateProgress,
+    TResult Function(FileCompleted value)? fileCompleted,
+    TResult Function(FileFailed value)? fileFailed,
+    TResult Function(UpdateSettings value)? updateSettings,
+    TResult Function(ValidateFiles value)? validateFiles,
+    TResult Function(ResetState value)? resetState,
+    TResult Function(SetCategory value)? setCategory,
+    TResult Function(SetMetadata value)? setMetadata,
+    TResult Function(ProcessQueue value)? processQueue,
+    TResult Function(UploadCompleted value)? uploadCompleted,
+    TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
+    required TResult orElse(),
+  }) {
+    if (overallProgressUpdated != null) {
+      return overallProgressUpdated(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class OverallProgressUpdated implements UploadEvent {
+  const factory OverallProgressUpdated({required final double progress}) =
+      _$OverallProgressUpdatedImpl;
+
+  double get progress;
+
+  /// Create a copy of UploadEvent
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$OverallProgressUpdatedImplCopyWith<_$OverallProgressUpdatedImpl>
+  get copyWith => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$FileProgressUpdatedImplCopyWith<$Res> {
+  factory _$$FileProgressUpdatedImplCopyWith(
+    _$FileProgressUpdatedImpl value,
+    $Res Function(_$FileProgressUpdatedImpl) then,
+  ) = __$$FileProgressUpdatedImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({String fileId, double progress});
+}
+
+/// @nodoc
+class __$$FileProgressUpdatedImplCopyWithImpl<$Res>
+    extends _$UploadEventCopyWithImpl<$Res, _$FileProgressUpdatedImpl>
+    implements _$$FileProgressUpdatedImplCopyWith<$Res> {
+  __$$FileProgressUpdatedImplCopyWithImpl(
+    _$FileProgressUpdatedImpl _value,
+    $Res Function(_$FileProgressUpdatedImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of UploadEvent
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? fileId = null, Object? progress = null}) {
+    return _then(
+      _$FileProgressUpdatedImpl(
+        fileId: null == fileId
+            ? _value.fileId
+            : fileId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        progress: null == progress
+            ? _value.progress
+            : progress // ignore: cast_nullable_to_non_nullable
+                  as double,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+
+class _$FileProgressUpdatedImpl implements FileProgressUpdated {
+  const _$FileProgressUpdatedImpl({
+    required this.fileId,
+    required this.progress,
+  });
+
+  @override
+  final String fileId;
+  @override
+  final double progress;
+
+  @override
+  String toString() {
+    return 'UploadEvent.fileProgressUpdated(fileId: $fileId, progress: $progress)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$FileProgressUpdatedImpl &&
+            (identical(other.fileId, fileId) || other.fileId == fileId) &&
+            (identical(other.progress, progress) ||
+                other.progress == progress));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, fileId, progress);
+
+  /// Create a copy of UploadEvent
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$FileProgressUpdatedImplCopyWith<_$FileProgressUpdatedImpl> get copyWith =>
+      __$$FileProgressUpdatedImplCopyWithImpl<_$FileProgressUpdatedImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(
+      List<XFile> files,
+      String? categoryId,
+      Map<String, String>? customMetadata,
+      bool checkDuplicates,
+    )
+    addFiles,
+    required TResult Function() startUpload,
+    required TResult Function(String? fileId) pauseUpload,
+    required TResult Function(String? fileId) resumeUpload,
+    required TResult Function(String? fileId) cancelUpload,
+    required TResult Function(String fileId) retryUpload,
+    required TResult Function(String fileId) removeFile,
+    required TResult Function() clearQueue,
+    required TResult Function(
+      String fileId,
+      double progress,
+      int bytesUploaded,
+      int totalBytes,
+    )
+    updateProgress,
+    required TResult Function(
+      String fileId,
+      String downloadUrl,
+      String? documentId,
+    )
+    fileCompleted,
+    required TResult Function(String fileId, String error) fileFailed,
+    required TResult Function(
+      int? maxConcurrentUploads,
+      int? chunkSize,
+      int? retryAttempts,
+    )
+    updateSettings,
+    required TResult Function(List<XFile> files) validateFiles,
+    required TResult Function() resetState,
+    required TResult Function(String categoryId) setCategory,
+    required TResult Function(Map<String, String> metadata) setMetadata,
+    required TResult Function() processQueue,
+    required TResult Function() uploadCompleted,
+    required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
+  }) {
+    return fileProgressUpdated(fileId, progress);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(
+      List<XFile> files,
+      String? categoryId,
+      Map<String, String>? customMetadata,
+      bool checkDuplicates,
+    )?
+    addFiles,
+    TResult? Function()? startUpload,
+    TResult? Function(String? fileId)? pauseUpload,
+    TResult? Function(String? fileId)? resumeUpload,
+    TResult? Function(String? fileId)? cancelUpload,
+    TResult? Function(String fileId)? retryUpload,
+    TResult? Function(String fileId)? removeFile,
+    TResult? Function()? clearQueue,
+    TResult? Function(
+      String fileId,
+      double progress,
+      int bytesUploaded,
+      int totalBytes,
+    )?
+    updateProgress,
+    TResult? Function(String fileId, String downloadUrl, String? documentId)?
+    fileCompleted,
+    TResult? Function(String fileId, String error)? fileFailed,
+    TResult? Function(
+      int? maxConcurrentUploads,
+      int? chunkSize,
+      int? retryAttempts,
+    )?
+    updateSettings,
+    TResult? Function(List<XFile> files)? validateFiles,
+    TResult? Function()? resetState,
+    TResult? Function(String categoryId)? setCategory,
+    TResult? Function(Map<String, String> metadata)? setMetadata,
+    TResult? Function()? processQueue,
+    TResult? Function()? uploadCompleted,
+    TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
+  }) {
+    return fileProgressUpdated?.call(fileId, progress);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(
+      List<XFile> files,
+      String? categoryId,
+      Map<String, String>? customMetadata,
+      bool checkDuplicates,
+    )?
+    addFiles,
+    TResult Function()? startUpload,
+    TResult Function(String? fileId)? pauseUpload,
+    TResult Function(String? fileId)? resumeUpload,
+    TResult Function(String? fileId)? cancelUpload,
+    TResult Function(String fileId)? retryUpload,
+    TResult Function(String fileId)? removeFile,
+    TResult Function()? clearQueue,
+    TResult Function(
+      String fileId,
+      double progress,
+      int bytesUploaded,
+      int totalBytes,
+    )?
+    updateProgress,
+    TResult Function(String fileId, String downloadUrl, String? documentId)?
+    fileCompleted,
+    TResult Function(String fileId, String error)? fileFailed,
+    TResult Function(
+      int? maxConcurrentUploads,
+      int? chunkSize,
+      int? retryAttempts,
+    )?
+    updateSettings,
+    TResult Function(List<XFile> files)? validateFiles,
+    TResult Function()? resetState,
+    TResult Function(String categoryId)? setCategory,
+    TResult Function(Map<String, String> metadata)? setMetadata,
+    TResult Function()? processQueue,
+    TResult Function()? uploadCompleted,
+    TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
+    required TResult orElse(),
+  }) {
+    if (fileProgressUpdated != null) {
+      return fileProgressUpdated(fileId, progress);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(AddFiles value) addFiles,
+    required TResult Function(StartUpload value) startUpload,
+    required TResult Function(PauseUpload value) pauseUpload,
+    required TResult Function(ResumeUpload value) resumeUpload,
+    required TResult Function(CancelUpload value) cancelUpload,
+    required TResult Function(RetryUpload value) retryUpload,
+    required TResult Function(RemoveFile value) removeFile,
+    required TResult Function(ClearQueue value) clearQueue,
+    required TResult Function(UpdateProgress value) updateProgress,
+    required TResult Function(FileCompleted value) fileCompleted,
+    required TResult Function(FileFailed value) fileFailed,
+    required TResult Function(UpdateSettings value) updateSettings,
+    required TResult Function(ValidateFiles value) validateFiles,
+    required TResult Function(ResetState value) resetState,
+    required TResult Function(SetCategory value) setCategory,
+    required TResult Function(SetMetadata value) setMetadata,
+    required TResult Function(ProcessQueue value) processQueue,
+    required TResult Function(UploadCompleted value) uploadCompleted,
+    required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
+  }) {
+    return fileProgressUpdated(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(AddFiles value)? addFiles,
+    TResult? Function(StartUpload value)? startUpload,
+    TResult? Function(PauseUpload value)? pauseUpload,
+    TResult? Function(ResumeUpload value)? resumeUpload,
+    TResult? Function(CancelUpload value)? cancelUpload,
+    TResult? Function(RetryUpload value)? retryUpload,
+    TResult? Function(RemoveFile value)? removeFile,
+    TResult? Function(ClearQueue value)? clearQueue,
+    TResult? Function(UpdateProgress value)? updateProgress,
+    TResult? Function(FileCompleted value)? fileCompleted,
+    TResult? Function(FileFailed value)? fileFailed,
+    TResult? Function(UpdateSettings value)? updateSettings,
+    TResult? Function(ValidateFiles value)? validateFiles,
+    TResult? Function(ResetState value)? resetState,
+    TResult? Function(SetCategory value)? setCategory,
+    TResult? Function(SetMetadata value)? setMetadata,
+    TResult? Function(ProcessQueue value)? processQueue,
+    TResult? Function(UploadCompleted value)? uploadCompleted,
+    TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
+  }) {
+    return fileProgressUpdated?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(AddFiles value)? addFiles,
+    TResult Function(StartUpload value)? startUpload,
+    TResult Function(PauseUpload value)? pauseUpload,
+    TResult Function(ResumeUpload value)? resumeUpload,
+    TResult Function(CancelUpload value)? cancelUpload,
+    TResult Function(RetryUpload value)? retryUpload,
+    TResult Function(RemoveFile value)? removeFile,
+    TResult Function(ClearQueue value)? clearQueue,
+    TResult Function(UpdateProgress value)? updateProgress,
+    TResult Function(FileCompleted value)? fileCompleted,
+    TResult Function(FileFailed value)? fileFailed,
+    TResult Function(UpdateSettings value)? updateSettings,
+    TResult Function(ValidateFiles value)? validateFiles,
+    TResult Function(ResetState value)? resetState,
+    TResult Function(SetCategory value)? setCategory,
+    TResult Function(SetMetadata value)? setMetadata,
+    TResult Function(ProcessQueue value)? processQueue,
+    TResult Function(UploadCompleted value)? uploadCompleted,
+    TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
+    required TResult orElse(),
+  }) {
+    if (fileProgressUpdated != null) {
+      return fileProgressUpdated(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class FileProgressUpdated implements UploadEvent {
+  const factory FileProgressUpdated({
+    required final String fileId,
+    required final double progress,
+  }) = _$FileProgressUpdatedImpl;
+
+  String get fileId;
+  double get progress;
+
+  /// Create a copy of UploadEvent
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$FileProgressUpdatedImplCopyWith<_$FileProgressUpdatedImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$FileStatusUpdatedImplCopyWith<$Res> {
+  factory _$$FileStatusUpdatedImplCopyWith(
+    _$FileStatusUpdatedImpl value,
+    $Res Function(_$FileStatusUpdatedImpl) then,
+  ) = __$$FileStatusUpdatedImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({String fileId, UploadStatus status});
+}
+
+/// @nodoc
+class __$$FileStatusUpdatedImplCopyWithImpl<$Res>
+    extends _$UploadEventCopyWithImpl<$Res, _$FileStatusUpdatedImpl>
+    implements _$$FileStatusUpdatedImplCopyWith<$Res> {
+  __$$FileStatusUpdatedImplCopyWithImpl(
+    _$FileStatusUpdatedImpl _value,
+    $Res Function(_$FileStatusUpdatedImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of UploadEvent
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? fileId = null, Object? status = null}) {
+    return _then(
+      _$FileStatusUpdatedImpl(
+        fileId: null == fileId
+            ? _value.fileId
+            : fileId // ignore: cast_nullable_to_non_nullable
+                  as String,
+        status: null == status
+            ? _value.status
+            : status // ignore: cast_nullable_to_non_nullable
+                  as UploadStatus,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+
+class _$FileStatusUpdatedImpl implements FileStatusUpdated {
+  const _$FileStatusUpdatedImpl({required this.fileId, required this.status});
+
+  @override
+  final String fileId;
+  @override
+  final UploadStatus status;
+
+  @override
+  String toString() {
+    return 'UploadEvent.fileStatusUpdated(fileId: $fileId, status: $status)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$FileStatusUpdatedImpl &&
+            (identical(other.fileId, fileId) || other.fileId == fileId) &&
+            (identical(other.status, status) || other.status == status));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, fileId, status);
+
+  /// Create a copy of UploadEvent
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$FileStatusUpdatedImplCopyWith<_$FileStatusUpdatedImpl> get copyWith =>
+      __$$FileStatusUpdatedImplCopyWithImpl<_$FileStatusUpdatedImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(
+      List<XFile> files,
+      String? categoryId,
+      Map<String, String>? customMetadata,
+      bool checkDuplicates,
+    )
+    addFiles,
+    required TResult Function() startUpload,
+    required TResult Function(String? fileId) pauseUpload,
+    required TResult Function(String? fileId) resumeUpload,
+    required TResult Function(String? fileId) cancelUpload,
+    required TResult Function(String fileId) retryUpload,
+    required TResult Function(String fileId) removeFile,
+    required TResult Function() clearQueue,
+    required TResult Function(
+      String fileId,
+      double progress,
+      int bytesUploaded,
+      int totalBytes,
+    )
+    updateProgress,
+    required TResult Function(
+      String fileId,
+      String downloadUrl,
+      String? documentId,
+    )
+    fileCompleted,
+    required TResult Function(String fileId, String error) fileFailed,
+    required TResult Function(
+      int? maxConcurrentUploads,
+      int? chunkSize,
+      int? retryAttempts,
+    )
+    updateSettings,
+    required TResult Function(List<XFile> files) validateFiles,
+    required TResult Function() resetState,
+    required TResult Function(String categoryId) setCategory,
+    required TResult Function(Map<String, String> metadata) setMetadata,
+    required TResult Function() processQueue,
+    required TResult Function() uploadCompleted,
+    required TResult Function(String error) uploadError,
+    required TResult Function(double progress) overallProgressUpdated,
+    required TResult Function(String fileId, double progress)
+    fileProgressUpdated,
+    required TResult Function(String fileId, UploadStatus status)
+    fileStatusUpdated,
+  }) {
+    return fileStatusUpdated(fileId, status);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(
+      List<XFile> files,
+      String? categoryId,
+      Map<String, String>? customMetadata,
+      bool checkDuplicates,
+    )?
+    addFiles,
+    TResult? Function()? startUpload,
+    TResult? Function(String? fileId)? pauseUpload,
+    TResult? Function(String? fileId)? resumeUpload,
+    TResult? Function(String? fileId)? cancelUpload,
+    TResult? Function(String fileId)? retryUpload,
+    TResult? Function(String fileId)? removeFile,
+    TResult? Function()? clearQueue,
+    TResult? Function(
+      String fileId,
+      double progress,
+      int bytesUploaded,
+      int totalBytes,
+    )?
+    updateProgress,
+    TResult? Function(String fileId, String downloadUrl, String? documentId)?
+    fileCompleted,
+    TResult? Function(String fileId, String error)? fileFailed,
+    TResult? Function(
+      int? maxConcurrentUploads,
+      int? chunkSize,
+      int? retryAttempts,
+    )?
+    updateSettings,
+    TResult? Function(List<XFile> files)? validateFiles,
+    TResult? Function()? resetState,
+    TResult? Function(String categoryId)? setCategory,
+    TResult? Function(Map<String, String> metadata)? setMetadata,
+    TResult? Function()? processQueue,
+    TResult? Function()? uploadCompleted,
+    TResult? Function(String error)? uploadError,
+    TResult? Function(double progress)? overallProgressUpdated,
+    TResult? Function(String fileId, double progress)? fileProgressUpdated,
+    TResult? Function(String fileId, UploadStatus status)? fileStatusUpdated,
+  }) {
+    return fileStatusUpdated?.call(fileId, status);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(
+      List<XFile> files,
+      String? categoryId,
+      Map<String, String>? customMetadata,
+      bool checkDuplicates,
+    )?
+    addFiles,
+    TResult Function()? startUpload,
+    TResult Function(String? fileId)? pauseUpload,
+    TResult Function(String? fileId)? resumeUpload,
+    TResult Function(String? fileId)? cancelUpload,
+    TResult Function(String fileId)? retryUpload,
+    TResult Function(String fileId)? removeFile,
+    TResult Function()? clearQueue,
+    TResult Function(
+      String fileId,
+      double progress,
+      int bytesUploaded,
+      int totalBytes,
+    )?
+    updateProgress,
+    TResult Function(String fileId, String downloadUrl, String? documentId)?
+    fileCompleted,
+    TResult Function(String fileId, String error)? fileFailed,
+    TResult Function(
+      int? maxConcurrentUploads,
+      int? chunkSize,
+      int? retryAttempts,
+    )?
+    updateSettings,
+    TResult Function(List<XFile> files)? validateFiles,
+    TResult Function()? resetState,
+    TResult Function(String categoryId)? setCategory,
+    TResult Function(Map<String, String> metadata)? setMetadata,
+    TResult Function()? processQueue,
+    TResult Function()? uploadCompleted,
+    TResult Function(String error)? uploadError,
+    TResult Function(double progress)? overallProgressUpdated,
+    TResult Function(String fileId, double progress)? fileProgressUpdated,
+    TResult Function(String fileId, UploadStatus status)? fileStatusUpdated,
+    required TResult orElse(),
+  }) {
+    if (fileStatusUpdated != null) {
+      return fileStatusUpdated(fileId, status);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(AddFiles value) addFiles,
+    required TResult Function(StartUpload value) startUpload,
+    required TResult Function(PauseUpload value) pauseUpload,
+    required TResult Function(ResumeUpload value) resumeUpload,
+    required TResult Function(CancelUpload value) cancelUpload,
+    required TResult Function(RetryUpload value) retryUpload,
+    required TResult Function(RemoveFile value) removeFile,
+    required TResult Function(ClearQueue value) clearQueue,
+    required TResult Function(UpdateProgress value) updateProgress,
+    required TResult Function(FileCompleted value) fileCompleted,
+    required TResult Function(FileFailed value) fileFailed,
+    required TResult Function(UpdateSettings value) updateSettings,
+    required TResult Function(ValidateFiles value) validateFiles,
+    required TResult Function(ResetState value) resetState,
+    required TResult Function(SetCategory value) setCategory,
+    required TResult Function(SetMetadata value) setMetadata,
+    required TResult Function(ProcessQueue value) processQueue,
+    required TResult Function(UploadCompleted value) uploadCompleted,
+    required TResult Function(UploadError value) uploadError,
+    required TResult Function(OverallProgressUpdated value)
+    overallProgressUpdated,
+    required TResult Function(FileProgressUpdated value) fileProgressUpdated,
+    required TResult Function(FileStatusUpdated value) fileStatusUpdated,
+  }) {
+    return fileStatusUpdated(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(AddFiles value)? addFiles,
+    TResult? Function(StartUpload value)? startUpload,
+    TResult? Function(PauseUpload value)? pauseUpload,
+    TResult? Function(ResumeUpload value)? resumeUpload,
+    TResult? Function(CancelUpload value)? cancelUpload,
+    TResult? Function(RetryUpload value)? retryUpload,
+    TResult? Function(RemoveFile value)? removeFile,
+    TResult? Function(ClearQueue value)? clearQueue,
+    TResult? Function(UpdateProgress value)? updateProgress,
+    TResult? Function(FileCompleted value)? fileCompleted,
+    TResult? Function(FileFailed value)? fileFailed,
+    TResult? Function(UpdateSettings value)? updateSettings,
+    TResult? Function(ValidateFiles value)? validateFiles,
+    TResult? Function(ResetState value)? resetState,
+    TResult? Function(SetCategory value)? setCategory,
+    TResult? Function(SetMetadata value)? setMetadata,
+    TResult? Function(ProcessQueue value)? processQueue,
+    TResult? Function(UploadCompleted value)? uploadCompleted,
+    TResult? Function(UploadError value)? uploadError,
+    TResult? Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult? Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult? Function(FileStatusUpdated value)? fileStatusUpdated,
+  }) {
+    return fileStatusUpdated?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(AddFiles value)? addFiles,
+    TResult Function(StartUpload value)? startUpload,
+    TResult Function(PauseUpload value)? pauseUpload,
+    TResult Function(ResumeUpload value)? resumeUpload,
+    TResult Function(CancelUpload value)? cancelUpload,
+    TResult Function(RetryUpload value)? retryUpload,
+    TResult Function(RemoveFile value)? removeFile,
+    TResult Function(ClearQueue value)? clearQueue,
+    TResult Function(UpdateProgress value)? updateProgress,
+    TResult Function(FileCompleted value)? fileCompleted,
+    TResult Function(FileFailed value)? fileFailed,
+    TResult Function(UpdateSettings value)? updateSettings,
+    TResult Function(ValidateFiles value)? validateFiles,
+    TResult Function(ResetState value)? resetState,
+    TResult Function(SetCategory value)? setCategory,
+    TResult Function(SetMetadata value)? setMetadata,
+    TResult Function(ProcessQueue value)? processQueue,
+    TResult Function(UploadCompleted value)? uploadCompleted,
+    TResult Function(UploadError value)? uploadError,
+    TResult Function(OverallProgressUpdated value)? overallProgressUpdated,
+    TResult Function(FileProgressUpdated value)? fileProgressUpdated,
+    TResult Function(FileStatusUpdated value)? fileStatusUpdated,
+    required TResult orElse(),
+  }) {
+    if (fileStatusUpdated != null) {
+      return fileStatusUpdated(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class FileStatusUpdated implements UploadEvent {
+  const factory FileStatusUpdated({
+    required final String fileId,
+    required final UploadStatus status,
+  }) = _$FileStatusUpdatedImpl;
+
+  String get fileId;
+  UploadStatus get status;
+
+  /// Create a copy of UploadEvent
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$FileStatusUpdatedImplCopyWith<_$FileStatusUpdatedImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }

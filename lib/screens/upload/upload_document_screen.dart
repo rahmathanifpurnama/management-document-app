@@ -1,17 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:file_selector/file_selector.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/upload_ui_constants.dart';
 
-import '../../providers/hybrid_upload_provider.dart';
+import '../../features/upload/bloc/upload_bloc.dart';
+import '../../features/upload/bloc/upload_state.dart' as upload_states;
+import '../../features/upload/bloc/upload_event.dart' as upload_events;
 
 import '../../widgets/upload/duplicate_file_dialog.dart';
 
-import '../../models/upload_file_model.dart';
+import '../../features/upload/models/upload_file_model.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/upload/upload_zone_widget.dart';
 
@@ -36,19 +38,16 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   void initState() {
     super.initState();
 
-    // Initialize upload provider context after the widget is built
+    // Initialize upload BLoC context after the widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
-      final uploadProvider = Provider.of<HybridUploadProvider>(
-        context,
-        listen: false,
+      // Clear any previous upload state for clean UI
+      context.read<UploadBloc>().add(
+        const upload_events.UploadEvent.clearQueue(),
       );
 
-      // Clear any previous upload state for clean UI
-      uploadProvider.clearAllAndReset();
-
-      // Provider is ready to use
+      // BLoC is ready to use
     });
   }
 
@@ -62,8 +61,31 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   }
 
   // Check for completed uploads and trigger UI refresh
-  void _checkForCompletedUploads(HybridUploadProvider uploadProvider) {
-    final currentCompletedCount = uploadProvider.completedFiles;
+  void _checkForCompletedUploads(upload_states.UploadState state) {
+    final currentCompletedCount = state.when(
+      initial: () => 0,
+      validating: (_) => 0,
+      ready: (_, __, ___, ____, _____) => 0,
+      uploading:
+          (
+            _,
+            __,
+            completedFiles,
+            ___,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+          ) => completedFiles,
+      paused: (_, completedFiles, __, ___, ____, _____, ______, _______) =>
+          completedFiles,
+      completed: (_, completedFiles, __, ___, ____, _____, ______) =>
+          completedFiles,
+      error: (_, __, ___, ____) => 0,
+      cancelled: (_, completedFiles, __) => completedFiles,
+    );
 
     // Show notification when uploads are completed
     if (currentCompletedCount > _lastCompletedCount) {
@@ -73,7 +95,30 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
       // Schedule notification to show after build completes
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          final failedCount = uploadProvider.failedFiles;
+          final failedCount = state.when(
+            initial: () => 0,
+            validating: (_) => 0,
+            ready: (_, __, ___, ____, _____) => 0,
+            uploading:
+                (
+                  _,
+                  __,
+                  ___,
+                  failedFiles,
+                  ____,
+                  _____,
+                  ______,
+                  _______,
+                  ________,
+                  _________,
+                ) => failedFiles,
+            paused: (_, __, failedFiles, ___, ____, _____, ______, _______) =>
+                failedFiles,
+            completed: (_, __, failedFiles, ___, ____, _____, ______) =>
+                failedFiles,
+            error: (_, __, ___, ____) => 0,
+            cancelled: (_, __, ___) => 0,
+          );
           _showFinalUploadNotification(currentCompletedCount, failedCount);
         }
       });
@@ -88,7 +133,7 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
       _scheduleDelayedQueueCleanup();
 
       // Send upload notifications to users
-      _sendUploadNotifications(uploadProvider);
+      _sendUploadNotifications(state);
 
       debugPrint(
         '🔄 UI refreshed after upload completion ($currentCompletedCount files completed)',
@@ -165,24 +210,19 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
     // Wait longer to ensure user sees the final notification
     Timer(const Duration(seconds: 5), () {
       if (mounted) {
-        final uploadProvider = Provider.of<HybridUploadProvider>(
-          context,
-          listen: false,
-        );
-
         // Clear completed files from queue to hide progress components
-        if (uploadProvider.hasSuccessfulUploads) {
-          uploadProvider.clearCompleted();
-          debugPrint('🧹 Delayed queue cleanup completed');
-        }
+        context.read<UploadBloc>().add(
+          const upload_events.UploadEvent.clearQueue(),
+        );
+        debugPrint('🧹 Delayed queue cleanup completed');
       }
     });
   }
 
   // Determine if upload progress should be shown
-  bool _shouldShowUploadProgress(HybridUploadProvider uploadProvider) {
-    // Use the provider's built-in logic for determining visibility
-    return uploadProvider.shouldShowQueue;
+  bool _shouldShowUploadProgress(upload_states.UploadState state) {
+    // Show progress when uploading, paused, or has files in queue
+    return state.isUploading || state.isPaused || state.currentFiles.isNotEmpty;
   }
 
   // Build file upload information widget
@@ -244,12 +284,12 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
         ),
       ),
       body: SafeArea(
-        child: Consumer<HybridUploadProvider>(
-          builder: (context, uploadProvider, child) {
+        child: BlocBuilder<UploadBloc, upload_states.UploadState>(
+          builder: (context, state) {
             // Schedule check for completed uploads after build completes
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
-                _checkForCompletedUploads(uploadProvider);
+                _checkForCompletedUploads(state);
               }
             });
 
@@ -262,13 +302,13 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
                   // Upload Zone - Always visible for consistency
                   UploadZoneWidget(
                     onFilesSelected: (files) => _handleFilesSelected(files),
-                    isEnabled: !uploadProvider.isUploading,
+                    isEnabled: !state.isUploading,
                     showValidationWarnings:
                         false, // Disable security warnings to prevent false positives
                   ),
 
                   // File upload info - Show helpful information about file upload
-                  if (uploadProvider.uploadQueue.isNotEmpty) ...[
+                  if (state.currentFiles.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     _buildFileUploadInfo(),
                   ],
@@ -276,13 +316,13 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
                   const SizedBox(height: 16),
 
                   // Upload Progress - Only show when files are actively being processed
-                  if (_shouldShowUploadProgress(uploadProvider)) ...[
-                    _buildImprovedProgress(uploadProvider),
+                  if (_shouldShowUploadProgress(state)) ...[
+                    _buildImprovedProgress(state),
                     const SizedBox(height: 24),
                   ],
 
                   // File List - Always show container for consistency
-                  _buildConsistentFileList(uploadProvider),
+                  _buildConsistentFileList(state),
 
                   // Add some bottom padding for better scroll experience
                   const SizedBox(height: 100),
@@ -298,14 +338,15 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   // Handle file selection
   Future<void> _handleFilesSelected(List<XFile> files) async {
     if (files.isNotEmpty) {
-      final uploadProvider = Provider.of<HybridUploadProvider>(
-        context,
-        listen: false,
-      );
-
       try {
-        // Add files to upload queue
-        await uploadProvider.addFiles(files, categoryId: widget.categoryId);
+        // Add files to upload queue using BLoC
+        context.read<UploadBloc>().add(
+          upload_events.UploadEvent.addFiles(
+            files: files,
+            categoryId: widget.categoryId,
+            checkDuplicates: true,
+          ),
+        );
       } catch (e) {
         if (mounted) {
           final errorMessage = e.toString();
@@ -352,20 +393,84 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
 
   // Retry failed upload
   void _retryUpload(String fileId) {
-    final uploadProvider = Provider.of<HybridUploadProvider>(
-      context,
-      listen: false,
+    context.read<UploadBloc>().add(
+      upload_events.UploadEvent.retryUpload(fileId: fileId),
     );
-    uploadProvider.retryFailed();
   }
 
   // Improved progress widget with better visual feedback
-  Widget _buildImprovedProgress(HybridUploadProvider uploadProvider) {
-    final totalFiles = uploadProvider.totalFiles;
-    final completedFiles = uploadProvider.completedFiles;
-    final failedFiles = uploadProvider.failedFiles;
-    final uploadingFiles = uploadProvider.uploadingFiles;
-    final progress = totalFiles > 0 ? (completedFiles / totalFiles) : 0.0;
+  Widget _buildImprovedProgress(upload_states.UploadState state) {
+    final totalFiles = state.totalFiles;
+    final completedFiles = state.when(
+      initial: () => 0,
+      validating: (_) => 0,
+      ready: (_, __, ___, ____, _____) => 0,
+      uploading:
+          (
+            _,
+            __,
+            completedFiles,
+            ___,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+          ) => completedFiles,
+      paused: (_, completedFiles, __, ___, ____, _____, ______, _______) =>
+          completedFiles,
+      completed: (_, completedFiles, __, ___, ____, _____, ______) =>
+          completedFiles,
+      error: (_, __, ___, ____) => 0,
+      cancelled: (_, completedFiles, __) => completedFiles,
+    );
+    final failedFiles = state.when(
+      initial: () => 0,
+      validating: (_) => 0,
+      ready: (_, __, ___, ____, _____) => 0,
+      uploading:
+          (
+            _,
+            __,
+            ___,
+            failedFiles,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+          ) => failedFiles,
+      paused: (_, __, failedFiles, ___, ____, _____, ______, _______) =>
+          failedFiles,
+      completed: (_, __, failedFiles, ___, ____, _____, ______) => failedFiles,
+      error: (_, __, ___, ____) => 0,
+      cancelled: (_, __, ___) => 0,
+    );
+    final uploadingFiles = state.when(
+      initial: () => 0,
+      validating: (_) => 0,
+      ready: (_, __, ___, ____, _____) => 0,
+      uploading:
+          (
+            _,
+            activeUploads,
+            __,
+            ___,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+          ) => activeUploads,
+      paused: (_, __, ___, ____, _____, ______, _______, ________) => 0,
+      completed: (_, __, ___, ____, _____, ______, _______) => 0,
+      error: (_, __, ___, ____) => 0,
+      cancelled: (_, __, ___) => 0,
+    );
+    final progress = state.progress;
 
     return Container(
       padding: UploadUIConstants.containerPadding,
@@ -475,8 +580,8 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   }
 
   // Consistent file list that always shows container
-  Widget _buildConsistentFileList(HybridUploadProvider uploadProvider) {
-    final allFiles = uploadProvider.uploadQueue;
+  Widget _buildConsistentFileList(upload_states.UploadState state) {
+    final allFiles = state.currentFiles;
     final files = _applyFileTypeFilter(allFiles);
 
     return Container(
@@ -682,13 +787,13 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   }
 
   /// Send upload notifications to users for completed files
-  void _sendUploadNotifications(HybridUploadProvider uploadProvider) {
+  void _sendUploadNotifications(upload_states.UploadState state) {
     try {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) return;
 
       // Get completed files that haven't been notified yet
-      final completedFiles = uploadProvider.uploadQueue
+      final completedFiles = state.currentFiles
           .where(
             (file) =>
                 file.status == UploadStatus.completed &&
