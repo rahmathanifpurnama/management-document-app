@@ -11,7 +11,8 @@ class ContextFilterUtils {
     required ContextFilterState filterState,
     String? categoryId, // For category-specific filtering
   }) {
-    var filteredDocuments = documents;
+    // Create a mutable copy of the documents list to avoid "Cannot modify an unmodifiable list" error
+    var filteredDocuments = List<DocumentModel>.from(documents);
 
     // Apply search filter
     if (filterState.searchQuery.isNotEmpty) {
