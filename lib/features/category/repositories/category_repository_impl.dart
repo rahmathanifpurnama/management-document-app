@@ -390,25 +390,18 @@ class CategoryRepositoryImpl implements CategoryRepository {
       );
 
       // Query documents that are available for categorization
-      // TEMPORARY FIX: Remove status filter to avoid index requirement
+      // Use server-side filtering with composite index
       final querySnapshot = await _firestore
           .collection(
             'documents',
           ) // Use 'documents' collection as per user preference
+          .where('status', isEqualTo: 'active')
           .where('category', whereIn: ['', 'general', 'null'])
           .limit(100)
           .get();
 
-      // Apply client-side filtering for active documents
-      final documentIds = querySnapshot.docs
-          .where((doc) {
-            final data = doc.data();
-            final status = data['status']?.toString() ?? '';
-            final isActive = data['isActive'] ?? false;
-            return status == 'active' || (status.isEmpty && isActive == true);
-          })
-          .map((doc) => doc.id)
-          .toList();
+      // Server-side filtering already applied, no need for client-side filtering
+      final documentIds = querySnapshot.docs.map((doc) => doc.id).toList();
 
       debugPrint(
         '📊 CategoryRepository: Found ${documentIds.length} available documents',

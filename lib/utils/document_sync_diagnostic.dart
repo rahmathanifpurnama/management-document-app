@@ -31,23 +31,17 @@ class DocumentSyncDiagnostic {
     try {
       // Step 1: Get all documents from Firestore
       debugPrint('📊 Fetching documents from Firestore...');
-      // TEMPORARY FIX: Remove status filter to avoid index requirement
+      // Use server-side filtering with composite index
       final firestoreSnapshot = await _firebaseService.documentsCollection
+          .where('status', isEqualTo: 'active')
           .get();
 
       final firestoreDocuments = <String, Map<String, dynamic>>{};
       for (final doc in firestoreSnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        // Apply client-side filtering for active documents
-        final status = data['status']?.toString() ?? '';
-        final isActive = data['isActive'] ?? false;
-        final isDocumentActive =
-            status == 'active' || (status.isEmpty && isActive == true);
-
-        if (isDocumentActive) {
-          firestoreDocuments[doc.id] = data;
-          results['firestoreDocuments'].add(doc.id);
-        }
+        // Server-side filtering already applied, no need for client-side filtering
+        firestoreDocuments[doc.id] = data;
+        results['firestoreDocuments'].add(doc.id);
       }
 
       debugPrint('✅ Found ${firestoreDocuments.length} documents in Firestore');
