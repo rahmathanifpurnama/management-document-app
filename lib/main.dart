@@ -14,6 +14,8 @@ import 'features/users/bloc/user_bloc.dart';
 import 'features/documents/bloc/document_bloc.dart';
 import 'features/sync/bloc/sync_bloc.dart';
 import 'features/sync/bloc/sync_event.dart' as sync_events;
+import 'features/auth/bloc/auth_bloc.dart';
+import 'features/auth/bloc/auth_event.dart' as auth_events;
 import 'core/services/firebase_service.dart';
 import 'core/services/memory_management_service.dart';
 import 'core/services/optimized_network_service.dart';
@@ -172,6 +174,11 @@ class _MyAppState extends State<MyApp> {
         child: MultiBlocProvider(
           // BLoC root
           providers: [
+            // Auth BLoC
+            BlocProvider<AuthBloc>(
+              create: (context) =>
+                  AuthBloc()..add(const auth_events.AuthEvent.initialize()),
+            ),
             // Upload BLoC
             BlocProvider<UploadBloc>(create: (context) => UploadBloc()),
             // Category BLoC

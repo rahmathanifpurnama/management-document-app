@@ -44,18 +44,19 @@ import '../../core/utils/empty_storage_state_manager.dart';
 import '../../widgets/statistics/responsive_stats_grid.dart';
 import '../../widgets/notification/bell_notification_widget.dart';
 import '../../main.dart' show routeObserver;
+import '../../features/auth/providers/auth_providers.dart';
 part 'components/home_greeting_section.dart';
 part 'components/home_search_section.dart';
 part 'components/home_file_list_section.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
+class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver, RouteAware {
   bool _dataLoaded = false;
   final TextEditingController _searchController = TextEditingController();
@@ -185,8 +186,13 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _generateNewGreeting() {
-    final authState = context.read<AuthBloc>().state;
-    final userName = authState.currentUser?.fullName;
+    // Use Riverpod to get current user data
+    final currentUserAsync = ref.read(currentUserProvider);
+    final userName = currentUserAsync.when(
+      data: (user) => user?.fullName,
+      loading: () => null,
+      error: (_, __) => null,
+    );
     _currentGreeting = GreetingService.instance.getSmartGreeting(userName);
   }
 
