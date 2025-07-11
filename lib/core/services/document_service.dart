@@ -1311,18 +1311,24 @@ class DocumentService {
       }
 
       // Method 3: Get all documents and search manually (last resort)
-      final allDocs = await _firebaseService.documentsCollection
-          .where('status', isEqualTo: 'active')
-          .get();
+      // TEMPORARY FIX: Remove status filter to avoid index requirement
+      final allDocs = await _firebaseService.documentsCollection.get();
 
       for (final doc in allDocs.docs) {
         final data = doc.data() as Map<String, dynamic>;
         final fileName = data['fileName']?.toString() ?? '';
         final filePath = data['filePath']?.toString() ?? '';
+        final status = data['status']?.toString() ?? '';
+        final isActive = data['isActive'] ?? false;
 
-        if (doc.id == documentId ||
-            fileName.contains(documentId) ||
-            filePath.contains(documentId)) {
+        // Check if document is active
+        final isDocumentActive =
+            status == 'active' || (status.isEmpty && isActive == true);
+
+        if (isDocumentActive &&
+            (doc.id == documentId ||
+                fileName.contains(documentId) ||
+                filePath.contains(documentId))) {
           debugPrint('✅ Found document by manual search: ${doc.id}');
           return DocumentModel.fromFirestore(doc);
         }

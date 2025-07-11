@@ -350,16 +350,25 @@ class OptimizedUserService {
       debugPrint('📊 Getting activity summary for user: $userId');
 
       // Get document count
+      // TEMPORARY FIX: Remove status filter to avoid index requirement
       final documentsSnapshot = await _firebaseService.documentsCollection
           .where('uploadedBy', isEqualTo: userId)
-          .where('status', isEqualTo: 'active')
           .get();
+
+      // Apply client-side filtering for active documents
+      final activeDocuments = documentsSnapshot.docs.where((doc) {
+        final data = doc.data() as Map<String, dynamic>?;
+        if (data == null) return false;
+        final status = data['status']?.toString() ?? '';
+        final isActive = data['isActive'] ?? false;
+        return status == 'active' || (status.isEmpty && isActive == true);
+      }).toList();
 
       // Activities collection has been removed - return empty list
       final activitiesSnapshot = <Map<String, dynamic>>[];
 
       final summary = {
-        'documentsUploaded': documentsSnapshot.size,
+        'documentsUploaded': activeDocuments.length, // Use filtered count
         'recentActivities': activitiesSnapshot, // Empty list
         'lastActivity': null, // No activities available
       };
