@@ -1,24 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/user_provider.dart';
+import '../../features/auth/providers/auth_providers.dart';
+import '../../features/users/bloc/user_bloc.dart';
+import '../../features/users/bloc/user_event.dart';
+import '../../features/users/bloc/user_state.dart';
 import '../../services/email_validation_service.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/loading_widget.dart';
 
-class CreateUserScreen extends StatefulWidget {
+class CreateUserScreen extends ConsumerStatefulWidget {
   const CreateUserScreen({super.key});
 
   @override
-  State<CreateUserScreen> createState() => _CreateUserScreenState();
+  ConsumerState<CreateUserScreen> createState() => _CreateUserScreenState();
 }
 
-class _CreateUserScreenState extends State<CreateUserScreen> {
+class _CreateUserScreenState extends ConsumerState<CreateUserScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -89,365 +92,449 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: CustomAppBar(
-        title: AppStrings.createUser,
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.textWhite,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: _isLoading ? null : _createUser,
-            tooltip: 'Simpan User',
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const LoadingWidget(message: 'Membuat pengguna baru...')
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header Info
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.2),
+    return BlocListener<UserBloc, UserState>(
+      listener: (context, state) {
+        state.when(
+          initial: () {},
+          loading: () {},
+          loaded:
+              (
+                users,
+                filteredUsers,
+                searchQuery,
+                selectedRole,
+                selectedStatus,
+                isFiltered,
+              ) {
+                // User creation successful - handle success
+                if (mounted) {
+                  setState(() {
+                    _isLoading = false;
+                  });
+                  _handleUserCreationSuccess();
+                }
+              },
+          performingOperation:
+              (
+                users,
+                filteredUsers,
+                searchQuery,
+                selectedRole,
+                selectedStatus,
+                isFiltered,
+                operationType,
+              ) {
+                // Operation in progress
+                if (operationType == 'create' && mounted) {
+                  setState(() {
+                    _isLoading = true;
+                  });
+                }
+              },
+          syncing:
+              (
+                users,
+                filteredUsers,
+                searchQuery,
+                selectedRole,
+                selectedStatus,
+                isFiltered,
+              ) {},
+          error:
+              (
+                message,
+                users,
+                filteredUsers,
+                searchQuery,
+                selectedRole,
+                selectedStatus,
+                isFiltered,
+                canRetry,
+                lastFailedOperation,
+              ) {
+                // Handle error
+                if (mounted) {
+                  setState(() {
+                    _isLoading = false;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(message),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              },
+        );
+      },
+      child: Scaffold(
+        appBar: CustomAppBar(
+          title: AppStrings.createUser,
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.textWhite,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.save),
+              onPressed: _isLoading ? null : _createUser,
+              tooltip: 'Simpan User',
+            ),
+          ],
+        ),
+        body: _isLoading
+            ? const LoadingWidget(message: 'Membuat pengguna baru...')
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header Info
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.person_add,
+                                  color: AppColors.primary,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Tambah Pengguna Baru',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Isi form di bawah untuk menambahkan pengguna baru ke sistem.',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Column(
+
+                      const SizedBox(height: 24),
+
+                      // Personal Information Section
+                      _buildSectionHeader('Informasi Personal'),
+                      const SizedBox(height: 16),
+
+                      _buildTextField(
+                        controller: _fullNameController,
+                        label: 'Nama Lengkap',
+                        hint: 'Masukkan nama lengkap',
+                        icon: Icons.person,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Nama lengkap harus diisi';
+                          }
+                          if (value.length < 3) {
+                            return 'Nama lengkap minimal 3 karakter';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      _buildTextField(
+                        controller: _emailController,
+                        label: 'Email',
+                        hint: 'Masukkan alamat email',
+                        icon: Icons.email,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Email harus diisi';
+                          }
+                          final validationResult = _emailValidationService
+                              .validateEmailForRegistration(value);
+                          if (!validationResult.isValid) {
+                            return validationResult.message;
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Security Section
+                      _buildSectionHeader('Keamanan'),
+                      const SizedBox(height: 16),
+
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.person_add,
-                                color: AppColors.primary,
-                                size: 24,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Tambah Pengguna Baru',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ],
+                          _buildPasswordField(
+                            controller: _passwordController,
+                            label: 'Password',
+                            hint: 'Masukkan password',
+                            obscureText: _obscurePassword,
+                            onToggleVisibility: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Password harus diisi';
+                              }
+                              if (value.length < 6) {
+                                return 'Password minimal 6 karakter';
+                              }
+                              return null;
+                            },
+                            onChanged: (value) {
+                              setState(
+                                () {},
+                              ); // Trigger rebuild for strength indicator
+                            },
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Isi form di bawah untuk menambahkan pengguna baru ke sistem.',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Personal Information Section
-                    _buildSectionHeader('Informasi Personal'),
-                    const SizedBox(height: 16),
-
-                    _buildTextField(
-                      controller: _fullNameController,
-                      label: 'Nama Lengkap',
-                      hint: 'Masukkan nama lengkap',
-                      icon: Icons.person,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Nama lengkap harus diisi';
-                        }
-                        if (value.length < 3) {
-                          return 'Nama lengkap minimal 3 karakter';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    _buildTextField(
-                      controller: _emailController,
-                      label: 'Email',
-                      hint: 'Masukkan alamat email',
-                      icon: Icons.email,
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Email harus diisi';
-                        }
-                        final validationResult = _emailValidationService
-                            .validateEmailForRegistration(value);
-                        if (!validationResult.isValid) {
-                          return validationResult.message;
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Security Section
-                    _buildSectionHeader('Keamanan'),
-                    const SizedBox(height: 16),
-
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildPasswordField(
-                          controller: _passwordController,
-                          label: 'Password',
-                          hint: 'Masukkan password',
-                          obscureText: _obscurePassword,
-                          onToggleVisibility: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Password harus diisi';
-                            }
-                            if (value.length < 6) {
-                              return 'Password minimal 6 karakter';
-                            }
-                            return null;
-                          },
-                          onChanged: (value) {
-                            setState(
-                              () {},
-                            ); // Trigger rebuild for strength indicator
-                          },
-                        ),
-                        if (_passwordController.text.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Text(
-                                'Kekuatan Password: ',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: AppColors.textSecondary,
+                          if (_passwordController.text.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Text(
+                                  'Kekuatan Password: ',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                _getPasswordStrength(_passwordController.text),
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: _getPasswordStrengthColor(
-                                    _getPasswordStrength(
-                                      _passwordController.text,
+                                Text(
+                                  _getPasswordStrength(
+                                    _passwordController.text,
+                                  ),
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: _getPasswordStrengthColor(
+                                      _getPasswordStrength(
+                                        _passwordController.text,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      _buildPasswordField(
+                        controller: _confirmPasswordController,
+                        label: 'Konfirmasi Password',
+                        hint: 'Masukkan ulang password',
+                        obscureText: _obscureConfirmPassword,
+                        onToggleVisibility: () {
+                          setState(() {
+                            _obscureConfirmPassword = !_obscureConfirmPassword;
+                          });
+                        },
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Konfirmasi password harus diisi';
+                          }
+                          if (value != _passwordController.text) {
+                            return 'Password tidak cocok';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Role & Status Section
+                      _buildSectionHeader('Role & Status'),
+                      const SizedBox(height: 16),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildDropdownField(
+                              label: 'Role',
+                              value: _selectedRole,
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'user',
+                                  child: Text('User'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'admin',
+                                  child: Text('Admin'),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedRole = value!;
+                                });
+                              },
+                              icon: Icons.admin_panel_settings,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildDropdownField(
+                              label: 'Status',
+                              value: _selectedStatus,
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'active',
+                                  child: Text('Aktif'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'inactive',
+                                  child: Text('Tidak Aktif'),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedStatus = value!;
+                                });
+                              },
+                              icon: Icons.toggle_on,
+                            ),
                           ),
                         ],
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    _buildPasswordField(
-                      controller: _confirmPasswordController,
-                      label: 'Konfirmasi Password',
-                      hint: 'Masukkan ulang password',
-                      obscureText: _obscureConfirmPassword,
-                      onToggleVisibility: () {
-                        setState(() {
-                          _obscureConfirmPassword = !_obscureConfirmPassword;
-                        });
-                      },
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Konfirmasi password harus diisi';
-                        }
-                        if (value != _passwordController.text) {
-                          return 'Password tidak cocok';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Role & Status Section
-                    _buildSectionHeader('Role & Status'),
-                    const SizedBox(height: 16),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildDropdownField(
-                            label: 'Role',
-                            value: _selectedRole,
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'user',
-                                child: Text('User'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'admin',
-                                child: Text('Admin'),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedRole = value!;
-                              });
-                            },
-                            icon: Icons.admin_panel_settings,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildDropdownField(
-                            label: 'Status',
-                            value: _selectedStatus,
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'active',
-                                child: Text('Aktif'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'inactive',
-                                child: Text('Tidak Aktif'),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedStatus = value!;
-                              });
-                            },
-                            icon: Icons.toggle_on,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Email Verification Section
-                    _buildSectionHeader('Verifikasi Email'),
-                    const SizedBox(height: 16),
-
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.2),
-                        ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Checkbox(
-                                value: _sendEmailVerification,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _sendEmailVerification = value ?? true;
-                                  });
-                                },
-                                activeColor: AppColors.primary,
-                              ),
-                              Expanded(
-                                child: Text(
-                                  'Kirim email verifikasi ke pengguna',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.textPrimary,
+
+                      const SizedBox(height: 24),
+
+                      // Email Verification Section
+                      _buildSectionHeader('Verifikasi Email'),
+                      const SizedBox(height: 16),
+
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Checkbox(
+                                  value: _sendEmailVerification,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _sendEmailVerification = value ?? true;
+                                    });
+                                  },
+                                  activeColor: AppColors.primary,
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    'Kirim email verifikasi ke pengguna',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppColors.textPrimary,
+                                    ),
                                   ),
                                 ),
+                              ],
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 48),
+                              child: Text(
+                                _sendEmailVerification
+                                    ? 'Email verifikasi akan dikirim setelah akun berhasil dibuat. Pengguna perlu memverifikasi email sebelum dapat menggunakan semua fitur.'
+                                    : 'Pengguna dapat login tanpa verifikasi email, namun akan menerima peringatan untuk memverifikasi email.',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                  height: 1.4,
+                                ),
                               ),
-                            ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      // Action Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _isLoading
+                                  ? null
+                                  : () {
+                                      Navigator.of(context).pop();
+                                    },
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                side: BorderSide(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              child: Text(
+                                AppStrings.cancel,
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
                           ),
-                          Padding(
-                            padding: const EdgeInsets.only(left: 48),
-                            child: Text(
-                              _sendEmailVerification
-                                  ? 'Email verifikasi akan dikirim setelah akun berhasil dibuat. Pengguna perlu memverifikasi email sebelum dapat menggunakan semua fitur.'
-                                  : 'Pengguna dapat login tanpa verifikasi email, namun akan menerima peringatan untuk memverifikasi email.',
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                                height: 1.4,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _createUser,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                              ),
+                              child: Text(
+                                AppStrings.createUser,
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textWhite,
+                                ),
                               ),
                             ),
                           ),
                         ],
                       ),
-                    ),
 
-                    const SizedBox(height: 32),
-
-                    // Action Buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: _isLoading
-                                ? null
-                                : () {
-                                    Navigator.of(context).pop();
-                                  },
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              side: BorderSide(color: AppColors.textSecondary),
-                            ),
-                            child: Text(
-                              AppStrings.cancel,
-                              style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _createUser,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: Text(
-                              AppStrings.createUser,
-                              style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.textWhite,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-                  ],
+                      const SizedBox(height: 16),
+                    ],
+                  ),
                 ),
               ),
-            ),
+      ),
     );
   }
 
@@ -562,70 +649,36 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
     });
 
     try {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      // Get current user from Riverpod auth provider
+      final currentUser = ref.read(currentUserSyncProvider);
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
 
       // Store the password for admin display
       final password = _passwordController.text;
 
-      final success = await userProvider.createUser(
-        fullName: _fullNameController.text.trim(),
-        email: _emailController.text.trim(),
-        password: password,
-        role: _selectedRole,
-        createdBy: authProvider.currentUser!.id,
+      // Use UserBloc to create user
+      context.read<UserBloc>().add(
+        UserEvent.createUser(
+          fullName: _fullNameController.text.trim(),
+          email: _emailController.text.trim(),
+          password: password,
+          role: _selectedRole,
+          createdBy: currentUser.id,
+        ),
       );
 
-      if (success && mounted) {
-        // Send email verification if requested
-        if (_sendEmailVerification) {
-          try {
-            final result = await _emailValidationService.sendEmailVerification(
-              customMessage:
-                  'Email verifikasi telah dikirim ke ${_emailController.text.trim()}. Silakan periksa inbox dan verifikasi email Anda.',
-            );
-
-            if (result.success) {
-              Fluttertoast.showToast(
-                msg: result.message,
-                backgroundColor: AppColors.success,
-                textColor: AppColors.textWhite,
-                toastLength: Toast.LENGTH_LONG,
-              );
-            } else {
-              Fluttertoast.showToast(
-                msg:
-                    'Pengguna berhasil dibuat, namun gagal mengirim email verifikasi: ${result.message}',
-                backgroundColor: AppColors.warning,
-                textColor: AppColors.textWhite,
-                toastLength: Toast.LENGTH_LONG,
-              );
-            }
-          } catch (e) {
-            Fluttertoast.showToast(
-              msg:
-                  'Pengguna berhasil dibuat, namun gagal mengirim email verifikasi: $e',
-              backgroundColor: AppColors.warning,
-              textColor: AppColors.textWhite,
-              toastLength: Toast.LENGTH_LONG,
-            );
-          }
-        }
-
-        // Show success dialog with password
-        _showPasswordDialog(password, _sendEmailVerification);
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              userProvider.errorMessage ?? 'Gagal membuat pengguna',
-            ),
-            backgroundColor: AppColors.error,
-          ),
-        );
+      // Note: Success handling will be done through BlocListener
+      // For now, we'll handle the email verification here
+      if (mounted) {
+        // Email verification will be handled in BlocListener success callback
       }
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
@@ -633,13 +686,49 @@ class _CreateUserScreenState extends State<CreateUserScreen> {
           ),
         );
       }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+    }
+  }
+
+  Future<void> _handleUserCreationSuccess() async {
+    final password = _passwordController.text;
+
+    // Send email verification if requested
+    if (_sendEmailVerification) {
+      try {
+        final result = await _emailValidationService.sendEmailVerification(
+          customMessage:
+              'Email verifikasi telah dikirim ke ${_emailController.text.trim()}. Silakan periksa inbox dan verifikasi email Anda.',
+        );
+
+        if (result.success) {
+          Fluttertoast.showToast(
+            msg: result.message,
+            backgroundColor: AppColors.success,
+            textColor: AppColors.textWhite,
+            toastLength: Toast.LENGTH_LONG,
+          );
+        } else {
+          Fluttertoast.showToast(
+            msg:
+                'Pengguna berhasil dibuat, namun gagal mengirim email verifikasi: ${result.message}',
+            backgroundColor: AppColors.warning,
+            textColor: AppColors.textWhite,
+            toastLength: Toast.LENGTH_LONG,
+          );
+        }
+      } catch (e) {
+        Fluttertoast.showToast(
+          msg:
+              'Pengguna berhasil dibuat, namun gagal mengirim email verifikasi: $e',
+          backgroundColor: AppColors.warning,
+          textColor: AppColors.textWhite,
+          toastLength: Toast.LENGTH_LONG,
+        );
       }
     }
+
+    // Show success dialog with password
+    _showPasswordDialog(password, _sendEmailVerification);
   }
 
   void _showPasswordDialog(String password, bool emailVerificationSent) {

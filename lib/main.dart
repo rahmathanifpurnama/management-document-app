@@ -10,6 +10,8 @@ import 'features/settings/providers/settings_providers.dart';
 import 'features/upload/bloc/upload_bloc.dart';
 import 'features/category/bloc/category_bloc.dart';
 import 'features/category/bloc/category_event.dart' as category_events;
+import 'features/users/bloc/user_bloc.dart';
+import 'features/documents/bloc/document_bloc.dart';
 import 'features/sync/bloc/sync_bloc.dart';
 import 'features/sync/bloc/sync_event.dart' as sync_events;
 import 'core/services/firebase_service.dart';
@@ -178,6 +180,10 @@ class _MyAppState extends State<MyApp> {
                   CategoryBloc()
                     ..add(const category_events.CategoryEvent.loadCategories()),
             ),
+            // User BLoC
+            BlocProvider<UserBloc>(create: (context) => UserBloc()),
+            // Document BLoC
+            BlocProvider<DocumentBloc>(create: (context) => DocumentBloc()),
             // Sync BLoC
             BlocProvider<SyncBloc>(
               create: (context) =>

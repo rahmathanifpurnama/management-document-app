@@ -165,7 +165,12 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           _hasDataCheckCompleted = true;
         });
 
-        final documentCount = documentProvider.allDocuments.length;
+        // Get document count from BLoC state
+        final documentState = context.read<DocumentBloc>().state;
+        final documentCount = documentState.maybeMap(
+          loaded: (state) => state.documents.length,
+          orElse: () => 0,
+        );
         debugPrint(
           '✅ HomeFileListSection: Pull-to-refresh completed - Found $documentCount files',
         );
@@ -218,7 +223,12 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           _hasDataCheckCompleted = true;
         });
 
-        final documentCount = documentProvider.allDocuments.length;
+        // Get document count from BLoC state
+        final documentState = context.read<DocumentBloc>().state;
+        final documentCount = documentState.maybeMap(
+          loaded: (state) => state.documents.length,
+          orElse: () => 0,
+        );
         debugPrint(
           '✅ HomeFileListSection: First-time loading completed - Found $documentCount files',
         );
@@ -284,7 +294,12 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
           _hasDataCheckCompleted = true;
         });
 
-        final documentCount = documentProvider.allDocuments.length;
+        // Get document count from BLoC state
+        final documentState = context.read<DocumentBloc>().state;
+        final documentCount = documentState.maybeMap(
+          loaded: (state) => state.documents.length,
+          orElse: () => 0,
+        );
         debugPrint(
           '✅ HomeFileListSection: Page resume loading completed - Found $documentCount files',
         );
@@ -342,7 +357,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Files Section with Pagination
-                _buildRecentFilesSection(displayDocuments, selectionState),
+                _buildRecentFilesSection(displayDocuments),
               ],
             );
           },
@@ -352,10 +367,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   }
 
   /// Build recent files section with pagination and pull to refresh
-  Widget _buildRecentFilesSection(
-    List<DocumentModel> documents,
-    FileSelectionProvider selectionProvider,
-  ) {
+  Widget _buildRecentFilesSection(List<DocumentModel> documents) {
     final totalPages = (documents.length / _filesPerPage).ceil();
     final startIndex = _currentPage * _filesPerPage;
     final endIndex = (startIndex + _filesPerPage).clamp(0, documents.length);
@@ -503,10 +515,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                     scale: scaleValue,
                     child: Opacity(
                       opacity: fadeValue,
-                      child: _buildFilesList(
-                        currentPageDocuments,
-                        selectionProvider,
-                      ),
+                      child: _buildFilesList(currentPageDocuments),
                     ),
                   ),
                 );
@@ -527,10 +536,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   }
 
   /// Build files list widget
-  Widget _buildFilesList(
-    List<DocumentModel> documents,
-    FileSelectionProvider selectionProvider,
-  ) {
+  Widget _buildFilesList(List<DocumentModel> documents) {
     return BlocBuilder<DocumentBloc, DocumentState>(
       builder: (context, documentState) {
         // PRIORITY 1: Show first-time loading state for login users
@@ -636,16 +642,13 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         }
 
         // Return the actual files list
-        return _buildActualFilesList(documents, selectionProvider);
+        return _buildActualFilesList(documents);
       },
     );
   }
 
   /// Build the actual files list when documents are available
-  Widget _buildActualFilesList(
-    List<DocumentModel> documents,
-    FileSelectionProvider selectionProvider,
-  ) {
+  Widget _buildActualFilesList(List<DocumentModel> documents) {
     final responsiveElevation = 2.0;
 
     return Container(
@@ -680,7 +683,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
             builder: (context, value, child) {
               // Ensure animation value is valid and not NaN
               if (value.isNaN || value.isInfinite) {
-                return _buildFileListItem(document, isLast, selectionProvider);
+                return _buildFileListItem(document, isLast);
               }
 
               // Ensure opacity value is valid (between 0.0 and 1.0)
@@ -691,11 +694,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
                 offset: Offset(0, 20 * safeTranslateValue),
                 child: Opacity(
                   opacity: safeOpacity,
-                  child: _buildFileListItem(
-                    document,
-                    isLast,
-                    selectionProvider,
-                  ),
+                  child: _buildFileListItem(document, isLast),
                 ),
               );
             },
@@ -706,199 +705,206 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   }
 
   /// Build individual file list item
-  Widget _buildFileListItem(
-    DocumentModel document,
-    bool isLast,
-    FileSelectionProvider selectionProvider,
-  ) {
-    final isSelected = selectionProvider.isFileSelected(document.id);
-    final isSelectionMode = selectionProvider.isSelectionMode;
+  Widget _buildFileListItem(DocumentModel document, bool isLast) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final selectionState = ref.watch(fileSelectionProvider);
+        final selectionActions = ref.watch(fileSelectionActionsProvider);
+        final isSelected = selectionState.selectedFileIds.contains(document.id);
+        final isSelectionMode = selectionState.isSelectionMode;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : null,
-        border: isLast
-            ? null
-            : Border(
-                bottom: BorderSide(
-                  color: AppColors.border.withValues(alpha: 0.2),
-                  width: 1,
-                ),
-              ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => _handleTap(document, selectionProvider),
-          onLongPress: () => _handleLongPress(document, selectionProvider),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                // Selection checkbox (only show in selection mode)
-                if (isSelectionMode) ...[
-                  Checkbox(
-                    value: isSelected,
-                    onChanged: (value) {
-                      selectionProvider.toggleFileSelection(document.id);
-                    },
-                    activeColor: AppColors.primary,
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                  ),
-                  const SizedBox(width: 8),
-                ],
-
-                // File type icon
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        _getFileTypeColor(
-                          document.fileType,
-                          document.fileName,
-                        ).withValues(alpha: 0.8),
-                        _getFileTypeColor(
-                          document.fileType,
-                          document.fileName,
-                        ).withValues(alpha: 0.6),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+        return Container(
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primary.withValues(alpha: 0.1) : null,
+            border: isLast
+                ? null
+                : Border(
+                    bottom: BorderSide(
+                      color: AppColors.border.withValues(alpha: 0.2),
+                      width: 1,
                     ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _getFileTypeColor(
-                          document.fileType,
-                          document.fileName,
-                        ).withValues(alpha: 0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
+                  ),
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => _handleTap(document, selectionActions),
+              onLongPress: () => _handleLongPress(document, selectionActions),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    // Selection checkbox (only show in selection mode)
+                    if (isSelectionMode) ...[
+                      Checkbox(
+                        value: isSelected,
+                        onChanged: (value) {
+                          selectionActions.toggleFileSelection(document.id);
+                        },
+                        activeColor: AppColors.primary,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
                       ),
+                      const SizedBox(width: 8),
                     ],
-                  ),
-                  child: Center(
-                    child: Icon(
-                      _getFileTypeIcon(document.fileType, document.fileName),
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
-                ),
 
-                const SizedBox(width: 16),
-
-                // File info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        document.fileName,
-                        style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                    // File type icon
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            _getFileTypeColor(
+                              document.fileType,
+                              document.fileName,
+                            ).withValues(alpha: 0.8),
+                            _getFileTypeColor(
+                              document.fileType,
+                              document.fileName,
+                            ).withValues(alpha: 0.6),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            _formatFileSize(document.fileSize),
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            width: 4,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: AppColors.textSecondary.withValues(
-                                alpha: 0.5,
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _formatDate(document.uploadedAt),
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              color: AppColors.textSecondary,
-                            ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _getFileTypeColor(
+                              document.fileType,
+                              document.fileName,
+                            ).withValues(alpha: 0.2),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-
-                // Individual file operations menu (only show when NOT in selection mode)
-                if (!isSelectionMode) ...[
-                  const SizedBox(width: 12),
-                  // DELETE FIX: Improved menu button with better error handling and constraints
-                  Container(
-                    width: 40, // Increased touch target for better UX
-                    height: 40,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(8),
-                        onTap: widget.onDocumentMenu != null
-                            ? () {
-                                try {
-                                  widget.onDocumentMenu!(document);
-                                } catch (e) {
-                                  debugPrint(
-                                    '❌ Error opening document menu: $e',
-                                  );
-                                  // Show user-friendly error message
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Unable to open menu. Please try again.',
-                                      ),
-                                      backgroundColor: AppColors.error,
-                                      duration: const Duration(seconds: 2),
-                                    ),
-                                  );
-                                }
-                              }
-                            : null,
-                        child: Center(
-                          child: Icon(
-                            Icons.more_vert,
-                            color: widget.onDocumentMenu != null
-                                ? AppColors.textSecondary
-                                : AppColors.textSecondary.withValues(
-                                    alpha: 0.3,
-                                  ),
-                            size: 18,
+                      child: Center(
+                        child: Icon(
+                          _getFileTypeIcon(
+                            document.fileType,
+                            document.fileName,
                           ),
+                          color: Colors.white,
+                          size: 24,
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ],
+
+                    const SizedBox(width: 16),
+
+                    // File info
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            document.fileName,
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Text(
+                                _formatFileSize(document.fileSize),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                width: 4,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: AppColors.textSecondary.withValues(
+                                    alpha: 0.5,
+                                  ),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                _formatDate(document.uploadedAt),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Individual file operations menu (only show when NOT in selection mode)
+                    if (!isSelectionMode) ...[
+                      const SizedBox(width: 12),
+                      // DELETE FIX: Improved menu button with better error handling and constraints
+                      Container(
+                        width: 40, // Increased touch target for better UX
+                        height: 40,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: widget.onDocumentMenu != null
+                                ? () {
+                                    try {
+                                      widget.onDocumentMenu!(document);
+                                    } catch (e) {
+                                      debugPrint(
+                                        '❌ Error opening document menu: $e',
+                                      );
+                                      // Show user-friendly error message
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Unable to open menu. Please try again.',
+                                          ),
+                                          backgroundColor: AppColors.error,
+                                          duration: const Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                : null,
+                            child: Center(
+                              child: Icon(
+                                Icons.more_vert,
+                                color: widget.onDocumentMenu != null
+                                    ? AppColors.textSecondary
+                                    : AppColors.textSecondary.withValues(
+                                        alpha: 0.3,
+                                      ),
+                                size: 18,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -1405,11 +1411,14 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   /// Handle tap on file item
   void _handleTap(
     DocumentModel document,
-    FileSelectionProvider selectionProvider,
+    FileSelectionActions selectionActions,
   ) {
-    if (selectionProvider.isSelectionMode) {
+    final selectionState = ProviderScope.containerOf(
+      context,
+    ).read(fileSelectionProvider);
+    if (selectionState.isSelectionMode) {
       // In selection mode, toggle selection
-      selectionProvider.toggleFileSelection(document.id);
+      selectionActions.toggleFileSelection(document.id);
     } else {
       // Normal mode, call the document tap callback
       widget.onDocumentTap?.call(document);
@@ -1419,18 +1428,31 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
   /// Handle long press on file item
   void _handleLongPress(
     DocumentModel document,
-    FileSelectionProvider selectionProvider,
+    FileSelectionActions selectionActions,
   ) {
-    if (selectionProvider.isSelectionMode) {
+    final selectionState = ProviderScope.containerOf(
+      context,
+    ).read(fileSelectionProvider);
+    if (selectionState.isSelectionMode) {
       // In selection mode, show bulk operations menu
-      if (selectionProvider.hasSelection) {
+      if (selectionState.selectedFileIds.isNotEmpty) {
+        // Get selected files from BLoC state
+        final documentState = context.read<DocumentBloc>().state;
+        final allDocuments = documentState.maybeMap(
+          loaded: (state) => state.documents,
+          orElse: () => <DocumentModel>[],
+        );
+        final selectedFiles = allDocuments
+            .where((doc) => selectionState.selectedFileIds.contains(doc.id))
+            .toList();
+
         BulkOperationsService.showBulkOperationsMenu(
           context: context,
-          selectedFiles: selectionProvider.selectedFiles,
+          selectedFiles: selectedFiles,
           onOperationComplete: () async {
             try {
               // Exit selection mode safely
-              selectionProvider.exitSelectionMode();
+              selectionActions.exitSelectionMode();
 
               // Use smooth transition for better UX
               await _handleSmoothTransition();
@@ -1455,7 +1477,7 @@ class _HomeFileListSectionState extends State<HomeFileListSection>
         orElse: () => <DocumentModel>[],
       );
 
-      selectionProvider.enterSelectionMode(document, allDocuments);
+      selectionActions.enterSelectionMode(document, allDocuments);
     }
   }
 }

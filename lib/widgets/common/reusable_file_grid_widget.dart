@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/document_model.dart';
 import '../../features/file_selection/providers/file_selection_providers.dart';
-import '../../providers/document_provider.dart';
+
 import '../../services/bulk_operations_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/file_icon_helper.dart';
@@ -65,9 +65,6 @@ class _ReusableFileGridWidgetState
     final currentPageDocuments = widget.documents.sublist(startIndex, endIndex);
 
     final isSelectionMode = ref.watch(isSelectionModeProvider);
-    final documentProvider = ref.watch(
-      ChangeNotifierProvider((ref) => DocumentProvider()),
-    );
 
     // Update available files for selection only when necessary
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -79,8 +76,8 @@ class _ReusableFileGridWidgetState
       }
     });
 
-    // Show loading state if documents are being loaded and no documents available
-    if (documentProvider.isLoading && widget.documents.isEmpty) {
+    // Show loading state if no documents available
+    if (widget.documents.isEmpty) {
       return Container(
         margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: Column(

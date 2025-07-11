@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
-import '../../providers/auth_provider.dart';
+import '../../features/auth/providers/auth_providers.dart';
 
 import '../../widgets/common/app_bottom_navigation.dart';
 import '../../models/user_model.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        final user = authProvider.currentUser;
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final user = ref.watch(currentUserSyncProvider);
+        final isLoggedIn = ref.watch(isLoggedInProvider);
 
         // If user is null or not logged in, redirect to login
-        if (user == null || !authProvider.isLoggedIn) {
+        if (user == null || !isLoggedIn) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (context.mounted) {
               Navigator.of(context).pushNamedAndRemoveUntil(
@@ -32,7 +33,8 @@ class ProfileScreen extends StatelessWidget {
         }
 
         // Determine current nav index based on user role
-        final currentNavIndex = authProvider.isAdmin ? 4 : 3;
+        final isAdmin = ref.watch(isAdminProvider);
+        final currentNavIndex = isAdmin ? 4 : 3;
 
         return AppScaffoldWithNavigation(
           title: 'Profile',
@@ -74,7 +76,7 @@ class ProfileScreen extends StatelessWidget {
                         const SizedBox(height: 16),
 
                         // Admin-only User Management menu
-                        if (authProvider.isAdmin) ...[
+                        if (isAdmin) ...[
                           _buildMenuItem(
                             context,
                             icon: Icons.people_outline,
@@ -97,7 +99,7 @@ class ProfileScreen extends StatelessWidget {
                           context,
                           icon: Icons.logout_outlined,
                           title: 'Log Out',
-                          onTap: () => _showLogoutDialog(context),
+                          onTap: () => _showLogoutDialog(context, ref),
                           isDestructive: true,
                         ),
                       ],
@@ -295,7 +297,7 @@ class ProfileScreen extends StatelessWidget {
     Navigator.of(context).pushNamed(AppRoutes.userManagement);
   }
 
-  void _showLogoutDialog(BuildContext context) {
+  void _showLogoutDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -323,7 +325,7 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             TextButton(
-              onPressed: () => _performLogout(context),
+              onPressed: () => _performLogout(context, ref),
               child: const Text(
                 'Log Out',
                 style: TextStyle(
@@ -338,7 +340,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  void _performLogout(BuildContext context) async {
+  void _performLogout(BuildContext context, WidgetRef ref) async {
     try {
       Navigator.of(context).pop(); // Close dialog
 
@@ -365,8 +367,9 @@ class ProfileScreen extends StatelessWidget {
         );
       }
 
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.logout();
+      // Use Riverpod auth service for logout
+      final authService = ref.read(authServiceProvider);
+      await authService.logout();
 
       if (context.mounted) {
         // Clear all routes and navigate to login

@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../../core/constants/app_colors.dart';
-import '../../providers/auth_provider.dart';
+import '../../features/auth/providers/auth_providers.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
 
-class ChangePasswordScreen extends StatefulWidget {
+class ChangePasswordScreen extends ConsumerStatefulWidget {
   const ChangePasswordScreen({super.key});
 
   @override
-  State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
+  ConsumerState<ChangePasswordScreen> createState() =>
+      _ChangePasswordScreenState();
 }
 
-class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
+class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
@@ -40,27 +41,21 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     });
 
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final authService = ref.read(authServiceProvider);
 
-      final success = await authProvider.changePassword(
+      await authService.changePassword(
         _currentPasswordController.text,
         _newPasswordController.text,
       );
 
-      if (success && mounted) {
+      // If we reach here, password change was successful
+      if (mounted) {
         Fluttertoast.showToast(
           msg: 'Password changed successfully',
           backgroundColor: AppColors.success,
           textColor: Colors.white,
         );
         Navigator.of(context).pop();
-      } else if (authProvider.errorMessage != null && mounted) {
-        Fluttertoast.showToast(
-          msg: authProvider.errorMessage!,
-          backgroundColor: AppColors.error,
-          textColor: Colors.white,
-          toastLength: Toast.LENGTH_LONG,
-        );
       }
     } catch (e) {
       if (mounted) {

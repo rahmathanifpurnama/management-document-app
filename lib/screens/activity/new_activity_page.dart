@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import '../../core/constants/app_colors.dart';
-import '../../providers/auth_provider.dart';
+import '../../features/auth/providers/auth_providers.dart';
 import '../../services/activity_service.dart';
 import '../../models/activity_model.dart';
 import '../../widgets/activity/quick_access_widget.dart';
@@ -14,14 +14,14 @@ import '../../widgets/common/app_container.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/empty_state_widget.dart';
 
-class NewActivityPage extends StatefulWidget {
+class NewActivityPage extends ConsumerStatefulWidget {
   const NewActivityPage({super.key});
 
   @override
-  State<NewActivityPage> createState() => _NewActivityPageState();
+  ConsumerState<NewActivityPage> createState() => _NewActivityPageState();
 }
 
-class _NewActivityPageState extends State<NewActivityPage> {
+class _NewActivityPageState extends ConsumerState<NewActivityPage> {
   final ActivityService _activityService = ActivityService();
   final ScrollController _scrollController = ScrollController();
 
@@ -353,10 +353,11 @@ class _NewActivityPageState extends State<NewActivityPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
+    return Consumer(
+      builder: (context, ref, child) {
+        final isAdmin = ref.watch(isAdminProvider);
         return FutureBuilder<bool>(
-          future: authProvider.isCurrentUserAdmin,
+          future: Future.value(isAdmin),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(

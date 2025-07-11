@@ -6,7 +6,6 @@ import '../../utils/date_formatter.dart';
 
 import '../../models/document_model.dart';
 import '../../features/file_selection/providers/file_selection_providers.dart';
-import '../../providers/document_provider.dart';
 import '../../services/bulk_operations_service.dart';
 
 /// Reusable file list widget that can be used across different screens
@@ -86,12 +85,8 @@ class _ReusableFileListWidgetState extends ConsumerState<ReusableFileListWidget>
         : widget.documents.length;
     final currentPageDocuments = widget.documents.sublist(startIndex, endIndex);
 
-    final documentProvider = ref.watch(
-      ChangeNotifierProvider((ref) => DocumentProvider()),
-    );
-
-    // Show loading state if documents are being loaded and no documents available
-    if (documentProvider.isLoading && widget.documents.isEmpty) {
+    // Show empty state if no documents available
+    if (widget.documents.isEmpty) {
       return Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(

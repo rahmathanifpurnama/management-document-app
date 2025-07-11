@@ -8,7 +8,7 @@ import '../../utils/date_formatter.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_routes.dart';
-import '../../features/auth/providers/auth_providers.dart';
+
 import '../../features/auth/bloc/auth_bloc.dart';
 import '../../features/auth/bloc/auth_event.dart';
 import '../../features/auth/bloc/auth_state.dart';
@@ -20,13 +20,13 @@ import '../../features/documents/bloc/document_event.dart';
 import '../../features/documents/bloc/document_state.dart';
 import '../../features/category/bloc/category_bloc.dart';
 import '../../features/category/bloc/category_event.dart';
-import '../../features/category/bloc/category_state.dart';
+
 import '../../features/file_selection/providers/file_selection_providers.dart';
 import '../../widgets/common/app_bottom_navigation.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/file_filter_widget.dart';
 import '../../widgets/common/file_selection_bar.dart';
-import '../../widgets/common/isolated_file_selection_provider.dart';
+
 import '../../models/document_model.dart';
 import '../../core/utils/context_filter_utils.dart';
 import '../../services/ui_refresh_service.dart';

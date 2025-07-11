@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/constants/app_colors.dart';
 import '../../utils/date_formatter.dart';
 import '../../models/document_model.dart';
 import '../../services/share_service.dart';
 import '../../services/file_download_service.dart';
-import '../../providers/document_provider.dart';
-import '../../providers/auth_provider.dart';
+import '../../features/documents/bloc/document_bloc.dart';
+import '../../features/documents/bloc/document_event.dart';
+import '../../features/auth/providers/auth_providers.dart';
 import 'empty_state_widget.dart';
 import 'enhanced_deletion_loading.dart';
 import 'share_button_widget.dart';
@@ -50,7 +52,7 @@ class TableColumn {
   });
 }
 
-class FileTableWidget extends StatefulWidget {
+class FileTableWidget extends ConsumerStatefulWidget {
   final List<DocumentModel> documents;
   final FileTableMode mode;
   final String title;
@@ -167,10 +169,10 @@ class FileTableWidget extends StatefulWidget {
   }
 
   @override
-  State<FileTableWidget> createState() => _FileTableWidgetState();
+  ConsumerState<FileTableWidget> createState() => _FileTableWidgetState();
 }
 
-class _FileTableWidgetState extends State<FileTableWidget> {
+class _FileTableWidgetState extends ConsumerState<FileTableWidget> {
   final ScrollController _scrollController = ScrollController();
 
   // Integrated services for file operations
@@ -1004,9 +1006,12 @@ class _FileTableWidgetState extends State<FileTableWidget> {
   /// Check if current user is admin
   bool _isCurrentUserAdmin() {
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final currentUser = authProvider.currentUser;
-      return currentUser?.isAdmin ?? false;
+      final userAsync = ref.read(currentUserProvider);
+      return userAsync.when(
+        data: (user) => user?.isAdmin ?? false,
+        loading: () => false,
+        error: (_, __) => false,
+      );
     } catch (e) {
       debugPrint('⚠️ Error checking admin status: $e');
       return false;
@@ -1042,13 +1047,13 @@ class _FileTableWidgetState extends State<FileTableWidget> {
       );
 
       try {
-        // Use Provider to delete document
-        final documentProvider = Provider.of<DocumentProvider>(
-          context,
-          listen: false,
+        // Use BLoC to delete document
+        final userAsync = ref.read(currentUserProvider);
+        final currentUserId = userAsync.when(
+          data: (user) => user?.id ?? 'unknown',
+          loading: () => 'unknown',
+          error: (_, __) => 'unknown',
         );
-        final authProvider = Provider.of<AuthProvider>(context, listen: false);
-        final currentUserId = authProvider.currentUser?.id ?? 'unknown';
 
         // ENHANCED DEBUG: Log detailed information before deletion
         debugPrint(
@@ -1059,7 +1064,13 @@ class _FileTableWidgetState extends State<FileTableWidget> {
         debugPrint('👤 UI: Document uploadedBy: ${document.uploadedBy}');
         debugPrint('👤 UI: Current user: $currentUserId');
 
-        await documentProvider.removeDocument(document.id, currentUserId);
+        // Use BLoC to delete document
+        context.read<DocumentBloc>().add(
+          DocumentEvent.deleteDocument(
+            documentId: document.id,
+            userId: currentUserId,
+          ),
+        );
 
         // Close loading dialog and show success
         if (mounted) {

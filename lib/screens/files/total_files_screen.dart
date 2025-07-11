@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/constants/app_colors.dart';
-import '../../providers/document_provider.dart';
+import '../../features/documents/bloc/document_bloc.dart';
+import '../../features/documents/bloc/document_event.dart';
+import '../../features/documents/bloc/document_state.dart';
 import '../../features/file_selection/providers/file_selection_providers.dart';
 import '../../models/document_model.dart';
 
@@ -44,12 +47,10 @@ class _TotalFilesListSectionState extends ConsumerState<TotalFilesListSection> {
   }
 
   Future<void> _initializeData() async {
-    final documentProvider = ref.read(
-      ChangeNotifierProvider((ref) => DocumentProvider()),
+    // Use DocumentBloc to refresh documents
+    context.read<DocumentBloc>().add(
+      const DocumentEvent.refreshDocuments(forceRefresh: true),
     );
-
-    // Force refresh to ensure we have the latest data
-    await documentProvider.refreshDocuments();
 
     if (mounted) {
       setState(() {
@@ -61,43 +62,95 @@ class _TotalFilesListSectionState extends ConsumerState<TotalFilesListSection> {
 
   @override
   Widget build(BuildContext context) {
-    final documentProvider = ref.watch(
-      ChangeNotifierProvider((ref) => DocumentProvider()),
-    );
-    final isSelectionMode = ref.watch(isSelectionModeProvider);
+    return BlocBuilder<DocumentBloc, DocumentState>(
+      builder: (context, state) {
+        final isSelectionMode = ref.watch(isSelectionModeProvider);
 
-    // Get total files filter state
-    final totalFilesFilterState = FilterStateManager.getState(
-      FilterContext.totalFiles,
-    );
+        // Get documents from DocumentBloc state
+        final allDocuments = state.when(
+          initial: () => <DocumentModel>[],
+          loading: (_) => <DocumentModel>[],
+          loaded:
+              (
+                documents,
+                _,
+                __,
+                ___,
+                ____,
+                _____,
+                ______,
+                _______,
+                ________,
+                _________,
+                __________,
+                ___________,
+                ____________,
+              ) => documents,
+          error: (_, __, ___) => <DocumentModel>[],
+          loadingMore:
+              (
+                currentDocuments,
+                _,
+                __,
+                ___,
+                ____,
+                _____,
+                ______,
+                _______,
+                ________,
+                _________,
+              ) => currentDocuments,
+          performingOperation:
+              (
+                _,
+                currentDocuments,
+                __,
+                ___,
+                ____,
+                _____,
+                ______,
+                _______,
+                ________,
+                _________,
+                __________,
+              ) => currentDocuments,
+          syncing: (_, currentDocuments, __) => currentDocuments,
+        );
 
-    // Update search query in filter state if different
-    if (totalFilesFilterState.searchQuery != widget.searchQuery) {
-      totalFilesFilterState.searchQuery = widget.searchQuery;
-    }
+        // Get total files filter state
+        final totalFilesFilterState = FilterStateManager.getState(
+          FilterContext.totalFiles,
+        );
 
-    // Apply context-aware filtering to all documents
-    final displayDocuments = ContextFilterUtils.applyContextFilters(
-      documents: documentProvider.allDocuments,
-      context: FilterContext.totalFiles,
-      filterState: totalFilesFilterState,
-    );
+        // Update search query in filter state if different
+        if (totalFilesFilterState.searchQuery != widget.searchQuery) {
+          totalFilesFilterState.searchQuery = widget.searchQuery;
+        }
 
-    // Update available files for selection only when necessary
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (isSelectionMode) {
-        ref
-            .read(fileSelectionProvider.notifier)
-            .updateAvailableFiles(displayDocuments);
-      }
-    });
+        // Apply context-aware filtering to all documents
+        final displayDocuments = ContextFilterUtils.applyContextFilters(
+          documents: allDocuments,
+          context: FilterContext.totalFiles,
+          filterState: totalFilesFilterState,
+        );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Files Section
-        _buildFilesSection(displayDocuments),
-      ],
+        // Update available files for selection only when necessary
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (isSelectionMode) {
+            ref
+                .read(fileSelectionProvider.notifier)
+                .updateAvailableFiles(displayDocuments);
+          }
+        });
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Files Section
+            _buildFilesSection(displayDocuments),
+          ],
+        );
+      },
     );
   }
 
@@ -140,90 +193,141 @@ class _TotalFilesListSectionState extends ConsumerState<TotalFilesListSection> {
   }
 
   Widget _buildFilesList(List<DocumentModel> documents) {
-    final documentProvider = ref.watch(
-      ChangeNotifierProvider((ref) => DocumentProvider()),
-    );
+    return BlocBuilder<DocumentBloc, DocumentState>(
+      builder: (context, state) {
+        // Check loading state from DocumentBloc
+        final isLoading = state.when(
+          initial: () => false,
+          loading: (_) => true,
+          loaded:
+              (
+                _,
+                __,
+                ___,
+                ____,
+                _____,
+                ______,
+                _______,
+                ________,
+                _________,
+                __________,
+                ___________,
+                ____________,
+                _____________,
+              ) => false,
+          error: (_, __, ___) => false,
+          loadingMore:
+              (
+                _,
+                __,
+                ___,
+                ____,
+                _____,
+                ______,
+                _______,
+                ________,
+                _________,
+                __________,
+              ) => false,
+          performingOperation:
+              (
+                _,
+                __,
+                ___,
+                ____,
+                _____,
+                ______,
+                _______,
+                ________,
+                _________,
+                __________,
+                ___________,
+              ) => true,
+          syncing: (_, __, ___) => true,
+        );
 
-    // Show loading state for first-time loading
-    if (_isFirstTimeLoading || !_hasDataCheckCompleted) {
-      final screenWidth = MediaQuery.of(context).size.width;
-      final isSmallScreen = screenWidth < 400;
-      final progressIndicatorSize = isSmallScreen ? 48.0 : 56.0;
-      final textSpacing = isSmallScreen ? 12.0 : 16.0;
-      final fontSize = isSmallScreen ? 15.0 : 16.0;
+        // Show loading state for first-time loading
+        if (_isFirstTimeLoading || !_hasDataCheckCompleted) {
+          final screenWidth = MediaQuery.of(context).size.width;
+          final isSmallScreen = screenWidth < 400;
+          final progressIndicatorSize = isSmallScreen ? 48.0 : 56.0;
+          final textSpacing = isSmallScreen ? 12.0 : 16.0;
+          final fontSize = isSmallScreen ? 15.0 : 16.0;
 
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: progressIndicatorSize,
-              height: progressIndicatorSize,
-              child: CircularProgressIndicator(
-                strokeWidth: 3,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-              ),
-            ),
-            SizedBox(height: textSpacing),
-            Text(
-              'Memuat semua file...',
-              style: GoogleFonts.poppins(
-                fontSize: fontSize,
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Show loading indicator during refresh
-    if (documentProvider.isLoading && documents.isNotEmpty) {
-      return Column(
-        children: [
-          _buildActualFilesList(documents),
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 40),
+            child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(
-                  width: 16,
-                  height: 16,
+                  width: progressIndicatorSize,
+                  height: progressIndicatorSize,
                   child: CircularProgressIndicator(
-                    strokeWidth: 2,
+                    strokeWidth: 3,
                     valueColor: AlwaysStoppedAnimation<Color>(
                       AppColors.primary,
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
+                SizedBox(height: textSpacing),
                 Text(
-                  'Memperbarui...',
+                  'Memuat semua file...',
                   style: GoogleFonts.poppins(
-                    fontSize: 12,
+                    fontSize: fontSize,
                     color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
                   ),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
-          ),
-        ],
-      );
-    }
+          );
+        }
 
-    // Show empty state after data check is complete
-    if (documents.isEmpty &&
-        !documentProvider.isLoading &&
-        _hasDataCheckCompleted) {
-      return _buildEmptyState();
-    }
+        // Show loading indicator during refresh
+        if (isLoading && documents.isNotEmpty) {
+          return Column(
+            children: [
+              _buildActualFilesList(documents),
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Memperbarui...',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
 
-    // Return the actual files list
-    return _buildActualFilesList(documents);
+        // Show empty state after data check is complete
+        if (documents.isEmpty && !isLoading && _hasDataCheckCompleted) {
+          return _buildEmptyState();
+        }
+
+        // Return the actual files list
+        return _buildActualFilesList(documents);
+      },
+    );
   }
 
   Widget _buildEmptyState() {
@@ -330,13 +434,61 @@ class _TotalFilesListSectionState extends ConsumerState<TotalFilesListSection> {
           onLongPress: () {
             final isSelectionMode = ref.read(isSelectionModeProvider);
             if (!isSelectionMode) {
-              // Get all available documents from the provider
-              final documentProvider = ref.read(
-                ChangeNotifierProvider((ref) => DocumentProvider()),
+              // Get all available documents from DocumentBloc
+              final documentBloc = context.read<DocumentBloc>();
+              final currentState = documentBloc.state;
+              final allDocuments = currentState.when(
+                initial: () => <DocumentModel>[],
+                loading: (_) => <DocumentModel>[],
+                loaded:
+                    (
+                      documents,
+                      _,
+                      __,
+                      ___,
+                      ____,
+                      _____,
+                      ______,
+                      _______,
+                      ________,
+                      _________,
+                      __________,
+                      ___________,
+                      ____________,
+                    ) => documents,
+                error: (_, __, ___) => <DocumentModel>[],
+                loadingMore:
+                    (
+                      currentDocuments,
+                      _,
+                      __,
+                      ___,
+                      ____,
+                      _____,
+                      ______,
+                      _______,
+                      ________,
+                      _________,
+                    ) => currentDocuments,
+                performingOperation:
+                    (
+                      _,
+                      currentDocuments,
+                      __,
+                      ___,
+                      ____,
+                      _____,
+                      ______,
+                      _______,
+                      ________,
+                      _________,
+                      __________,
+                    ) => currentDocuments,
+                syncing: (_, currentDocuments, __) => currentDocuments,
               );
               ref
                   .read(fileSelectionProvider.notifier)
-                  .enterSelectionMode(document, documentProvider.allDocuments);
+                  .enterSelectionMode(document, allDocuments);
             }
           },
           child: Padding(
@@ -662,10 +814,8 @@ class _TotalFilesScreenState extends ConsumerState<TotalFilesScreen> {
   }
 
   Future<void> _initializeData() async {
-    final documentProvider = ref.read(
-      ChangeNotifierProvider((ref) => DocumentProvider()),
-    );
-    await documentProvider.loadDocuments();
+    // Use DocumentBloc to load documents
+    context.read<DocumentBloc>().add(const DocumentEvent.loadDocuments());
   }
 
   void _performSearch() {
@@ -704,10 +854,10 @@ class _TotalFilesScreenState extends ConsumerState<TotalFilesScreen> {
   }
 
   Future<void> _refreshData() async {
-    final documentProvider = ref.read(
-      ChangeNotifierProvider((ref) => DocumentProvider()),
+    // Use DocumentBloc to refresh documents
+    context.read<DocumentBloc>().add(
+      const DocumentEvent.refreshDocuments(forceRefresh: true),
     );
-    await documentProvider.refreshDocuments();
   }
 
   @override

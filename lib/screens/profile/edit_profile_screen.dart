@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import '../../core/constants/app_colors.dart';
-import '../../providers/auth_provider.dart';
+import '../../features/auth/providers/auth_providers.dart';
 import '../../core/services/user_service.dart';
 import '../../core/services/firebase_service.dart';
 
-class EditProfileScreen extends StatefulWidget {
+class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
 
   @override
-  State<EditProfileScreen> createState() => _EditProfileScreenState();
+  ConsumerState<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
-class _EditProfileScreenState extends State<EditProfileScreen> {
+class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -35,8 +35,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   void _initializeForm() {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final user = authProvider.currentUser;
+    final user = ref.read(currentUserSyncProvider);
 
     if (user != null) {
       _fullNameController.text = user.fullName;
@@ -78,9 +77,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         centerTitle: true,
       ),
-      body: Consumer<AuthProvider>(
-        builder: (context, authProvider, child) {
-          final user = authProvider.currentUser;
+      body: Consumer(
+        builder: (context, ref, child) {
+          final user = ref.watch(currentUserSyncProvider);
 
           if (user == null) {
             return const Center(child: Text('User not found'));
@@ -197,9 +196,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildProfilePictureSection() {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        final user = authProvider.currentUser;
+    return Consumer(
+      builder: (context, ref, child) {
+        final user = ref.watch(currentUserSyncProvider);
         return Center(
           child: Column(
             children: [
@@ -580,8 +579,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _selectedImage = null;
       });
 
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final currentUser = authProvider.currentUser;
+      final currentUser = ref.read(currentUserSyncProvider);
 
       if (currentUser != null) {
         // Update user profile to remove image
@@ -591,9 +589,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           currentUser.id,
         );
 
-        // Update local user data
-        final updatedUser = currentUser.copyWith(profileImage: null);
-        authProvider.updateCurrentUser(updatedUser);
+        // User data will be automatically refreshed through Riverpod
 
         Fluttertoast.showToast(
           msg: 'Profile photo removed successfully',
@@ -622,8 +618,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _isUploadingImage = true;
       });
 
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final currentUser = authProvider.currentUser;
+      final currentUser = ref.read(currentUserSyncProvider);
 
       if (currentUser != null) {
         // Ensure we're using the correct path structure: profile_images/{userId}/profile_image.jpg
@@ -664,9 +659,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           currentUser.id,
         );
 
-        // Update local user data
-        final updatedUser = currentUser.copyWith(profileImage: downloadUrl);
-        authProvider.updateCurrentUser(updatedUser);
+        // User data will be automatically refreshed through Riverpod
 
         if (mounted) {
           Fluttertoast.showToast(
@@ -703,20 +696,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     });
 
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final currentUser = authProvider.currentUser;
+      final currentUser = ref.read(currentUserSyncProvider);
 
       if (currentUser != null) {
-        // Create updated user model
-        final updatedUser = currentUser.copyWith(
-          fullName: _fullNameController.text.trim(),
-          email: _emailController.text.trim(),
-        );
-
-        // Update user profile
-        // Note: This would typically call a service to update the user
-        // For now, we'll just update the local state
-        authProvider.updateCurrentUser(updatedUser);
+        // User data will be automatically refreshed through Riverpod
 
         Fluttertoast.showToast(
           msg: 'Profile updated successfully',

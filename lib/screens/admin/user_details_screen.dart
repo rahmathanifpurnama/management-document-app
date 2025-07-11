@@ -1,192 +1,265 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_routes.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/user_provider.dart';
+import '../../features/auth/providers/auth_providers.dart';
+import '../../features/users/bloc/user_bloc.dart';
+import '../../features/users/bloc/user_event.dart';
+import '../../features/users/bloc/user_state.dart';
 import '../../models/user_model.dart';
 import '../../widgets/common/custom_app_bar.dart';
 
-class UserDetailsScreen extends StatefulWidget {
+class UserDetailsScreen extends ConsumerStatefulWidget {
   final UserModel user;
 
   const UserDetailsScreen({super.key, required this.user});
 
   @override
-  State<UserDetailsScreen> createState() => _UserDetailsScreenState();
+  ConsumerState<UserDetailsScreen> createState() => _UserDetailsScreenState();
 }
 
-class _UserDetailsScreenState extends State<UserDetailsScreen> {
+class _UserDetailsScreenState extends ConsumerState<UserDetailsScreen> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: CustomAppBar(
-        title: 'Detail Pengguna',
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.textWhite,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              Navigator.of(
-                context,
-              ).pushNamed(AppRoutes.editUser, arguments: widget.user);
-            },
-            tooltip: 'Edit User',
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Profile Header
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppColors.primary,
-                    AppColors.primary.withValues(alpha: 0.8),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+    return BlocListener<UserBloc, UserState>(
+      listener: (context, state) {
+        state.when(
+          initial: () {},
+          loading: () {},
+          loaded:
+              (
+                users,
+                filteredUsers,
+                searchQuery,
+                selectedRole,
+                selectedStatus,
+                isFiltered,
+              ) {
+                // User operation successful
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Operasi berhasil'),
+                    backgroundColor: AppColors.success,
                   ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Avatar
-                  Container(
-                    width: 80,
-                    height: 80,
-                    decoration: BoxDecoration(
-                      color: AppColors.textWhite,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+                );
+              },
+          performingOperation:
+              (
+                users,
+                filteredUsers,
+                searchQuery,
+                selectedRole,
+                selectedStatus,
+                isFiltered,
+                operationType,
+              ) {
+                // Operation in progress - show loading if needed
+              },
+          syncing:
+              (
+                users,
+                filteredUsers,
+                searchQuery,
+                selectedRole,
+                selectedStatus,
+                isFiltered,
+              ) {},
+          error:
+              (
+                message,
+                users,
+                filteredUsers,
+                searchQuery,
+                selectedRole,
+                selectedStatus,
+                isFiltered,
+                canRetry,
+                lastFailedOperation,
+              ) {
+                // Handle error
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(message),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+              },
+        );
+      },
+      child: Scaffold(
+        appBar: CustomAppBar(
+          title: 'Detail Pengguna',
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.textWhite,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () {
+                Navigator.of(
+                  context,
+                ).pushNamed(AppRoutes.editUser, arguments: widget.user);
+              },
+              tooltip: 'Edit User',
+            ),
+          ],
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Profile Header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.primary,
+                      AppColors.primary.withValues(alpha: 0.8),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    // Avatar
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: AppColors.textWhite,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.person,
+                        size: 40,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Name
+                    Text(
+                      widget.user.fullName,
+                      style: GoogleFonts.poppins(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textWhite,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Email
+                    Text(
+                      widget.user.email,
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        color: AppColors.textWhite.withValues(alpha: 0.9),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Role & Status Badges
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildBadge(
+                          widget.user.role.toUpperCase(),
+                          widget.user.role == 'admin'
+                              ? AppColors.admin
+                              : AppColors.user,
+                        ),
+                        const SizedBox(width: 8),
+                        _buildBadge(
+                          widget.user.status == 'active'
+                              ? 'AKTIF'
+                              : 'TIDAK AKTIF',
+                          widget.user.status == 'active'
+                              ? AppColors.success
+                              : AppColors.error,
                         ),
                       ],
                     ),
-                    child: Icon(
-                      Icons.person,
-                      size: 40,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Name
-                  Text(
-                    widget.user.fullName,
-                    style: GoogleFonts.poppins(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textWhite,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 4),
-
-                  // Email
-                  Text(
-                    widget.user.email,
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      color: AppColors.textWhite.withValues(alpha: 0.9),
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Role & Status Badges
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildBadge(
-                        widget.user.role.toUpperCase(),
-                        widget.user.role == 'admin'
-                            ? AppColors.admin
-                            : AppColors.user,
-                      ),
-                      const SizedBox(width: 8),
-                      _buildBadge(
-                        widget.user.status == 'active'
-                            ? 'AKTIF'
-                            : 'TIDAK AKTIF',
-                        widget.user.status == 'active'
-                            ? AppColors.success
-                            : AppColors.error,
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // User Information
-            _buildSectionHeader('Informasi Pengguna'),
-            const SizedBox(height: 16),
+              // User Information
+              _buildSectionHeader('Informasi Pengguna'),
+              const SizedBox(height: 16),
 
-            _buildInfoCard([
-              _buildInfoRow('ID Pengguna', widget.user.id, Icons.fingerprint),
-              _buildInfoRow('Nama Lengkap', widget.user.fullName, Icons.person),
-              _buildInfoRow('Email', widget.user.email, Icons.email),
-              _buildInfoRow(
-                'Role',
-                widget.user.role.toUpperCase(),
-                Icons.admin_panel_settings,
-              ),
-              _buildInfoRow(
-                'Status',
-                widget.user.status == 'active' ? 'Aktif' : 'Tidak Aktif',
-                Icons.toggle_on,
-              ),
-            ]),
+              _buildInfoCard([
+                _buildInfoRow('ID Pengguna', widget.user.id, Icons.fingerprint),
+                _buildInfoRow(
+                  'Nama Lengkap',
+                  widget.user.fullName,
+                  Icons.person,
+                ),
+                _buildInfoRow('Email', widget.user.email, Icons.email),
+                _buildInfoRow(
+                  'Role',
+                  widget.user.role.toUpperCase(),
+                  Icons.admin_panel_settings,
+                ),
+                _buildInfoRow(
+                  'Status',
+                  widget.user.status == 'active' ? 'Aktif' : 'Tidak Aktif',
+                  Icons.toggle_on,
+                ),
+              ]),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // System Information
-            _buildSectionHeader('Informasi Sistem'),
-            const SizedBox(height: 16),
+              // System Information
+              _buildSectionHeader('Informasi Sistem'),
+              const SizedBox(height: 16),
 
-            _buildInfoCard([
-              _buildInfoRow(
-                'Dibuat Pada',
-                widget.user.createdAt != null
-                    ? _formatDate(widget.user.createdAt!)
-                    : 'Tidak tersedia',
-                Icons.calendar_today,
-              ),
-              _buildInfoRow(
-                'Dibuat Oleh',
-                widget.user.createdBy ?? 'Tidak tersedia',
-                Icons.person_add,
-              ),
-            ]),
+              _buildInfoCard([
+                _buildInfoRow(
+                  'Dibuat Pada',
+                  widget.user.createdAt != null
+                      ? _formatDate(widget.user.createdAt!)
+                      : 'Tidak tersedia',
+                  Icons.calendar_today,
+                ),
+                _buildInfoRow(
+                  'Dibuat Oleh',
+                  widget.user.createdBy ?? 'Tidak tersedia',
+                  Icons.person_add,
+                ),
+              ]),
 
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-            // Action Buttons
-            _buildActionButtons(context),
+              // Action Buttons
+              _buildActionButtons(context),
 
-            const SizedBox(height: 16),
-          ],
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );
@@ -278,9 +351,10 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
   }
 
   Widget _buildActionButtons(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        final currentUserId = authProvider.currentUser?.id;
+    return Consumer(
+      builder: (context, ref, child) {
+        final currentUser = ref.watch(currentUserSyncProvider);
+        final currentUserId = currentUser?.id;
         final canEdit =
             currentUserId != widget.user.id; // Tidak bisa edit diri sendiri
 
@@ -411,36 +485,34 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
 
               navigator.pop();
 
-              final userProvider = Provider.of<UserProvider>(
-                context,
-                listen: false,
-              );
-              final authProvider = Provider.of<AuthProvider>(
-                context,
-                listen: false,
-              );
-
-              final success = await userProvider.updateUserStatus(
-                widget.user.id,
-                newStatus,
-                authProvider.currentUser!.id,
-              );
-
-              if (success) {
+              // Get current user from Riverpod auth provider
+              final currentUser = ref.read(currentUserSyncProvider);
+              if (currentUser == null) {
                 scaffoldMessenger.showSnackBar(
                   SnackBar(
-                    content: Text('Status pengguna berhasil diubah'),
-                    backgroundColor: AppColors.success,
-                  ),
-                );
-              } else {
-                scaffoldMessenger.showSnackBar(
-                  SnackBar(
-                    content: Text('Gagal mengubah status pengguna'),
+                    content: Text('User not authenticated'),
                     backgroundColor: AppColors.error,
                   ),
                 );
+                return;
               }
+
+              // Use UserBloc to update user status
+              context.read<UserBloc>().add(
+                UserEvent.updateUserStatus(
+                  userId: widget.user.id,
+                  status: newStatus,
+                  updatedBy: currentUser.id,
+                ),
+              );
+
+              // Success/error handling will be done through BlocListener
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: Text('Memperbarui status pengguna...'),
+                  backgroundColor: AppColors.primary,
+                ),
+              );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: newStatus == 'active'
@@ -474,36 +546,34 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
 
               navigator.pop();
 
-              final userProvider = Provider.of<UserProvider>(
-                context,
-                listen: false,
-              );
-              final authProvider = Provider.of<AuthProvider>(
-                context,
-                listen: false,
-              );
-
-              final success = await userProvider.deleteUser(
-                widget.user.id,
-                authProvider.currentUser!.id,
-              );
-
-              if (success) {
+              // Get current user from Riverpod auth provider
+              final currentUser = ref.read(currentUserSyncProvider);
+              if (currentUser == null) {
                 scaffoldMessenger.showSnackBar(
                   SnackBar(
-                    content: Text('Pengguna berhasil dihapus'),
-                    backgroundColor: AppColors.success,
-                  ),
-                );
-                navigator.pop(); // Kembali ke user management
-              } else {
-                scaffoldMessenger.showSnackBar(
-                  SnackBar(
-                    content: Text('Gagal menghapus pengguna'),
+                    content: Text('User not authenticated'),
                     backgroundColor: AppColors.error,
                   ),
                 );
+                return;
               }
+
+              // Use UserBloc to delete user
+              context.read<UserBloc>().add(
+                UserEvent.deleteUser(
+                  userId: widget.user.id,
+                  deletedBy: currentUser.id,
+                ),
+              );
+
+              // Success/error handling will be done through BlocListener
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: Text('Menghapus pengguna...'),
+                  backgroundColor: AppColors.primary,
+                ),
+              );
+              navigator.pop(); // Kembali ke user management
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             child: Text('Ya, Hapus'),

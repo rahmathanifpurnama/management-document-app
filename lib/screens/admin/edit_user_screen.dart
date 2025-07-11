@@ -1,24 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/user_provider.dart';
+import '../../features/auth/providers/auth_providers.dart';
+import '../../features/users/bloc/user_bloc.dart';
+import '../../features/users/bloc/user_event.dart';
+import '../../features/users/bloc/user_state.dart';
 import '../../models/user_model.dart';
 import '../../widgets/common/custom_app_bar.dart';
 import '../../widgets/common/loading_widget.dart';
 
-class EditUserScreen extends StatefulWidget {
+class EditUserScreen extends ConsumerStatefulWidget {
   final UserModel user;
 
   const EditUserScreen({super.key, required this.user});
 
   @override
-  State<EditUserScreen> createState() => _EditUserScreenState();
+  ConsumerState<EditUserScreen> createState() => _EditUserScreenState();
 }
 
-class _EditUserScreenState extends State<EditUserScreen> {
+class _EditUserScreenState extends ConsumerState<EditUserScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _fullNameController;
   late TextEditingController _emailController;
@@ -45,244 +48,332 @@ class _EditUserScreenState extends State<EditUserScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: CustomAppBar(
-        title: 'Edit User',
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.textWhite,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save),
-            onPressed: _isLoading ? null : _updateUser,
-            tooltip: 'Simpan Perubahan',
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? const LoadingWidget(message: 'Memperbarui pengguna...')
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header Info
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.2),
+    return BlocListener<UserBloc, UserState>(
+      listener: (context, state) {
+        state.when(
+          initial: () {},
+          loading: () {},
+          loaded:
+              (
+                users,
+                filteredUsers,
+                searchQuery,
+                selectedRole,
+                selectedStatus,
+                isFiltered,
+              ) {
+                // User update successful
+                if (mounted) {
+                  setState(() {
+                    _isLoading = false;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Pengguna berhasil diperbarui'),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                  Navigator.of(context).pop();
+                }
+              },
+          performingOperation:
+              (
+                users,
+                filteredUsers,
+                searchQuery,
+                selectedRole,
+                selectedStatus,
+                isFiltered,
+                operationType,
+              ) {
+                // Operation in progress
+                if (operationType == 'update' && mounted) {
+                  setState(() {
+                    _isLoading = true;
+                  });
+                }
+              },
+          syncing:
+              (
+                users,
+                filteredUsers,
+                searchQuery,
+                selectedRole,
+                selectedStatus,
+                isFiltered,
+              ) {},
+          error:
+              (
+                message,
+                users,
+                filteredUsers,
+                searchQuery,
+                selectedRole,
+                selectedStatus,
+                isFiltered,
+                canRetry,
+                lastFailedOperation,
+              ) {
+                // Handle error
+                if (mounted) {
+                  setState(() {
+                    _isLoading = false;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(message),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              },
+        );
+      },
+      child: Scaffold(
+        appBar: CustomAppBar(
+          title: 'Edit User',
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.textWhite,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.save),
+              onPressed: _isLoading ? null : _updateUser,
+              tooltip: 'Simpan Perubahan',
+            ),
+          ],
+        ),
+        body: _isLoading
+            ? const LoadingWidget(message: 'Memperbarui pengguna...')
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header Info
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.edit,
+                                  color: AppColors.primary,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Edit Pengguna',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Perbarui informasi pengguna di bawah ini.',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+
+                      const SizedBox(height: 24),
+
+                      // User ID (Read-only)
+                      _buildReadOnlyField(
+                        label: 'User ID',
+                        value: widget.user.id,
+                        icon: Icons.fingerprint,
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Personal Information Section
+                      _buildSectionHeader('Informasi Personal'),
+                      const SizedBox(height: 16),
+
+                      _buildTextField(
+                        controller: _fullNameController,
+                        label: 'Nama Lengkap',
+                        hint: 'Masukkan nama lengkap',
+                        icon: Icons.person,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Nama lengkap harus diisi';
+                          }
+                          if (value.length < 3) {
+                            return 'Nama lengkap minimal 3 karakter';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      _buildTextField(
+                        controller: _emailController,
+                        label: 'Email',
+                        hint: 'Masukkan alamat email',
+                        icon: Icons.email,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Email harus diisi';
+                          }
+                          if (!RegExp(
+                            r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                          ).hasMatch(value)) {
+                            return 'Format email tidak valid';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Role & Status Section
+                      _buildSectionHeader('Role & Status'),
+                      const SizedBox(height: 16),
+
+                      Row(
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.edit,
-                                color: AppColors.primary,
-                                size: 24,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Edit Pengguna',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColors.primary,
+                          Expanded(
+                            child: _buildDropdownField(
+                              label: 'Role',
+                              value: _selectedRole,
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'user',
+                                  child: Text('User'),
                                 ),
-                              ),
-                            ],
+                                DropdownMenuItem(
+                                  value: 'admin',
+                                  child: Text('Admin'),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedRole = value!;
+                                });
+                              },
+                              icon: Icons.admin_panel_settings,
+                            ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Perbarui informasi pengguna di bawah ini.',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              color: AppColors.textSecondary,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildDropdownField(
+                              label: 'Status',
+                              value: _selectedStatus,
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'active',
+                                  child: Text('Aktif'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'inactive',
+                                  child: Text('Tidak Aktif'),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedStatus = value!;
+                                });
+                              },
+                              icon: Icons.toggle_on,
                             ),
                           ),
                         ],
                       ),
-                    ),
 
-                    const SizedBox(height: 24),
+                      const SizedBox(height: 24),
 
-                    // User ID (Read-only)
-                    _buildReadOnlyField(
-                      label: 'User ID',
-                      value: widget.user.id,
-                      icon: Icons.fingerprint,
-                    ),
+                      // Metadata Section
+                      _buildSectionHeader('Informasi Sistem'),
+                      const SizedBox(height: 16),
 
-                    const SizedBox(height: 16),
+                      _buildReadOnlyField(
+                        label: 'Dibuat Pada',
+                        value: widget.user.createdAt != null
+                            ? _formatDate(widget.user.createdAt!)
+                            : 'Tidak tersedia',
+                        icon: Icons.calendar_today,
+                      ),
 
-                    // Personal Information Section
-                    _buildSectionHeader('Informasi Personal'),
-                    const SizedBox(height: 16),
+                      const SizedBox(height: 32),
 
-                    _buildTextField(
-                      controller: _fullNameController,
-                      label: 'Nama Lengkap',
-                      hint: 'Masukkan nama lengkap',
-                      icon: Icons.person,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Nama lengkap harus diisi';
-                        }
-                        if (value.length < 3) {
-                          return 'Nama lengkap minimal 3 karakter';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    _buildTextField(
-                      controller: _emailController,
-                      label: 'Email',
-                      hint: 'Masukkan alamat email',
-                      icon: Icons.email,
-                      keyboardType: TextInputType.emailAddress,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Email harus diisi';
-                        }
-                        if (!RegExp(
-                          r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                        ).hasMatch(value)) {
-                          return 'Format email tidak valid';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Role & Status Section
-                    _buildSectionHeader('Role & Status'),
-                    const SizedBox(height: 16),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildDropdownField(
-                            label: 'Role',
-                            value: _selectedRole,
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'user',
-                                child: Text('User'),
+                      // Action Buttons
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _isLoading
+                                  ? null
+                                  : () {
+                                      Navigator.of(context).pop();
+                                    },
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                side: BorderSide(
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
-                              DropdownMenuItem(
-                                value: 'admin',
-                                child: Text('Admin'),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedRole = value!;
-                              });
-                            },
-                            icon: Icons.admin_panel_settings,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildDropdownField(
-                            label: 'Status',
-                            value: _selectedStatus,
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'active',
-                                child: Text('Aktif'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'inactive',
-                                child: Text('Tidak Aktif'),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedStatus = value!;
-                              });
-                            },
-                            icon: Icons.toggle_on,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Metadata Section
-                    _buildSectionHeader('Informasi Sistem'),
-                    const SizedBox(height: 16),
-
-                    _buildReadOnlyField(
-                      label: 'Dibuat Pada',
-                      value: widget.user.createdAt != null
-                          ? _formatDate(widget.user.createdAt!)
-                          : 'Tidak tersedia',
-                      icon: Icons.calendar_today,
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // Action Buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: _isLoading
-                                ? null
-                                : () {
-                                    Navigator.of(context).pop();
-                                  },
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              side: BorderSide(color: AppColors.textSecondary),
-                            ),
-                            child: Text(
-                              AppStrings.cancel,
-                              style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.textSecondary,
+                              child: Text(
+                                AppStrings.cancel,
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textSecondary,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _updateUser,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                            ),
-                            child: Text(
-                              'Perbarui',
-                              style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.textWhite,
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _updateUser,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                              ),
+                              child: Text(
+                                'Perbarui',
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textWhite,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
 
-                    const SizedBox(height: 16),
-                  ],
+                      const SizedBox(height: 16),
+                    ],
+                  ),
                 ),
               ),
-            ),
+      ),
     );
   }
 
@@ -384,8 +475,11 @@ class _EditUserScreenState extends State<EditUserScreen> {
     });
 
     try {
-      final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      // Get current user from Riverpod auth provider
+      final currentUser = ref.read(currentUserSyncProvider);
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
 
       // Create updated user model
       final updatedUser = widget.user.copyWith(
@@ -395,43 +489,23 @@ class _EditUserScreenState extends State<EditUserScreen> {
         status: _selectedStatus,
       );
 
-      final success = await userProvider.updateUser(
-        updatedUser,
-        authProvider.currentUser!.id,
+      // Use UserBloc to update user
+      context.read<UserBloc>().add(
+        UserEvent.updateUser(user: updatedUser, updatedBy: currentUser.id),
       );
 
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Pengguna berhasil diperbarui'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        Navigator.of(context).pop();
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              userProvider.errorMessage ?? 'Gagal memperbarui pengguna',
-            ),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
+      // Success handling will be done through BlocListener
     } catch (e) {
       if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
             backgroundColor: AppColors.error,
           ),
         );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
       }
     }
   }

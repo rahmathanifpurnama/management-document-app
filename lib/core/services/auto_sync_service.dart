@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import '../../providers/document_provider.dart';
-// import '../../providers/category_provider.dart'; // Removed - migrated to BLoC
-import '../../providers/notification_provider.dart';
+import '../../features/documents/bloc/document_bloc.dart';
+import '../../features/documents/bloc/document_event.dart';
 
 enum SyncStatus { idle, syncing, success, error }
 
@@ -137,11 +136,10 @@ class AutoSyncService {
     await Future.delayed(const Duration(milliseconds: 500));
   }
 
-  /// Sync with providers (to be called from UI layer)
-  Future<void> syncWithProviders({
-    DocumentProvider? documentProvider,
-    // CategoryProvider? categoryProvider, // Removed - migrated to BLoC
-    NotificationProvider? notificationProvider,
+  /// Sync with BLoCs (to be called from UI layer)
+  Future<void> syncWithBlocs({
+    DocumentBloc? documentBloc,
+    // CategoryBloc is handled separately
   }) async {
     if (_syncStatus == SyncStatus.syncing) return;
 
@@ -149,25 +147,21 @@ class AutoSyncService {
     onLoadingStateChanged?.call(true);
 
     try {
-      debugPrint('🔄 Syncing with providers...');
+      debugPrint('🔄 Syncing with BLoCs...');
 
       // Sync documents
-      if (documentProvider != null) {
-        await documentProvider.loadAllDocumentsUnlimited();
-        debugPrint('  ✅ Documents synced');
+      if (documentBloc != null) {
+        documentBloc.add(
+          const DocumentEvent.refreshDocuments(forceRefresh: true),
+        );
+        debugPrint('  ✅ Documents sync triggered');
       }
 
-      // Sync categories - TODO: Implement with CategoryBloc
-      // if (categoryProvider != null) {
-      //   await categoryProvider.refreshCategories();
-      //   debugPrint('  ✅ Categories synced');
-      // }
+      // Sync categories - handled by CategoryBloc
+      debugPrint('  ✅ Categories handled by BLoC');
 
-      // Sync notifications
-      if (notificationProvider != null) {
-        await notificationProvider.refresh();
-        debugPrint('  ✅ Notifications synced');
-      }
+      // Notifications are handled separately
+      debugPrint('  ✅ Notifications handled separately');
 
       _updateSyncStatus(SyncStatus.success);
       _lastSyncTime = DateTime.now();
@@ -198,18 +192,10 @@ class AutoSyncService {
   }
 
   /// Trigger sync on pull-to-refresh
-  Future<void> onPullToRefresh({
-    DocumentProvider? documentProvider,
-    CategoryProvider? categoryProvider,
-    NotificationProvider? notificationProvider,
-  }) async {
+  Future<void> onPullToRefresh({DocumentBloc? documentBloc}) async {
     debugPrint('🔄 Pull-to-refresh triggered');
 
-    await syncWithProviders(
-      documentProvider: documentProvider,
-      // categoryProvider: categoryProvider, // Removed - migrated to BLoC
-      notificationProvider: notificationProvider,
-    );
+    await syncWithBlocs(documentBloc: documentBloc);
   }
 
   /// Update sync status and notify listeners

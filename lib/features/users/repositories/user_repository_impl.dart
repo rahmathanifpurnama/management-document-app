@@ -13,7 +13,7 @@ class UserRepositoryImpl implements UserRepository {
   final UserService _userService = UserService.instance;
   final CloudFunctionsService _cloudFunctions = CloudFunctionsService.instance;
   final StatisticsSyncService _statisticsSync = StatisticsSyncService.instance;
-  final ActivityService _activityService = ActivityService.instance;
+  final ActivityService _activityService = ActivityService();
 
   @override
   Future<List<UserModel>> getAllUsers() async {
@@ -80,11 +80,16 @@ class UserRepositoryImpl implements UserRepository {
 
       // Log activity
       await _activityService.logActivity(
-        userId: createdBy,
-        action: 'create',
-        targetType: 'user',
-        targetId: user.id,
-        details: {'userName': fullName, 'userEmail': email, 'userRole': role},
+        type: 'create',
+        description: 'User created: $fullName ($email)',
+        additionalData: {
+          'userName': fullName,
+          'userEmail': email,
+          'userRole': role,
+          'targetUserId': user.id,
+          'userAgent': 'Flutter App',
+          'platform': 'Mobile',
+        },
       );
 
       debugPrint('✅ UserRepository: User created successfully: ${user.id}');
@@ -106,11 +111,15 @@ class UserRepositoryImpl implements UserRepository {
 
       // Log activity
       await _activityService.logActivity(
-        userId: updatedBy,
-        action: 'edit',
-        targetType: 'user',
-        targetId: user.id,
-        details: {'userName': user.fullName, 'userEmail': user.email},
+        type: 'edit',
+        description: 'User updated: ${user.fullName} (${user.email})',
+        additionalData: {
+          'userName': user.fullName,
+          'userEmail': user.email,
+          'targetUserId': user.id,
+          'userAgent': 'Flutter App',
+          'platform': 'Mobile',
+        },
       );
 
       debugPrint('✅ UserRepository: User updated successfully: ${user.id}');
@@ -135,11 +144,14 @@ class UserRepositoryImpl implements UserRepository {
 
       // Log activity
       await _activityService.logActivity(
-        userId: updatedBy,
-        action: 'edit',
-        targetType: 'user',
-        targetId: userId,
-        details: {'statusChanged': status},
+        type: 'edit',
+        description: 'User status updated: $status',
+        additionalData: {
+          'statusChanged': status,
+          'targetUserId': userId,
+          'userAgent': 'Flutter App',
+          'platform': 'Mobile',
+        },
       );
 
       debugPrint('✅ UserRepository: User status updated successfully');
@@ -164,11 +176,14 @@ class UserRepositoryImpl implements UserRepository {
 
       // Log activity
       await _activityService.logActivity(
-        userId: updatedBy,
-        action: 'edit',
-        targetType: 'user',
-        targetId: userId,
-        details: {'permissionsUpdated': permissions.toMap()},
+        type: 'edit',
+        description: 'User permissions updated',
+        additionalData: {
+          'permissionsUpdated': permissions.toMap(),
+          'targetUserId': userId,
+          'userAgent': 'Flutter App',
+          'platform': 'Mobile',
+        },
       );
 
       debugPrint('✅ UserRepository: User permissions updated successfully');
@@ -193,11 +208,14 @@ class UserRepositoryImpl implements UserRepository {
 
       // Log activity
       await _activityService.logActivity(
-        userId: deletedBy,
-        action: 'delete',
-        targetType: 'user',
-        targetId: userId,
-        details: {'userName': userName},
+        type: 'delete',
+        description: 'User deleted: $userName',
+        additionalData: {
+          'userName': userName,
+          'targetUserId': userId,
+          'userAgent': 'Flutter App',
+          'platform': 'Mobile',
+        },
       );
 
       // Trigger statistics refresh

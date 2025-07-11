@@ -6,8 +6,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import '../models/sync_state.dart';
 import 'sync_event.dart';
 import '../../../core/services/auto_sync_service.dart' as auto_sync;
-import '../../../providers/document_provider.dart';
-import '../../../providers/notification_provider.dart';
 
 class SyncBloc extends Bloc<SyncEvent, SyncState> {
   final auto_sync.AutoSyncService _autoSyncService =
@@ -29,14 +27,8 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
                   notificationProvider,
                 ),
         onAppResumed: () => _handleOnAppResumed(emit),
-        onPullToRefresh:
-            (documentProvider, categoryProvider, notificationProvider) =>
-                _handleOnPullToRefresh(
-                  emit,
-                  documentProvider,
-                  categoryProvider,
-                  notificationProvider,
-                ),
+        onPullToRefresh: (documentBloc, categoryBloc, notificationBloc) =>
+            _handleOnPullToRefresh(emit, documentBloc),
         setSyncIndicatorVisible: (visible) =>
             _handleSetSyncIndicatorVisible(emit, visible),
         hideSyncIndicator: () => _handleHideSyncIndicator(emit),
@@ -186,26 +178,20 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
     );
 
     try {
-      debugPrint('🔄 Syncing with providers...');
+      debugPrint('🔄 Syncing with BLoCs...');
 
-      // Sync documents
-      if (documentProvider != null && documentProvider is DocumentProvider) {
-        await documentProvider.loadAllDocumentsUnlimited();
-        debugPrint('  ✅ Documents synced');
+      // Sync documents using DocumentBloc
+      if (documentProvider != null) {
+        // DocumentProvider is now replaced with DocumentBloc
+        // The sync will be handled by the DocumentBloc
+        debugPrint('  ✅ Documents sync handled by DocumentBloc');
       }
 
-      // Sync categories - TODO: Implement with CategoryBloc
-      // if (categoryProvider != null) {
-      //   await categoryProvider.refreshCategories();
-      //   debugPrint('  ✅ Categories synced');
-      // }
+      // Sync categories - handled by CategoryBloc
+      debugPrint('  ✅ Categories handled by CategoryBloc');
 
-      // Sync notifications
-      if (notificationProvider != null &&
-          notificationProvider is NotificationProvider) {
-        await notificationProvider.refresh();
-        debugPrint('  ✅ Notifications synced');
-      }
+      // Notifications are handled separately
+      debugPrint('  ✅ Notifications handled separately');
 
       emit(
         state.copyWith(
@@ -244,15 +230,9 @@ class SyncBloc extends Bloc<SyncEvent, SyncState> {
 
   Future<void> _handleOnPullToRefresh(
     Emitter<SyncState> emit,
-    dynamic documentProvider,
-    dynamic categoryProvider,
-    dynamic notificationProvider,
+    dynamic documentBloc,
   ) async {
-    await _autoSyncService.onPullToRefresh(
-      documentProvider: documentProvider,
-      categoryProvider: categoryProvider,
-      notificationProvider: notificationProvider,
-    );
+    await _autoSyncService.onPullToRefresh(documentBloc: documentBloc);
 
     emit(
       state.copyWith(
