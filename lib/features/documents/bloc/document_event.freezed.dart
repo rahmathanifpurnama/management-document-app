@@ -54,6 +54,8 @@ mixin _$DocumentEvent {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) => throw _privateConstructorUsedError;
@@ -89,6 +91,8 @@ mixin _$DocumentEvent {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) => throw _privateConstructorUsedError;
@@ -124,6 +128,8 @@ mixin _$DocumentEvent {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -152,6 +158,7 @@ mixin _$DocumentEvent {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) => throw _privateConstructorUsedError;
@@ -177,6 +184,7 @@ mixin _$DocumentEvent {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) => throw _privateConstructorUsedError;
@@ -202,6 +210,7 @@ mixin _$DocumentEvent {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -360,6 +369,8 @@ class _$LoadDocumentsImpl implements LoadDocuments {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -399,6 +410,8 @@ class _$LoadDocumentsImpl implements LoadDocuments {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -438,6 +451,8 @@ class _$LoadDocumentsImpl implements LoadDocuments {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -473,6 +488,7 @@ class _$LoadDocumentsImpl implements LoadDocuments {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -502,6 +518,7 @@ class _$LoadDocumentsImpl implements LoadDocuments {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -531,6 +548,7 @@ class _$LoadDocumentsImpl implements LoadDocuments {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -675,6 +693,8 @@ class _$SearchDocumentsImpl implements SearchDocuments {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -714,6 +734,8 @@ class _$SearchDocumentsImpl implements SearchDocuments {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -753,6 +775,8 @@ class _$SearchDocumentsImpl implements SearchDocuments {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -788,6 +812,7 @@ class _$SearchDocumentsImpl implements SearchDocuments {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -817,6 +842,7 @@ class _$SearchDocumentsImpl implements SearchDocuments {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -846,6 +872,7 @@ class _$SearchDocumentsImpl implements SearchDocuments {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -1060,6 +1087,8 @@ class _$FilterDocumentsImpl implements FilterDocuments {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -1107,6 +1136,8 @@ class _$FilterDocumentsImpl implements FilterDocuments {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -1154,6 +1185,8 @@ class _$FilterDocumentsImpl implements FilterDocuments {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -1197,6 +1230,7 @@ class _$FilterDocumentsImpl implements FilterDocuments {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -1226,6 +1260,7 @@ class _$FilterDocumentsImpl implements FilterDocuments {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -1255,6 +1290,7 @@ class _$FilterDocumentsImpl implements FilterDocuments {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -1406,6 +1442,8 @@ class _$SortDocumentsImpl implements SortDocuments {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -1445,6 +1483,8 @@ class _$SortDocumentsImpl implements SortDocuments {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -1484,6 +1524,8 @@ class _$SortDocumentsImpl implements SortDocuments {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -1519,6 +1561,7 @@ class _$SortDocumentsImpl implements SortDocuments {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -1548,6 +1591,7 @@ class _$SortDocumentsImpl implements SortDocuments {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -1577,6 +1621,7 @@ class _$SortDocumentsImpl implements SortDocuments {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -1720,6 +1765,8 @@ class _$DeleteDocumentImpl implements DeleteDocument {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -1759,6 +1806,8 @@ class _$DeleteDocumentImpl implements DeleteDocument {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -1798,6 +1847,8 @@ class _$DeleteDocumentImpl implements DeleteDocument {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -1833,6 +1884,7 @@ class _$DeleteDocumentImpl implements DeleteDocument {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -1862,6 +1914,7 @@ class _$DeleteDocumentImpl implements DeleteDocument {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -1891,6 +1944,7 @@ class _$DeleteDocumentImpl implements DeleteDocument {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -2037,6 +2091,8 @@ class _$PermanentlyDeleteDocumentImpl implements PermanentlyDeleteDocument {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -2076,6 +2132,8 @@ class _$PermanentlyDeleteDocumentImpl implements PermanentlyDeleteDocument {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -2115,6 +2173,8 @@ class _$PermanentlyDeleteDocumentImpl implements PermanentlyDeleteDocument {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -2150,6 +2210,7 @@ class _$PermanentlyDeleteDocumentImpl implements PermanentlyDeleteDocument {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -2179,6 +2240,7 @@ class _$PermanentlyDeleteDocumentImpl implements PermanentlyDeleteDocument {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -2208,6 +2270,7 @@ class _$PermanentlyDeleteDocumentImpl implements PermanentlyDeleteDocument {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -2351,6 +2414,8 @@ class _$RestoreDocumentImpl implements RestoreDocument {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -2390,6 +2455,8 @@ class _$RestoreDocumentImpl implements RestoreDocument {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -2429,6 +2496,8 @@ class _$RestoreDocumentImpl implements RestoreDocument {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -2464,6 +2533,7 @@ class _$RestoreDocumentImpl implements RestoreDocument {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -2493,6 +2563,7 @@ class _$RestoreDocumentImpl implements RestoreDocument {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -2522,6 +2593,7 @@ class _$RestoreDocumentImpl implements RestoreDocument {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -2658,6 +2730,8 @@ class _$UpdateDocumentImpl implements UpdateDocument {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -2697,6 +2771,8 @@ class _$UpdateDocumentImpl implements UpdateDocument {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -2736,6 +2812,8 @@ class _$UpdateDocumentImpl implements UpdateDocument {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -2771,6 +2849,7 @@ class _$UpdateDocumentImpl implements UpdateDocument {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -2800,6 +2879,7 @@ class _$UpdateDocumentImpl implements UpdateDocument {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -2829,6 +2909,7 @@ class _$UpdateDocumentImpl implements UpdateDocument {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -2963,6 +3044,8 @@ class _$RefreshDocumentsImpl implements RefreshDocuments {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -3002,6 +3085,8 @@ class _$RefreshDocumentsImpl implements RefreshDocuments {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -3041,6 +3126,8 @@ class _$RefreshDocumentsImpl implements RefreshDocuments {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -3076,6 +3163,7 @@ class _$RefreshDocumentsImpl implements RefreshDocuments {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -3105,6 +3193,7 @@ class _$RefreshDocumentsImpl implements RefreshDocuments {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -3134,6 +3223,7 @@ class _$RefreshDocumentsImpl implements RefreshDocuments {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -3266,6 +3356,8 @@ class _$LoadRecentDocumentsImpl implements LoadRecentDocuments {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -3305,6 +3397,8 @@ class _$LoadRecentDocumentsImpl implements LoadRecentDocuments {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -3344,6 +3438,8 @@ class _$LoadRecentDocumentsImpl implements LoadRecentDocuments {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -3379,6 +3475,7 @@ class _$LoadRecentDocumentsImpl implements LoadRecentDocuments {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -3408,6 +3505,7 @@ class _$LoadRecentDocumentsImpl implements LoadRecentDocuments {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -3437,6 +3535,7 @@ class _$LoadRecentDocumentsImpl implements LoadRecentDocuments {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -3570,6 +3669,8 @@ class _$LoadDeletedDocumentsImpl implements LoadDeletedDocuments {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -3609,6 +3710,8 @@ class _$LoadDeletedDocumentsImpl implements LoadDeletedDocuments {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -3648,6 +3751,8 @@ class _$LoadDeletedDocumentsImpl implements LoadDeletedDocuments {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -3683,6 +3788,7 @@ class _$LoadDeletedDocumentsImpl implements LoadDeletedDocuments {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -3712,6 +3818,7 @@ class _$LoadDeletedDocumentsImpl implements LoadDeletedDocuments {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -3741,6 +3848,7 @@ class _$LoadDeletedDocumentsImpl implements LoadDeletedDocuments {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -3881,6 +3989,8 @@ class _$LoadDocumentsByCategoryImpl implements LoadDocumentsByCategory {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -3920,6 +4030,8 @@ class _$LoadDocumentsByCategoryImpl implements LoadDocumentsByCategory {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -3959,6 +4071,8 @@ class _$LoadDocumentsByCategoryImpl implements LoadDocumentsByCategory {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -3994,6 +4108,7 @@ class _$LoadDocumentsByCategoryImpl implements LoadDocumentsByCategory {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -4023,6 +4138,7 @@ class _$LoadDocumentsByCategoryImpl implements LoadDocumentsByCategory {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -4052,6 +4168,7 @@ class _$LoadDocumentsByCategoryImpl implements LoadDocumentsByCategory {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -4194,6 +4311,8 @@ class _$LoadDocumentsByUserImpl implements LoadDocumentsByUser {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -4233,6 +4352,8 @@ class _$LoadDocumentsByUserImpl implements LoadDocumentsByUser {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -4272,6 +4393,8 @@ class _$LoadDocumentsByUserImpl implements LoadDocumentsByUser {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -4307,6 +4430,7 @@ class _$LoadDocumentsByUserImpl implements LoadDocumentsByUser {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -4336,6 +4460,7 @@ class _$LoadDocumentsByUserImpl implements LoadDocumentsByUser {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -4365,6 +4490,7 @@ class _$LoadDocumentsByUserImpl implements LoadDocumentsByUser {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -4471,6 +4597,8 @@ class _$LoadDocumentStatisticsImpl implements LoadDocumentStatistics {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -4510,6 +4638,8 @@ class _$LoadDocumentStatisticsImpl implements LoadDocumentStatistics {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -4549,6 +4679,8 @@ class _$LoadDocumentStatisticsImpl implements LoadDocumentStatistics {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -4584,6 +4716,7 @@ class _$LoadDocumentStatisticsImpl implements LoadDocumentStatistics {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -4613,6 +4746,7 @@ class _$LoadDocumentStatisticsImpl implements LoadDocumentStatistics {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -4642,6 +4776,7 @@ class _$LoadDocumentStatisticsImpl implements LoadDocumentStatistics {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -4735,6 +4870,8 @@ class _$SyncDocumentsImpl implements SyncDocuments {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -4774,6 +4911,8 @@ class _$SyncDocumentsImpl implements SyncDocuments {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -4813,6 +4952,8 @@ class _$SyncDocumentsImpl implements SyncDocuments {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -4848,6 +4989,7 @@ class _$SyncDocumentsImpl implements SyncDocuments {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -4877,6 +5019,7 @@ class _$SyncDocumentsImpl implements SyncDocuments {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -4906,6 +5049,7 @@ class _$SyncDocumentsImpl implements SyncDocuments {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -4999,6 +5143,8 @@ class _$ClearFiltersImpl implements ClearFilters {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -5038,6 +5184,8 @@ class _$ClearFiltersImpl implements ClearFilters {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -5077,6 +5225,8 @@ class _$ClearFiltersImpl implements ClearFilters {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -5112,6 +5262,7 @@ class _$ClearFiltersImpl implements ClearFilters {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -5141,6 +5292,7 @@ class _$ClearFiltersImpl implements ClearFilters {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -5170,6 +5322,7 @@ class _$ClearFiltersImpl implements ClearFilters {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -5263,6 +5416,8 @@ class _$StartListeningImpl implements StartListening {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -5302,6 +5457,8 @@ class _$StartListeningImpl implements StartListening {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -5341,6 +5498,8 @@ class _$StartListeningImpl implements StartListening {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -5376,6 +5535,7 @@ class _$StartListeningImpl implements StartListening {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -5405,6 +5565,7 @@ class _$StartListeningImpl implements StartListening {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -5434,6 +5595,7 @@ class _$StartListeningImpl implements StartListening {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -5527,6 +5689,8 @@ class _$StopListeningImpl implements StopListening {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -5566,6 +5730,8 @@ class _$StopListeningImpl implements StopListening {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -5605,6 +5771,8 @@ class _$StopListeningImpl implements StopListening {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -5640,6 +5808,7 @@ class _$StopListeningImpl implements StopListening {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -5669,6 +5838,7 @@ class _$StopListeningImpl implements StopListening {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -5698,6 +5868,7 @@ class _$StopListeningImpl implements StopListening {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -5831,6 +6002,8 @@ class _$DocumentsUpdatedImpl implements DocumentsUpdated {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -5870,6 +6043,8 @@ class _$DocumentsUpdatedImpl implements DocumentsUpdated {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -5909,6 +6084,8 @@ class _$DocumentsUpdatedImpl implements DocumentsUpdated {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -5944,6 +6121,7 @@ class _$DocumentsUpdatedImpl implements DocumentsUpdated {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -5973,6 +6151,7 @@ class _$DocumentsUpdatedImpl implements DocumentsUpdated {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -6002,6 +6181,7 @@ class _$DocumentsUpdatedImpl implements DocumentsUpdated {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -6024,6 +6204,344 @@ abstract class DocumentsUpdated implements DocumentEvent {
   /// with the given fields replaced by the non-null parameter values.
   @JsonKey(includeFromJson: false, includeToJson: false)
   _$$DocumentsUpdatedImplCopyWith<_$DocumentsUpdatedImpl> get copyWith =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+abstract class _$$BulkDeleteDocumentsImplCopyWith<$Res> {
+  factory _$$BulkDeleteDocumentsImplCopyWith(
+    _$BulkDeleteDocumentsImpl value,
+    $Res Function(_$BulkDeleteDocumentsImpl) then,
+  ) = __$$BulkDeleteDocumentsImplCopyWithImpl<$Res>;
+  @useResult
+  $Res call({List<String> documentIds, String userId});
+}
+
+/// @nodoc
+class __$$BulkDeleteDocumentsImplCopyWithImpl<$Res>
+    extends _$DocumentEventCopyWithImpl<$Res, _$BulkDeleteDocumentsImpl>
+    implements _$$BulkDeleteDocumentsImplCopyWith<$Res> {
+  __$$BulkDeleteDocumentsImplCopyWithImpl(
+    _$BulkDeleteDocumentsImpl _value,
+    $Res Function(_$BulkDeleteDocumentsImpl) _then,
+  ) : super(_value, _then);
+
+  /// Create a copy of DocumentEvent
+  /// with the given fields replaced by the non-null parameter values.
+  @pragma('vm:prefer-inline')
+  @override
+  $Res call({Object? documentIds = null, Object? userId = null}) {
+    return _then(
+      _$BulkDeleteDocumentsImpl(
+        documentIds: null == documentIds
+            ? _value._documentIds
+            : documentIds // ignore: cast_nullable_to_non_nullable
+                  as List<String>,
+        userId: null == userId
+            ? _value.userId
+            : userId // ignore: cast_nullable_to_non_nullable
+                  as String,
+      ),
+    );
+  }
+}
+
+/// @nodoc
+
+class _$BulkDeleteDocumentsImpl implements BulkDeleteDocuments {
+  const _$BulkDeleteDocumentsImpl({
+    required final List<String> documentIds,
+    required this.userId,
+  }) : _documentIds = documentIds;
+
+  final List<String> _documentIds;
+  @override
+  List<String> get documentIds {
+    if (_documentIds is EqualUnmodifiableListView) return _documentIds;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_documentIds);
+  }
+
+  @override
+  final String userId;
+
+  @override
+  String toString() {
+    return 'DocumentEvent.bulkDeleteDocuments(documentIds: $documentIds, userId: $userId)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$BulkDeleteDocumentsImpl &&
+            const DeepCollectionEquality().equals(
+              other._documentIds,
+              _documentIds,
+            ) &&
+            (identical(other.userId, userId) || other.userId == userId));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    const DeepCollectionEquality().hash(_documentIds),
+    userId,
+  );
+
+  /// Create a copy of DocumentEvent
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  @override
+  @pragma('vm:prefer-inline')
+  _$$BulkDeleteDocumentsImplCopyWith<_$BulkDeleteDocumentsImpl> get copyWith =>
+      __$$BulkDeleteDocumentsImplCopyWithImpl<_$BulkDeleteDocumentsImpl>(
+        this,
+        _$identity,
+      );
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(
+      bool forceRefresh,
+      int? limit,
+      DocumentModel? startAfter,
+    )
+    loadDocuments,
+    required TResult Function(String query, int? limit) searchDocuments,
+    required TResult Function(
+      String? category,
+      String? status,
+      String? fileType,
+      String? userId,
+      bool? isDeleted,
+      DateTime? startDate,
+      DateTime? endDate,
+    )
+    filterDocuments,
+    required TResult Function(String sortBy, bool ascending) sortDocuments,
+    required TResult Function(String documentId, String userId) deleteDocument,
+    required TResult Function(String documentId, String userId)
+    permanentlyDeleteDocument,
+    required TResult Function(String documentId, String userId) restoreDocument,
+    required TResult Function(DocumentModel document) updateDocument,
+    required TResult Function(bool forceRefresh) refreshDocuments,
+    required TResult Function(int? limit) loadRecentDocuments,
+    required TResult Function(int? limit) loadDeletedDocuments,
+    required TResult Function(String category, int? limit)
+    loadDocumentsByCategory,
+    required TResult Function(String userId, int? limit) loadDocumentsByUser,
+    required TResult Function() loadDocumentStatistics,
+    required TResult Function() syncDocuments,
+    required TResult Function() clearFilters,
+    required TResult Function() startListening,
+    required TResult Function() stopListening,
+    required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
+    required TResult Function(int? limit) loadMoreDocuments,
+    required TResult Function() resetState,
+  }) {
+    return bulkDeleteDocuments(documentIds, userId);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(bool forceRefresh, int? limit, DocumentModel? startAfter)?
+    loadDocuments,
+    TResult? Function(String query, int? limit)? searchDocuments,
+    TResult? Function(
+      String? category,
+      String? status,
+      String? fileType,
+      String? userId,
+      bool? isDeleted,
+      DateTime? startDate,
+      DateTime? endDate,
+    )?
+    filterDocuments,
+    TResult? Function(String sortBy, bool ascending)? sortDocuments,
+    TResult? Function(String documentId, String userId)? deleteDocument,
+    TResult? Function(String documentId, String userId)?
+    permanentlyDeleteDocument,
+    TResult? Function(String documentId, String userId)? restoreDocument,
+    TResult? Function(DocumentModel document)? updateDocument,
+    TResult? Function(bool forceRefresh)? refreshDocuments,
+    TResult? Function(int? limit)? loadRecentDocuments,
+    TResult? Function(int? limit)? loadDeletedDocuments,
+    TResult? Function(String category, int? limit)? loadDocumentsByCategory,
+    TResult? Function(String userId, int? limit)? loadDocumentsByUser,
+    TResult? Function()? loadDocumentStatistics,
+    TResult? Function()? syncDocuments,
+    TResult? Function()? clearFilters,
+    TResult? Function()? startListening,
+    TResult? Function()? stopListening,
+    TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
+    TResult? Function(int? limit)? loadMoreDocuments,
+    TResult? Function()? resetState,
+  }) {
+    return bulkDeleteDocuments?.call(documentIds, userId);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(bool forceRefresh, int? limit, DocumentModel? startAfter)?
+    loadDocuments,
+    TResult Function(String query, int? limit)? searchDocuments,
+    TResult Function(
+      String? category,
+      String? status,
+      String? fileType,
+      String? userId,
+      bool? isDeleted,
+      DateTime? startDate,
+      DateTime? endDate,
+    )?
+    filterDocuments,
+    TResult Function(String sortBy, bool ascending)? sortDocuments,
+    TResult Function(String documentId, String userId)? deleteDocument,
+    TResult Function(String documentId, String userId)?
+    permanentlyDeleteDocument,
+    TResult Function(String documentId, String userId)? restoreDocument,
+    TResult Function(DocumentModel document)? updateDocument,
+    TResult Function(bool forceRefresh)? refreshDocuments,
+    TResult Function(int? limit)? loadRecentDocuments,
+    TResult Function(int? limit)? loadDeletedDocuments,
+    TResult Function(String category, int? limit)? loadDocumentsByCategory,
+    TResult Function(String userId, int? limit)? loadDocumentsByUser,
+    TResult Function()? loadDocumentStatistics,
+    TResult Function()? syncDocuments,
+    TResult Function()? clearFilters,
+    TResult Function()? startListening,
+    TResult Function()? stopListening,
+    TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
+    TResult Function(int? limit)? loadMoreDocuments,
+    TResult Function()? resetState,
+    required TResult orElse(),
+  }) {
+    if (bulkDeleteDocuments != null) {
+      return bulkDeleteDocuments(documentIds, userId);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(LoadDocuments value) loadDocuments,
+    required TResult Function(SearchDocuments value) searchDocuments,
+    required TResult Function(FilterDocuments value) filterDocuments,
+    required TResult Function(SortDocuments value) sortDocuments,
+    required TResult Function(DeleteDocument value) deleteDocument,
+    required TResult Function(PermanentlyDeleteDocument value)
+    permanentlyDeleteDocument,
+    required TResult Function(RestoreDocument value) restoreDocument,
+    required TResult Function(UpdateDocument value) updateDocument,
+    required TResult Function(RefreshDocuments value) refreshDocuments,
+    required TResult Function(LoadRecentDocuments value) loadRecentDocuments,
+    required TResult Function(LoadDeletedDocuments value) loadDeletedDocuments,
+    required TResult Function(LoadDocumentsByCategory value)
+    loadDocumentsByCategory,
+    required TResult Function(LoadDocumentsByUser value) loadDocumentsByUser,
+    required TResult Function(LoadDocumentStatistics value)
+    loadDocumentStatistics,
+    required TResult Function(SyncDocuments value) syncDocuments,
+    required TResult Function(ClearFilters value) clearFilters,
+    required TResult Function(StartListening value) startListening,
+    required TResult Function(StopListening value) stopListening,
+    required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
+    required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
+    required TResult Function(ResetState value) resetState,
+  }) {
+    return bulkDeleteDocuments(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(LoadDocuments value)? loadDocuments,
+    TResult? Function(SearchDocuments value)? searchDocuments,
+    TResult? Function(FilterDocuments value)? filterDocuments,
+    TResult? Function(SortDocuments value)? sortDocuments,
+    TResult? Function(DeleteDocument value)? deleteDocument,
+    TResult? Function(PermanentlyDeleteDocument value)?
+    permanentlyDeleteDocument,
+    TResult? Function(RestoreDocument value)? restoreDocument,
+    TResult? Function(UpdateDocument value)? updateDocument,
+    TResult? Function(RefreshDocuments value)? refreshDocuments,
+    TResult? Function(LoadRecentDocuments value)? loadRecentDocuments,
+    TResult? Function(LoadDeletedDocuments value)? loadDeletedDocuments,
+    TResult? Function(LoadDocumentsByCategory value)? loadDocumentsByCategory,
+    TResult? Function(LoadDocumentsByUser value)? loadDocumentsByUser,
+    TResult? Function(LoadDocumentStatistics value)? loadDocumentStatistics,
+    TResult? Function(SyncDocuments value)? syncDocuments,
+    TResult? Function(ClearFilters value)? clearFilters,
+    TResult? Function(StartListening value)? startListening,
+    TResult? Function(StopListening value)? stopListening,
+    TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
+    TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
+    TResult? Function(ResetState value)? resetState,
+  }) {
+    return bulkDeleteDocuments?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(LoadDocuments value)? loadDocuments,
+    TResult Function(SearchDocuments value)? searchDocuments,
+    TResult Function(FilterDocuments value)? filterDocuments,
+    TResult Function(SortDocuments value)? sortDocuments,
+    TResult Function(DeleteDocument value)? deleteDocument,
+    TResult Function(PermanentlyDeleteDocument value)?
+    permanentlyDeleteDocument,
+    TResult Function(RestoreDocument value)? restoreDocument,
+    TResult Function(UpdateDocument value)? updateDocument,
+    TResult Function(RefreshDocuments value)? refreshDocuments,
+    TResult Function(LoadRecentDocuments value)? loadRecentDocuments,
+    TResult Function(LoadDeletedDocuments value)? loadDeletedDocuments,
+    TResult Function(LoadDocumentsByCategory value)? loadDocumentsByCategory,
+    TResult Function(LoadDocumentsByUser value)? loadDocumentsByUser,
+    TResult Function(LoadDocumentStatistics value)? loadDocumentStatistics,
+    TResult Function(SyncDocuments value)? syncDocuments,
+    TResult Function(ClearFilters value)? clearFilters,
+    TResult Function(StartListening value)? startListening,
+    TResult Function(StopListening value)? stopListening,
+    TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
+    TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
+    TResult Function(ResetState value)? resetState,
+    required TResult orElse(),
+  }) {
+    if (bulkDeleteDocuments != null) {
+      return bulkDeleteDocuments(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class BulkDeleteDocuments implements DocumentEvent {
+  const factory BulkDeleteDocuments({
+    required final List<String> documentIds,
+    required final String userId,
+  }) = _$BulkDeleteDocumentsImpl;
+
+  List<String> get documentIds;
+  String get userId;
+
+  /// Create a copy of DocumentEvent
+  /// with the given fields replaced by the non-null parameter values.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  _$$BulkDeleteDocumentsImplCopyWith<_$BulkDeleteDocumentsImpl> get copyWith =>
       throw _privateConstructorUsedError;
 }
 
@@ -6135,6 +6653,8 @@ class _$LoadMoreDocumentsImpl implements LoadMoreDocuments {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -6174,6 +6694,8 @@ class _$LoadMoreDocumentsImpl implements LoadMoreDocuments {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -6213,6 +6735,8 @@ class _$LoadMoreDocumentsImpl implements LoadMoreDocuments {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -6248,6 +6772,7 @@ class _$LoadMoreDocumentsImpl implements LoadMoreDocuments {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -6277,6 +6802,7 @@ class _$LoadMoreDocumentsImpl implements LoadMoreDocuments {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -6306,6 +6832,7 @@ class _$LoadMoreDocumentsImpl implements LoadMoreDocuments {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),
@@ -6407,6 +6934,8 @@ class _$ResetStateImpl implements ResetState {
     required TResult Function() startListening,
     required TResult Function() stopListening,
     required TResult Function(List<DocumentModel> documents) documentsUpdated,
+    required TResult Function(List<String> documentIds, String userId)
+    bulkDeleteDocuments,
     required TResult Function(int? limit) loadMoreDocuments,
     required TResult Function() resetState,
   }) {
@@ -6446,6 +6975,8 @@ class _$ResetStateImpl implements ResetState {
     TResult? Function()? startListening,
     TResult? Function()? stopListening,
     TResult? Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult? Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult? Function(int? limit)? loadMoreDocuments,
     TResult? Function()? resetState,
   }) {
@@ -6485,6 +7016,8 @@ class _$ResetStateImpl implements ResetState {
     TResult Function()? startListening,
     TResult Function()? stopListening,
     TResult Function(List<DocumentModel> documents)? documentsUpdated,
+    TResult Function(List<String> documentIds, String userId)?
+    bulkDeleteDocuments,
     TResult Function(int? limit)? loadMoreDocuments,
     TResult Function()? resetState,
     required TResult orElse(),
@@ -6520,6 +7053,7 @@ class _$ResetStateImpl implements ResetState {
     required TResult Function(StartListening value) startListening,
     required TResult Function(StopListening value) stopListening,
     required TResult Function(DocumentsUpdated value) documentsUpdated,
+    required TResult Function(BulkDeleteDocuments value) bulkDeleteDocuments,
     required TResult Function(LoadMoreDocuments value) loadMoreDocuments,
     required TResult Function(ResetState value) resetState,
   }) {
@@ -6549,6 +7083,7 @@ class _$ResetStateImpl implements ResetState {
     TResult? Function(StartListening value)? startListening,
     TResult? Function(StopListening value)? stopListening,
     TResult? Function(DocumentsUpdated value)? documentsUpdated,
+    TResult? Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult? Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult? Function(ResetState value)? resetState,
   }) {
@@ -6578,6 +7113,7 @@ class _$ResetStateImpl implements ResetState {
     TResult Function(StartListening value)? startListening,
     TResult Function(StopListening value)? stopListening,
     TResult Function(DocumentsUpdated value)? documentsUpdated,
+    TResult Function(BulkDeleteDocuments value)? bulkDeleteDocuments,
     TResult Function(LoadMoreDocuments value)? loadMoreDocuments,
     TResult Function(ResetState value)? resetState,
     required TResult orElse(),

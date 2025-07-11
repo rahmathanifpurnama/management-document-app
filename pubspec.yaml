@@ -125,6 +125,7 @@ dependencies:
 
   # Archive for ZIP creation
   archive: ^3.6.1
+  cross_file: ^0.3.4+2
 
 dev_dependencies:
   flutter_test:
@@ -145,6 +146,9 @@ dev_dependencies:
   freezed: ^2.4.6
   json_serializable: ^6.7.1
   bloc_test: ^9.1.5
+
+  # Performance Testing & Monitoring
+  device_info_plus: ^10.1.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

@@ -25,7 +25,11 @@ class UploadEvent with _$UploadEvent {
   }) = AddFiles;
 
   /// Start upload process
-  const factory UploadEvent.startUpload() = StartUpload;
+  ///
+  /// [files] - Files to upload
+  const factory UploadEvent.startUpload({
+    required List<UploadFileModel> files,
+  }) = StartUpload;
 
   /// Pause upload process
   ///
@@ -44,8 +48,10 @@ class UploadEvent with _$UploadEvent {
 
   /// Retry failed upload
   ///
-  /// [fileId] - Specific file to retry
-  const factory UploadEvent.retryUpload({required String fileId}) = RetryUpload;
+  /// [failedFiles] - Failed files to retry
+  const factory UploadEvent.retryUpload({
+    required List<UploadFileModel> failedFiles,
+  }) = RetryUpload;
 
   /// Remove file from upload queue
   ///
@@ -155,4 +161,14 @@ class UploadEvent with _$UploadEvent {
     required String fileId,
     required UploadStatus status,
   }) = FileStatusUpdated;
+
+  /// Start upload with progress tracking
+  ///
+  /// [files] - Files to upload with progress tracking
+  const factory UploadEvent.startUploadWithProgress({
+    required List<UploadFileModel> files,
+  }) = StartUploadWithProgress;
+
+  /// Clear upload state
+  const factory UploadEvent.clearUploadState() = ClearUploadState;
 }

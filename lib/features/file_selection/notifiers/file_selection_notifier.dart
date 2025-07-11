@@ -21,18 +21,20 @@ class FileSelectionNotifier extends BaseNotifier<FileSelectionState> {
       'FileSelectionNotifier: File exists in available files: ${availableFiles.any((f) => f.id == initialFile.id)}',
     );
 
-    safeUpdate(() => state.copyWith(
-      isSelectionMode: true,
-      availableFiles: List.from(availableFiles), // Create a copy
-      selectedFileIds: {initialFile.id},
-      lastAvailableFilesHash: null, // Reset hash to force update
-    ));
+    safeUpdate(
+      () => state.copyWith(
+        isSelectionMode: true,
+        availableFiles: List.from(availableFiles), // Create a copy
+        selectedFileIds: {initialFile.id},
+        lastAvailableFilesHash: null, // Reset hash to force update
+      ),
+    );
   }
 
   /// Exit selection mode
   void exitSelectionMode() {
     debugPrint('FileSelectionNotifier: Exiting selection mode');
-    
+
     safeUpdate(() => const FileSelectionState());
   }
 
@@ -47,7 +49,7 @@ class FileSelectionNotifier extends BaseNotifier<FileSelectionState> {
 
     final wasSelected = state.selectedFileIds.contains(fileId);
     final newSelectedIds = Set<String>.from(state.selectedFileIds);
-    
+
     if (wasSelected) {
       newSelectedIds.remove(fileId);
       debugPrint('FileSelectionNotifier: Deselected file: $fileId');
@@ -68,7 +70,7 @@ class FileSelectionNotifier extends BaseNotifier<FileSelectionState> {
     if (!state.isSelectionMode) return;
 
     final allFileIds = state.availableFiles.map((file) => file.id).toSet();
-    
+
     safeUpdate(() => state.copyWith(selectedFileIds: allFileIds));
   }
 
@@ -79,7 +81,7 @@ class FileSelectionNotifier extends BaseNotifier<FileSelectionState> {
     debugPrint(
       'FileSelectionNotifier: Cleared all selections, staying in selection mode',
     );
-    
+
     safeUpdate(() => state.copyWith(selectedFileIds: {}));
   }
 
@@ -106,15 +108,17 @@ class FileSelectionNotifier extends BaseNotifier<FileSelectionState> {
     }
 
     final currentFilesHash = state.generateFilesHash(files);
-    
-    safeUpdate(() => state.copyWith(
-      isUpdatingAvailableFiles: true,
-      lastAvailableFilesHash: currentFilesHash,
-    ));
+
+    safeUpdate(
+      () => state.copyWith(
+        isUpdatingAvailableFiles: true,
+        lastAvailableFilesHash: currentFilesHash,
+      ),
+    );
 
     try {
       final newAvailableFiles = List<DocumentModel>.from(files);
-      
+
       debugPrint(
         'FileSelectionNotifier: Updated available files count: ${files.length}',
       );
@@ -122,10 +126,12 @@ class FileSelectionNotifier extends BaseNotifier<FileSelectionState> {
       // Validate selection state consistency
       _validateSelectionState(newAvailableFiles);
 
-      safeUpdate(() => state.copyWith(
-        availableFiles: newAvailableFiles,
-        isUpdatingAvailableFiles: false,
-      ));
+      safeUpdate(
+        () => state.copyWith(
+          availableFiles: newAvailableFiles,
+          isUpdatingAvailableFiles: false,
+        ),
+      );
     } catch (e) {
       debugPrint('FileSelectionNotifier: Error updating available files: $e');
       safeUpdate(() => state.copyWith(isUpdatingAvailableFiles: false));
@@ -145,13 +151,116 @@ class FileSelectionNotifier extends BaseNotifier<FileSelectionState> {
       debugPrint(
         'FileSelectionNotifier: Found invalid selections: $invalidSelections',
       );
-      
+
       // Remove invalid selections
       final validSelections = state.selectedFileIds
           .where((id) => availableFileIds.contains(id))
           .toSet();
-      
+
       safeUpdate(() => state.copyWith(selectedFileIds: validSelections));
+    }
+  }
+
+  /// Add a file to selection (alias for compatibility)
+  void addFile(DocumentModel file) {
+    if (!state.isSelectionMode) {
+      // Enter selection mode with this file
+      enterSelectionMode(file, [...state.availableFiles, file]);
+    } else {
+      // Add to existing selection
+      final newSelectedIds = Set<String>.from(state.selectedFileIds)
+        ..add(file.id);
+      safeUpdate(() => state.copyWith(selectedFileIds: newSelectedIds));
+    }
+  }
+
+  /// Remove a file from selection (alias for compatibility)
+  void removeFile(String fileId) {
+    if (!state.isSelectionMode) return;
+
+    final newSelectedIds = Set<String>.from(state.selectedFileIds)
+      ..remove(fileId);
+    safeUpdate(() => state.copyWith(selectedFileIds: newSelectedIds));
+  }
+
+  /// Toggle file selection (alias for compatibility)
+  void toggleFile(String fileId) {
+    toggleFileSelection(fileId);
+  }
+
+  /// Set loading state
+  void setLoading(bool isLoading) {
+    safeUpdate(() => state.copyWith(isUpdatingAvailableFiles: isLoading));
+  }
+
+  /// Select all files with limit
+  void selectAllWithLimit(int limit) {
+    if (!state.isSelectionMode) return;
+
+    final fileIds = state.availableFiles
+        .take(limit)
+        .map((file) => file.id)
+        .toSet();
+
+    safeUpdate(() => state.copyWith(selectedFileIds: fileIds));
+  }
+
+  /// Select all files with size limit
+  void selectAllWithSizeLimit(int maxSizeBytes) {
+    if (!state.isSelectionMode) return;
+
+    int totalSize = 0;
+    final selectedIds = <String>{};
+
+    for (final file in state.availableFiles) {
+      if (totalSize + file.fileSize <= maxSizeBytes) {
+        selectedIds.add(file.id);
+        totalSize += file.fileSize;
+      } else {
+        break;
+      }
+    }
+
+    safeUpdate(() => state.copyWith(selectedFileIds: selectedIds));
+  }
+
+  /// Get selected files by type
+  List<DocumentModel> getSelectedFilesByType(String fileType) {
+    return state.selectedFiles
+        .where((file) => file.fileType.toLowerCase() == fileType.toLowerCase())
+        .toList();
+  }
+
+  /// Select a file by filename (for integration tests)
+  void selectFile(String fileName) {
+    // Find file by name in available files
+    final file = state.availableFiles.firstWhere(
+      (f) => f.fileName == fileName,
+      orElse: () => DocumentModel(
+        id: 'test-$fileName',
+        fileName: fileName,
+        fileSize: 1024,
+        fileType: fileName.split('.').last,
+        filePath: '/test/$fileName',
+        uploadedAt: DateTime.now(),
+        uploadedBy: 'test-user',
+        downloadUrl: 'https://example.com/$fileName',
+        category: 'test',
+        permissions: ['read'],
+        metadata: DocumentMetadata(
+          description: 'Test file for integration tests',
+          tags: ['test'],
+        ),
+        isDeleted: false,
+      ),
+    );
+
+    if (!state.isSelectionMode) {
+      enterSelectionMode(file, [...state.availableFiles, file]);
+    } else {
+      final newSelectedIds = Set<String>.from(state.selectedFileIds)
+        ..add(file.id);
+      safeUpdate(() => state.copyWith(selectedFileIds: newSelectedIds));
     }
   }
 

@@ -4,9 +4,11 @@ import '../notifiers/settings_notifier.dart';
 import '../models/settings_state.dart';
 
 /// Main settings provider
-final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsState>((ref) {
-  return SettingsNotifier();
-});
+final settingsProvider = StateNotifierProvider<SettingsNotifier, SettingsState>(
+  (ref) {
+    return SettingsNotifier();
+  },
+);
 
 /// Computed providers for specific settings
 final notificationsEnabledProvider = Provider<bool>((ref) {
@@ -37,7 +39,7 @@ final themeDataProvider = Provider<ThemeData>((ref) {
 
 /// Available languages provider
 final availableLanguagesProvider = Provider<List<String>>((ref) {
-  return SettingsState.availableLanguages;
+  return const ['English', 'Indonesian', 'Spanish', 'French', 'German'];
 });
 
 /// Settings actions provider
@@ -48,7 +50,7 @@ final settingsActionsProvider = Provider<SettingsActions>((ref) {
 /// Settings actions class for easy access to notifier methods
 class SettingsActions {
   final Ref _ref;
-  
+
   SettingsActions(this._ref);
 
   SettingsNotifier get _notifier => _ref.read(settingsProvider.notifier);

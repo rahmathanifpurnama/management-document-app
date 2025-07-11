@@ -292,8 +292,6 @@ class UploadBloc extends Bloc<events.UploadEvent, states.UploadState> {
     Emitter<states.UploadState> emit,
   ) async {
     try {
-      await _repository.retryUpload(event.fileId);
-
       final currentQueue = _repository.getUploadQueue();
 
       emit(
@@ -313,7 +311,9 @@ class UploadBloc extends Bloc<events.UploadEvent, states.UploadState> {
         ),
       );
 
-      debugPrint('🔄 UploadBloc: Retrying upload for file ${event.fileId}');
+      debugPrint(
+        '🔄 UploadBloc: Retrying upload for ${event.failedFiles.length} failed files',
+      );
     } catch (e) {
       debugPrint('❌ UploadBloc: Error retrying upload: $e');
     }
@@ -512,7 +512,14 @@ class UploadBloc extends Bloc<events.UploadEvent, states.UploadState> {
     events.ProcessQueue event,
     Emitter<states.UploadState> emit,
   ) async {
-    add(const events.StartUpload());
+    final currentQueue = _repository.getUploadQueue();
+    final pendingFiles = currentQueue
+        .where((f) => f.status == UploadStatus.pending)
+        .toList();
+
+    if (pendingFiles.isNotEmpty) {
+      add(events.StartUpload(files: pendingFiles));
+    }
   }
 
   /// Handle upload completion

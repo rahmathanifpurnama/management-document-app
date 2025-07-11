@@ -4,7 +4,7 @@ import '../../../models/document_model.dart';
 part 'document_state.freezed.dart';
 
 /// Document States for DocumentBloc
-/// 
+///
 /// These states represent all possible states of the document management system.
 @freezed
 class DocumentState with _$DocumentState {
@@ -12,14 +12,12 @@ class DocumentState with _$DocumentState {
   const factory DocumentState.initial() = DocumentInitial;
 
   /// Loading state when documents are being fetched
-  /// 
+  ///
   /// [message] - Optional loading message to display
-  const factory DocumentState.loading({
-    String? message,
-  }) = DocumentLoading;
+  const factory DocumentState.loading({String? message}) = DocumentLoading;
 
   /// Loaded state when documents have been successfully fetched
-  /// 
+  ///
   /// [documents] - All documents from the repository
   /// [filteredDocuments] - Documents after applying filters and search
   /// [searchQuery] - Current search query
@@ -50,7 +48,7 @@ class DocumentState with _$DocumentState {
   }) = DocumentLoaded;
 
   /// Error state when an operation has failed
-  /// 
+  ///
   /// [message] - Error message to display
   /// [previousState] - Previous state before error (optional)
   /// [canRetry] - Whether the operation can be retried
@@ -61,7 +59,7 @@ class DocumentState with _$DocumentState {
   }) = DocumentError;
 
   /// Loading more documents state (for pagination)
-  /// 
+  ///
   /// [currentDocuments] - Documents currently loaded
   /// [filteredDocuments] - Filtered documents currently displayed
   /// [searchQuery] - Current search query
@@ -86,7 +84,7 @@ class DocumentState with _$DocumentState {
   }) = DocumentLoadingMore;
 
   /// Performing operation state (delete, update, etc.)
-  /// 
+  ///
   /// [operation] - Type of operation being performed
   /// [currentDocuments] - Documents currently loaded
   /// [filteredDocuments] - Filtered documents currently displayed
@@ -113,7 +111,7 @@ class DocumentState with _$DocumentState {
   }) = DocumentPerformingOperation;
 
   /// Syncing state when synchronizing with external sources
-  /// 
+  ///
   /// [message] - Sync status message
   /// [currentDocuments] - Documents currently loaded
   /// [filteredDocuments] - Filtered documents currently displayed
@@ -131,10 +129,51 @@ extension DocumentStateExtension on DocumentState {
     return when(
       initial: () => <DocumentModel>[],
       loading: (_) => <DocumentModel>[],
-      loaded: (documents, _, __, ___, ____, _____, ______, _______, ________, _________, __________, ___________, ____________) => documents,
-      error: (_, previousState, __) => previousState?.currentDocuments ?? <DocumentModel>[],
-      loadingMore: (currentDocuments, _, __, ___, ____, _____, ______, _______, ________, _________) => currentDocuments,
-      performingOperation: (_, currentDocuments, __, ___, ____, _____, ______, _______, ________, _________) => currentDocuments,
+      loaded:
+          (
+            documents,
+            _,
+            __,
+            ___,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+            __________,
+            ___________,
+            ____________,
+          ) => documents,
+      error: (_, previousState, __) =>
+          previousState?.currentDocuments ?? <DocumentModel>[],
+      loadingMore:
+          (
+            currentDocuments,
+            _,
+            __,
+            ___,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+          ) => currentDocuments,
+      performingOperation:
+          (
+            _,
+            currentDocuments,
+            __,
+            ___,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+            __________,
+          ) => currentDocuments,
       syncing: (_, currentDocuments, __) => currentDocuments,
     );
   }
@@ -144,10 +183,51 @@ extension DocumentStateExtension on DocumentState {
     return when(
       initial: () => <DocumentModel>[],
       loading: (_) => <DocumentModel>[],
-      loaded: (_, filteredDocuments, __, ___, ____, _____, ______, _______, ________, _________, __________, ___________, ____________) => filteredDocuments,
-      error: (_, previousState, __) => previousState?.currentFilteredDocuments ?? <DocumentModel>[],
-      loadingMore: (_, filteredDocuments, __, ___, ____, _____, ______, _______, ________, _________) => filteredDocuments,
-      performingOperation: (_, __, filteredDocuments, ___, ____, _____, ______, _______, ________, _________) => filteredDocuments,
+      loaded:
+          (
+            _,
+            filteredDocuments,
+            __,
+            ___,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+            __________,
+            ___________,
+            ____________,
+          ) => filteredDocuments,
+      error: (_, previousState, __) =>
+          previousState?.currentFilteredDocuments ?? <DocumentModel>[],
+      loadingMore:
+          (
+            _,
+            filteredDocuments,
+            __,
+            ___,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+          ) => filteredDocuments,
+      performingOperation:
+          (
+            _,
+            __,
+            filteredDocuments,
+            ___,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+            __________,
+          ) => filteredDocuments,
       syncing: (_, __, filteredDocuments) => filteredDocuments,
     );
   }
@@ -157,10 +237,50 @@ extension DocumentStateExtension on DocumentState {
     return when(
       initial: () => false,
       loading: (_) => true,
-      loaded: (_, __, ___, ____, _____, ______, _______, ________, _________, __________, ___________, ____________, _____________) => false,
+      loaded:
+          (
+            _,
+            __,
+            ___,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+            __________,
+            ___________,
+            ____________,
+            _____________,
+          ) => false,
       error: (_, __, ___) => false,
-      loadingMore: (_, __, ___, ____, _____, ______, _______, ________, _________, __________) => true,
-      performingOperation: (_, __, ___, ____, _____, ______, _______, ________, _________, __________) => true,
+      loadingMore:
+          (
+            _,
+            __,
+            ___,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+            __________,
+          ) => true,
+      performingOperation:
+          (
+            _,
+            __,
+            ___,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+            __________,
+            ___________,
+          ) => true,
       syncing: (_, __, ___) => true,
     );
   }
@@ -175,10 +295,50 @@ extension DocumentStateExtension on DocumentState {
     return when(
       initial: () => false,
       loading: (_) => false,
-      loaded: (_, __, ___, ____, _____, ______, _______, ________, _________, __________, ___________, ____________, _____________) => false,
+      loaded:
+          (
+            _,
+            __,
+            ___,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+            __________,
+            ___________,
+            ____________,
+            _____________,
+          ) => false,
       error: (_, __, ___) => true,
-      loadingMore: (_, __, ___, ____, _____, ______, _______, ________, _________, __________) => false,
-      performingOperation: (_, __, ___, ____, _____, ______, _______, ________, _________, __________) => false,
+      loadingMore:
+          (
+            _,
+            __,
+            ___,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+            __________,
+          ) => false,
+      performingOperation:
+          (
+            _,
+            __,
+            ___,
+            ____,
+            _____,
+            ______,
+            _______,
+            ________,
+            _________,
+            __________,
+            ___________,
+          ) => false,
       syncing: (_, __, ___) => false,
     );
   }

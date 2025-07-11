@@ -26,6 +26,13 @@ extension FileSelectionStateX on FileSelectionState {
   /// Get count of selected files
   int get selectedCount => selectedFileIds.length;
 
+  /// Get total size of selected files
+  int get totalSize =>
+      selectedFiles.fold(0, (sum, file) => sum + file.fileSize);
+
+  /// Check if loading (alias for isUpdatingAvailableFiles)
+  bool get isLoading => isUpdatingAvailableFiles;
+
   /// Check if any files are selected
   bool get hasSelection => selectedFileIds.isNotEmpty;
 

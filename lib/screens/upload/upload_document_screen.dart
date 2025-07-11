@@ -64,27 +64,52 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
   void _checkForCompletedUploads(upload_states.UploadState state) {
     final currentCompletedCount = state.when(
       initial: () => 0,
-      validating: (_) => 0,
-      ready: (_, __, ___, ____, _____) => 0,
+      validating: (message) => 0,
+      ready: (files, totalFiles, totalSize, categoryId, customMetadata) => 0,
       uploading:
           (
-            _,
-            __,
+            files,
+            activeUploads,
             completedFiles,
-            ___,
-            ____,
-            _____,
-            ______,
-            _______,
-            ________,
-            _________,
+            failedFiles,
+            totalFiles,
+            overallProgress,
+            uploadSpeed,
+            estimatedTimeRemaining,
+            categoryId,
+            customMetadata,
           ) => completedFiles,
-      paused: (_, completedFiles, __, ___, ____, _____, ______, _______) =>
-          completedFiles,
-      completed: (_, completedFiles, __, ___, ____, _____, ______) =>
-          completedFiles,
-      error: (_, __, ___, ____) => 0,
-      cancelled: (_, completedFiles, __) => completedFiles,
+      paused:
+          (
+            files,
+            completedFiles,
+            failedFiles,
+            totalFiles,
+            overallProgress,
+            pausedFiles,
+            categoryId,
+            customMetadata,
+          ) => completedFiles,
+      completed:
+          (
+            files,
+            completedFiles,
+            failedFiles,
+            totalFiles,
+            totalUploadTime,
+            categoryId,
+            customMetadata,
+          ) => completedFiles,
+      error: (message, files, canRetry, previousState) => 0,
+      cancelled: (files, completedFiles, cancelledFiles) => completedFiles,
+      success: (uploadedFiles, totalFiles, totalUploadTime) =>
+          uploadedFiles.length,
+      inProgress: (files, currentFile, progress, uploadSpeed) => 0,
+      partialSuccess: (successfulFiles, failedFiles, totalFiles) =>
+          successfulFiles.length,
+      networkError: (message, files) => 0,
+      storageError: (message, files) => 0,
+      validationError: (message, invalidFiles) => 0,
     );
 
     // Show notification when uploads are completed
@@ -97,27 +122,52 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
         if (mounted) {
           final failedCount = state.when(
             initial: () => 0,
-            validating: (_) => 0,
-            ready: (_, __, ___, ____, _____) => 0,
+            validating: (message) => 0,
+            ready: (files, totalFiles, totalSize, categoryId, customMetadata) =>
+                0,
             uploading:
                 (
-                  _,
-                  __,
-                  ___,
+                  files,
+                  activeUploads,
+                  completedFiles,
                   failedFiles,
-                  ____,
-                  _____,
-                  ______,
-                  _______,
-                  ________,
-                  _________,
+                  totalFiles,
+                  overallProgress,
+                  uploadSpeed,
+                  estimatedTimeRemaining,
+                  categoryId,
+                  customMetadata,
                 ) => failedFiles,
-            paused: (_, __, failedFiles, ___, ____, _____, ______, _______) =>
-                failedFiles,
-            completed: (_, __, failedFiles, ___, ____, _____, ______) =>
-                failedFiles,
-            error: (_, __, ___, ____) => 0,
-            cancelled: (_, __, ___) => 0,
+            paused:
+                (
+                  files,
+                  completedFiles,
+                  failedFiles,
+                  totalFiles,
+                  overallProgress,
+                  pausedFiles,
+                  categoryId,
+                  customMetadata,
+                ) => failedFiles,
+            completed:
+                (
+                  files,
+                  completedFiles,
+                  failedFiles,
+                  totalFiles,
+                  totalUploadTime,
+                  categoryId,
+                  customMetadata,
+                ) => failedFiles,
+            error: (message, files, canRetry, previousState) => 0,
+            cancelled: (files, completedFiles, cancelledFiles) => 0,
+            success: (uploadedFiles, totalFiles, totalUploadTime) => 0,
+            inProgress: (files, currentFile, progress, uploadSpeed) => 0,
+            partialSuccess: (successfulFiles, failedFiles, totalFiles) =>
+                failedFiles.length,
+            networkError: (message, files) => files.length,
+            storageError: (message, files) => files.length,
+            validationError: (message, invalidFiles) => invalidFiles.length,
           );
           _showFinalUploadNotification(currentCompletedCount, failedCount);
         }
@@ -393,9 +443,16 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
 
   // Retry failed upload
   void _retryUpload(String fileId) {
-    context.read<UploadBloc>().add(
-      upload_events.UploadEvent.retryUpload(fileId: fileId),
-    );
+    // Find the failed file and retry it
+    final state = context.read<UploadBloc>().state;
+    final failedFile = state.currentFiles
+        .where((f) => f.id == fileId && f.hasFailed)
+        .toList();
+    if (failedFile.isNotEmpty) {
+      context.read<UploadBloc>().add(
+        upload_events.UploadEvent.retryUpload(failedFiles: failedFile),
+      );
+    }
   }
 
   // Improved progress widget with better visual feedback
@@ -403,50 +460,100 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
     final totalFiles = state.totalFiles;
     final completedFiles = state.when(
       initial: () => 0,
-      validating: (_) => 0,
-      ready: (_, __, ___, ____, _____) => 0,
+      validating: (message) => 0,
+      ready: (files, totalFiles, totalSize, categoryId, customMetadata) => 0,
       uploading:
           (
-            _,
-            __,
+            files,
+            activeUploads,
             completedFiles,
-            ___,
-            ____,
-            _____,
-            ______,
-            _______,
-            ________,
-            _________,
+            failedFiles,
+            totalFiles,
+            overallProgress,
+            uploadSpeed,
+            estimatedTimeRemaining,
+            categoryId,
+            customMetadata,
           ) => completedFiles,
-      paused: (_, completedFiles, __, ___, ____, _____, ______, _______) =>
-          completedFiles,
-      completed: (_, completedFiles, __, ___, ____, _____, ______) =>
-          completedFiles,
-      error: (_, __, ___, ____) => 0,
-      cancelled: (_, completedFiles, __) => completedFiles,
+      paused:
+          (
+            files,
+            completedFiles,
+            failedFiles,
+            totalFiles,
+            overallProgress,
+            pausedFiles,
+            categoryId,
+            customMetadata,
+          ) => completedFiles,
+      completed:
+          (
+            files,
+            completedFiles,
+            failedFiles,
+            totalFiles,
+            totalUploadTime,
+            categoryId,
+            customMetadata,
+          ) => completedFiles,
+      error: (message, files, canRetry, previousState) => 0,
+      cancelled: (files, completedFiles, cancelledFiles) => completedFiles,
+      success: (uploadedFiles, totalFiles, totalUploadTime) =>
+          uploadedFiles.length,
+      inProgress: (files, currentFile, progress, uploadSpeed) => 0,
+      partialSuccess: (successfulFiles, failedFiles, totalFiles) =>
+          successfulFiles.length,
+      networkError: (message, files) => 0,
+      storageError: (message, files) => 0,
+      validationError: (message, invalidFiles) => 0,
     );
     final failedFiles = state.when(
       initial: () => 0,
-      validating: (_) => 0,
-      ready: (_, __, ___, ____, _____) => 0,
+      validating: (message) => 0,
+      ready: (files, totalFiles, totalSize, categoryId, customMetadata) => 0,
       uploading:
           (
-            _,
-            __,
-            ___,
+            files,
+            activeUploads,
+            completedFiles,
             failedFiles,
-            ____,
-            _____,
-            ______,
-            _______,
-            ________,
-            _________,
+            totalFiles,
+            overallProgress,
+            uploadSpeed,
+            estimatedTimeRemaining,
+            categoryId,
+            customMetadata,
           ) => failedFiles,
-      paused: (_, __, failedFiles, ___, ____, _____, ______, _______) =>
-          failedFiles,
-      completed: (_, __, failedFiles, ___, ____, _____, ______) => failedFiles,
-      error: (_, __, ___, ____) => 0,
-      cancelled: (_, __, ___) => 0,
+      paused:
+          (
+            files,
+            completedFiles,
+            failedFiles,
+            totalFiles,
+            overallProgress,
+            pausedFiles,
+            categoryId,
+            customMetadata,
+          ) => failedFiles,
+      completed:
+          (
+            files,
+            completedFiles,
+            failedFiles,
+            totalFiles,
+            totalUploadTime,
+            categoryId,
+            customMetadata,
+          ) => failedFiles,
+      error: (message, files, canRetry, previousState) => 0,
+      cancelled: (files, completedFiles, cancelledFiles) => 0,
+      success: (uploadedFiles, totalFiles, totalUploadTime) => 0,
+      inProgress: (files, currentFile, progress, uploadSpeed) => 0,
+      partialSuccess: (successfulFiles, failedFiles, totalFiles) =>
+          failedFiles.length,
+      networkError: (message, files) => files.length,
+      storageError: (message, files) => files.length,
+      validationError: (message, invalidFiles) => invalidFiles.length,
     );
     final uploadingFiles = state.when(
       initial: () => 0,
@@ -469,6 +576,12 @@ class _UploadDocumentScreenState extends State<UploadDocumentScreen>
       completed: (_, __, ___, ____, _____, ______, _______) => 0,
       error: (_, __, ___, ____) => 0,
       cancelled: (_, __, ___) => 0,
+      success: (_, __, ___) => 0,
+      inProgress: (_, __, ___, ____) => 1,
+      partialSuccess: (_, __, ___) => 0,
+      networkError: (_, __) => 0,
+      storageError: (_, __) => 0,
+      validationError: (_, __) => 0,
     );
     final progress = state.progress;
 

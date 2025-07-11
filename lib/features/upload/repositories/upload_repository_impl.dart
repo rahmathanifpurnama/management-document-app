@@ -6,6 +6,7 @@ import 'package:cross_file/cross_file.dart';
 
 import '../../../services/hybrid_upload_service.dart';
 import '../../../models/upload_file_model.dart' as legacy;
+import '../../../models/upload_result_model.dart';
 import '../models/upload_file_model.dart';
 import 'upload_repository.dart';
 
@@ -398,7 +399,7 @@ class UploadRepositoryImpl implements UploadRepository {
           fileName: file.fileName,
           fileSize: file.fileSize,
           fileType: file.fileType,
-          file: file.file,
+          file: file.file!,
           categoryId: file.categoryId,
           customMetadata: file.customMetadata,
         );
@@ -514,7 +515,7 @@ class UploadRepositoryImpl implements UploadRepository {
         fileName: file.fileName,
         fileSize: file.fileSize,
         fileType: file.fileType,
-        file: file.file,
+        file: file.file!,
         categoryId: file.categoryId,
         customMetadata: file.customMetadata,
       );
@@ -591,6 +592,203 @@ class UploadRepositoryImpl implements UploadRepository {
 
     final overallProgress = totalProgress / _uploadQueue.length;
     _overallProgressController.add(overallProgress);
+  }
+
+  /// Update file status in queue and notify listeners
+  void _updateFileStatus(String fileId, UploadStatus status) {
+    final fileIndex = _uploadQueue.indexWhere((f) => f.id == fileId);
+    if (fileIndex != -1) {
+      final file = _uploadQueue[fileIndex];
+      final updatedFile = file.copyWith(status: status);
+      _uploadQueue[fileIndex] = updatedFile;
+      _statusControllers[fileId]?.add(status);
+    }
+  }
+
+  /// Update file progress in queue and notify listeners
+  void _updateProgress(String fileId, double progress) {
+    final fileIndex = _uploadQueue.indexWhere((f) => f.id == fileId);
+    if (fileIndex != -1) {
+      final file = _uploadQueue[fileIndex];
+      final updatedFile = file.copyWith(progress: progress);
+      _uploadQueue[fileIndex] = updatedFile;
+      _progressControllers[fileId]?.add(progress);
+      _updateOverallProgress();
+    }
+  }
+
+  @override
+  Future<List<UploadResult>> uploadFiles(List<UploadFileModel> files) async {
+    try {
+      debugPrint(
+        '📤 UploadRepository: Starting upload for ${files.length} files',
+      );
+
+      final results = <UploadResult>[];
+
+      for (final file in files) {
+        try {
+          // Update status to uploading
+          _updateFileStatus(file.id, UploadStatus.uploading);
+
+          // Convert to legacy format for upload service
+          final legacyFile = legacy.UploadFileModel(
+            id: file.id,
+            fileName: file.fileName,
+            fileSize: file.fileSize,
+            fileType: file.fileType,
+            file: file.file!,
+            categoryId: file.categoryId,
+            customMetadata: file.customMetadata,
+          );
+
+          // Perform upload using hybrid service
+          final result = await _uploadService.uploadFile(
+            legacyFile,
+            onProgress: (progress) {
+              _updateProgress(file.id, progress);
+            },
+            categoryId: file.categoryId,
+            customMetadata: file.customMetadata,
+          );
+
+          if (result['success'] == true) {
+            results.add(
+              UploadResult.success(
+                fileId: file.id,
+                fileName: file.fileName,
+                downloadUrl: result['downloadUrl'],
+                fileSize: file.fileSize,
+                category: file.categoryId,
+              ),
+            );
+            _updateFileStatus(file.id, UploadStatus.completed);
+          } else {
+            results.add(
+              UploadResult.failure(
+                fileId: file.id,
+                fileName: file.fileName,
+                error: result['error'] ?? 'Upload failed',
+              ),
+            );
+            _updateFileStatus(file.id, UploadStatus.failed);
+          }
+        } catch (e) {
+          results.add(
+            UploadResult.failure(
+              fileId: file.id,
+              fileName: file.fileName,
+              error: e.toString(),
+            ),
+          );
+          _updateFileStatus(file.id, UploadStatus.failed);
+        }
+      }
+
+      return results;
+    } catch (e) {
+      debugPrint('❌ UploadRepository: Error uploading files: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<UploadResult>> uploadFilesWithProgress(
+    List<UploadFileModel> files,
+  ) async {
+    try {
+      debugPrint(
+        '📤 UploadRepository: Starting upload with progress for ${files.length} files',
+      );
+
+      final results = <UploadResult>[];
+
+      for (final file in files) {
+        try {
+          // Update status to uploading
+          _updateFileStatus(file.id, UploadStatus.uploading);
+
+          // Convert to legacy format for upload service
+          final legacyFile = legacy.UploadFileModel(
+            id: file.id,
+            fileName: file.fileName,
+            fileSize: file.fileSize,
+            fileType: file.fileType,
+            file: file.file!,
+            categoryId: file.categoryId,
+            customMetadata: file.customMetadata,
+          );
+
+          // Perform upload with progress tracking
+          final result = await _uploadService.uploadFile(
+            legacyFile,
+            onProgress: (progress) {
+              _updateProgress(file.id, progress);
+            },
+            categoryId: file.categoryId,
+            customMetadata: file.customMetadata,
+          );
+
+          if (result['success'] == true) {
+            results.add(
+              UploadResult.success(
+                fileId: file.id,
+                fileName: file.fileName,
+                downloadUrl: result['downloadUrl'],
+                fileSize: file.fileSize,
+                category: file.categoryId,
+              ),
+            );
+            _updateFileStatus(file.id, UploadStatus.completed);
+          } else {
+            results.add(
+              UploadResult.failure(
+                fileId: file.id,
+                fileName: file.fileName,
+                error: result['error'] ?? 'Upload failed',
+              ),
+            );
+            _updateFileStatus(file.id, UploadStatus.failed);
+          }
+        } catch (e) {
+          results.add(
+            UploadResult.failure(
+              fileId: file.id,
+              fileName: file.fileName,
+              error: e.toString(),
+            ),
+          );
+          _updateFileStatus(file.id, UploadStatus.failed);
+        }
+      }
+
+      return results;
+    } catch (e) {
+      debugPrint('❌ UploadRepository: Error uploading files with progress: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<UploadResult>> retryFailedUploads(
+    List<UploadFileModel> failedFiles,
+  ) async {
+    try {
+      debugPrint(
+        '🔄 UploadRepository: Retrying ${failedFiles.length} failed uploads',
+      );
+
+      // Reset status for failed files
+      for (final file in failedFiles) {
+        _updateFileStatus(file.id, UploadStatus.pending);
+      }
+
+      // Use uploadFiles method to retry
+      return await uploadFiles(failedFiles);
+    } catch (e) {
+      debugPrint('❌ UploadRepository: Error retrying failed uploads: $e');
+      rethrow;
+    }
   }
 }
 

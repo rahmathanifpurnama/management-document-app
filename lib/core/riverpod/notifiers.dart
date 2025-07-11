@@ -12,15 +12,15 @@ abstract class BaseNotifier<T> extends StateNotifier<T> {
       try {
         state = updater();
       } catch (e) {
-        debugPrint('${runtimeType} Error updating state: $e');
-        onError(e);
+        debugPrint('$runtimeType Error updating state: $e');
+        handleError(e);
       }
     }
   }
 
   /// Handle errors - override in subclasses
-  void onError(Object error) {
-    debugPrint('${runtimeType} Error: $error');
+  void handleError(Object error) {
+    debugPrint('$runtimeType Error: $error');
   }
 
   /// Reset to initial state - override in subclasses
@@ -30,7 +30,7 @@ abstract class BaseNotifier<T> extends StateNotifier<T> {
 
   @override
   void dispose() {
-    debugPrint('${runtimeType} disposed');
+    debugPrint('$runtimeType disposed');
     super.dispose();
   }
 }
@@ -38,27 +38,23 @@ abstract class BaseNotifier<T> extends StateNotifier<T> {
 /// Base async notifier class for AsyncNotifier
 /// Provides common functionality for async operations
 abstract class BaseAsyncNotifier<T> extends AsyncNotifier<T> {
-  
   /// Safe async operation with error handling
   Future<void> safeAsyncOperation(Future<T> Function() operation) async {
     state = const AsyncValue.loading();
-    
+
     try {
       final result = await operation();
-      if (mounted) {
-        state = AsyncValue.data(result);
-      }
+      // AsyncNotifier doesn't have mounted property, so we just update state
+      state = AsyncValue.data(result);
     } catch (error, stackTrace) {
-      if (mounted) {
-        state = AsyncValue.error(error, stackTrace);
-      }
-      onError(error, stackTrace);
+      state = AsyncValue.error(error, stackTrace);
+      handleAsyncError(error, stackTrace);
     }
   }
 
   /// Handle errors - override in subclasses
-  void onError(Object error, StackTrace stackTrace) {
-    debugPrint('${runtimeType} Error: $error');
+  void handleAsyncError(Object error, StackTrace stackTrace) {
+    debugPrint('$runtimeType Error: $error');
     debugPrint('StackTrace: $stackTrace');
   }
 

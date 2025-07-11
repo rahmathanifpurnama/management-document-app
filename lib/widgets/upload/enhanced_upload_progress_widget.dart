@@ -396,7 +396,7 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.refresh, size: 18),
               onPressed: () => context.read<UploadBloc>().add(
-                upload_events.UploadEvent.retryUpload(fileId: file.id),
+                upload_events.UploadEvent.retryUpload(failedFiles: [file]),
               ),
               tooltip: 'Retry upload',
             ),
@@ -555,6 +555,12 @@ class EnhancedUploadProgressWidget extends StatelessWidget {
           completedFiles,
       error: (_, __, ___, ____) => 0,
       cancelled: (_, completedFiles, __) => completedFiles,
+      success: (uploadedFiles, _, __) => uploadedFiles.length,
+      inProgress: (_, __, ___, ____) => 0,
+      partialSuccess: (successfulFiles, _, __) => successfulFiles.length,
+      networkError: (_, __) => 0,
+      storageError: (_, __) => 0,
+      validationError: (_, __) => 0,
     );
     final progress = state.progress;
 

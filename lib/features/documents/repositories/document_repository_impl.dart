@@ -515,6 +515,44 @@ class DocumentRepositoryImpl implements DocumentRepository {
     }
   }
 
+  @override
+  Future<bool> bulkDeleteDocuments(
+    List<String> documentIds,
+    String userId,
+  ) async {
+    try {
+      debugPrint(
+        '🗑️ DocumentRepository: Bulk deleting ${documentIds.length} documents',
+      );
+
+      // Use cloud functions for bulk deletion
+      final result = await _cloudFunctions.bulkDocumentOperations(
+        operation: 'delete',
+        documentIds: documentIds,
+        reason: 'Bulk deletion by user $userId',
+      );
+
+      if (result['success'] == true) {
+        // Log activity for bulk deletion
+        await _activityService.logActivity(
+          type: 'bulk_delete',
+          description: 'Bulk deleted ${documentIds.length} documents',
+          additionalData: {
+            'documentIds': documentIds,
+            'userId': userId,
+            'count': documentIds.length,
+          },
+        );
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      debugPrint('❌ DocumentRepository: Error bulk deleting documents: $e');
+      return false;
+    }
+  }
+
   /// Helper method to get document snapshot for pagination
   Future<DocumentSnapshot?> _getDocumentSnapshot(String documentId) async {
     try {

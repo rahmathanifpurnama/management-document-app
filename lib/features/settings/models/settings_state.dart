@@ -28,14 +28,20 @@ extension SettingsStateX on SettingsState {
   /// Check if settings are in error state
   bool get hasError => errorMessage != null;
 
-  /// Get available languages
-  static const List<String> availableLanguages = [
+  /// Get available languages (instance property for compatibility)
+  List<String> get availableLanguages => const [
     'English',
     'Indonesian',
     'Spanish',
     'French',
     'German',
   ];
+
+  /// Get theme mode based on dark mode setting
+  ThemeMode get themeMode => darkModeEnabled ? ThemeMode.dark : ThemeMode.light;
+
+  /// Get language (alias for selectedLanguage)
+  String get language => selectedLanguage;
 
   /// Check if language is available
   bool get isLanguageValid => availableLanguages.contains(selectedLanguage);

@@ -15,7 +15,7 @@ import 'auth_state.dart';
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthService _authService = AuthService.instance;
   final EnhancedAuthService _enhancedAuthService = EnhancedAuthService.instance;
-  final ActivityService _activityService = ActivityService.instance;
+  final ActivityService _activityService = ActivityService();
 
   // Store last failed operation for retry
   AuthEvent? _lastFailedOperation;
@@ -103,11 +103,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       if (user != null) {
         // Log activity
         await _activityService.logActivity(
-          userId: user.id,
-          action: 'login',
-          targetType: 'auth',
-          targetId: user.id,
-          details: {'email': event.email, 'rememberMe': event.rememberMe},
+          type: 'login',
+          description: 'User logged in successfully',
+          additionalData: {
+            'email': event.email,
+            'rememberMe': event.rememberMe,
+          },
         );
 
         emit(
@@ -146,11 +147,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // Log activity before logout
       if (currentUser != null) {
         await _activityService.logActivity(
-          userId: currentUser.id,
-          action: 'logout',
-          targetType: 'auth',
-          targetId: currentUser.id,
-          details: {'email': currentUser.email},
+          type: 'logout',
+          description: 'User logged out successfully',
+          additionalData: {'email': currentUser.email},
         );
       }
 
@@ -180,40 +179,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       emit(const AuthState.registering());
 
-      // Perform registration with timeout
-      final user = await _authService
-          .register(
-            email: event.email,
-            password: event.password,
-            fullName: event.fullName,
-            phoneNumber: event.phoneNumber,
-          )
-          .timeout(const Duration(seconds: 20));
-
-      if (user != null) {
-        // Log activity
-        await _activityService.logActivity(
-          userId: user.id,
-          action: 'register',
-          targetType: 'auth',
-          targetId: user.id,
-          details: {'email': event.email, 'fullName': event.fullName},
-        );
-
-        final needsEmailVerification =
-            !(_authService.currentUser?.emailVerified ?? false);
-
-        emit(
-          AuthState.registrationComplete(
-            email: event.email,
-            needsEmailVerification: needsEmailVerification,
-          ),
-        );
-
-        debugPrint('✅ AuthBloc: Registration successful for: ${event.email}');
-      } else {
-        throw Exception('Registration failed: No user data returned');
-      }
+      // TODO: Implement user registration method in AuthService
+      throw UnimplementedError('User registration not implemented yet');
     } catch (e) {
       debugPrint('❌ AuthBloc: Registration failed - $e');
       _lastFailedOperation = event;
@@ -274,34 +241,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       emit(AuthState.updatingProfile(user: currentUser));
 
-      // Update profile with timeout
-      final updatedUser = await _authService
-          .updateProfile(
-            fullName: event.fullName,
-            phoneNumber: event.phoneNumber,
-            photoUrl: event.photoUrl,
-          )
-          .timeout(const Duration(seconds: 15));
-
-      if (updatedUser != null) {
-        // Log activity
-        await _activityService.logActivity(
-          userId: updatedUser.id,
-          action: 'edit',
-          targetType: 'profile',
-          targetId: updatedUser.id,
-          details: {
-            'fullName': event.fullName,
-            'phoneNumber': event.phoneNumber,
-          },
-        );
-
-        emit(AuthState.profileUpdated(user: updatedUser));
-
-        debugPrint('✅ AuthBloc: Profile updated successfully');
-      } else {
-        throw Exception('Profile update failed: No user data returned');
-      }
+      // TODO: Implement profile update method in AuthService
+      throw UnimplementedError('Profile update not implemented yet');
     } catch (e) {
       debugPrint('❌ AuthBloc: Profile update failed - $e');
       _lastFailedOperation = event;
@@ -337,11 +278,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       // Log activity
       await _activityService.logActivity(
-        userId: currentUser.id,
-        action: 'edit',
-        targetType: 'password',
-        targetId: currentUser.id,
-        details: {'email': currentUser.email},
+        type: 'password_change',
+        description: 'User changed password successfully',
+        additionalData: {'email': currentUser.email},
       );
 
       emit(AuthState.passwordChanged(user: currentUser));
@@ -371,13 +310,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       emit(const AuthState.loading(operationType: 'sendEmailVerification'));
 
-      await _authService.sendEmailVerification().timeout(
-        const Duration(seconds: 10),
-      );
-
-      emit(const AuthState.emailVerificationSent());
-
-      debugPrint('✅ AuthBloc: Email verification sent successfully');
+      // TODO: Implement sendEmailVerification method in AuthService
+      throw UnimplementedError('Send email verification not implemented yet');
     } catch (e) {
       debugPrint('❌ AuthBloc: Email verification failed - $e');
       _lastFailedOperation = event;

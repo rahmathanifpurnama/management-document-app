@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cross_file/cross_file.dart';
 
 import '../models/upload_file_model.dart';
+import '../../../models/upload_result_model.dart';
 
 /// Upload Repository Interface
 ///
@@ -70,6 +71,19 @@ abstract class UploadRepository {
     int? chunkSize,
     int? retryAttempts,
   });
+
+  /// Upload files with basic progress tracking
+  Future<List<UploadResult>> uploadFiles(List<UploadFileModel> files);
+
+  /// Upload files with detailed progress tracking
+  Future<List<UploadResult>> uploadFilesWithProgress(
+    List<UploadFileModel> files,
+  );
+
+  /// Retry failed uploads
+  Future<List<UploadResult>> retryFailedUploads(
+    List<UploadFileModel> failedFiles,
+  );
 
   /// Dispose resources
   void dispose();

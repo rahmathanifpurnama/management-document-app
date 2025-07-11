@@ -4,13 +4,13 @@ import '../../../models/document_model.dart';
 part 'document_event.freezed.dart';
 
 /// Document Events for DocumentBloc
-/// 
+///
 /// These events represent all possible actions that can be performed
 /// on documents in the application.
 @freezed
 class DocumentEvent with _$DocumentEvent {
   /// Load all documents
-  /// 
+  ///
   /// [forceRefresh] - Force refresh even if cache is valid
   /// [limit] - Maximum number of documents to load (optional)
   /// [startAfter] - Document to start after for pagination (optional)
@@ -21,7 +21,7 @@ class DocumentEvent with _$DocumentEvent {
   }) = LoadDocuments;
 
   /// Search documents by query
-  /// 
+  ///
   /// [query] - Search query string
   /// [limit] - Maximum number of results (optional)
   const factory DocumentEvent.searchDocuments({
@@ -30,7 +30,7 @@ class DocumentEvent with _$DocumentEvent {
   }) = SearchDocuments;
 
   /// Filter documents by criteria
-  /// 
+  ///
   /// [category] - Filter by category (optional)
   /// [status] - Filter by status (optional)
   /// [fileType] - Filter by file type (optional)
@@ -49,7 +49,7 @@ class DocumentEvent with _$DocumentEvent {
   }) = FilterDocuments;
 
   /// Sort documents
-  /// 
+  ///
   /// [sortBy] - Field to sort by (uploadedAt, fileName, fileSize, etc.)
   /// [ascending] - Sort order (true for ascending, false for descending)
   const factory DocumentEvent.sortDocuments({
@@ -58,7 +58,7 @@ class DocumentEvent with _$DocumentEvent {
   }) = SortDocuments;
 
   /// Delete a document (move to recycle bin)
-  /// 
+  ///
   /// [documentId] - ID of document to delete
   /// [userId] - ID of user performing the deletion
   const factory DocumentEvent.deleteDocument({
@@ -67,7 +67,7 @@ class DocumentEvent with _$DocumentEvent {
   }) = DeleteDocument;
 
   /// Permanently delete a document from recycle bin
-  /// 
+  ///
   /// [documentId] - ID of document to permanently delete
   /// [userId] - ID of user performing the deletion
   const factory DocumentEvent.permanentlyDeleteDocument({
@@ -76,7 +76,7 @@ class DocumentEvent with _$DocumentEvent {
   }) = PermanentlyDeleteDocument;
 
   /// Restore a document from recycle bin
-  /// 
+  ///
   /// [documentId] - ID of document to restore
   /// [userId] - ID of user performing the restoration
   const factory DocumentEvent.restoreDocument({
@@ -85,35 +85,33 @@ class DocumentEvent with _$DocumentEvent {
   }) = RestoreDocument;
 
   /// Update document metadata
-  /// 
+  ///
   /// [document] - Updated document model
   const factory DocumentEvent.updateDocument({
     required DocumentModel document,
   }) = UpdateDocument;
 
   /// Refresh documents from remote source
-  /// 
+  ///
   /// [forceRefresh] - Force refresh even if cache is valid
   const factory DocumentEvent.refreshDocuments({
     @Default(true) bool forceRefresh,
   }) = RefreshDocuments;
 
   /// Load recent documents (uploaded within last 7 days)
-  /// 
+  ///
   /// [limit] - Maximum number of documents to load (optional)
-  const factory DocumentEvent.loadRecentDocuments({
-    int? limit,
-  }) = LoadRecentDocuments;
+  const factory DocumentEvent.loadRecentDocuments({int? limit}) =
+      LoadRecentDocuments;
 
   /// Load documents in recycle bin
-  /// 
+  ///
   /// [limit] - Maximum number of documents to load (optional)
-  const factory DocumentEvent.loadDeletedDocuments({
-    int? limit,
-  }) = LoadDeletedDocuments;
+  const factory DocumentEvent.loadDeletedDocuments({int? limit}) =
+      LoadDeletedDocuments;
 
   /// Load documents by category
-  /// 
+  ///
   /// [category] - Category name to filter by
   /// [limit] - Maximum number of documents to load (optional)
   const factory DocumentEvent.loadDocumentsByCategory({
@@ -122,7 +120,7 @@ class DocumentEvent with _$DocumentEvent {
   }) = LoadDocumentsByCategory;
 
   /// Load documents by user
-  /// 
+  ///
   /// [userId] - User ID to filter by
   /// [limit] - Maximum number of documents to load (optional)
   const factory DocumentEvent.loadDocumentsByUser({
@@ -146,18 +144,26 @@ class DocumentEvent with _$DocumentEvent {
   const factory DocumentEvent.stopListening() = StopListening;
 
   /// Handle real-time document updates
-  /// 
+  ///
   /// [documents] - Updated list of documents from stream
   const factory DocumentEvent.documentsUpdated({
     required List<DocumentModel> documents,
   }) = DocumentsUpdated;
 
+  /// Bulk delete multiple documents
+  ///
+  /// [documentIds] - List of document IDs to delete
+  /// [userId] - ID of user performing the deletion
+  const factory DocumentEvent.bulkDeleteDocuments({
+    required List<String> documentIds,
+    required String userId,
+  }) = BulkDeleteDocuments;
+
   /// Load more documents (pagination)
-  /// 
+  ///
   /// [limit] - Number of additional documents to load
-  const factory DocumentEvent.loadMoreDocuments({
-    int? limit,
-  }) = LoadMoreDocuments;
+  const factory DocumentEvent.loadMoreDocuments({int? limit}) =
+      LoadMoreDocuments;
 
   /// Reset document state to initial
   const factory DocumentEvent.resetState() = ResetState;

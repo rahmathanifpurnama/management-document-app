@@ -67,7 +67,8 @@ extension UserStateExtension on UserState {
     loaded: (_, __, ___, ____, _____, ______) => false,
     performingOperation: (_, __, ___, ____, _____, ______, _______) => true,
     syncing: (_, __, ___, ____, _____, ______) => true,
-    error: (_, __, ___, ____, _____, ______, _______, ________) => false,
+    error: (_, __, ___, ____, _____, ______, _______, ________, _________) =>
+        false,
   );
 
   /// Check if state has data
@@ -77,7 +78,8 @@ extension UserStateExtension on UserState {
     loaded: (_, __, ___, ____, _____, ______) => true,
     performingOperation: (_, __, ___, ____, _____, ______, _______) => true,
     syncing: (_, __, ___, ____, _____, ______) => true,
-    error: (_, users, __, ___, ____, _____, ______, _______) => users != null,
+    error: (_, users, __, ___, ____, _____, ______, _______, ________) =>
+        users != null,
   );
 
   /// Get current users list
@@ -87,7 +89,8 @@ extension UserStateExtension on UserState {
     loaded: (users, _, __, ___, ____, _____) => users,
     performingOperation: (users, _, __, ___, ____, _____, ______) => users,
     syncing: (users, _, __, ___, ____, _____) => users,
-    error: (_, users, __, ___, ____, _____, ______, _______) => users ?? [],
+    error: (_, users, __, ___, ____, _____, ______, _______, ________) =>
+        users ?? [],
   );
 
   /// Get current filtered users list
@@ -98,8 +101,9 @@ extension UserStateExtension on UserState {
     performingOperation: (_, filteredUsers, __, ___, ____, _____, ______) =>
         filteredUsers,
     syncing: (_, filteredUsers, __, ___, ____, _____) => filteredUsers,
-    error: (_, __, filteredUsers, ___, ____, _____, ______, _______) =>
-        filteredUsers ?? [],
+    error:
+        (_, __, filteredUsers, ___, ____, _____, ______, _______, ________) =>
+            filteredUsers ?? [],
   );
 
   /// Get current search query
@@ -110,7 +114,7 @@ extension UserStateExtension on UserState {
     performingOperation: (_, __, searchQuery, ___, ____, _____, ______) =>
         searchQuery,
     syncing: (_, __, searchQuery, ___, ____, _____) => searchQuery,
-    error: (_, __, ___, searchQuery, ____, _____, ______, _______) =>
+    error: (_, __, ___, searchQuery, ____, _____, ______, _______, ________) =>
         searchQuery,
   );
 
@@ -122,7 +126,7 @@ extension UserStateExtension on UserState {
     performingOperation: (_, __, ___, selectedRole, ____, _____, ______) =>
         selectedRole,
     syncing: (_, __, ___, selectedRole, ____, _____) => selectedRole,
-    error: (_, __, ___, ____, selectedRole, _____, ______, _______) =>
+    error: (_, __, ___, ____, selectedRole, _____, ______, _______, ________) =>
         selectedRole,
   );
 
@@ -134,7 +138,8 @@ extension UserStateExtension on UserState {
     performingOperation: (_, __, ___, ____, selectedStatus, _____, ______) =>
         selectedStatus,
     syncing: (_, __, ___, ____, selectedStatus, _____) => selectedStatus,
-    error: (_, __, ___, ____, _____, selectedStatus, ______, _______) =>
-        selectedStatus,
+    error:
+        (_, __, ___, ____, _____, selectedStatus, ______, _______, ________) =>
+            selectedStatus,
   );
 }
