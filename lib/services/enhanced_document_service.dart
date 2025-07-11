@@ -52,11 +52,10 @@ class EnhancedDocumentService {
         // Safety limit of 5000 documents
         Query query = _firebaseService.firestore.collection('documents');
 
-        // TEMPORARY FIX: Remove status filter to avoid index requirement
-        // Filter will be applied in client-side after data is retrieved
-        // if (activeOnly) {
-        //   query = query.where('status', isEqualTo: 'active');
-        // }
+        // Apply server-side filters with proper composite indexes
+        if (activeOnly) {
+          query = query.where('status', isEqualTo: 'active');
+        }
 
         if (categoryFilter != null && categoryFilter.isNotEmpty) {
           query = query.where('category', isEqualTo: categoryFilter);
@@ -104,19 +103,8 @@ class EnhancedDocumentService {
             .cast<DocumentModel>()
             .toList();
 
-        // Apply client-side filtering for active documents
-        final filteredBatchDocuments = activeOnly
-            ? batchDocuments
-                  .where(
-                    (doc) =>
-                        doc.status == 'active' ||
-                        (doc.status == null &&
-                            (doc as dynamic).isActive == true),
-                  )
-                  .toList()
-            : batchDocuments;
-
-        allDocuments.addAll(filteredBatchDocuments);
+        // Server-side filtering is now handled by Firestore with composite indexes
+        allDocuments.addAll(batchDocuments);
         lastDocument = querySnapshot.docs.last;
         batchCount++;
 
@@ -152,9 +140,10 @@ class EnhancedDocumentService {
     DocumentSnapshot? startAfter,
   }) async {
     try {
-      // TEMPORARY FIX: Remove status filter to avoid index requirement
+      // Use server-side filtering with proper composite indexes
       Query query = _firebaseService.firestore
           .collection('documents')
+          .where('status', isEqualTo: 'active')
           .orderBy('uploadedAt', descending: true);
 
       if (startAfter != null) {
@@ -174,7 +163,8 @@ class EnhancedDocumentService {
         return [];
       }
 
-      final allDocuments = querySnapshot.docs
+      // Server-side filtering is now handled by Firestore with composite indexes
+      return querySnapshot.docs
           .map((doc) {
             try {
               return DocumentModel.fromFirestore(doc);
@@ -185,15 +175,6 @@ class EnhancedDocumentService {
           })
           .where((doc) => doc != null)
           .cast<DocumentModel>()
-          .toList();
-
-      // Apply client-side filtering for active documents
-      return allDocuments
-          .where(
-            (doc) =>
-                doc.status == 'active' ||
-                (doc.status == null && (doc as dynamic).isActive == true),
-          )
           .toList();
     } catch (e) {
       debugPrint('❌ Limited query failed: $e');
