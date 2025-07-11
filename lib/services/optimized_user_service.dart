@@ -352,7 +352,7 @@ class OptimizedUserService {
       // Get document count
       final documentsSnapshot = await _firebaseService.documentsCollection
           .where('uploadedBy', isEqualTo: userId)
-          .where('isActive', isEqualTo: true)
+          .where('status', isEqualTo: 'active')
           .get();
 
       // Activities collection has been removed - return empty list

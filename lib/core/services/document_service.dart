@@ -1312,7 +1312,7 @@ class DocumentService {
 
       // Method 3: Get all documents and search manually (last resort)
       final allDocs = await _firebaseService.documentsCollection
-          .where('isActive', isEqualTo: true)
+          .where('status', isEqualTo: 'active')
           .get();
 
       for (final doc in allDocs.docs) {

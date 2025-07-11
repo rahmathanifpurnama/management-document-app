@@ -32,7 +32,7 @@ class DocumentSyncDiagnostic {
       // Step 1: Get all documents from Firestore
       debugPrint('📊 Fetching documents from Firestore...');
       final firestoreSnapshot = await _firebaseService.documentsCollection
-          .where('isActive', isEqualTo: true)
+          .where('status', isEqualTo: 'active')
           .get();
 
       final firestoreDocuments = <String, Map<String, dynamic>>{};

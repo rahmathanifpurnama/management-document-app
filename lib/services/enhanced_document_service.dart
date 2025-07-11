@@ -52,9 +52,9 @@ class EnhancedDocumentService {
         // Safety limit of 5000 documents
         Query query = _firebaseService.firestore.collection('documents');
 
-        // Apply filters
+        // Apply filters - use status field instead of isActive for consistency
         if (activeOnly) {
-          query = query.where('isActive', isEqualTo: true);
+          query = query.where('status', isEqualTo: 'active');
         }
 
         if (categoryFilter != null && categoryFilter.isNotEmpty) {
@@ -141,6 +141,7 @@ class EnhancedDocumentService {
     try {
       Query query = _firebaseService.firestore
           .collection('documents')
+          .where('status', isEqualTo: 'active')
           .orderBy('uploadedAt', descending: true);
 
       if (startAfter != null) {

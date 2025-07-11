@@ -394,7 +394,7 @@ class CategoryRepositoryImpl implements CategoryRepository {
           .collection(
             'documents',
           ) // Use 'documents' collection as per user preference
-          .where('isActive', isEqualTo: true)
+          .where('status', isEqualTo: 'active')
           .where('category', whereIn: ['', 'general', 'null'])
           .limit(100)
           .get();
