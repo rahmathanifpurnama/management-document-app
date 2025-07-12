@@ -258,10 +258,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               'assets/simdoc_bapeltan.svg',
                               width: 280,
                               height: 280,
-                              colorFilter: const ColorFilter.mode(
-                                AppColors.primary,
-                                BlendMode.srcIn,
-                              ),
                             ),
                           ],
                         ),
