@@ -31,7 +31,7 @@ flutter:
     - assets/icon/Home.svg          # Icon home (alternatif)
     - assets/icon/fillter.svg       # Icon filter
     - assets/app_icon.png           # App icon
-    - assets/Logo.svg               # Logo aplikasi
+    - assets/simdoc_bapeltan.svg    # Logo aplikasi
     - assets/animation/             # Folder animasi
     - assets/animation/bell.json    # Animasi bell
 ```
