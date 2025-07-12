@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_routes.dart';
@@ -9,6 +10,7 @@ import '../../features/auth/providers/auth_providers.dart';
 import '../../widgets/common/custom_text_field.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/loading_widget.dart';
+import '../../services/email_validation_service.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -23,6 +25,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
   bool _obscurePassword = true;
+  String? _emailValidationMessage;
 
   @override
   void initState() {
@@ -31,8 +34,129 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _loadRememberedEmail() async {
-    // TODO: Implement remember me functionality with SharedPreferences
-    // For now, skip this functionality during migration
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedEmail = prefs.getString('remembered_email');
+      final rememberMe = prefs.getBool('remember_me') ?? false;
+
+      if (rememberMe && savedEmail != null && savedEmail.isNotEmpty) {
+        _emailController.text = savedEmail;
+        setState(() {
+          _rememberMe = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading remembered email: $e');
+    }
+  }
+
+  Future<void> _saveRememberedEmail() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_rememberMe) {
+        await prefs.setString('remembered_email', _emailController.text.trim());
+        await prefs.setBool('remember_me', true);
+      } else {
+        await prefs.remove('remembered_email');
+        await prefs.setBool('remember_me', false);
+      }
+    } catch (e) {
+      debugPrint('Error saving remembered email: $e');
+    }
+  }
+
+  void _validateEmailRealTime(String email) {
+    if (email.isEmpty) {
+      setState(() {
+        _emailValidationMessage = null;
+      });
+      return;
+    }
+
+    final emailService = EmailValidationService.instance;
+
+    // Check basic email format
+    if (!emailService.isValidEmailFormat(email)) {
+      setState(() {
+        _emailValidationMessage = 'Format email tidak valid';
+      });
+      return;
+    }
+
+    // Check domain validation
+    final domainValidation = emailService.validateEmailDomain(email);
+    if (!domainValidation.isValid) {
+      setState(() {
+        _emailValidationMessage = domainValidation.message;
+      });
+      return;
+    }
+
+    // Clear validation message if email is valid
+    setState(() {
+      _emailValidationMessage = null;
+    });
+  }
+
+  void _showForgotPasswordDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Lupa Password',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Untuk reset password, silakan hubungi admin melalui email:',
+                style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              ),
+              SizedBox(height: 12),
+              SelectableText(
+                'web.hanif61@gmail.com',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.primary,
+                ),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Waktu tunggu respons: 1-2 hari kerja',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textHint,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Tutup',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -50,6 +174,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (mounted) {
         setState(() {});
       }
+
+      // Save remembered email before attempting login
+      await _saveRememberedEmail();
 
       // Use the underlying AuthService for login
       final authService = ref.read(authServiceProvider);
@@ -70,17 +197,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         Navigator.of(context).pushReplacementNamed(AppRoutes.home);
       } else if (mounted) {
         Fluttertoast.showToast(
-          msg: 'Login gagal. Silakan periksa email dan password Anda.',
+          msg: 'Email atau password tidak valid atau salah, coba lagi',
           backgroundColor: AppColors.error,
           textColor: AppColors.textWhite,
           toastLength: Toast.LENGTH_LONG,
         );
       }
     } catch (e) {
-      // Handle any unexpected errors
+      // Handle specific authentication errors
       if (mounted) {
+        String errorMessage =
+            'Terjadi kesalahan tidak terduga. Silakan coba lagi.';
+
+        // Check for specific Firebase auth errors
+        final errorString = e.toString().toLowerCase();
+        if (errorString.contains('user-not-found') ||
+            errorString.contains('wrong-password') ||
+            errorString.contains('invalid-credential') ||
+            errorString.contains('invalid-email')) {
+          errorMessage =
+              'Email atau password tidak valid atau salah, coba lagi';
+        } else if (errorString.contains('too-many-requests')) {
+          errorMessage = 'Terlalu banyak percobaan. Silakan coba lagi nanti.';
+        } else if (errorString.contains('network')) {
+          errorMessage =
+              'Koneksi internet bermasalah. Silakan periksa koneksi Anda.';
+        }
+
         Fluttertoast.showToast(
-          msg: 'Terjadi kesalahan tidak terduga. Silakan coba lagi.',
+          msg: errorMessage,
           backgroundColor: AppColors.error,
           textColor: AppColors.textWhite,
           toastLength: Toast.LENGTH_LONG,
@@ -124,23 +269,50 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ],
                         ),
 
-                        // Email Field
-                        CustomTextField(
-                          controller: _emailController,
-                          label: AppStrings.email,
-                          keyboardType: TextInputType.emailAddress,
-                          prefixIcon: Icons.email_outlined,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return AppStrings.fieldRequired;
-                            }
+                        // Email Field with real-time validation
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CustomTextField(
+                              controller: _emailController,
+                              label: AppStrings.email,
+                              keyboardType: TextInputType.emailAddress,
+                              prefixIcon: Icons.email_outlined,
+                              onChanged: _validateEmailRealTime,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return AppStrings.fieldRequired;
+                                }
 
-                            // Use basic email validation for now
-                            if (!value.contains('@')) {
-                              return 'Format email tidak valid';
-                            }
-                            return null;
-                          },
+                                // Use comprehensive email validation
+                                final emailService =
+                                    EmailValidationService.instance;
+                                if (!emailService.isValidEmailFormat(value)) {
+                                  return 'Format email tidak valid';
+                                }
+
+                                final domainValidation = emailService
+                                    .validateEmailDomain(value);
+                                if (!domainValidation.isValid) {
+                                  return domainValidation.message;
+                                }
+
+                                return null;
+                              },
+                            ),
+                            // Real-time validation message
+                            if (_emailValidationMessage != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4, left: 4),
+                                child: Text(
+                                  _emailValidationMessage!,
+                                  style: const TextStyle(
+                                    color: AppColors.error,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
 
                         const SizedBox(height: 20),
@@ -207,14 +379,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                         const SizedBox(height: 10),
 
-                        // Forgot Password
-                        TextButton(
-                          onPressed: () {
-                            // TODO: Implement forgot password
-                          },
+                        // Forgot Password - styled as clickable text link
+                        GestureDetector(
+                          onTap: _showForgotPasswordDialog,
                           child: const Text(
                             AppStrings.forgotPassword,
-                            style: TextStyle(color: AppColors.primary),
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 14,
+                              decoration: TextDecoration.underline,
+                              decorationColor: AppColors.primary,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ],
