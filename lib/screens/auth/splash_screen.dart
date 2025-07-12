@@ -159,15 +159,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         // App Logo
-        SvgPicture.asset(
-          'assets/simdoc_bapeltan.svg',
-          width: 200,
-          height: 200,
-          colorFilter: const ColorFilter.mode(
-            AppColors.primary,
-            BlendMode.srcIn,
-          ),
-        ),
+        SvgPicture.asset('assets/simdoc_bapeltan.svg', width: 200, height: 200),
 
         const SizedBox(height: 30),
 
