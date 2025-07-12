@@ -160,7 +160,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       children: [
         // App Logo
         SvgPicture.asset(
-          'assets/Logo.svg',
+          'assets/simdoc_bapeltan.svg',
           width: 200,
           height: 200,
           colorFilter: const ColorFilter.mode(

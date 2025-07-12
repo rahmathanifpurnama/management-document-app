@@ -221,7 +221,7 @@ flutter:
     - assets/icon/fillter.svg           # Filter icon
     # App assets
     - assets/app_icon.png
-    - assets/Logo.svg
+    - assets/simdoc_bapeltan.svg
     - assets/animation/
     - assets/animation/bell.json
 

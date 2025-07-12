@@ -109,6 +109,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
+              decoration: TextDecoration.none,
             ),
           ),
           content: const Column(
@@ -258,7 +259,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         Column(
                           children: [
                             SvgPicture.asset(
-                              'assets/Logo.svg',
+                              'assets/simdoc_bapeltan.svg',
                               width: 280,
                               height: 280,
                               colorFilter: const ColorFilter.mode(
@@ -360,7 +361,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 });
                               },
                               activeColor: AppColors.primary,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                              visualDensity: VisualDensity(
+                                horizontal: VisualDensity.minimumDensity,
+                                vertical: VisualDensity.minimumDensity,
+                              ),
                             ),
+                            const SizedBox(width: 10),
                             const Text(
                               AppStrings.rememberMe,
                               style: TextStyle(color: AppColors.textSecondary),
@@ -368,7 +376,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ],
                         ),
 
-                        const SizedBox(height: 30),
+                        const SizedBox(height: 20),
 
                         // Login Button
                         CustomButton(
@@ -377,7 +385,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           isLoading: isLoading,
                         ),
 
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 20),
 
                         // Forgot Password - styled as clickable text link
                         GestureDetector(
@@ -387,7 +395,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             style: TextStyle(
                               color: AppColors.primary,
                               fontSize: 14,
-                              decoration: TextDecoration.underline,
+                              decoration: TextDecoration.none,
                               decorationColor: AppColors.primary,
                             ),
                             textAlign: TextAlign.center,
