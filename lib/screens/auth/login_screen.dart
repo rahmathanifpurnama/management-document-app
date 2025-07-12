@@ -204,24 +204,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
       }
     } catch (e) {
-      // Handle specific authentication errors
+      // Handle authentication errors - use the message from auth service
       if (mounted) {
-        String errorMessage =
-            'Terjadi kesalahan tidak terduga. Silakan coba lagi.';
+        String errorMessage = e.toString();
 
-        // Check for specific Firebase auth errors
-        final errorString = e.toString().toLowerCase();
-        if (errorString.contains('user-not-found') ||
-            errorString.contains('wrong-password') ||
-            errorString.contains('invalid-credential') ||
-            errorString.contains('invalid-email')) {
+        // Remove "Exception: " prefix if present
+        if (errorMessage.startsWith('Exception: ')) {
+          errorMessage = errorMessage.substring(11);
+        }
+
+        // If it's still a generic error, provide a fallback
+        if (errorMessage.contains('Terjadi kesalahan:') ||
+            errorMessage.toLowerCase().contains('unexpected')) {
           errorMessage =
               'Email atau password tidak valid atau salah, coba lagi';
-        } else if (errorString.contains('too-many-requests')) {
-          errorMessage = 'Terlalu banyak percobaan. Silakan coba lagi nanti.';
-        } else if (errorString.contains('network')) {
-          errorMessage =
-              'Koneksi internet bermasalah. Silakan periksa koneksi Anda.';
         }
 
         Fluttertoast.showToast(

@@ -43,15 +43,14 @@ class AuthService {
     bool rememberMe = false,
   }) async {
     try {
-      // Step 1: Firebase Authentication with timeout and retry
+      // Step 1: Firebase Authentication with timeout (no retry for auth errors)
       UserCredential userCredential =
-          await ANRPrevention.executeWithRetry(
-            () => _firebaseService.auth.signInWithEmailAndPassword(
+          await ANRPrevention.executeWithTimeout(
+            _firebaseService.auth.signInWithEmailAndPassword(
               email: email,
               password: password,
             ),
-            maxRetries: 2,
-            delay: const Duration(seconds: 2),
+            timeout: const Duration(seconds: 10),
             operationName: 'Firebase Authentication',
           ) ??
           (throw Exception('Gagal melakukan autentikasi.'));
