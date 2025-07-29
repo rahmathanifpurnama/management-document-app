@@ -9,7 +9,7 @@ class ActivityListHeader extends StatefulWidget {
   final int activityCount;
   final VoidCallback? onRefresh;
   final VoidCallback? onExport;
-  final List<ActivityModel>? activities;
+  final List<BaseActivity>? activities;
   final bool isLoading;
   final bool showExportButton;
   final bool showRefreshButton;

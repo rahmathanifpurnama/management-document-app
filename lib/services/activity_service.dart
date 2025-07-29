@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import '../models/activity_model.dart';
+import '../models/activity_factory.dart';
+import '../models/activity_types.dart';
 
 class ActivityService {
   static final ActivityService _instance = ActivityService._internal();
@@ -140,8 +142,8 @@ class ActivityService {
     }
   }
 
-  /// Get activities with filtering options
-  Future<List<ActivityModel>> getActivities({
+  /// Get activities with filtering options (returns polymorphic activities)
+  Future<List<BaseActivity>> getActivities({
     String filter = 'all',
     String? searchQuery,
     DateTimeRange? dateRange,
@@ -173,7 +175,13 @@ class ActivityService {
           case 'file':
             query = query.where(
               'type',
-              whereIn: ['upload', 'download', 'delete', 'view'],
+              whereIn: [
+                'upload',
+                'download',
+                'delete',
+                'view',
+                'file_uploaded',
+              ],
             );
             break;
           case 'suspicious':
@@ -196,11 +204,12 @@ class ActivityService {
       query = query.limit(limit);
 
       final querySnapshot = await query.get();
-      final activities = <ActivityModel>[];
+      final activities = <BaseActivity>[];
 
       for (final doc in querySnapshot.docs) {
         try {
-          final activity = ActivityModel.fromFirestore(doc);
+          // Use factory to create polymorphic activity instances
+          final activity = ActivityFactory.fromFirestore(doc);
 
           // Apply search filter if provided
           if (searchQuery != null && searchQuery.isNotEmpty) {
@@ -216,6 +225,33 @@ class ActivityService {
           activities.add(activity);
         } catch (e) {
           debugPrint('Error parsing activity document ${doc.id}: $e');
+          // Fallback to basic ActivityModel for problematic documents
+          try {
+            final data = doc.data() as Map<String, dynamic>;
+            final fallbackActivity = ActivityModel(
+              id: doc.id,
+              userId: data['userId'] ?? '',
+              type: data['type'] ?? 'unknown',
+              description: data['description'] ?? 'Unknown activity',
+              timestamp:
+                  (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+              userName: data['userName'],
+              userEmail: data['userEmail'],
+              documentId: data['documentId'],
+              categoryId: data['categoryId'],
+              isSuspicious: data['isSuspicious'] ?? false,
+              ipAddress: data['ipAddress'],
+              userAgent: data['userAgent'],
+              details: data['details'] is Map
+                  ? Map<String, dynamic>.from(data['details'])
+                  : {},
+            );
+            activities.add(fallbackActivity);
+          } catch (fallbackError) {
+            debugPrint(
+              'Failed to create fallback activity for ${doc.id}: $fallbackError',
+            );
+          }
         }
       }
 
@@ -224,6 +260,49 @@ class ActivityService {
       debugPrint('Error getting activities: $e');
       return [];
     }
+  }
+
+  /// Legacy method for backward compatibility
+  Future<List<ActivityModel>> getActivitiesLegacy({
+    String filter = 'all',
+    String? searchQuery,
+    DateTimeRange? dateRange,
+    int limit = 50,
+    DocumentSnapshot? startAfter,
+  }) async {
+    final activities = await getActivities(
+      filter: filter,
+      searchQuery: searchQuery,
+      dateRange: dateRange,
+      limit: limit,
+      startAfter: startAfter,
+    );
+
+    // Convert to legacy ActivityModel for backward compatibility
+    return activities.map((activity) {
+      if (activity is ActivityModel) {
+        return activity;
+      } else {
+        // Convert polymorphic activity to legacy ActivityModel
+        return ActivityModel(
+          id: activity.id,
+          userId: activity.userId,
+          type: activity.type,
+          description: activity.description,
+          timestamp: activity.timestamp,
+          userName: activity.userName,
+          userEmail: activity.userEmail,
+          documentId: activity is FileActivity ? activity.documentId : null,
+          categoryId: activity is FileUploadActivity
+              ? activity.categoryId
+              : null,
+          isSuspicious: activity.isSuspicious,
+          ipAddress: activity.ipAddress,
+          userAgent: activity.userAgent,
+          details: activity.details,
+        );
+      }
+    }).toList();
   }
 
   /// Get filtered activities using Cloud Functions (with fallback)
@@ -345,7 +424,7 @@ class ActivityService {
         startAfter: startAfter,
       );
 
-      // Convert ActivityModel list to Map format for consistency with Cloud Function
+      // Convert BaseActivity list to Map format for consistency with Cloud Function
       final activitiesData = activities
           .map(
             (activity) => {
@@ -356,8 +435,16 @@ class ActivityService {
               'timestamp': activity.timestamp.toIso8601String(),
               'userName': activity.userName,
               'userEmail': activity.userEmail,
-              'documentId': activity.documentId,
-              'categoryId': activity.categoryId,
+              'documentId': activity is FileActivity
+                  ? activity.documentId
+                  : activity is ActivityModel
+                  ? activity.documentId
+                  : null,
+              'categoryId': activity is FileUploadActivity
+                  ? activity.categoryId
+                  : activity is ActivityModel
+                  ? activity.categoryId
+                  : null,
               'isSuspicious': activity.isSuspicious,
               'ipAddress': activity.ipAddress,
               'userAgent': activity.userAgent,

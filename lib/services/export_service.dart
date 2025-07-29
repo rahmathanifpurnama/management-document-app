@@ -5,6 +5,7 @@ import 'package:archive/archive.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/activity_model.dart';
+import '../models/activity_types.dart';
 import '../models/document_model.dart';
 
 class ExportService {
@@ -13,7 +14,7 @@ class ExportService {
   ExportService._internal();
 
   /// Export activities to CSV file
-  Future<void> exportActivitiesToExcel(List<ActivityModel> activities) async {
+  Future<void> exportActivitiesToExcel(List<BaseActivity> activities) async {
     try {
       final csvContent = _createActivitiesCSV(activities);
       final csvBytes = Uint8List.fromList(csvContent.codeUnits);
@@ -187,7 +188,7 @@ class ExportService {
   }
 
   /// Create CSV content for activities
-  String _createActivitiesCSV(List<ActivityModel> activities) {
+  String _createActivitiesCSV(List<BaseActivity> activities) {
     final buffer = StringBuffer();
 
     // CSV headers
@@ -204,8 +205,8 @@ class ExportService {
         _escapeCsvField(activity.userName ?? ''),
         _escapeCsvField(activity.userEmail ?? ''),
         _escapeCsvField(activity.userId),
-        _escapeCsvField(activity.documentId ?? ''),
-        _escapeCsvField(activity.categoryId ?? ''),
+        _escapeCsvField(_getDocumentId(activity)),
+        _escapeCsvField(_getCategoryId(activity)),
         activity.isSuspicious ? 'Yes' : 'No',
         _escapeCsvField(activity.ipAddress ?? ''),
         _escapeCsvField(activity.userAgent ?? ''),
@@ -245,5 +246,25 @@ class ExportService {
       debugPrint('Error exporting storage stats to CSV: $e');
       rethrow;
     }
+  }
+
+  /// Get document ID from polymorphic activity
+  String _getDocumentId(BaseActivity activity) {
+    if (activity is ActivityModel) {
+      return activity.documentId ?? '';
+    } else if (activity is FileActivity) {
+      return activity.documentId ?? '';
+    }
+    return '';
+  }
+
+  /// Get category ID from polymorphic activity
+  String _getCategoryId(BaseActivity activity) {
+    if (activity is ActivityModel) {
+      return activity.categoryId ?? '';
+    } else if (activity is FileUploadActivity) {
+      return activity.categoryId ?? '';
+    }
+    return '';
   }
 }

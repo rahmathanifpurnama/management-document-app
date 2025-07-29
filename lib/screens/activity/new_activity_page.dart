@@ -6,6 +6,8 @@ import '../../core/constants/app_colors.dart';
 import '../../features/auth/providers/auth_providers.dart';
 import '../../services/activity_service.dart';
 import '../../models/activity_model.dart';
+import '../../models/activity_factory.dart';
+import '../../models/activity_types.dart';
 import '../../widgets/activity/quick_access_widget.dart';
 import '../../widgets/activity/storage_chart_widget.dart';
 import '../../widgets/activity/search_filter_widget.dart';
@@ -26,7 +28,7 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
   final ScrollController _scrollController = ScrollController();
 
   // State variables
-  List<ActivityModel> _activities = [];
+  List<BaseActivity> _activities = [];
   bool _isLoading = false;
   bool _isLoadingMore = false;
   bool _hasMoreData = true;
@@ -42,9 +44,7 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
   String? _lastTimestamp;
   static const int _pageSize = 25; // Reduced for better performance
   int _currentPage = 0;
-  List<ActivityModel> _allActivities = []; // Store all loaded activities
   static const int _activitiesPerPage = 25;
-  bool _showPaginationControls = false;
 
   // Debouncing timers
   Timer? _searchDebounceTimer;
@@ -538,7 +538,7 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
   }
 
   /// Build activity list container with consistent styling
-  Widget _buildActivityListContainer(List<ActivityModel> activities) {
+  Widget _buildActivityListContainer(List<BaseActivity> activities) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -586,7 +586,7 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
   }
 
   /// Build individual activity tile with consistent styling
-  Widget _buildActivityTile(ActivityModel activity, bool isLast) {
+  Widget _buildActivityTile(BaseActivity activity, bool isLast) {
     return Container(
       decoration: BoxDecoration(
         border: isLast
@@ -754,7 +754,7 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
     );
   }
 
-  void _showActivityDetails(ActivityModel activity) {
+  void _showActivityDetails(BaseActivity activity) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -777,9 +777,24 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
                 'Time',
                 _formatDetailDateTime(activity.timestamp),
               ),
-              if (activity.documentId != null)
+              // Show type-specific information
+              ...activity.contextInfo.map(
+                (info) => _buildDetailRow('Context', info),
+              ),
+              // Legacy support for ActivityModel
+              if (activity is ActivityModel && activity.documentId != null)
                 _buildDetailRow('Document ID', activity.documentId!),
-              if (activity.categoryId != null)
+              if (activity is ActivityModel && activity.categoryId != null)
+                _buildDetailRow('Category ID', activity.categoryId!),
+              // File activity specific info
+              if (activity is FileActivity && activity.documentId != null)
+                _buildDetailRow('Document ID', activity.documentId!),
+              if (activity is FileActivity && activity.fileName != null)
+                _buildDetailRow('File Name', activity.fileName!),
+              if (activity is FileActivity && activity.fileSize != null)
+                _buildDetailRow('File Size', '${activity.fileSize} bytes'),
+              // Upload activity specific info
+              if (activity is FileUploadActivity && activity.categoryId != null)
                 _buildDetailRow('Category ID', activity.categoryId!),
               if (activity.ipAddress != null)
                 _buildDetailRow('IP Address', activity.ipAddress!),
@@ -1270,44 +1285,7 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
     return DateTimeRange(start: weekStartDay, end: now);
   }
 
-  ActivityModel _createActivityFromData(Map<String, dynamic> data) {
-    return ActivityModel(
-      id: data['id'] ?? '',
-      userId: data['userId'] ?? '',
-      type: data['type'] ?? '',
-      description: data['description'] ?? '',
-      timestamp: DateTime.tryParse(data['timestamp'] ?? '') ?? DateTime.now(),
-      userName: data['userName'],
-      userEmail: data['userEmail'],
-      documentId: data['documentId'],
-      categoryId: data['categoryId'],
-      isSuspicious: data['isSuspicious'] ?? false,
-      ipAddress: data['ipAddress'],
-      userAgent: data['userAgent'],
-      details: _parseDetailsField(data['details']),
-    );
-  }
-
-  /// Helper method to safely parse details field
-  Map<String, dynamic> _parseDetailsField(dynamic details) {
-    if (details == null) {
-      return {};
-    }
-
-    if (details is Map<String, dynamic>) {
-      return details;
-    }
-
-    if (details is Map) {
-      return Map<String, dynamic>.from(details);
-    }
-
-    if (details is String) {
-      // Handle string details by creating a simple map
-      return {'description': details};
-    }
-
-    // For any other type, convert to string and wrap in map
-    return {'value': details.toString()};
+  BaseActivity _createActivityFromData(Map<String, dynamic> data) {
+    return ActivityFactory.fromMap(data['id'] ?? '', data);
   }
 }
