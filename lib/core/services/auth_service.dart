@@ -158,14 +158,16 @@ class AuthService {
       // Use CloudFunctionsService with optimized timeout
       final cloudFunctionsService = CloudFunctionsService.instance;
 
-      // Execute with very short timeout to prevent UI delays
+      // Execute with optimized timeout to balance UX and reliability
       final result = await ANRPrevention.executeWithTimeout(
         cloudFunctionsService.handlePostLoginOperations(
           userId: user.id,
           email: email,
           deviceInfo: await _getDeviceInfo(),
         ),
-        timeout: const Duration(seconds: 2), // Very short timeout
+        timeout: const Duration(
+          seconds: 5,
+        ), // Increased timeout for better reliability
         operationName: 'Cloud Post-Login Operations',
       );
 
@@ -186,12 +188,29 @@ class AuthService {
       final errorString = e.toString().toLowerCase();
       if (errorString.contains('network') || errorString.contains('timeout')) {
         debugPrint('🌐 Network/timeout error - likely poor connectivity');
+        debugPrint(
+          '💡 Suggestion: Check internet connection or increase timeout',
+        );
       } else if (errorString.contains('permission')) {
         debugPrint('🔒 Permission error - check Firestore rules');
+        debugPrint(
+          '💡 Suggestion: Verify Firestore security rules allow post-login operations',
+        );
       } else if (errorString.contains('unauthenticated')) {
         debugPrint(
           '🚫 Authentication error - user may not be fully authenticated yet',
         );
+        debugPrint('💡 Suggestion: Check Firebase Auth token validity');
+      } else if (errorString.contains('app check')) {
+        debugPrint('🔐 App Check error - token validation failed');
+        debugPrint(
+          '💡 Suggestion: Configure App Check or disable in debug mode',
+        );
+      } else if (errorString.contains('functions/deadline-exceeded')) {
+        debugPrint(
+          '⏱️ Cloud Function deadline exceeded - operation took too long',
+        );
+        debugPrint('💡 Suggestion: Optimize cloud function performance');
       }
 
       // Do not rethrow - login success should not depend on these operations

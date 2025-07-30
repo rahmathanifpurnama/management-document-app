@@ -48,7 +48,7 @@ service cloud.firestore {
       // Allow users to update their own profile (limited fields)
       allow update: if isActiveUser()
         && request.auth.uid == userId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fullName', 'profileImageUrl', 'lastLogin', 'updatedAt']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fullName', 'profileImageUrl', 'lastLogin', 'lastActiveAt', 'loginCount', 'lastStatsUpdate', 'updatedAt']);
 
       // Allow admin to create/update/delete user data with structure validation
       allow create: if isAdmin()

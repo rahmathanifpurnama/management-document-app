@@ -35,15 +35,22 @@ export const handlePostLoginOperations = functions.https.onCall(
 
       logger.info(`Processing post-login operations for user: ${userId}`);
 
-      // Execute operations in parallel for better performance
+      // Execute operations in parallel for better performance with timeout
       const operations = [
         updateLastLogin(userId),
         logLoginActivity(userId, deviceInfo),
         updateUserStats(userId),
       ];
 
-      // Execute all operations concurrently
-      await Promise.allSettled(operations);
+      // Execute all operations concurrently with timeout protection
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Operations timeout after 4 seconds')), 4000);
+      });
+
+      await Promise.race([
+        Promise.allSettled(operations),
+        timeoutPromise
+      ]);
 
       logger.info(`Post-login operations completed for user: ${userId}`);
 
