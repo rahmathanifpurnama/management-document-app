@@ -311,17 +311,9 @@ async function runMaintenance() {
     timestamp: new Date().toISOString()
   };
   
-  // Log maintenance activity
-  try {
-    await admin.firestore().collection('activities').add({
-      type: 'system_maintenance',
-      userId: 'system',
-      timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      details: `Maintenance completed. Cleaned up ${results.activitiesCleanedUp} old activities.`
-    });
-  } catch (error) {
-    console.error('Failed to log maintenance activity:', error.message);
-  }
+  // REMOVED: System maintenance activity logging
+  // Maintenance operations are automatic system processes and should not clutter user activity logs
+  // Only user-initiated actions should be tracked in the activities collection
   
   return results;
 }

@@ -146,34 +146,48 @@ class ActivityFactory {
     return fromMap(json['id'] ?? '', json);
   }
 
-  /// Get all supported activity types
+  /// Get all supported user-initiated activity types
+  /// System-generated operations are excluded to keep activity logs clean
   static List<String> getSupportedTypes() {
     return [
+      // Authentication activities (user-initiated)
       'login',
       'logout',
+
+      // File operations (user-initiated)
       'upload',
-      'file_uploaded',
       'download',
       'delete',
       'view',
-      'create',
-      'update',
       'share',
       'copy',
       'move',
       'rename',
+
+      // Document management (user-initiated)
+      'create',
+      'update',
+
+      // User management (admin-initiated)
       'create_user',
       'update_user',
       'delete_user',
+
+      // Category management (user/admin-initiated)
       'category_create',
       'category_update',
       'category_delete',
+
+      // Security and monitoring (user-initiated or admin-initiated)
       'suspicious_activity',
       'security',
-      'sync',
-      'backup',
-      'restore',
     ];
+
+    // REMOVED: System-generated activity types
+    // - 'file_uploaded': Duplicate of upload (system-generated)
+    // - 'sync': Automatic synchronization processes
+    // - 'backup': Automatic backup operations
+    // - 'restore': Automatic restore operations
   }
 
   /// Check if a type is supported for polymorphic creation

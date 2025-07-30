@@ -438,21 +438,9 @@ const generateDocumentReport = functions.https.onCall(async (data, context) => {
             // Sum file sizes
             stats.totalSize += doc.fileSize || 0;
         });
-        // Log activity
-        await admin
-            .firestore()
-            .collection("activities")
-            .add({
-            type: "document_report_generated",
-            userId: ((_b = context.auth) === null || _b === void 0 ? void 0 : _b.uid) || "system",
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: {
-                message: `Document report generated for ${documents.length} documents`,
-                documentCount: documents.length,
-                filters: { startDate, endDate, categoryId },
-                generatedBy: ((_b = context.auth) === null || _b === void 0 ? void 0 : _b.uid) || "system",
-            },
-        });
+        // REMOVED: Document report generation activity logging
+        // Report generation can be automatic or system-triggered and should not clutter user activity logs
+        // Only user-initiated document operations should be tracked
         return {
             success: true,
             report: {

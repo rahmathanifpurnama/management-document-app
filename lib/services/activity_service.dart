@@ -470,7 +470,8 @@ class ActivityService {
     }
   }
 
-  /// Log a new activity
+  /// Log a new activity (only for user-initiated actions)
+  /// System-generated operations should not use this method
   Future<void> logActivity({
     required String type,
     required String description,
@@ -482,6 +483,12 @@ class ActivityService {
     try {
       final user = _auth.currentUser;
       if (user == null) return;
+
+      // Filter out system-generated activity types
+      if (!_isUserInitiatedActivityType(type)) {
+        debugPrint('⚠️ Skipping system-generated activity type: $type');
+        return;
+      }
 
       // Get user information
       String? userName;
@@ -528,6 +535,54 @@ class ActivityService {
     } catch (e) {
       debugPrint('Error logging activity: $e');
     }
+  }
+
+  /// Check if an activity type is user-initiated (not system-generated)
+  bool _isUserInitiatedActivityType(String type) {
+    const userInitiatedTypes = {
+      // Authentication activities (user-initiated)
+      'login',
+      'logout',
+
+      // File operations (user-initiated)
+      'upload',
+      'download',
+      'delete',
+      'view',
+      'share',
+      'copy',
+      'move',
+      'rename',
+
+      // Document management (user-initiated)
+      'create',
+      'update',
+
+      // User management (admin-initiated)
+      'create_user',
+      'update_user',
+      'delete_user',
+
+      // Category management (user/admin-initiated)
+      'category_create',
+      'category_update',
+      'category_delete',
+
+      // Security and monitoring (user-initiated or admin-initiated)
+      'suspicious_activity',
+      'security',
+
+      // Bulk operations (user-initiated)
+      'bulk_download',
+      'bulk_upload',
+      'bulk_delete',
+
+      // Account management (admin-initiated)
+      'account_lock',
+      'account_unlock',
+    };
+
+    return userInitiatedTypes.contains(type.toLowerCase());
   }
 
   /// Lock a user account

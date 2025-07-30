@@ -2,32 +2,46 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 
-/// Activity types for system logging
+/// Activity types for user-initiated actions only
+/// System-generated operations are excluded to keep activity logs clean and meaningful
 enum ActivityType {
+  // Authentication activities (user-initiated)
   login('login'),
   logout('logout'),
+
+  // File operations (user-initiated)
   upload('upload'),
   download('download'),
   delete('delete'),
-  update('update'),
-  create('create'),
-  createUser('create_user'),
-  updateUser('update_user'),
-  deleteUser('delete_user'),
   view('view'),
   share('share'),
   copy('copy'),
   move('move'),
   rename('rename'),
+
+  // Document management (user-initiated)
+  update('update'),
+  create('create'),
+
+  // User management (admin-initiated)
+  createUser('create_user'),
+  updateUser('update_user'),
+  deleteUser('delete_user'),
+
+  // Category management (user/admin-initiated)
   categoryCreate('category_create'),
   categoryUpdate('category_update'),
   categoryDelete('category_delete'),
-  fileUploaded('file_uploaded'),
+
+  // Security and monitoring (user-initiated or admin-initiated)
   suspiciousActivity('suspicious_activity'),
-  security('security'),
-  sync('sync'),
-  backup('backup'),
-  restore('restore');
+  security('security');
+
+  // REMOVED: System-generated activity types
+  // - sync: Automatic synchronization processes
+  // - backup: Automatic backup operations
+  // - restore: Automatic restore operations
+  // - fileUploaded: Duplicate of upload (system-generated)
 
   const ActivityType(this.value);
   final String value;
@@ -40,7 +54,6 @@ enum ActivityType {
       case ActivityType.logout:
         return '🚪';
       case ActivityType.upload:
-      case ActivityType.fileUploaded:
         return '📤';
       case ActivityType.download:
         return '📥';
@@ -76,12 +89,6 @@ enum ActivityType {
         return '⚠️';
       case ActivityType.security:
         return '🔒';
-      case ActivityType.sync:
-        return '🔄';
-      case ActivityType.backup:
-        return '💾';
-      case ActivityType.restore:
-        return '♻️';
     }
   }
 
@@ -93,7 +100,6 @@ enum ActivityType {
       case ActivityType.logout:
         return 'User Logout';
       case ActivityType.upload:
-      case ActivityType.fileUploaded:
         return 'File Upload';
       case ActivityType.download:
         return 'File Download';
@@ -129,12 +135,6 @@ enum ActivityType {
         return 'Suspicious Activity';
       case ActivityType.security:
         return 'Security Event';
-      case ActivityType.sync:
-        return 'Sync Operation';
-      case ActivityType.backup:
-        return 'Backup Operation';
-      case ActivityType.restore:
-        return 'Restore Operation';
     }
   }
 
@@ -146,7 +146,6 @@ enum ActivityType {
       case ActivityType.logout:
         return Icons.logout;
       case ActivityType.upload:
-      case ActivityType.fileUploaded:
         return Icons.cloud_upload;
       case ActivityType.download:
         return Icons.get_app;
@@ -182,12 +181,6 @@ enum ActivityType {
         return Icons.warning;
       case ActivityType.security:
         return Icons.security;
-      case ActivityType.sync:
-        return Icons.sync;
-      case ActivityType.backup:
-        return Icons.backup;
-      case ActivityType.restore:
-        return Icons.restore;
     }
   }
 
@@ -199,7 +192,6 @@ enum ActivityType {
       case ActivityType.logout:
         return AppColors.primary;
       case ActivityType.upload:
-      case ActivityType.fileUploaded:
         return AppColors.success;
       case ActivityType.download:
         return AppColors.info;
@@ -220,11 +212,8 @@ enum ActivityType {
       case ActivityType.move:
         return AppColors.warning;
       case ActivityType.share:
-      case ActivityType.sync:
         return AppColors.primary;
       case ActivityType.copy:
-      case ActivityType.backup:
-      case ActivityType.restore:
         return AppColors.info;
       case ActivityType.suspiciousActivity:
       case ActivityType.security:
@@ -302,7 +291,7 @@ abstract class BaseActivity {
 
   @override
   String toString() {
-    return '${runtimeType}(id: $id, userId: $userId, type: $type, description: $description, timestamp: $timestamp)';
+    return '$runtimeType(id: $id, userId: $userId, type: $type, description: $description, timestamp: $timestamp)';
   }
 
   @override

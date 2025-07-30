@@ -3,7 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class StorageHistoryService {
-  static final StorageHistoryService _instance = StorageHistoryService._internal();
+  static final StorageHistoryService _instance =
+      StorageHistoryService._internal();
   factory StorageHistoryService() => _instance;
   StorageHistoryService._internal();
 
@@ -14,7 +15,7 @@ class StorageHistoryService {
     try {
       final now = DateTime.now();
       DateTime startDate;
-      
+
       switch (period) {
         case 'day':
           startDate = now.subtract(const Duration(days: 1));
@@ -31,35 +32,41 @@ class StorageHistoryService {
         default:
           startDate = now.subtract(const Duration(days: 7));
       }
-      
+
       final query = await _firestore
           .collection('storage_history')
-          .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where(
+            'timestamp',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+          )
           .orderBy('timestamp')
           .get();
-      
+
       final spots = <FlSpot>[];
-      
+
       if (query.docs.isEmpty) {
         // Generate sample data if no history exists
         return _generateSampleData(period, startDate, now);
       }
-      
+
       for (final doc in query.docs) {
         final data = doc.data();
         final timestamp = (data['timestamp'] as Timestamp).toDate();
         final totalBytes = (data['totalBytes'] as num?)?.toDouble() ?? 0;
-        
-        spots.add(FlSpot(
-          timestamp.millisecondsSinceEpoch.toDouble(),
-          totalBytes,
-        ));
+
+        spots.add(
+          FlSpot(timestamp.millisecondsSinceEpoch.toDouble(), totalBytes),
+        );
       }
-      
+
       return spots;
     } catch (e) {
       debugPrint('Error getting storage history: $e');
-      return _generateSampleData(period, DateTime.now().subtract(const Duration(days: 7)), DateTime.now());
+      return _generateSampleData(
+        period,
+        DateTime.now().subtract(const Duration(days: 7)),
+        DateTime.now(),
+      );
     }
   }
 
@@ -68,11 +75,11 @@ class StorageHistoryService {
     try {
       // Get total storage from all documents
       final documentsQuery = await _firestore.collection('documents').get();
-      
+
       int totalBytes = 0;
       int fileCount = 0;
       final fileSizes = <int>[];
-      
+
       for (final doc in documentsQuery.docs) {
         final data = doc.data();
         final fileSize = (data['fileSize'] as num?)?.toInt() ?? 0;
@@ -80,13 +87,13 @@ class StorageHistoryService {
         fileCount++;
         fileSizes.add(fileSize);
       }
-      
+
       final averageFileSize = fileCount > 0 ? totalBytes / fileCount : 0;
-      
+
       // Get user count
       final usersQuery = await _firestore.collection('users').get();
       final userCount = usersQuery.docs.length;
-      
+
       return {
         'totalBytes': totalBytes,
         'fileCount': fileCount,
@@ -107,10 +114,12 @@ class StorageHistoryService {
   }
 
   /// Record storage snapshot (would be called by scheduled function)
+  /// NOTE: This is a system operation and should NOT log to activities collection
   Future<void> recordStorageSnapshot() async {
     try {
       final stats = await getCurrentStorageStats();
-      
+
+      // Store in storage_history collection (separate from activities)
       await _firestore.collection('storage_history').add({
         'timestamp': FieldValue.serverTimestamp(),
         'totalBytes': stats['totalBytes'],
@@ -118,7 +127,7 @@ class StorageHistoryService {
         'userCount': stats['userCount'],
         'averageFileSize': stats['averageFileSize'],
       });
-      
+
       debugPrint('Storage snapshot recorded successfully');
     } catch (e) {
       debugPrint('Error recording storage snapshot: $e');
@@ -135,21 +144,21 @@ class StorageHistoryService {
           .collection('storage_history')
           .orderBy('timestamp', descending: true)
           .limit(limit);
-      
+
       if (startAfter != null) {
         query = query.startAfterDocument(startAfter);
       }
-      
+
       final querySnapshot = await query.get();
       final history = <Map<String, dynamic>>[];
-      
+
       for (final doc in querySnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
         data['id'] = doc.id;
         data['documentSnapshot'] = doc;
         history.add(data);
       }
-      
+
       return history;
     } catch (e) {
       debugPrint('Error getting detailed storage history: $e');
@@ -161,39 +170,42 @@ class StorageHistoryService {
   Future<Map<String, dynamic>> getStorageBreakdownByType() async {
     try {
       final documentsQuery = await _firestore.collection('documents').get();
-      
+
       final typeBreakdown = <String, Map<String, dynamic>>{};
-      
+
       for (final doc in documentsQuery.docs) {
         final data = doc.data();
         final fileType = data['fileType'] as String? ?? 'Unknown';
         final fileSize = (data['fileSize'] as num?)?.toInt() ?? 0;
-        
+
         if (typeBreakdown.containsKey(fileType)) {
           typeBreakdown[fileType]!['count'] += 1;
           typeBreakdown[fileType]!['totalSize'] += fileSize;
         } else {
-          typeBreakdown[fileType] = {
-            'count': 1,
-            'totalSize': fileSize,
-          };
+          typeBreakdown[fileType] = {'count': 1, 'totalSize': fileSize};
         }
       }
-      
+
       // Calculate percentages
-      final totalSize = typeBreakdown.values
-          .fold<int>(0, (sum, item) => sum + (item['totalSize'] as int));
-      
+      final totalSize = typeBreakdown.values.fold<int>(
+        0,
+        (sum, item) => sum + (item['totalSize'] as int),
+      );
+
       for (final entry in typeBreakdown.entries) {
         final size = entry.value['totalSize'] as int;
-        entry.value['percentage'] = totalSize > 0 ? (size / totalSize) * 100 : 0;
+        entry.value['percentage'] = totalSize > 0
+            ? (size / totalSize) * 100
+            : 0;
       }
-      
+
       return {
         'breakdown': typeBreakdown,
         'totalSize': totalSize,
-        'totalFiles': typeBreakdown.values
-            .fold<int>(0, (sum, item) => sum + (item['count'] as int)),
+        'totalFiles': typeBreakdown.values.fold<int>(
+          0,
+          (sum, item) => sum + (item['count'] as int),
+        ),
       };
     } catch (e) {
       debugPrint('Error getting storage breakdown by type: $e');
@@ -209,39 +221,42 @@ class StorageHistoryService {
   Future<Map<String, dynamic>> getStorageBreakdownByCategory() async {
     try {
       final documentsQuery = await _firestore.collection('documents').get();
-      
+
       final categoryBreakdown = <String, Map<String, dynamic>>{};
-      
+
       for (final doc in documentsQuery.docs) {
         final data = doc.data();
         final categoryName = data['categoryName'] as String? ?? 'Uncategorized';
         final fileSize = (data['fileSize'] as num?)?.toInt() ?? 0;
-        
+
         if (categoryBreakdown.containsKey(categoryName)) {
           categoryBreakdown[categoryName]!['count'] += 1;
           categoryBreakdown[categoryName]!['totalSize'] += fileSize;
         } else {
-          categoryBreakdown[categoryName] = {
-            'count': 1,
-            'totalSize': fileSize,
-          };
+          categoryBreakdown[categoryName] = {'count': 1, 'totalSize': fileSize};
         }
       }
-      
+
       // Calculate percentages
-      final totalSize = categoryBreakdown.values
-          .fold<int>(0, (sum, item) => sum + (item['totalSize'] as int));
-      
+      final totalSize = categoryBreakdown.values.fold<int>(
+        0,
+        (sum, item) => sum + (item['totalSize'] as int),
+      );
+
       for (final entry in categoryBreakdown.entries) {
         final size = entry.value['totalSize'] as int;
-        entry.value['percentage'] = totalSize > 0 ? (size / totalSize) * 100 : 0;
+        entry.value['percentage'] = totalSize > 0
+            ? (size / totalSize) * 100
+            : 0;
       }
-      
+
       return {
         'breakdown': categoryBreakdown,
         'totalSize': totalSize,
-        'totalFiles': categoryBreakdown.values
-            .fold<int>(0, (sum, item) => sum + (item['count'] as int)),
+        'totalFiles': categoryBreakdown.values.fold<int>(
+          0,
+          (sum, item) => sum + (item['count'] as int),
+        ),
       };
     } catch (e) {
       debugPrint('Error getting storage breakdown by category: $e');
@@ -259,40 +274,52 @@ class StorageHistoryService {
       final now = DateTime.now();
       final lastMonth = now.subtract(const Duration(days: 30));
       final twoMonthsAgo = now.subtract(const Duration(days: 60));
-      
+
       // Get current month data
       final currentMonthQuery = await _firestore
           .collection('storage_history')
-          .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(lastMonth))
+          .where(
+            'timestamp',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(lastMonth),
+          )
           .orderBy('timestamp', descending: true)
           .limit(1)
           .get();
-      
+
       // Get previous month data
       final previousMonthQuery = await _firestore
           .collection('storage_history')
-          .where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(twoMonthsAgo))
+          .where(
+            'timestamp',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(twoMonthsAgo),
+          )
           .where('timestamp', isLessThan: Timestamp.fromDate(lastMonth))
           .orderBy('timestamp', descending: true)
           .limit(1)
           .get();
-      
+
       double currentSize = 0;
       double previousSize = 0;
-      
+
       if (currentMonthQuery.docs.isNotEmpty) {
-        currentSize = (currentMonthQuery.docs.first.data()['totalBytes'] as num?)?.toDouble() ?? 0;
+        currentSize =
+            (currentMonthQuery.docs.first.data()['totalBytes'] as num?)
+                ?.toDouble() ??
+            0;
       }
-      
+
       if (previousMonthQuery.docs.isNotEmpty) {
-        previousSize = (previousMonthQuery.docs.first.data()['totalBytes'] as num?)?.toDouble() ?? 0;
+        previousSize =
+            (previousMonthQuery.docs.first.data()['totalBytes'] as num?)
+                ?.toDouble() ??
+            0;
       }
-      
+
       double growthRate = 0;
       if (previousSize > 0) {
         growthRate = ((currentSize - previousSize) / previousSize) * 100;
       }
-      
+
       return {
         'currentSize': currentSize,
         'previousSize': previousSize,
@@ -314,30 +341,36 @@ class StorageHistoryService {
   Future<void> cleanupOldHistory({int daysToKeep = 365}) async {
     try {
       final cutoffDate = DateTime.now().subtract(Duration(days: daysToKeep));
-      
+
       final oldRecords = await _firestore
           .collection('storage_history')
           .where('timestamp', isLessThan: Timestamp.fromDate(cutoffDate))
           .get();
-      
+
       final batch = _firestore.batch();
       for (final doc in oldRecords.docs) {
         batch.delete(doc.reference);
       }
-      
+
       await batch.commit();
-      
-      debugPrint('Cleaned up ${oldRecords.docs.length} old storage history records');
+
+      debugPrint(
+        'Cleaned up ${oldRecords.docs.length} old storage history records',
+      );
     } catch (e) {
       debugPrint('Error cleaning up old storage history: $e');
     }
   }
 
   /// Generate sample data for demonstration
-  List<FlSpot> _generateSampleData(String period, DateTime startDate, DateTime endDate) {
+  List<FlSpot> _generateSampleData(
+    String period,
+    DateTime startDate,
+    DateTime endDate,
+  ) {
     final spots = <FlSpot>[];
     final duration = endDate.difference(startDate);
-    
+
     int dataPoints;
     switch (period) {
       case 'day':
@@ -355,21 +388,25 @@ class StorageHistoryService {
       default:
         dataPoints = 7;
     }
-    
+
     final interval = duration.inMilliseconds / dataPoints;
     double baseSize = 1024 * 1024 * 100; // 100 MB base
-    
+
     for (int i = 0; i <= dataPoints; i++) {
-      final timestamp = startDate.add(Duration(milliseconds: (interval * i).round()));
+      final timestamp = startDate.add(
+        Duration(milliseconds: (interval * i).round()),
+      );
       final growth = i * (1024 * 1024 * 5); // 5 MB growth per point
       final randomVariation = (i % 3) * (1024 * 1024 * 2); // Some variation
-      
-      spots.add(FlSpot(
-        timestamp.millisecondsSinceEpoch.toDouble(),
-        baseSize + growth + randomVariation,
-      ));
+
+      spots.add(
+        FlSpot(
+          timestamp.millisecondsSinceEpoch.toDouble(),
+          baseSize + growth + randomVariation,
+        ),
+      );
     }
-    
+
     return spots;
   }
 }

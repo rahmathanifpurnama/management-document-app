@@ -361,23 +361,9 @@ function extractCategoryFromPath(filePath) {
     }
     return "uncategorized";
 }
-// Log sync activity for monitoring
-async function logSyncActivity(type, details) {
-    try {
-        await admin
-            .firestore()
-            .collection(ACTIVITIES_COLLECTION)
-            .add({
-            type: type,
-            details: details,
-            timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            source: "real_time_sync",
-        });
-    }
-    catch (error) {
-        console.error("❌ Error logging sync activity:", error);
-    }
-}
+// REMOVED: System-generated sync activity logging
+// Sync operations are automatic system processes and should not clutter user activity logs
+// Only user-initiated actions should be tracked in the activities collection
 // Invalidate statistics cache to trigger real-time updates
 async function invalidateStatisticsCache() {
     try {
