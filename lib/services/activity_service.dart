@@ -534,6 +534,8 @@ class ActivityService {
         );
       }
 
+      // ✅ FIXED: Use Timestamp.now() instead of FieldValue.serverTimestamp()
+      // This ensures timestamp field exists when Firestore rules validate hasAll(['type', 'userId', 'timestamp'])
       final activityData = {
         'type': type,
         'description': description,
@@ -542,7 +544,8 @@ class ActivityService {
         'userEmail': user.email,
         'userRole':
             userRole ?? 'user', // Include user role for better identification
-        'timestamp': FieldValue.serverTimestamp(),
+        'timestamp':
+            Timestamp.now(), // ✅ FIXED: Changed from FieldValue.serverTimestamp()
         'isSuspicious': isSuspicious,
         'ipAddress': null, // Would need additional setup to capture IP
         'userAgent': null, // Would need additional setup to capture user agent

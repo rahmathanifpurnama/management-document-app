@@ -313,17 +313,19 @@ class StorageFirestoreSyncService {
     final docRef = _firebaseService.documentsCollection.doc(documentId);
     batch.set(docRef, documentData);
 
-    // Add activity log to batch
+    // ✅ FIXED: Add activity log to batch with proper timestamp
     final activityRef = _firebaseService.firestore
         .collection('activities')
         .doc();
     batch.set(activityRef, {
       'type': 'file_synced',
+      'description':
+          'File ${file.name} synced from Storage to Firestore', // ✅ FIXED: Added description field
       'documentId': documentId,
       'userId': adminUserId,
-      'timestamp': FieldValue.serverTimestamp(),
-      'details': 'File ${file.name} synced from Storage to Firestore',
-      'syncSource': 'storage_sync_service',
+      'timestamp':
+          Timestamp.now(), // ✅ FIXED: Changed from FieldValue.serverTimestamp()
+      'details': {'syncSource': 'storage_sync_service', 'fileName': file.name},
     });
 
     // Commit both operations atomically

@@ -629,27 +629,32 @@ class DocumentService {
     }
   }
 
-  // Log activity
+  // ✅ FIXED: Log activity with proper timestamp format
   Future<void> _logActivity(
     String userId,
     ActivityType action,
     String resource,
   ) async {
     try {
-      ActivityModel activity = ActivityModel(
-        id: '',
-        userId: userId,
-        type: action.value,
-        description: resource,
-        timestamp: DateTime.now(),
-        details: {'userAgent': 'Flutter App', 'platform': 'Mobile'},
-      );
+      // ✅ FIXED: Use direct Firestore data instead of ActivityModel.toMap()
+      // This ensures timestamp field exists when Firestore rules validate
+      final activityData = {
+        'type': action.value,
+        'description': resource,
+        'userId': userId,
+        'timestamp':
+            Timestamp.now(), // ✅ FIXED: Direct timestamp instead of DateTime conversion
+        'details': {'userAgent': 'Flutter App', 'platform': 'Mobile'},
+      };
 
-      await _firebaseService.activitiesCollection.add(activity.toMap());
+      await _firebaseService.activitiesCollection.add(activityData);
+      debugPrint(
+        '✅ DocumentService: Activity logged successfully - ${action.value}',
+      );
     } catch (e) {
       // Don't throw error for activity logging
       // Failed to log activity, but continue execution
-      debugPrint('Failed to log activity: $e');
+      debugPrint('❌ DocumentService: Failed to log activity: $e');
     }
   }
 
