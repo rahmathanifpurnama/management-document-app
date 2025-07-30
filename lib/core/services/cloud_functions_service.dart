@@ -571,7 +571,8 @@ class CloudFunctionsService {
   // Authentication Functions (ANR Prevention)
 
   /// Handle post-login operations using Cloud Functions
-  Future<Map<String, dynamic>> handlePostLoginOperations({
+  /// Optimized for non-blocking execution with proper error handling
+  Future<Map<String, dynamic>?> handlePostLoginOperations({
     required String userId,
     required String email,
     Map<String, dynamic>? deviceInfo,
@@ -587,10 +588,36 @@ class CloudFunctionsService {
       });
 
       debugPrint('✅ Post-login operations completed successfully');
+      debugPrint(
+        '📊 Activity logged, login count updated, last login timestamp set',
+      );
       return Map<String, dynamic>.from(result.data);
     } catch (e) {
-      debugPrint('❌ Error in post-login operations: $e');
-      rethrow;
+      // Enhanced error logging for debugging without affecting user experience
+      debugPrint('⚠️ Post-login operations failed: $e');
+
+      // Log specific error types for better debugging
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('functions/unauthenticated')) {
+        debugPrint('🚫 Authentication error - user token may be invalid');
+      } else if (errorString.contains('functions/permission-denied')) {
+        debugPrint('🔒 Permission denied - check Firestore security rules');
+      } else if (errorString.contains('functions/deadline-exceeded') ||
+          errorString.contains('timeout')) {
+        debugPrint('⏱️ Timeout error - cloud function took too long');
+      } else if (errorString.contains('functions/unavailable') ||
+          errorString.contains('network')) {
+        debugPrint('🌐 Network/availability error - poor connectivity');
+      } else if (errorString.contains('functions/internal')) {
+        debugPrint('⚙️ Internal server error - check cloud function logs');
+      } else {
+        debugPrint(
+          '❓ Unknown error type - check cloud function implementation',
+        );
+      }
+
+      // Return null instead of rethrowing to indicate failure without breaking login flow
+      return null;
     }
   }
 

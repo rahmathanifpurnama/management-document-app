@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/firebase_service.dart';
+import '../services/cloud_functions_service.dart';
 import '../utils/anr_prevention.dart';
 import '../config/anr_config.dart';
 import '../../models/user_model.dart';
@@ -116,31 +117,105 @@ class AuthService {
     ANRPrevention.executeInBackground(
       () async {
         try {
-          // Execute operations that were previously "critical"
-          final futures = <Future<void>>[];
-          futures.add(_saveLoginSessionSafe(user.id));
-          futures.add(_saveRememberMePreferenceSafe(email, rememberMe));
+          // Execute local operations that were previously "critical"
+          final localFutures = <Future<void>>[];
+          localFutures.add(_saveLoginSessionSafe(user.id));
+          localFutures.add(_saveRememberMePreferenceSafe(email, rememberMe));
 
-          // Execute with timeout but don't block login
+          // Execute local operations with timeout but don't block login
           await ANRPrevention.executeWithTimeout(
-            Future.wait(futures, eagerError: false),
+            Future.wait(localFutures, eagerError: false),
             timeout: ANRConfig.defaultTimeout,
-            operationName: 'Post-Login Operations',
+            operationName: 'Local Post-Login Operations',
           );
 
-          debugPrint('✅ Post-login operations completed in background');
+          debugPrint('✅ Local post-login operations completed in background');
+
+          // Execute cloud function post-login operations with optimized timeout
+          await _executeCloudPostLoginOperations(user, email);
         } catch (e) {
           debugPrint('⚠️ Post-login operations failed: $e');
           // Don't throw - these are now non-critical for login success
         }
       },
-      timeout: ANRConfig.defaultTimeout,
+      timeout: const Duration(
+        seconds: 3,
+      ), // Short timeout for background operations
       operationName: 'Background Post-Login Operations',
     );
+  }
 
-    // REMOVED: Cloud Function Post-Login operations to eliminate 8-second timeout
-    // These operations (updateLastLogin, loginCount) are non-critical for login success
-    // and were causing UI delays and permission errors during initial login
+  // Execute cloud function post-login operations with optimized error handling
+  Future<void> _executeCloudPostLoginOperations(
+    UserModel user,
+    String email,
+  ) async {
+    try {
+      debugPrint(
+        '🔄 Starting cloud post-login operations for user: ${user.id}',
+      );
+
+      // Use CloudFunctionsService with optimized timeout
+      final cloudFunctionsService = CloudFunctionsService.instance;
+
+      // Execute with very short timeout to prevent UI delays
+      final result = await ANRPrevention.executeWithTimeout(
+        cloudFunctionsService.handlePostLoginOperations(
+          userId: user.id,
+          email: email,
+          deviceInfo: await _getDeviceInfo(),
+        ),
+        timeout: const Duration(seconds: 2), // Very short timeout
+        operationName: 'Cloud Post-Login Operations',
+      );
+
+      if (result != null) {
+        debugPrint('✅ Cloud post-login operations completed successfully');
+        debugPrint('📊 Activity logging, login count, and last login updated');
+      } else {
+        debugPrint(
+          '⚠️ Cloud post-login operations timed out - continuing normally',
+        );
+      }
+    } catch (e) {
+      // Only log errors to console - do not show to user or implement fallbacks
+      debugPrint('⚠️ Cloud post-login operations failed: $e');
+      debugPrint('📝 This is non-critical - login was successful');
+
+      // Log specific error types for debugging
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('network') || errorString.contains('timeout')) {
+        debugPrint('🌐 Network/timeout error - likely poor connectivity');
+      } else if (errorString.contains('permission')) {
+        debugPrint('🔒 Permission error - check Firestore rules');
+      } else if (errorString.contains('unauthenticated')) {
+        debugPrint(
+          '🚫 Authentication error - user may not be fully authenticated yet',
+        );
+      }
+
+      // Do not rethrow - login success should not depend on these operations
+    }
+  }
+
+  // Get device information for activity logging
+  Future<Map<String, dynamic>> _getDeviceInfo() async {
+    try {
+      // Basic device info - can be expanded later
+      return {
+        'platform': 'Flutter',
+        'userAgent': 'SIMDOC Mobile App',
+        'source': 'mobile-app',
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+    } catch (e) {
+      debugPrint('⚠️ Failed to get device info: $e');
+      return {
+        'platform': 'Unknown',
+        'userAgent': 'Unknown',
+        'source': 'mobile-app',
+      };
+    }
   }
 
   // Start real-time listeners after authentication (non-blocking)

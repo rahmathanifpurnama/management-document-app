@@ -99,10 +99,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           .timeout(const Duration(seconds: 15));
 
       if (user != null) {
-        // Note: Login activity logging is now handled by Cloud Functions
-        // in handlePostLoginOperations to prevent duplicate entries
+        // Note: Login activity logging is handled by Cloud Functions in background
+        // Post-login operations (activity logging, login count, last login) run asynchronously
         debugPrint('✅ AuthBloc: Login successful for: ${event.email}');
-        debugPrint('📝 AuthBloc: Activity logging handled by Cloud Functions');
+        debugPrint('📝 AuthBloc: Post-login operations running in background');
 
         emit(
           AuthState.authenticated(
