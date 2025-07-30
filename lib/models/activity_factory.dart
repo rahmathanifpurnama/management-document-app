@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'activity_model.dart';
 import 'activity_types.dart';
 
@@ -7,8 +8,6 @@ class ActivityFactory {
   /// Create activity instance from Firestore document
   static BaseActivity fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    final type = data['type'] ?? data['action'] ?? '';
-    
     return fromMap(doc.id, data);
   }
 
@@ -17,26 +16,13 @@ class ActivityFactory {
     final type = data['type'] ?? data['action'] ?? '';
     final userId = data['userId'] ?? '';
     final description = data['description'] ?? data['resource'] ?? '';
-    final timestamp = (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now();
+    final timestamp = _parseTimestamp(data['timestamp']);
     final userName = data['userName'];
     final userEmail = data['userEmail'];
     final isSuspicious = data['isSuspicious'] ?? false;
     final ipAddress = data['ipAddress'];
     final userAgent = data['userAgent'];
     final details = _parseDetails(data['details']);
-
-    // Common parameters for all activities
-    final commonParams = {
-      'id': id,
-      'userId': userId,
-      'timestamp': timestamp,
-      'userName': userName,
-      'userEmail': userEmail,
-      'isSuspicious': isSuspicious,
-      'ipAddress': ipAddress,
-      'userAgent': userAgent,
-      'details': details,
-    };
 
     // Create specific activity type based on type string
     switch (type.toLowerCase()) {
@@ -154,11 +140,9 @@ class ActivityFactory {
   static BaseActivity fromJson(Map<String, dynamic> json) {
     // Convert timestamp string to DateTime if needed
     if (json['timestamp'] is String) {
-      json['timestamp'] = Timestamp.fromDate(
-        DateTime.parse(json['timestamp']),
-      );
+      json['timestamp'] = Timestamp.fromDate(DateTime.parse(json['timestamp']));
     }
-    
+
     return fromMap(json['id'] ?? '', json);
   }
 
@@ -194,8 +178,13 @@ class ActivityFactory {
 
   /// Check if a type is supported for polymorphic creation
   static bool isPolymorphicType(String type) {
-    return ['login', 'logout', 'upload', 'file_uploaded', 'download']
-        .contains(type.toLowerCase());
+    return [
+      'login',
+      'logout',
+      'upload',
+      'file_uploaded',
+      'download',
+    ].contains(type.toLowerCase());
   }
 
   /// Create a basic activity for unsupported types
@@ -230,13 +219,77 @@ class ActivityFactory {
       details: details,
     );
   }
+
+  /// Parse timestamp from various formats (Firestore Timestamp, String ISO 8601, etc.)
+  static DateTime _parseTimestamp(dynamic timestampData) {
+    if (timestampData == null) {
+      return DateTime.now();
+    }
+
+    // Handle Firestore Timestamp
+    if (timestampData is Timestamp) {
+      return timestampData.toDate();
+    }
+
+    // Handle String (ISO 8601 format from Cloud Functions)
+    if (timestampData is String) {
+      try {
+        return DateTime.parse(timestampData);
+      } catch (e) {
+        // Try parsing with different formats
+        try {
+          // Handle format like "2024-01-15T10:30:00.000Z"
+          return DateTime.parse(timestampData.replaceAll('Z', ''));
+        } catch (e2) {
+          // Handle Unix timestamp as string
+          try {
+            final unixTimestamp = int.parse(timestampData);
+            return DateTime.fromMillisecondsSinceEpoch(unixTimestamp);
+          } catch (e3) {
+            debugPrint(
+              'Error parsing timestamp string: $timestampData, error: $e3',
+            );
+            return DateTime.now();
+          }
+        }
+      }
+    }
+
+    // Handle int (Unix timestamp)
+    if (timestampData is int) {
+      return DateTime.fromMillisecondsSinceEpoch(timestampData);
+    }
+
+    // Handle Map (Firestore Timestamp as Map)
+    if (timestampData is Map) {
+      try {
+        final seconds = timestampData['_seconds'] ?? timestampData['seconds'];
+        final nanoseconds =
+            timestampData['_nanoseconds'] ?? timestampData['nanoseconds'] ?? 0;
+        if (seconds != null) {
+          return DateTime.fromMillisecondsSinceEpoch(
+            (seconds * 1000) + (nanoseconds / 1000000).round(),
+          );
+        }
+      } catch (e) {
+        debugPrint('Error parsing timestamp map: $timestampData, error: $e');
+      }
+    }
+
+    debugPrint(
+      'Unknown timestamp format: $timestampData (${timestampData.runtimeType})',
+    );
+    return DateTime.now();
+  }
 }
 
 /// Extension methods for activity collections
 extension ActivityListExtensions on List<BaseActivity> {
   /// Filter activities by type
   List<BaseActivity> filterByType(String type) {
-    return where((activity) => activity.type.toLowerCase() == type.toLowerCase()).toList();
+    return where(
+      (activity) => activity.type.toLowerCase() == type.toLowerCase(),
+    ).toList();
   }
 
   /// Filter activities by user
@@ -251,8 +304,9 @@ extension ActivityListExtensions on List<BaseActivity> {
 
   /// Get activities within date range
   List<BaseActivity> filterByDateRange(DateTime start, DateTime end) {
-    return where((activity) => 
-      activity.timestamp.isAfter(start) && activity.timestamp.isBefore(end)
+    return where(
+      (activity) =>
+          activity.timestamp.isAfter(start) && activity.timestamp.isBefore(end),
     ).toList();
   }
 
