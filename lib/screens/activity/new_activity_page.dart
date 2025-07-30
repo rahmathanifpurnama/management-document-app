@@ -4,14 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:async';
 import '../../core/constants/app_colors.dart';
 import '../../features/auth/providers/auth_providers.dart';
-import '../../services/activity_service.dart';
+import '../../services/activity_data_manager.dart';
 import '../../models/activity_model.dart';
-import '../../models/activity_factory.dart';
-import '../../models/activity_types.dart';
 import '../../widgets/activity/quick_access_widget.dart';
 import '../../widgets/activity/storage_chart_widget.dart';
 import '../../widgets/activity/search_filter_widget.dart';
 import '../../widgets/activity/activity_list_header.dart';
+import '../../widgets/activity/activity_tile_factory.dart';
+import '../../widgets/activity/activity_details_dialog.dart';
 import '../../widgets/common/app_container.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../widgets/common/empty_state_widget.dart';
@@ -24,25 +24,11 @@ class NewActivityPage extends ConsumerStatefulWidget {
 }
 
 class _NewActivityPageState extends ConsumerState<NewActivityPage> {
-  final ActivityService _activityService = ActivityService();
+  late final ActivityDataManager _dataManager;
   final ScrollController _scrollController = ScrollController();
 
-  // State variables
-  List<BaseActivity> _activities = [];
-  bool _isLoading = false;
-  bool _isLoadingMore = false;
-  bool _hasMoreData = true;
-  String? _error;
-
-  // Filter state
-  String _selectedFilter = 'all';
-  String _searchQuery = '';
-  DateTimeRange? _dateRange;
+  // UI state
   bool _isFilterExpanded = false;
-
-  // Enhanced pagination system
-  String? _lastTimestamp;
-  static const int _pageSize = 25; // Reduced for better performance
   int _currentPage = 0;
   static const int _activitiesPerPage = 25;
 
@@ -53,6 +39,10 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
   @override
   void initState() {
     super.initState();
+    _dataManager = ActivityDataManager(pageSize: 25);
+    _dataManager.setStateChangeCallback(() {
+      if (mounted) setState(() {});
+    });
     _scrollController.addListener(_onScroll);
     _loadInitialData();
   }
@@ -62,182 +52,46 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
     _scrollController.dispose();
     _searchDebounceTimer?.cancel();
     _filterDebounceTimer?.cancel();
+    _dataManager.dispose();
     super.dispose();
   }
 
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
-      _loadMoreActivities();
+      _dataManager.loadMore();
     }
   }
 
   Future<void> _loadInitialData() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
     try {
-      // Load initial activities - statistics are handled by QuickAccessWidget
-      await _loadActivities(reset: true);
+      await _dataManager.initialize();
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-      });
       debugPrint('Error loading initial data: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
-  Future<void> _loadActivities({bool reset = false}) async {
-    // Store current activities to prevent flickering
-    List<ActivityModel> previousActivities = List.from(_activities);
-
-    if (reset) {
-      _lastTimestamp = null;
-      _hasMoreData = true;
-      // Don't clear activities immediately to prevent flickering
-    }
-
-    if (!_hasMoreData) return;
-
-    try {
-      final result = await _activityService.getFilteredActivities(
-        filter: _selectedFilter,
-        searchQuery: _searchQuery.isNotEmpty ? _searchQuery : null,
-        dateRange: _dateRange,
-        limit: _pageSize,
-        startAfterTimestamp: _lastTimestamp,
-      );
-
-      // Safe handling of activities list
-      final activitiesData = result['activities'];
-      List<ActivityModel> newActivities = [];
-
-      if (activitiesData is List) {
-        newActivities = activitiesData
-            .map((data) {
-              try {
-                if (data is Map) {
-                  return _createActivityFromData(
-                    Map<String, dynamic>.from(data),
-                  );
-                }
-                return null;
-              } catch (e) {
-                debugPrint('Error parsing activity data: $e');
-                return null;
-              }
-            })
-            .where((activity) => activity != null)
-            .cast<ActivityModel>()
-            .toList();
-      }
-
-      // Only update UI once with final data
-      if (mounted) {
-        setState(() {
-          if (reset) {
-            _activities = newActivities;
-          } else {
-            _activities.addAll(newActivities);
-          }
-          _hasMoreData = result['hasMore'] ?? false;
-          _lastTimestamp = result['lastTimestamp'];
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading activities: $e');
-      // Restore previous activities on error to prevent empty state
-      if (mounted && reset) {
-        setState(() {
-          _activities = previousActivities;
-        });
-      }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Unable to load activities. Please try again.'),
-            backgroundColor: AppColors.error,
-            action: SnackBarAction(
-              label: 'Retry',
-              textColor: Colors.white,
-              onPressed: () => _loadActivities(reset: true),
-            ),
-          ),
-        );
-      }
-      // Don't rethrow to prevent app crash
-    }
-  }
-
-  Future<void> _loadMoreActivities() async {
-    if (_isLoadingMore || !_hasMoreData) return;
-
-    setState(() {
-      _isLoadingMore = true;
-    });
-
-    try {
-      await _loadActivities();
-    } catch (e) {
-      debugPrint('Error loading more activities: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Unable to load more activities.'),
-            backgroundColor: AppColors.warning,
-          ),
-        );
-      }
-    } finally {
-      setState(() {
-        _isLoadingMore = false;
-      });
-    }
-  }
-
+  // Simplified methods using data manager
   Future<void> _refreshData() async {
-    await _loadInitialData();
+    await _dataManager.refresh();
   }
 
   void _onFilterChanged(String filter) {
-    setState(() {
-      _selectedFilter = filter;
-    });
-
-    // Debounce filter changes to prevent excessive API calls
     _filterDebounceTimer?.cancel();
     _filterDebounceTimer = Timer(const Duration(milliseconds: 300), () {
-      _loadActivities(reset: true);
+      _dataManager.applyFilter(filter);
     });
   }
 
   void _onSearchChanged(String query) {
-    setState(() {
-      _searchQuery = query;
-      _currentPage = 0; // Reset pagination
-    });
-
-    // Debounce search changes to prevent excessive API calls
     _searchDebounceTimer?.cancel();
     _searchDebounceTimer = Timer(const Duration(milliseconds: 500), () {
-      _loadActivities(reset: true);
+      _dataManager.applySearch(query);
     });
   }
 
   void _onDateRangeChanged(DateTimeRange? range) {
-    setState(() {
-      _dateRange = range;
-      _currentPage = 0; // Reset pagination
-    });
-
-    // Date range changes are immediate as they're user-initiated actions
-    _loadActivities(reset: true);
+    _dataManager.applyDateRange(range);
   }
 
   void _onToggleFilterExpanded() {
@@ -247,108 +101,38 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
   }
 
   void _onStatTap(String statKey) {
-    // Handle quick access stat tap without triggering loading states
+    // Handle quick access stat tap
     switch (statKey) {
       case 'today':
-        _applyDateRangeFilter(_getTodayRange());
+        _dataManager.applyDateRange(_getTodayRange());
         break;
       case 'week':
-        _applyDateRangeFilter(_getThisWeekRange());
+        _dataManager.applyDateRange(_getThisWeekRange());
         break;
       case 'suspicious':
-        _applyActivityFilter('suspicious');
+        _dataManager.applyFilter('suspicious');
         break;
       default:
         break;
     }
   }
 
-  // Apply date range filter without loading state
-  void _applyDateRangeFilter(DateTimeRange? range) {
-    setState(() {
-      _dateRange = range;
-      _currentPage = 0; // Reset pagination
-    });
-    _loadActivitiesQuietly(reset: true);
+  // Helper methods for date ranges
+  DateTimeRange _getTodayRange() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return DateTimeRange(start: today, end: now);
   }
 
-  // Apply activity filter without loading state
-  void _applyActivityFilter(String filter) {
-    setState(() {
-      _selectedFilter = filter;
-      _currentPage = 0; // Reset pagination
-    });
-    _loadActivitiesQuietly(reset: true);
-  }
-
-  // Load activities without showing loading indicators to prevent flickering
-  Future<void> _loadActivitiesQuietly({bool reset = false}) async {
-    // Store current activities to prevent flickering during quick access
-    List<ActivityModel> previousActivities = List.from(_activities);
-
-    if (reset) {
-      _lastTimestamp = null;
-      _hasMoreData = true;
-      // Don't clear activities immediately to prevent flickering
-    }
-
-    if (!_hasMoreData) return;
-
-    try {
-      final result = await _activityService.getFilteredActivities(
-        filter: _selectedFilter,
-        searchQuery: _searchQuery.isNotEmpty ? _searchQuery : null,
-        dateRange: _dateRange,
-        limit: _pageSize,
-        startAfterTimestamp: _lastTimestamp,
-      );
-
-      // Safe handling of activities list
-      final activitiesData = result['activities'];
-      List<ActivityModel> newActivities = [];
-
-      if (activitiesData is List) {
-        newActivities = activitiesData
-            .map((data) {
-              try {
-                if (data is Map) {
-                  return _createActivityFromData(
-                    Map<String, dynamic>.from(data),
-                  );
-                }
-                return null;
-              } catch (e) {
-                debugPrint('Error parsing activity data: $e');
-                return null;
-              }
-            })
-            .where((activity) => activity != null)
-            .cast<ActivityModel>()
-            .toList();
-      }
-
-      // Only update UI once with final data to prevent flickering
-      if (mounted) {
-        setState(() {
-          if (reset) {
-            _activities = newActivities;
-          } else {
-            _activities.addAll(newActivities);
-          }
-          _hasMoreData = result['hasMore'] ?? false;
-          _lastTimestamp = result['lastTimestamp'];
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading activities quietly: $e');
-      // Restore previous activities on error to prevent empty state
-      if (mounted && reset) {
-        setState(() {
-          _activities = previousActivities;
-        });
-      }
-      // Don't show error messages for quiet loading to prevent UI disruption
-    }
+  DateTimeRange _getThisWeekRange() {
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    final weekStartDay = DateTime(
+      weekStart.year,
+      weekStart.month,
+      weekStart.day,
+    );
+    return DateTimeRange(start: weekStartDay, end: now);
   }
 
   @override
@@ -396,7 +180,7 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
       actions: [
         IconButton(
           icon: const Icon(Icons.refresh),
-          onPressed: _isLoading ? null : _refreshData,
+          onPressed: _dataManager.isLoading ? null : _refreshData,
           tooltip: 'Refresh',
         ),
       ],
@@ -404,11 +188,11 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
   }
 
   Widget _buildBody() {
-    if (_isLoading && _activities.isEmpty) {
+    if (_dataManager.isLoading && _dataManager.activities.isEmpty) {
       return const LoadingWidget(message: 'Loading activities...');
     }
 
-    if (_error != null) {
+    if (_dataManager.error != null) {
       return _buildErrorState();
     }
 
@@ -440,9 +224,9 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
             // Search and Filter - Optimized with debouncing
             SearchFilterWidget(
               key: const ValueKey('search_filter'),
-              selectedFilter: _selectedFilter,
-              searchQuery: _searchQuery,
-              dateRange: _dateRange,
+              selectedFilter: _dataManager.selectedFilter,
+              searchQuery: _dataManager.searchQuery,
+              dateRange: _dataManager.dateRange,
               onFilterChanged: _onFilterChanged,
               onSearchChanged: _onSearchChanged,
               onDateRangeChanged: _onDateRangeChanged,
@@ -454,10 +238,10 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
             // Activity List Header - Optimized loading states
             ActivityListHeader(
               key: const ValueKey('activity_header'),
-              activityCount: _activities.length,
+              activityCount: _dataManager.activities.length,
               onRefresh: _refreshData,
-              activities: _activities,
-              isLoading: _isLoading,
+              activities: _dataManager.activities,
+              isLoading: _dataManager.isLoading,
               showExportButton: true,
               showRefreshButton: true,
             ),
@@ -472,8 +256,8 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
             // Load More Indicator - Smooth animation
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              height: _isLoadingMore ? 60 : 0,
-              child: _isLoadingMore
+              height: _dataManager.isLoadingMore ? 60 : 0,
+              child: _dataManager.isLoadingMore
                   ? const Center(
                       child: Padding(
                         padding: EdgeInsets.all(16),
@@ -489,23 +273,29 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
   }
 
   Widget _buildActivityList() {
-    if (_activities.isEmpty) {
+    final activities = _dataManager.activities;
+
+    if (activities.isEmpty) {
       return _buildEmptyState();
     }
 
     // Calculate pagination
-    final totalPages = (_activities.length / _activitiesPerPage).ceil();
+    final totalPages = (activities.length / _activitiesPerPage).ceil();
     final startIndex = _currentPage * _activitiesPerPage;
     final endIndex = (startIndex + _activitiesPerPage).clamp(
       0,
-      _activities.length,
+      activities.length,
     );
-    final currentPageActivities = _activities.sublist(startIndex, endIndex);
+    final currentPageActivities = activities.sublist(startIndex, endIndex);
 
     return Column(
       children: [
-        // Activity list with consistent styling
-        _buildActivityListContainer(currentPageActivities),
+        // Activity list with polymorphic rendering
+        ActivityListContainer(
+          activities: currentPageActivities,
+          onActivityTap: _showActivityDetails,
+          showAnimations: true,
+        ),
 
         // Pagination controls
         if (totalPages > 1) ...[
@@ -514,7 +304,7 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
         ],
 
         // Load more section for infinite scroll
-        if (_hasMoreData && _currentPage == totalPages - 1) ...[
+        if (_dataManager.hasMoreData && _currentPage == totalPages - 1) ...[
           const SizedBox(height: 16),
           _buildLoadMoreSection(),
         ],
@@ -527,229 +317,9 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
       child: EmptyStateWidget(
         icon: Icons.history,
         title: 'No Activities Found',
-        subtitle:
-            _searchQuery.isNotEmpty ||
-                _dateRange != null ||
-                _selectedFilter != 'all'
+        subtitle: _dataManager.hasActiveFilters
             ? 'Try adjusting your filters'
             : 'No activities have been recorded yet',
-      ),
-    );
-  }
-
-  /// Build activity list container with consistent styling
-  Widget _buildActivityListContainer(List<BaseActivity> activities) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.border.withValues(alpha: 0.3),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: activities.asMap().entries.map((entry) {
-          final index = entry.key;
-          final activity = entry.value;
-          final isLast = index == activities.length - 1;
-
-          return TweenAnimationBuilder<double>(
-            duration: Duration(
-              milliseconds: (300 + (index * 100)).clamp(300, 1000),
-            ),
-            tween: Tween<double>(begin: 0.0, end: 1.0),
-            curve: Curves.easeOutBack,
-            builder: (context, value, child) {
-              final safeOpacity = value.clamp(0.0, 1.0);
-              final safeTranslateValue = (1 - value).clamp(0.0, 1.0);
-
-              return Transform.translate(
-                offset: Offset(0, 20 * safeTranslateValue),
-                child: Opacity(
-                  opacity: safeOpacity,
-                  child: _buildActivityTile(activity, isLast),
-                ),
-              );
-            },
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  /// Build individual activity tile with consistent styling
-  Widget _buildActivityTile(BaseActivity activity, bool isLast) {
-    return Container(
-      decoration: BoxDecoration(
-        border: isLast
-            ? null
-            : Border(
-                bottom: BorderSide(
-                  color: AppColors.border.withValues(alpha: 0.2),
-                  width: 1,
-                ),
-              ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => _showActivityDetails(activity),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                // Enhanced icon with activity type badge
-                Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 22,
-                      backgroundColor: _getActivityColor(
-                        activity.type,
-                      ).withValues(alpha: 0.1),
-                      child: Icon(
-                        _getActivityIcon(activity.type),
-                        color: _getActivityColor(activity.type),
-                        size: 20,
-                      ),
-                    ),
-                    if (activity.isSuspicious)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Container(
-                          width: 12,
-                          height: 12,
-                          decoration: BoxDecoration(
-                            color: AppColors.error,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppColors.surface,
-                              width: 1,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.warning,
-                            size: 8,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(width: 12),
-
-                // Content section
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Title with activity type badge
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              activity.description,
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.textPrimary,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _getActivityColor(
-                                activity.type,
-                              ).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: _getActivityColor(
-                                  activity.type,
-                                ).withValues(alpha: 0.3),
-                                width: 0.5,
-                              ),
-                            ),
-                            child: Text(
-                              activity.type.toUpperCase(),
-                              style: GoogleFonts.poppins(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w600,
-                                color: _getActivityColor(activity.type),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-
-                      // User info
-                      Text(
-                        activity.userName ??
-                            activity.userEmail ??
-                            'Unknown User',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                          fontWeight: FontWeight.w400,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-
-                      // Timestamp with enhanced formatting
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.access_time,
-                            size: 12,
-                            color: AppColors.textSecondary.withValues(
-                              alpha: 0.7,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            _formatDateTime(activity.timestamp),
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              color: AppColors.textSecondary.withValues(
-                                alpha: 0.8,
-                              ),
-                              fontWeight: FontWeight.w400,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Trailing arrow for interaction hint
-                Icon(
-                  Icons.chevron_right,
-                  color: AppColors.textSecondary.withValues(alpha: 0.5),
-                  size: 20,
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -757,109 +327,8 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
   void _showActivityDetails(BaseActivity activity) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Activity Details',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDetailRow('Type', activity.type.toUpperCase()),
-              _buildDetailRow('Description', activity.description),
-              _buildDetailRow(
-                'User',
-                activity.userName ?? activity.userEmail ?? 'Unknown User',
-              ),
-              _buildDetailRow(
-                'Time',
-                _formatDetailDateTime(activity.timestamp),
-              ),
-              // Show type-specific information
-              ...activity.contextInfo.map(
-                (info) => _buildDetailRow('Context', info),
-              ),
-              // Legacy support for ActivityModel
-              if (activity is ActivityModel && activity.documentId != null)
-                _buildDetailRow('Document ID', activity.documentId!),
-              if (activity is ActivityModel && activity.categoryId != null)
-                _buildDetailRow('Category ID', activity.categoryId!),
-              // File activity specific info
-              if (activity is FileActivity && activity.documentId != null)
-                _buildDetailRow('Document ID', activity.documentId!),
-              if (activity is FileActivity && activity.fileName != null)
-                _buildDetailRow('File Name', activity.fileName!),
-              if (activity is FileActivity && activity.fileSize != null)
-                _buildDetailRow('File Size', '${activity.fileSize} bytes'),
-              // Upload activity specific info
-              if (activity is FileUploadActivity && activity.categoryId != null)
-                _buildDetailRow('Category ID', activity.categoryId!),
-              if (activity.ipAddress != null)
-                _buildDetailRow('IP Address', activity.ipAddress!),
-              if (activity.userAgent != null)
-                _buildDetailRow('User Agent', activity.userAgent!),
-              if (activity.isSuspicious)
-                _buildDetailRow('Status', 'SUSPICIOUS', isWarning: true),
-              if (activity.details.isNotEmpty)
-                ...activity.details.entries.map(
-                  (entry) => _buildDetailRow(
-                    entry.key.toUpperCase(),
-                    entry.value.toString(),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Close',
-              style: GoogleFonts.poppins(color: AppColors.primary),
-            ),
-          ),
-        ],
-      ),
+      builder: (context) => ActivityDetailsDialog(activity: activity),
     );
-  }
-
-  Widget _buildDetailRow(String label, String value, {bool isWarning = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 80,
-            child: Text(
-              '$label:',
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              value,
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: isWarning ? AppColors.warning : AppColors.textPrimary,
-                fontWeight: isWarning ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDetailDateTime(DateTime dateTime) {
-    return '${dateTime.day}/${dateTime.month}/${dateTime.year} at ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
   /// Build pagination controls with smart truncation
@@ -1028,7 +497,7 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
       ),
       child: Column(
         children: [
-          if (_isLoadingMore) ...[
+          if (_dataManager.isLoadingMore) ...[
             const CircularProgressIndicator(),
             const SizedBox(height: 8),
             Text(
@@ -1040,7 +509,7 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
             ),
           ] else ...[
             ElevatedButton.icon(
-              onPressed: _loadMoreActivities,
+              onPressed: () => _dataManager.loadMore(),
               icon: const Icon(Icons.expand_more),
               label: Text(
                 'Load More Activities',
@@ -1074,7 +543,8 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
   }
 
   void _goToNextPage() {
-    final totalPages = (_activities.length / _activitiesPerPage).ceil();
+    final totalPages = (_dataManager.activities.length / _activitiesPerPage)
+        .ceil();
     if (_currentPage < totalPages - 1) {
       setState(() {
         _currentPage++;
@@ -1106,7 +576,7 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              _error ?? 'An unknown error occurred',
+              _dataManager.error ?? 'An unknown error occurred',
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 color: AppColors.textSecondary,
@@ -1158,134 +628,5 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
         ),
       ),
     );
-  }
-
-  // Enhanced activity icons with distinct visual representation
-  IconData _getActivityIcon(String type) {
-    switch (type.toLowerCase()) {
-      case 'login':
-        return Icons.login;
-      case 'logout':
-        return Icons.logout;
-      case 'upload':
-        return Icons.cloud_upload;
-      case 'download':
-        return Icons.get_app;
-      case 'delete':
-        return Icons.delete_forever;
-      case 'view':
-        return Icons.preview;
-      case 'create':
-      case 'add':
-        return Icons.add_circle;
-      case 'update':
-      case 'edit':
-        return Icons.edit;
-      case 'share':
-        return Icons.share;
-      case 'copy':
-        return Icons.content_copy;
-      case 'move':
-        return Icons.drive_file_move;
-      case 'rename':
-        return Icons.drive_file_rename_outline;
-      case 'suspicious_activity':
-        return Icons.warning;
-      case 'security':
-        return Icons.security;
-      case 'sync':
-        return Icons.sync;
-      case 'backup':
-        return Icons.backup;
-      case 'restore':
-        return Icons.restore;
-      default:
-        return Icons.history;
-    }
-  }
-
-  Color _getActivityColor(String type) {
-    switch (type.toLowerCase()) {
-      case 'login':
-        return AppColors.success; // Green for successful login
-      case 'logout':
-        return AppColors.primary; // Blue for logout
-      case 'upload':
-        return AppColors.success; // Green for uploads
-      case 'download':
-        return AppColors.info; // Blue for downloads
-      case 'delete':
-        return AppColors.error; // Red for deletions
-      case 'view':
-      case 'preview':
-        return AppColors.textSecondary; // Gray for view actions
-      case 'create':
-      case 'add':
-        return AppColors.success; // Green for creation
-      case 'update':
-      case 'edit':
-        return AppColors.warning; // Orange for edits
-      case 'share':
-        return AppColors.primary; // Blue for sharing
-      case 'copy':
-        return AppColors.info; // Light blue for copy
-      case 'move':
-        return AppColors.warning; // Orange for move
-      case 'rename':
-        return AppColors.warning; // Orange for rename
-      case 'suspicious_activity':
-        return AppColors.error; // Red for suspicious
-      case 'security':
-        return AppColors.error; // Red for security issues
-      case 'sync':
-        return AppColors.primary; // Blue for sync
-      case 'backup':
-        return AppColors.success; // Green for backup
-      case 'restore':
-        return AppColors.info; // Blue for restore
-      default:
-        return AppColors.textSecondary;
-    }
-  }
-
-  String _formatDateTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'Just now';
-    }
-  }
-
-  DateTimeRange _getTodayRange() {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    return DateTimeRange(
-      start: today,
-      end: today
-          .add(const Duration(days: 1))
-          .subtract(const Duration(microseconds: 1)),
-    );
-  }
-
-  DateTimeRange _getThisWeekRange() {
-    final now = DateTime.now();
-    final weekStart = now.subtract(Duration(days: now.weekday - 1));
-    final weekStartDay = DateTime(
-      weekStart.year,
-      weekStart.month,
-      weekStart.day,
-    );
-    return DateTimeRange(start: weekStartDay, end: now);
-  }
-
-  BaseActivity _createActivityFromData(Map<String, dynamic> data) {
-    return ActivityFactory.fromMap(data['id'] ?? '', data);
   }
 }
