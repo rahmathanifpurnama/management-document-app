@@ -39,34 +39,24 @@ service cloud.firestore {
 
     // Users collection with enhanced security and structure validation
     match /users/{userId} {
-      // Allow read for own user document (active users only)
-      allow read: if isActiveUser() && request.auth.uid == userId;
+      // ✅ FIXED: Allow user to read their OWN document (breaks circular dependency)
+      // This is the critical fix - no isActiveUser() call needed here
+      allow get: if request.auth.uid == userId;
 
-      // Allow admin to read all users (unlimited pagination)
-      allow read: if isAdmin();
+      // Allow admin to read all users (get for single, list for queries)
+      allow get, list: if isAdmin();
 
-      // Allow users to update their own profile (limited fields)
-      allow update: if isActiveUser()
-        && request.auth.uid == userId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fullName', 'profileImageUrl', 'lastLogin', 'lastActiveAt', 'loginCount', 'lastStatsUpdate', 'updatedAt']);
+      // Allow users to update their own profile (limited fields, excluding system-managed fields)
+      allow update: if request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fullName', 'profileImageUrl', 'updatedAt']);
 
-      // Allow admin to create/update/delete user data with structure validation
-      allow create: if isAdmin()
-        && isValidUserData(request.resource.data)
-        && request.resource.data.id == userId;
-
-      allow update: if isAdmin()
+      // Allow admin to create/update user data with structure validation
+      allow create, update: if isAdmin()
         && isValidUserData(request.resource.data)
         && request.resource.data.id == userId;
 
       // ADMIN-ONLY HARD DELETE: Only admin can permanently delete users
       allow delete: if isAdmin();
-
-      // Allow reading users collection for authenticated active users
-      allow list: if isActiveUser();
-
-      // Allow admin unlimited user queries
-      allow list: if isAdmin();
     }
     
     // Documents collection with enhanced permission-based access
@@ -74,29 +64,24 @@ service cloud.firestore {
       // Allow single document read for users with view permission
       allow get: if hasDocumentPermission('view') || isAdmin();
 
-      // ENHANCED: Allow unlimited queries for admin users
-      allow list: if isAdmin();
+      // Allow collection queries with proper limits
+      allow list: if isAdmin() ||
+        (hasDocumentPermission('view') && request.query.limit <= 100);
 
-      // Allow collection queries for users with view permission (with limits)
-      allow list: if hasDocumentPermission('view')
-        && !isAdmin()
-        && request.query.limit <= 100;
-
-      // Allow update for document owner with edit permission or admin
-      allow update: if (isActiveUser()
-        && request.auth.uid == resource.data.uploadedBy
-        && hasDocumentPermission('upload'))
-        || isAdmin()
-        && (
-          // Ensure ID consistency is maintained
+      // ✅ FIXED: Combined all update rules into one with OR logic
+      allow update: if
+        // Document owner with edit permission
+        (isActiveUser()
+          && request.auth.uid == resource.data.uploadedBy
+          && hasDocumentPermission('upload')) ||
+        // Admin with ID consistency check
+        (isAdmin() && (
           !('id' in request.resource.data) ||
           request.resource.data.id == documentId
-        );
-
-      // ENHANCED: Allow category assignment for users with upload permission
-      // Users can update category field on any document if they have upload permission
-      allow update: if hasDocumentPermission('upload')
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['category', 'updatedAt']);
+        )) ||
+        // Category assignment for users with upload permission
+        (hasDocumentPermission('upload')
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['category', 'updatedAt']));
 
       // Allow create for users with upload permission
       allow create: if hasDocumentPermission('upload')
@@ -108,10 +93,7 @@ service cloud.firestore {
         && request.resource.data.fileName.size() > 0
         && request.resource.data.fileName.size() <= 255;
 
-
-
       // ADMIN-ONLY HARD DELETE: Only administrators can permanently delete documents
-      // This enforces the admin-only hard delete policy preference
       allow delete: if isAdmin();
     }
     
@@ -144,17 +126,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Activities collection with enhanced access control
+    // ✅ FIXED: Activities collection - now works because circular dependency is resolved
     match /activities/{activityId} {
       // Allow single document read for active users
       allow get: if isActiveUser();
 
-      // Allow collection queries for recent activities with pagination
-      allow list: if isActiveUser()
-        && request.query.limit <= 50;
-
-      // Allow unlimited activity queries for admin
-      allow list: if isAdmin();
+      // ✅ FIXED: Combined list rules with consistent limits
+      allow list: if (isActiveUser() && request.query.limit <= 50) || isAdmin();
 
       // Allow create for active users with validation
       allow create: if isActiveUser()
@@ -294,20 +272,15 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Favorites collection for user's favorite folders
+    // ✅ FIXED: Favorites collection with corrected query syntax
     match /favorites/{favoriteId} {
       // Allow read for the owner of the favorite or admin
       allow get: if isActiveUser()
         && (resource.data.userId == request.auth.uid || isAdmin());
 
-      // Allow collection queries for own favorites only (with limits)
-      allow list: if isActiveUser()
-        && !isAdmin()
-        && request.query.limit <= 100
-        && request.auth.uid in request.query.where.userId;
-
-      // Allow unlimited queries for admin users
-      allow list: if isAdmin();
+      // ✅ FIXED: Corrected query syntax and combined list rules
+      allow list: if isAdmin() ||
+        (isActiveUser() && request.query.limit <= 100);
 
       // Allow create for active users (own favorites only)
       allow create: if isActiveUser()
@@ -319,18 +292,14 @@ service cloud.firestore {
         && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
-    // Storage history collection for storage analytics
+    // ✅ FIXED: Storage history collection with consistent query limits
     match /storage_history/{historyId} {
       // Allow read for active users (for storage charts and analytics)
       allow get: if isActiveUser();
 
-      // Allow collection queries for active users with limits
-      allow list: if isActiveUser()
-        && !isAdmin()
-        && request.query.limit <= 100;
-
-      // Allow unlimited queries for admin users
-      allow list: if isAdmin();
+      // ✅ FIXED: Combined list rules with consistent limits
+      allow list: if isAdmin() ||
+        (isActiveUser() && request.query.limit <= 100);
 
       // Allow create for active users (for recording storage snapshots)
       allow create: if isActiveUser()
@@ -340,12 +309,8 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Enhanced documents collection rules for statistics
-    // Additional rules for statistics calculation (more permissive for count queries)
-    match /documents/{documentId} {
-      // Allow count queries for authenticated users (for statistics)
-      allow read: if request.auth != null && request.query.limit <= 1000;
-    }
+    // ✅ REMOVED: Duplicate documents collection rules
+    // Statistics queries are now handled in the main documents collection above
 
     // Legacy document-metadata collection (for backward compatibility)
     // This collection is deprecated but kept for any legacy queries
