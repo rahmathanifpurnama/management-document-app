@@ -139,8 +139,8 @@ class AuthService {
         }
       },
       timeout: const Duration(
-        seconds: 3,
-      ), // Short timeout for background operations
+        seconds: 5,
+      ), // Increased timeout for background operations
       operationName: 'Background Post-Login Operations',
     );
   }

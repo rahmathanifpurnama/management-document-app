@@ -346,5 +346,15 @@ service cloud.firestore {
       // Allow count queries for authenticated users (for statistics)
       allow read: if request.auth != null && request.query.limit <= 1000;
     }
+
+    // Legacy document-metadata collection (for backward compatibility)
+    // This collection is deprecated but kept for any legacy queries
+    match /document-metadata/{documentId} {
+      // Allow read for active users (legacy support)
+      allow read: if isActiveUser();
+
+      // Allow admin full access
+      allow read, write, delete: if isAdmin();
+    }
   }
 }

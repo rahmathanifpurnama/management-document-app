@@ -11,14 +11,15 @@ import '../core/services/firebase_service.dart';
  * Uses unique identifiers and checksums for verification
  */
 class DuplicatePreventionService {
-  static final DuplicatePreventionService _instance = DuplicatePreventionService._internal();
+  static final DuplicatePreventionService _instance =
+      DuplicatePreventionService._internal();
   factory DuplicatePreventionService() => _instance;
   DuplicatePreventionService._internal();
 
   static DuplicatePreventionService get instance => _instance;
 
   final FirebaseService _firebaseService = FirebaseService.instance;
-  
+
   // Cache for recently checked items to improve performance
   final Map<String, bool> _documentExistsCache = {};
   final Map<String, bool> _userExistsCache = {};
@@ -29,28 +30,29 @@ class DuplicatePreventionService {
   Future<bool> documentExists(String filePath) async {
     try {
       final cacheKey = 'doc_$filePath';
-      
+
       // Check cache first
-      if (_isCacheValid(cacheKey) && _documentExistsCache.containsKey(cacheKey)) {
+      if (_isCacheValid(cacheKey) &&
+          _documentExistsCache.containsKey(cacheKey)) {
         debugPrint('📦 Using cached result for document: $filePath');
         return _documentExistsCache[cacheKey]!;
       }
 
       debugPrint('🔍 Checking if document exists: $filePath');
-      
+
       final querySnapshot = await _firebaseService.firestore
-          .collection('document-metadata')
+          .collection('documents')
           .where('filePath', isEqualTo: filePath)
-          .where('isActive', isEqualTo: true)
+          .where('status', isEqualTo: 'active')
           .limit(1)
           .get();
 
       final exists = querySnapshot.docs.isNotEmpty;
-      
+
       // Cache the result
       _documentExistsCache[cacheKey] = exists;
       _cacheTimestamps[cacheKey] = DateTime.now();
-      
+
       debugPrint('📄 Document exists check result: $exists for $filePath');
       return exists;
     } catch (e) {
@@ -63,7 +65,7 @@ class DuplicatePreventionService {
   Future<bool> userExists(String uid) async {
     try {
       final cacheKey = 'user_$uid';
-      
+
       // Check cache first
       if (_isCacheValid(cacheKey) && _userExistsCache.containsKey(cacheKey)) {
         debugPrint('📦 Using cached result for user: $uid');
@@ -71,18 +73,18 @@ class DuplicatePreventionService {
       }
 
       debugPrint('🔍 Checking if user exists: $uid');
-      
+
       final userDoc = await _firebaseService.firestore
           .collection('users')
           .doc(uid)
           .get();
 
       final exists = userDoc.exists && (userDoc.data()?['isActive'] == true);
-      
+
       // Cache the result
       _userExistsCache[cacheKey] = exists;
       _cacheTimestamps[cacheKey] = DateTime.now();
-      
+
       debugPrint('👤 User exists check result: $exists for $uid');
       return exists;
     } catch (e) {
@@ -107,35 +109,39 @@ class DuplicatePreventionService {
   }) async {
     try {
       debugPrint('🔍 Comprehensive duplicate check for: $filePath');
-      
+
       final checks = <String, bool>{};
       final duplicateDocuments = <Map<String, dynamic>>[];
 
       // Check 1: Exact file path match
       final pathQuery = await _firebaseService.firestore
-          .collection('document-metadata')
+          .collection('documents')
           .where('filePath', isEqualTo: filePath)
-          .where('isActive', isEqualTo: true)
+          .where('status', isEqualTo: 'active')
           .get();
-      
+
       checks['exactPath'] = pathQuery.docs.isNotEmpty;
       if (pathQuery.docs.isNotEmpty) {
-        duplicateDocuments.addAll(pathQuery.docs.map((doc) => {
-          'id': doc.id,
-          'data': doc.data(),
-          'reason': 'Exact file path match',
-        }));
+        duplicateDocuments.addAll(
+          pathQuery.docs.map(
+            (doc) => {
+              'id': doc.id,
+              'data': doc.data(),
+              'reason': 'Exact file path match',
+            },
+          ),
+        );
       }
 
       // Check 2: Same file name and size (if provided)
       if (fileName != null && fileSize != null) {
         final nameQuery = await _firebaseService.firestore
-            .collection('document-metadata')
+            .collection('documents')
             .where('fileName', isEqualTo: fileName)
             .where('fileSize', isEqualTo: fileSize)
-            .where('isActive', isEqualTo: true)
+            .where('status', isEqualTo: 'active')
             .get();
-        
+
         checks['nameAndSize'] = nameQuery.docs.isNotEmpty;
         if (nameQuery.docs.isNotEmpty) {
           for (final doc in nameQuery.docs) {
@@ -153,12 +159,12 @@ class DuplicatePreventionService {
       // Check 3: Content type and name similarity (if provided)
       if (fileName != null && contentType != null) {
         final similarQuery = await _firebaseService.firestore
-            .collection('document-metadata')
+            .collection('documents')
             .where('fileName', isEqualTo: fileName)
             .where('contentType', isEqualTo: contentType)
-            .where('isActive', isEqualTo: true)
+            .where('status', isEqualTo: 'active')
             .get();
-        
+
         checks['similarContent'] = similarQuery.docs.isNotEmpty;
         if (similarQuery.docs.isNotEmpty) {
           for (final doc in similarQuery.docs) {
@@ -174,7 +180,7 @@ class DuplicatePreventionService {
       }
 
       final hasDuplicates = checks.values.any((check) => check);
-      
+
       debugPrint('📊 Duplicate check results: $checks');
       debugPrint('🔍 Found ${duplicateDocuments.length} potential duplicates');
 
@@ -204,7 +210,7 @@ class DuplicatePreventionService {
   }) async {
     try {
       debugPrint('🔍 Comprehensive user duplicate check for: $uid');
-      
+
       final checks = <String, bool>{};
       final duplicateUsers = <Map<String, dynamic>>[];
 
@@ -213,8 +219,9 @@ class DuplicatePreventionService {
           .collection('users')
           .doc(uid)
           .get();
-      
-      checks['exactUID'] = uidDoc.exists && (uidDoc.data()?['isActive'] == true);
+
+      checks['exactUID'] =
+          uidDoc.exists && (uidDoc.data()?['isActive'] == true);
       if (checks['exactUID']!) {
         duplicateUsers.add({
           'id': uidDoc.id,
@@ -230,7 +237,7 @@ class DuplicatePreventionService {
             .where('email', isEqualTo: email)
             .where('isActive', isEqualTo: true)
             .get();
-        
+
         checks['sameEmail'] = emailQuery.docs.isNotEmpty;
         if (emailQuery.docs.isNotEmpty) {
           for (final doc in emailQuery.docs) {
@@ -246,7 +253,7 @@ class DuplicatePreventionService {
       }
 
       final hasDuplicates = checks.values.any((check) => check);
-      
+
       debugPrint('📊 User duplicate check results: $checks');
       debugPrint('🔍 Found ${duplicateUsers.length} potential user duplicates');
 
@@ -272,12 +279,12 @@ class DuplicatePreventionService {
   void clearCache(String identifier) {
     final docKey = 'doc_$identifier';
     final userKey = 'user_$identifier';
-    
+
     _documentExistsCache.remove(docKey);
     _userExistsCache.remove(userKey);
     _cacheTimestamps.remove(docKey);
     _cacheTimestamps.remove(userKey);
-    
+
     debugPrint('🧹 Cleared cache for: $identifier');
   }
 
@@ -293,16 +300,19 @@ class DuplicatePreventionService {
   bool _isCacheValid(String key) {
     final timestamp = _cacheTimestamps[key];
     if (timestamp == null) return false;
-    
+
     return DateTime.now().difference(timestamp) < _cacheValidDuration;
   }
 
   /// Get cache statistics
   Map<String, dynamic> getCacheStats() {
-    final now = DateTime.now();
-    final validDocuments = _documentExistsCache.keys.where((key) => _isCacheValid(key)).length;
-    final validUsers = _userExistsCache.keys.where((key) => _isCacheValid(key)).length;
-    
+    final validDocuments = _documentExistsCache.keys
+        .where((key) => _isCacheValid(key))
+        .length;
+    final validUsers = _userExistsCache.keys
+        .where((key) => _isCacheValid(key))
+        .length;
+
     return {
       'totalDocumentEntries': _documentExistsCache.length,
       'totalUserEntries': _userExistsCache.length,
@@ -315,10 +325,11 @@ class DuplicatePreventionService {
   double _calculateCacheHitRate() {
     final totalEntries = _documentExistsCache.length + _userExistsCache.length;
     if (totalEntries == 0) return 0.0;
-    
-    final validEntries = _documentExistsCache.keys.where((key) => _isCacheValid(key)).length +
-                        _userExistsCache.keys.where((key) => _isCacheValid(key)).length;
-    
+
+    final validEntries =
+        _documentExistsCache.keys.where((key) => _isCacheValid(key)).length +
+        _userExistsCache.keys.where((key) => _isCacheValid(key)).length;
+
     return validEntries / totalEntries;
   }
 }

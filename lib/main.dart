@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:async' show unawaited;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -79,20 +80,27 @@ void main() async {
   DebugLogController.setQuietMode();
   debugPrint('🔇 Debug logging set to quiet mode to reduce terminal noise');
 
-  // Initialize empty storage state manager
-  await EmptyStorageStateManager.instance.initialize();
-
-  // Initialize download notification service
-  try {
-    final notificationService = DownloadNotificationService();
-    await notificationService.initialize();
-    debugPrint('✅ Download notification service initialized');
-  } catch (e) {
-    debugPrint('⚠️ Download notification service initialization failed: $e');
-  }
-
-  // Initialize ANR recovery system
+  // Initialize ANR recovery system first (lightweight)
   await ANRRecovery.initialize();
+
+  // PERFORMANCE FIX: Defer heavy operations to prevent main thread blocking
+  // Initialize empty storage state manager in background
+  unawaited(
+    EmptyStorageStateManager.instance.initialize().catchError((e) {
+      debugPrint('⚠️ Empty storage state manager initialization failed: $e');
+    }),
+  );
+
+  // Initialize download notification service in background
+  unawaited(() async {
+    try {
+      final notificationService = DownloadNotificationService();
+      await notificationService.initialize();
+      debugPrint('✅ Download notification service initialized');
+    } catch (e) {
+      debugPrint('⚠️ Download notification service initialization failed: $e');
+    }
+  }());
 
   // Initialize Firebase with optimized timeout and error handling
   bool firebaseInitialized = false;

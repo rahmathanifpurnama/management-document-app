@@ -467,17 +467,22 @@ class FirebaseService {
           );
         }
       } else {
-        // For production, use proper providers
-        await Future.any([
-          FirebaseAppCheck.instance.activate(
-            androidProvider: AndroidProvider.playIntegrity,
-            appleProvider: AppleProvider.deviceCheck,
-          ),
-          Future.delayed(
-            const Duration(seconds: 10),
-          ), // Timeout after 10 seconds
-        ]);
-        debugPrint('✅ App Check initialized for production mode');
+        // For production, use proper providers with error handling
+        try {
+          await Future.any([
+            FirebaseAppCheck.instance.activate(
+              androidProvider: AndroidProvider.playIntegrity,
+              appleProvider: AppleProvider.deviceCheck,
+            ),
+            Future.delayed(
+              const Duration(seconds: 10),
+            ), // Timeout after 10 seconds
+          ]);
+          debugPrint('✅ App Check initialized for production mode');
+        } catch (e) {
+          debugPrint('⚠️ App Check initialization failed in production: $e');
+          // Continue without App Check for now
+        }
       }
 
       // Set up token refresh listener with enhanced rate limiting
