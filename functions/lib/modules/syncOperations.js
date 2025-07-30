@@ -132,11 +132,7 @@ const syncStorageWithFirestore = functions.https.onCall(async (data, context) =>
             type: "storage_sync_completed",
             userId: context.auth.uid,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: {
-                message: `Storage sync completed: ${processed} files processed in ${duration}ms`,
-                processed: processed,
-                duration: duration,
-            },
+            details: `Storage sync completed: ${processed} files processed in ${duration}ms`,
         });
         console.log(`Storage sync completed: ${processed} files processed`);
         return {
@@ -236,11 +232,7 @@ const manualCleanupOrphanedMetadata = functions.https.onCall(async (data, contex
             type: "orphaned_cleanup_completed",
             userId: context.auth.uid,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: {
-                message: `Orphaned metadata cleanup completed: ${processed} orphaned documents found in ${duration}ms`,
-                processed: processed,
-                duration: duration,
-            },
+            details: `Orphaned metadata cleanup completed: ${processed} orphaned documents found in ${duration}ms`,
         });
         console.log(`Orphaned metadata cleanup completed: ${processed} orphaned documents`);
         return {
@@ -1112,11 +1104,8 @@ const monitorSyncConsistency = functions.https.onCall(async (data, context) => {
             type: "sync_consistency_check",
             userId: context.auth.uid,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: {
-                message: `Sync monitoring completed: ${inconsistencies.length} inconsistencies found`,
-                inconsistenciesCount: inconsistencies.length,
-                summary: summary,
-            },
+            details: `Sync monitoring completed: ${inconsistencies.length} inconsistencies found`,
+            summary,
         });
         return {
             success: true,

@@ -36,6 +36,7 @@ import {
   handlePostLoginOperations,
   handleLogoutOperations,
   validateUserSession,
+  logActivity,
 } from "./auth/authOperations";
 
 // File Upload Functions
@@ -114,6 +115,7 @@ export {
   handlePostLoginOperations,
   handleLogoutOperations,
   validateUserSession,
+  logActivity,
 };
 
 // Document status change trigger removed since status management is removed

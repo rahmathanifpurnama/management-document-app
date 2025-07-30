@@ -376,7 +376,7 @@ const deleteDocument = functions.https.onCall(async (data, context) => {
  * Generate document report
  */
 const generateDocumentReport = functions.https.onCall(async (data, context) => {
-    var _a, _b, _c;
+    var _a, _b;
     // DISABLED: Function uses document-metadata collection which is no longer used
     console.log("⚠️ generateDocumentReport disabled - using Storage-only approach");
     return {
@@ -445,7 +445,7 @@ const generateDocumentReport = functions.https.onCall(async (data, context) => {
             success: true,
             report: {
                 generatedAt: new Date().toISOString(),
-                generatedBy: ((_c = context.auth) === null || _c === void 0 ? void 0 : _c.uid) || "system",
+                generatedBy: ((_b = context.auth) === null || _b === void 0 ? void 0 : _b.uid) || "system",
                 filters: { startDate, endDate, categoryId },
                 statistics: stats,
                 documents: documents,

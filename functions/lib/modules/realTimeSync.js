@@ -93,25 +93,16 @@ exports.onStorageFileCreated = functions.storage.object().onFinalize(async (obje
         }
         // Skip document creation to prevent duplicates
         console.log("⏭️ Skipping document creation (handled by upload functions)");
-        // Log activity (without documentId since no document was created)
-        await logSyncActivity("file_uploaded", {
-            fileName: fileName,
-            filePath: filePath,
-            source: "storage_trigger",
-            note: "Document creation handled by upload functions",
-        });
+        // Note: Sync activity logging removed - system-generated operations
+        // should not clutter user activity logs
         // Invalidate statistics cache to trigger real-time updates
         await invalidateStatisticsCache();
         console.log("🎉 Storage sync completed successfully");
     }
     catch (error) {
         console.error("❌ Error in storage file created trigger:", error);
-        // Log error for monitoring
-        await logSyncActivity("sync_error", {
-            error: error.message || String(error),
-            source: "storage_trigger",
-            filePath: object.name,
-        });
+        // Note: Error logging removed - system-generated operations
+        // should not clutter user activity logs
     }
 });
 /**
@@ -145,23 +136,16 @@ exports.onStorageFileDeleted = functions.storage.object().onDelete(async (object
         });
         await batch.commit();
         console.log(`✅ Deleted ${querySnapshot.docs.length} documents`);
-        // Log activity
-        await logSyncActivity("document_deleted", {
-            filePath: filePath,
-            documentsAffected: querySnapshot.docs.length,
-            source: "storage_deletion_trigger",
-        });
+        // Note: Sync activity logging removed - system-generated operations
+        // should not clutter user activity logs
         // Invalidate statistics cache
         await invalidateStatisticsCache();
         console.log("🎉 Storage deletion sync completed");
     }
     catch (error) {
         console.error("❌ Error in storage file deleted trigger:", error);
-        await logSyncActivity("sync_error", {
-            error: error.message || String(error),
-            source: "storage_deletion_trigger",
-            filePath: object.name,
-        });
+        // Note: Error logging removed - system-generated operations
+        // should not clutter user activity logs
     }
 });
 /**
@@ -219,23 +203,16 @@ exports.onAuthUserCreated = functions.auth.user().onCreate(async (user) => {
             .doc(user.uid)
             .set(userProfile);
         console.log("✅ Created user profile document:", user.uid);
-        // Log activity
-        await logSyncActivity("user_created", {
-            userId: user.uid,
-            email: user.email,
-            source: "auth_trigger",
-        });
+        // Note: Sync activity logging removed - system-generated operations
+        // should not clutter user activity logs
         // Invalidate statistics cache
         await invalidateStatisticsCache();
         console.log("🎉 Auth user sync completed successfully");
     }
     catch (error) {
         console.error("❌ Error in auth user created trigger:", error);
-        await logSyncActivity("sync_error", {
-            error: error instanceof Error ? error.message : String(error),
-            source: "auth_trigger",
-            userId: user.uid,
-        });
+        // Note: Error logging removed - system-generated operations
+        // should not clutter user activity logs
     }
 });
 /**
@@ -256,22 +233,16 @@ exports.onAuthUserDeleted = functions.auth.user().onDelete(async (user) => {
         else {
             console.log("⚠️ User document not found:", user.uid);
         }
-        // Log activity
-        await logSyncActivity("user_deleted", {
-            userId: user.uid,
-            source: "auth_deletion_trigger",
-        });
+        // Note: Sync activity logging removed - system-generated operations
+        // should not clutter user activity logs
         // Invalidate statistics cache
         await invalidateStatisticsCache();
         console.log("🎉 Auth user deletion sync completed");
     }
     catch (error) {
         console.error("❌ Error in auth user deleted trigger:", error);
-        await logSyncActivity("sync_error", {
-            error: error instanceof Error ? error.message : String(error),
-            source: "auth_deletion_trigger",
-            userId: user.uid,
-        });
+        // Note: Error logging removed - system-generated operations
+        // should not clutter user activity logs
     }
 });
 /**

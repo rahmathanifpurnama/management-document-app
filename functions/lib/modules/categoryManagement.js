@@ -600,9 +600,17 @@ exports.refreshCategoryContents = functions.https.onCall(async (data, context) =
             }
             categorizedDocuments[category].push(doc);
         });
-        // REMOVED: Category refresh activity logging
-        // Category content refresh is an automatic system process and should not clutter user activity logs
-        // Only user-initiated category management actions should be tracked
+        // Log activity
+        await admin
+            .firestore()
+            .collection("activities")
+            .add({
+            type: "category_contents_refreshed",
+            categoryId: categoryId || "all",
+            userId: ((_a = context.auth) === null || _a === void 0 ? void 0 : _a.uid) || "system",
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            details: `Refreshed ${documents.length} documents in ${Object.keys(categorizedDocuments).length} categories`,
+        });
         console.log(`Refreshed ${documents.length} documents in ${Object.keys(categorizedDocuments).length} categories`);
         return {
             success: true,

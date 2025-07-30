@@ -189,12 +189,7 @@ const updateUserPermissions = functions.https.onCall(async (data, context) => {
             userId,
             updatedBy: context.auth.uid,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: {
-                message: `Permissions updated for user ${(_a = userDoc.data()) === null || _a === void 0 ? void 0 : _a.fullName}`,
-                userId: userId,
-                updatedBy: context.auth.uid,
-                fullName: (_a = userDoc.data()) === null || _a === void 0 ? void 0 : _a.fullName,
-            },
+            details: `Permissions updated for user ${(_a = userDoc.data()) === null || _a === void 0 ? void 0 : _a.fullName}`,
         });
         console.log(`User permissions updated successfully: ${userId}`);
         return {
@@ -265,12 +260,7 @@ const deleteUser = functions.https.onCall(async (data, context) => {
             userId,
             deletedBy: context.auth.uid,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: {
-                message: `User ${userData === null || userData === void 0 ? void 0 : userData.fullName} (${userData === null || userData === void 0 ? void 0 : userData.email}) deleted`,
-                fullName: userData === null || userData === void 0 ? void 0 : userData.fullName,
-                email: userData === null || userData === void 0 ? void 0 : userData.email,
-                deletedBy: context.auth.uid,
-            },
+            details: `User ${userData === null || userData === void 0 ? void 0 : userData.fullName} (${userData === null || userData === void 0 ? void 0 : userData.email}) deleted`,
         });
         console.log(`User deleted successfully: ${userId}`);
         return {
@@ -369,13 +359,7 @@ const bulkUserOperations = functions.https.onCall(async (data, context) => {
             operation,
             userId: context.auth.uid,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            details: {
-                message: `Bulk ${operation} operation: ${results.success} successful, ${results.failed} failed`,
-                operation: operation,
-                successCount: results.success,
-                failedCount: results.failed,
-                results: results,
-            },
+            details: `Bulk ${operation} operation: ${results.success} successful, ${results.failed} failed`,
         });
         console.log(`Bulk ${operation} operation completed:`, results);
         return {

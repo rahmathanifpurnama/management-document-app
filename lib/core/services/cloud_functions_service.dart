@@ -618,6 +618,37 @@ class CloudFunctionsService {
     }
   }
 
+  /// Enhanced activity logging using Cloud Functions
+  /// This replaces direct client-side Firestore operations for better security
+  Future<Map<String, dynamic>> logActivity({
+    required String type,
+    required String description,
+    String? documentId,
+    String? categoryId,
+    Map<String, dynamic>? additionalData,
+    bool isSuspicious = false,
+  }) async {
+    try {
+      debugPrint('🔄 Logging activity via Cloud Functions: $type');
+
+      final HttpsCallable callable = _functions.httpsCallable('logActivity');
+      final result = await callable.call({
+        'type': type,
+        'description': description,
+        'documentId': documentId,
+        'categoryId': categoryId,
+        'additionalData': additionalData ?? {},
+        'isSuspicious': isSuspicious,
+      });
+
+      debugPrint('✅ Activity logged successfully via Cloud Functions: $type');
+      return Map<String, dynamic>.from(result.data);
+    } catch (e) {
+      debugPrint('❌ Failed to log activity via Cloud Functions: $e');
+      rethrow;
+    }
+  }
+
   /// Validate user session using Cloud Functions
   Future<Map<String, dynamic>> validateUserSession({
     required String userId,

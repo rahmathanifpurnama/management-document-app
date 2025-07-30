@@ -33,7 +33,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.validateUserSession = exports.handleLogoutOperations = exports.handlePostLoginOperations = void 0;
+exports.logActivity = exports.validateUserSession = exports.handleLogoutOperations = exports.handlePostLoginOperations = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const firebase_functions_1 = require("firebase-functions");
@@ -101,22 +101,62 @@ async function updateLastLogin(userId) {
     }
 }
 /**
- * Log user login activity
+ * Enhanced login activity logging with user context
  */
 async function logLoginActivity(userId, deviceInfo) {
     try {
-        await db.collection("activities").add({
+        // Get user information for enhanced logging
+        let userName = null;
+        let userRole = null;
+        let userEmail = null;
+        try {
+            const userDoc = await db.collection("users").doc(userId).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                firebase_functions_1.logger.info(`User data found for activity logging: ${Object.keys(userData || {}).join(', ')}`);
+                // Try multiple field names for user name
+                userName = (userData === null || userData === void 0 ? void 0 : userData.fullName) || (userData === null || userData === void 0 ? void 0 : userData.name) || (userData === null || userData === void 0 ? void 0 : userData.displayName) || (userData === null || userData === void 0 ? void 0 : userData.email);
+                userRole = userData === null || userData === void 0 ? void 0 : userData.role;
+                userEmail = userData === null || userData === void 0 ? void 0 : userData.email;
+                firebase_functions_1.logger.info(`User info for activity: Name: ${userName}, Role: ${userRole}, Email: ${userEmail}`);
+            }
+            else {
+                firebase_functions_1.logger.warn(`User document not found in Firestore for UID: ${userId}`);
+                // Fallback to Firebase Auth user data
+                try {
+                    const authUser = await admin.auth().getUser(userId);
+                    userEmail = authUser.email || null;
+                    userName = authUser.displayName || authUser.email || null;
+                    firebase_functions_1.logger.info(`Fallback to Auth user data: ${userName}, ${userEmail}`);
+                }
+                catch (authError) {
+                    firebase_functions_1.logger.error(`Failed to get Auth user data for ${userId}:`, authError);
+                }
+            }
+        }
+        catch (error) {
+            firebase_functions_1.logger.error(`Error getting user info for activity log: ${error}`);
+        }
+        const activityData = {
             type: "login",
             userId: userId,
+            userName: userName || userEmail || "Unknown User",
+            userEmail: userEmail,
+            userRole: userRole || "user",
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             description: "User Login",
+            isSuspicious: false,
+            ipAddress: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.ipAddress) || null,
+            userAgent: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.userAgent) || "Unknown",
             details: {
                 userAgent: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.userAgent) || "Unknown",
                 platform: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.platform) || "Unknown",
                 ipAddress: deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.ipAddress,
+                source: "server-side",
             },
-        });
-        firebase_functions_1.logger.info(`Login activity logged for user: ${userId}`);
+        };
+        await db.collection("activities").add(activityData);
+        firebase_functions_1.logger.info(`Enhanced login activity logged for user: ${userId} (${userName})`);
     }
     catch (error) {
         firebase_functions_1.logger.error(`Failed to log login activity for user ${userId}:`, error);
@@ -181,22 +221,58 @@ exports.handleLogoutOperations = functions.https.onCall(async (data, context) =>
     }
 });
 /**
- * Log user logout activity
+ * Enhanced logout activity logging with user context
  */
 async function logLogoutActivity(userId, deviceInfo) {
     try {
-        await db.collection("activities").add({
+        // Get user information for enhanced logging
+        let userName = null;
+        let userRole = null;
+        let userEmail = null;
+        try {
+            const userDoc = await db.collection("users").doc(userId).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                // Try multiple field names for user name
+                userName = (userData === null || userData === void 0 ? void 0 : userData.fullName) || (userData === null || userData === void 0 ? void 0 : userData.name) || (userData === null || userData === void 0 ? void 0 : userData.displayName) || (userData === null || userData === void 0 ? void 0 : userData.email);
+                userRole = userData === null || userData === void 0 ? void 0 : userData.role;
+                userEmail = userData === null || userData === void 0 ? void 0 : userData.email;
+            }
+            else {
+                // Fallback to Firebase Auth user data
+                try {
+                    const authUser = await admin.auth().getUser(userId);
+                    userEmail = authUser.email || null;
+                    userName = authUser.displayName || authUser.email || null;
+                }
+                catch (authError) {
+                    firebase_functions_1.logger.error(`Failed to get Auth user data for logout ${userId}:`, authError);
+                }
+            }
+        }
+        catch (error) {
+            firebase_functions_1.logger.error(`Error getting user info for logout activity log: ${error}`);
+        }
+        const activityData = {
             type: "logout",
             userId: userId,
+            userName: userName || userEmail || "Unknown User",
+            userEmail: userEmail,
+            userRole: userRole || "user",
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
             description: "User Logout",
+            isSuspicious: false,
+            ipAddress: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.ipAddress) || null,
+            userAgent: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.userAgent) || "Unknown",
             details: {
                 userAgent: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.userAgent) || "Unknown",
                 platform: (deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.platform) || "Unknown",
                 ipAddress: deviceInfo === null || deviceInfo === void 0 ? void 0 : deviceInfo.ipAddress,
+                source: "server-side",
             },
-        });
-        firebase_functions_1.logger.info(`Logout activity logged for user: ${userId}`);
+        };
+        await db.collection("activities").add(activityData);
+        firebase_functions_1.logger.info(`Enhanced logout activity logged for user: ${userId} (${userName})`);
     }
     catch (error) {
         firebase_functions_1.logger.error(`Failed to log logout activity for user ${userId}:`, error);
@@ -244,6 +320,92 @@ exports.validateUserSession = functions.https.onCall(async (data, context) => {
     catch (error) {
         firebase_functions_1.logger.error("Error validating user session:", error);
         throw error;
+    }
+});
+/**
+ * Enhanced activity logging Cloud Function
+ * Centralizes all activity logging with server-side validation
+ */
+exports.logActivity = functions.https.onCall(async (data, context) => {
+    try {
+        // Verify authentication
+        if (!context.auth) {
+            throw new functions.https.HttpsError("unauthenticated", "User must be authenticated to log activities.");
+        }
+        const { type, description, documentId, categoryId, additionalData, isSuspicious = false } = data;
+        if (!type || !description) {
+            throw new functions.https.HttpsError("invalid-argument", "Missing required parameters: type and description are required.");
+        }
+        const userId = context.auth.uid;
+        firebase_functions_1.logger.info(`Logging activity - Type: ${type}, User: ${userId}`);
+        // Filter out system-generated activity types
+        const userInitiatedTypes = [
+            'login', 'logout', 'upload', 'download', 'delete', 'view', 'create', 'edit', 'update',
+            'password_change', 'profile_update', 'category_create', 'category_update', 'category_delete'
+        ];
+        if (!userInitiatedTypes.includes(type)) {
+            firebase_functions_1.logger.warn(`Skipping system-generated activity type: ${type}`);
+            return { success: true, message: "System-generated activity type skipped" };
+        }
+        // Get user information for enhanced logging
+        let userName = null;
+        let userRole = null;
+        let userEmail = null;
+        try {
+            const userDoc = await db.collection("users").doc(userId).get();
+            if (userDoc.exists) {
+                const userData = userDoc.data();
+                // Try multiple field names for user name
+                userName = (userData === null || userData === void 0 ? void 0 : userData.fullName) || (userData === null || userData === void 0 ? void 0 : userData.name) || (userData === null || userData === void 0 ? void 0 : userData.displayName) || (userData === null || userData === void 0 ? void 0 : userData.email);
+                userRole = userData === null || userData === void 0 ? void 0 : userData.role;
+                userEmail = userData === null || userData === void 0 ? void 0 : userData.email;
+            }
+            else {
+                // Fallback to Firebase Auth user data
+                try {
+                    const authUser = await admin.auth().getUser(userId);
+                    userEmail = authUser.email || null;
+                    userName = authUser.displayName || authUser.email || null;
+                }
+                catch (authError) {
+                    firebase_functions_1.logger.error(`Failed to get Auth user data for activity ${userId}:`, authError);
+                }
+            }
+        }
+        catch (error) {
+            firebase_functions_1.logger.error(`Error getting user info for activity log: ${error}`);
+        }
+        const activityData = {
+            type: type,
+            description: description,
+            userId: userId,
+            userName: userName || userEmail || "Unknown User",
+            userEmail: userEmail,
+            userRole: userRole || "user",
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+            isSuspicious: isSuspicious,
+            ipAddress: null, // Could be enhanced with request IP
+            userAgent: null, // Could be enhanced with request headers
+            details: Object.assign({ source: "server-side" }, additionalData),
+        };
+        // Add optional fields
+        if (documentId) {
+            activityData.documentId = documentId;
+        }
+        if (categoryId) {
+            activityData.categoryId = categoryId;
+        }
+        await db.collection("activities").add(activityData);
+        firebase_functions_1.logger.info(`Activity logged successfully - Type: ${type}, User: ${userName}, Description: ${description}`);
+        return {
+            success: true,
+            message: "Activity logged successfully",
+            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        };
+    }
+    catch (error) {
+        firebase_functions_1.logger.error("Error logging activity:", error);
+        throw new functions.https.HttpsError("internal", `Failed to log activity: ${error}`);
     }
 });
 //# sourceMappingURL=authOperations.js.map

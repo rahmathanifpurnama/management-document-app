@@ -3,9 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../core/services/auth_service.dart';
-import '../../../services/enhanced_auth_service.dart';
-import '../../../services/activity_service.dart';
-import '../../../models/user_model.dart';
+import '../../../core/services/cloud_functions_service.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
 
@@ -14,8 +12,8 @@ import 'auth_state.dart';
 /// Works in conjunction with Riverpod providers for simple state management
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthService _authService = AuthService.instance;
-  final EnhancedAuthService _enhancedAuthService = EnhancedAuthService.instance;
-  final ActivityService _activityService = ActivityService();
+  final CloudFunctionsService _cloudFunctionsService =
+      CloudFunctionsService.instance;
 
   // Store last failed operation for retry
   AuthEvent? _lastFailedOperation;
@@ -101,23 +99,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           .timeout(const Duration(seconds: 15));
 
       if (user != null) {
-        // Log activity
-        debugPrint(
-          '🔄 AuthBloc: Attempting to log login activity for user: ${user.email} (${user.id})',
-        );
-        try {
-          await _activityService.logActivity(
-            type: 'login',
-            description: 'User logged in successfully',
-            additionalData: {
-              'email': event.email,
-              'rememberMe': event.rememberMe,
-            },
-          );
-          debugPrint('✅ AuthBloc: Login activity logged successfully');
-        } catch (e) {
-          debugPrint('❌ AuthBloc: Failed to log login activity: $e');
-        }
+        // Note: Login activity logging is now handled by Cloud Functions
+        // in handlePostLoginOperations to prevent duplicate entries
+        debugPrint('✅ AuthBloc: Login successful for: ${event.email}');
+        debugPrint('📝 AuthBloc: Activity logging handled by Cloud Functions');
 
         emit(
           AuthState.authenticated(
@@ -125,8 +110,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             isEmailVerified: _authService.currentUser?.emailVerified ?? false,
           ),
         );
-
-        debugPrint('✅ AuthBloc: Login successful for: ${event.email}');
       } else {
         throw Exception('Login failed: No user data returned');
       }
@@ -148,18 +131,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       debugPrint('🔄 AuthBloc: Logging out user...');
 
-      final currentUser = state.currentUser;
-
       emit(const AuthState.loading(operationType: 'logout'));
 
-      // Log activity before logout
-      if (currentUser != null) {
-        await _activityService.logActivity(
-          type: 'logout',
-          description: 'User logged out successfully',
-          additionalData: {'email': currentUser.email},
-        );
-      }
+      // Note: Logout activity logging is now handled by Cloud Functions
+      // in handleLogoutOperations to prevent duplicate entries
+      debugPrint(
+        '📝 AuthBloc: Logout activity logging handled by Cloud Functions',
+      );
 
       await _authService.logout().timeout(const Duration(seconds: 10));
 
@@ -284,12 +262,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           .changePassword(event.currentPassword, event.newPassword)
           .timeout(const Duration(seconds: 15));
 
-      // Log activity
-      await _activityService.logActivity(
-        type: 'password_change',
-        description: 'User changed password successfully',
-        additionalData: {'email': currentUser.email},
-      );
+      // Log activity via Cloud Functions for better security
+      try {
+        await _cloudFunctionsService.logActivity(
+          type: 'password_change',
+          description: 'User changed password successfully',
+          additionalData: {'email': currentUser.email},
+        );
+        debugPrint(
+          '✅ AuthBloc: Password change activity logged via Cloud Functions',
+        );
+      } catch (e) {
+        debugPrint('❌ AuthBloc: Failed to log password change activity: $e');
+      }
 
       emit(AuthState.passwordChanged(user: currentUser));
 
