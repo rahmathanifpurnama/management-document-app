@@ -490,20 +490,48 @@ class ActivityService {
         return;
       }
 
-      // Get user information
+      debugPrint(
+        '🔄 ActivityService: Logging activity - Type: $type, User: ${user.uid}, Email: ${user.email}',
+      );
+
+      // Get user information with enhanced error handling
       String? userName;
+      String? userRole;
       try {
+        debugPrint(
+          '🔄 ActivityService: Fetching user data from Firestore for UID: ${user.uid}',
+        );
         final userDoc = await _firestore
             .collection('users')
             .doc(user.uid)
             .get();
+
         if (userDoc.exists) {
           final userData = userDoc.data();
+          debugPrint(
+            '✅ ActivityService: User data found - ${userData?.keys.join(', ')}',
+          );
+
+          // Try multiple field names for user name
           userName =
-              userData?['name'] as String? ?? userData?['email'] as String?;
+              userData?['fullName'] as String? ??
+              userData?['name'] as String? ??
+              userData?['displayName'] as String? ??
+              userData?['email'] as String?;
+
+          userRole = userData?['role'] as String?;
+          debugPrint(
+            '📋 ActivityService: User info - Name: $userName, Role: $userRole',
+          );
+        } else {
+          debugPrint(
+            '⚠️ ActivityService: User document not found in Firestore for UID: ${user.uid}',
+          );
         }
       } catch (e) {
-        debugPrint('Error getting user info for activity log: $e');
+        debugPrint(
+          '❌ ActivityService: Error getting user info for activity log: $e',
+        );
       }
 
       final activityData = {
@@ -512,11 +540,17 @@ class ActivityService {
         'userId': user.uid,
         'userName': userName ?? user.email ?? 'Unknown User',
         'userEmail': user.email,
+        'userRole':
+            userRole ?? 'user', // Include user role for better identification
         'timestamp': FieldValue.serverTimestamp(),
         'isSuspicious': isSuspicious,
         'ipAddress': null, // Would need additional setup to capture IP
         'userAgent': null, // Would need additional setup to capture user agent
       };
+
+      debugPrint(
+        '📝 ActivityService: Activity data prepared - ${activityData.toString()}',
+      );
 
       // Add optional fields
       if (documentId != null) {
@@ -531,9 +565,13 @@ class ActivityService {
 
       await _firestore.collection('activities').add(activityData);
 
-      debugPrint('Activity logged: $type - $description');
+      debugPrint(
+        '✅ ActivityService: Activity logged successfully - Type: $type, User: ${activityData['userName']}, Description: $description',
+      );
     } catch (e) {
-      debugPrint('Error logging activity: $e');
+      debugPrint(
+        '❌ ActivityService: Error logging activity - Type: $type, Error: $e',
+      );
     }
   }
 
@@ -583,6 +621,35 @@ class ActivityService {
     };
 
     return userInitiatedTypes.contains(type.toLowerCase());
+  }
+
+  /// Test method to verify activity logging is working
+  /// This method can be called to test if admin login activities are being logged
+  Future<void> testActivityLogging() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        debugPrint('❌ ActivityService: No user logged in for testing');
+        return;
+      }
+
+      debugPrint(
+        '🧪 ActivityService: Testing activity logging for user: ${user.email}',
+      );
+
+      await logActivity(
+        type: 'login',
+        description: 'Test login activity',
+        additionalData: {
+          'testMode': true,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+
+      debugPrint('✅ ActivityService: Test activity logging completed');
+    } catch (e) {
+      debugPrint('❌ ActivityService: Test activity logging failed: $e');
+    }
   }
 
   /// Lock a user account

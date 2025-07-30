@@ -102,14 +102,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       if (user != null) {
         // Log activity
-        await _activityService.logActivity(
-          type: 'login',
-          description: 'User logged in successfully',
-          additionalData: {
-            'email': event.email,
-            'rememberMe': event.rememberMe,
-          },
+        debugPrint(
+          '🔄 AuthBloc: Attempting to log login activity for user: ${user.email} (${user.id})',
         );
+        try {
+          await _activityService.logActivity(
+            type: 'login',
+            description: 'User logged in successfully',
+            additionalData: {
+              'email': event.email,
+              'rememberMe': event.rememberMe,
+            },
+          );
+          debugPrint('✅ AuthBloc: Login activity logged successfully');
+        } catch (e) {
+          debugPrint('❌ AuthBloc: Failed to log login activity: $e');
+        }
 
         emit(
           AuthState.authenticated(
