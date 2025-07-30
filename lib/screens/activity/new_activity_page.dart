@@ -43,7 +43,6 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
     _dataManager.setStateChangeCallback(() {
       if (mounted) setState(() {});
     });
-    _scrollController.addListener(_onScroll);
     _loadInitialData();
   }
 
@@ -54,13 +53,6 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
     _filterDebounceTimer?.cancel();
     _dataManager.dispose();
     super.dispose();
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      _dataManager.loadMore();
-    }
   }
 
   Future<void> _loadInitialData() async {
@@ -247,24 +239,10 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
             ),
             const SizedBox(height: 8),
 
-            // Activity List - Optimized rendering
+            // Activity List - Pagination-only rendering
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               child: _buildActivityList(),
-            ),
-
-            // Load More Indicator - Smooth animation
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              height: _dataManager.isLoadingMore ? 60 : 0,
-              child: _dataManager.isLoadingMore
-                  ? const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: CircularProgressIndicator(),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
             ),
           ],
         ),
@@ -301,12 +279,6 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
         if (totalPages > 1) ...[
           const SizedBox(height: 16),
           _buildPaginationControls(totalPages),
-        ],
-
-        // Load more section for infinite scroll
-        if (_dataManager.hasMoreData && _currentPage == totalPages - 1) ...[
-          const SizedBox(height: 16),
-          _buildLoadMoreSection(),
         ],
       ],
     );
@@ -479,56 +451,6 @@ class _NewActivityPageState extends ConsumerState<NewActivityPage> {
             color: AppColors.textSecondary,
           ),
         ),
-      ),
-    );
-  }
-
-  /// Build load more section for infinite scroll
-  Widget _buildLoadMoreSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppColors.border.withValues(alpha: 0.3),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        children: [
-          if (_dataManager.isLoadingMore) ...[
-            const CircularProgressIndicator(),
-            const SizedBox(height: 8),
-            Text(
-              'Loading more activities...',
-              style: GoogleFonts.poppins(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ] else ...[
-            ElevatedButton.icon(
-              onPressed: () => _dataManager.loadMore(),
-              icon: const Icon(Icons.expand_more),
-              label: Text(
-                'Load More Activities',
-                style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-          ],
-        ],
       ),
     );
   }
