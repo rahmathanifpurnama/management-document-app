@@ -568,82 +568,9 @@ class CloudFunctionsService {
     }
   }
 
-  // Authentication Functions (ANR Prevention)
-
-  /// Handle post-login operations using Cloud Functions
-  /// Optimized for non-blocking execution with proper error handling
-  Future<Map<String, dynamic>?> handlePostLoginOperations({
-    required String userId,
-    required String email,
-    Map<String, dynamic>? deviceInfo,
-  }) async {
-    try {
-      debugPrint('🔄 Processing post-login operations for user: $userId');
-
-      final callable = _functions.httpsCallable('handlePostLoginOperations');
-      final result = await callable.call({
-        'userId': userId,
-        'email': email,
-        'deviceInfo': deviceInfo ?? {},
-      });
-
-      debugPrint('✅ Post-login operations completed successfully');
-      debugPrint(
-        '📊 Activity logged, login count updated, last login timestamp set',
-      );
-      return Map<String, dynamic>.from(result.data);
-    } catch (e) {
-      // Enhanced error logging for debugging without affecting user experience
-      debugPrint('⚠️ Post-login operations failed: $e');
-
-      // Log specific error types for better debugging
-      final errorString = e.toString().toLowerCase();
-      if (errorString.contains('functions/unauthenticated')) {
-        debugPrint('🚫 Authentication error - user token may be invalid');
-      } else if (errorString.contains('functions/permission-denied')) {
-        debugPrint('🔒 Permission denied - check Firestore security rules');
-      } else if (errorString.contains('functions/deadline-exceeded') ||
-          errorString.contains('timeout')) {
-        debugPrint('⏱️ Timeout error - cloud function took too long');
-      } else if (errorString.contains('functions/unavailable') ||
-          errorString.contains('network')) {
-        debugPrint('🌐 Network/availability error - poor connectivity');
-      } else if (errorString.contains('functions/internal')) {
-        debugPrint('⚙️ Internal server error - check cloud function logs');
-      } else {
-        debugPrint(
-          '❓ Unknown error type - check cloud function implementation',
-        );
-      }
-
-      // Return null instead of rethrowing to indicate failure without breaking login flow
-      return null;
-    }
-  }
-
-  /// Handle logout operations using Cloud Functions
-  Future<Map<String, dynamic>> handleLogoutOperations({
-    required String userId,
-    Map<String, dynamic>? deviceInfo,
-  }) async {
-    try {
-      debugPrint('🔄 Handling logout operations via Cloud Functions: $userId');
-
-      final HttpsCallable callable = _functions.httpsCallable(
-        'handleLogoutOperations',
-      );
-      final result = await callable.call({
-        'userId': userId,
-        'deviceInfo': deviceInfo ?? {},
-      });
-
-      debugPrint('✅ Logout operations completed: ${result.data}');
-      return Map<String, dynamic>.from(result.data);
-    } catch (e) {
-      debugPrint('❌ Failed to handle logout operations: $e');
-      rethrow;
-    }
-  }
+  // ✅ CLEANUP: Removed Authentication Functions (ANR Prevention)
+  // handlePostLoginOperations and handleLogoutOperations have been removed
+  // These are now handled by direct ActivityService calls in AuthService
 
   /// Enhanced activity logging using Cloud Functions
   /// This replaces direct client-side Firestore operations for better security

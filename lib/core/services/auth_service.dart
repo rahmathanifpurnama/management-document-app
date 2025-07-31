@@ -3,10 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/firebase_service.dart';
-import '../services/cloud_functions_service.dart';
 import '../utils/anr_prevention.dart';
 import '../config/anr_config.dart';
 import '../../models/user_model.dart';
+import '../../services/activity_service.dart';
 
 class AuthService {
   static AuthService? _instance;
@@ -131,8 +131,8 @@ class AuthService {
 
           debugPrint('✅ Local post-login operations completed in background');
 
-          // Execute cloud function post-login operations with optimized timeout
-          await _executeCloudPostLoginOperations(user, email);
+          // ✅ FIXED: Use direct ActivityService instead of Cloud Functions
+          await _logLoginActivityDirect(user, email);
         } catch (e) {
           debugPrint('⚠️ Post-login operations failed: $e');
           // Don't throw - these are now non-critical for login success
@@ -145,95 +145,71 @@ class AuthService {
     );
   }
 
-  // Execute cloud function post-login operations with optimized error handling
-  Future<void> _executeCloudPostLoginOperations(
-    UserModel user,
-    String email,
-  ) async {
+  // ✅ FIXED: Direct activity logging instead of Cloud Functions
+  Future<void> _logLoginActivityDirect(UserModel user, String email) async {
     try {
-      debugPrint(
-        '🔄 Starting cloud post-login operations for user: ${user.id}',
+      debugPrint('🔄 Logging login activity directly for user: ${user.id}');
+
+      // Import ActivityService
+      final activityService = ActivityService();
+
+      // Log login activity with comprehensive data
+      await activityService.logActivity(
+        type: 'login',
+        description: 'User Login: ${user.fullName}',
+        additionalData: {
+          'userName': user.fullName,
+          'userEmail': user.email,
+          'userRole': user.role,
+          'loginMethod': 'email_password',
+          'platform': 'Flutter App',
+          'userAgent': 'Mobile App',
+          'source': 'client-side',
+          'timestamp': DateTime.now().toIso8601String(),
+        },
       );
 
-      // Use CloudFunctionsService with optimized timeout
-      final cloudFunctionsService = CloudFunctionsService.instance;
-
-      // Execute with optimized timeout to balance UX and reliability
-      final result = await ANRPrevention.executeWithTimeout(
-        cloudFunctionsService.handlePostLoginOperations(
-          userId: user.id,
-          email: email,
-          deviceInfo: await _getDeviceInfo(),
-        ),
-        timeout: const Duration(
-          seconds: 5,
-        ), // Increased timeout for better reliability
-        operationName: 'Cloud Post-Login Operations',
-      );
-
-      if (result != null) {
-        debugPrint('✅ Cloud post-login operations completed successfully');
-        debugPrint('📊 Activity logging, login count, and last login updated');
-      } else {
-        debugPrint(
-          '⚠️ Cloud post-login operations timed out - continuing normally',
-        );
-      }
+      debugPrint('✅ Login activity logged successfully via ActivityService');
     } catch (e) {
-      // Only log errors to console - do not show to user or implement fallbacks
-      debugPrint('⚠️ Cloud post-login operations failed: $e');
-      debugPrint('📝 This is non-critical - login was successful');
-
-      // Log specific error types for debugging
-      final errorString = e.toString().toLowerCase();
-      if (errorString.contains('network') || errorString.contains('timeout')) {
-        debugPrint('🌐 Network/timeout error - likely poor connectivity');
-        debugPrint(
-          '💡 Suggestion: Check internet connection or increase timeout',
-        );
-      } else if (errorString.contains('permission')) {
-        debugPrint('🔒 Permission error - check Firestore rules');
-        debugPrint(
-          '💡 Suggestion: Verify Firestore security rules allow post-login operations',
-        );
-      } else if (errorString.contains('unauthenticated')) {
-        debugPrint(
-          '🚫 Authentication error - user may not be fully authenticated yet',
-        );
-        debugPrint('💡 Suggestion: Check Firebase Auth token validity');
-      } else if (errorString.contains('app check')) {
-        debugPrint('🔐 App Check error - token validation failed');
-        debugPrint(
-          '💡 Suggestion: Configure App Check or disable in debug mode',
-        );
-      } else if (errorString.contains('functions/deadline-exceeded')) {
-        debugPrint(
-          '⏱️ Cloud Function deadline exceeded - operation took too long',
-        );
-        debugPrint('💡 Suggestion: Optimize cloud function performance');
-      }
-
-      // Do not rethrow - login success should not depend on these operations
+      debugPrint('⚠️ Failed to log login activity: $e');
+      // Don't throw - this is non-critical for login success
     }
   }
 
-  // Get device information for activity logging
-  Future<Map<String, dynamic>> _getDeviceInfo() async {
+  // ✅ FIXED: Direct logout activity logging instead of Cloud Functions
+  Future<void> _logLogoutActivityDirect() async {
     try {
-      // Basic device info - can be expanded later
-      return {
-        'platform': 'Flutter',
-        'userAgent': 'SIMDOC Mobile App',
-        'source': 'mobile-app',
-        'timestamp': DateTime.now().toIso8601String(),
-      };
+      final user = currentUser;
+      if (user == null) {
+        debugPrint('⚠️ No user to log logout activity for');
+        return;
+      }
+
+      debugPrint('🔄 Logging logout activity directly for user: ${user.uid}');
+
+      // Get user data for comprehensive logging
+      final userData = await getCurrentUserData();
+      final activityService = ActivityService();
+
+      // Log logout activity with comprehensive data
+      await activityService.logActivity(
+        type: 'logout',
+        description: 'User Logout: ${userData?.fullName ?? user.email}',
+        additionalData: {
+          'userName': userData?.fullName ?? user.email,
+          'userEmail': user.email,
+          'userRole': userData?.role ?? 'user',
+          'platform': 'Flutter App',
+          'userAgent': 'Mobile App',
+          'source': 'client-side',
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+      );
+
+      debugPrint('✅ Logout activity logged successfully via ActivityService');
     } catch (e) {
-      debugPrint('⚠️ Failed to get device info: $e');
-      return {
-        'platform': 'Unknown',
-        'userAgent': 'Unknown',
-        'source': 'mobile-app',
-      };
+      debugPrint('⚠️ Failed to log logout activity: $e');
+      // Don't throw - this is non-critical for logout success
     }
   }
 
@@ -262,6 +238,9 @@ class AuthService {
   // Logout
   Future<void> logout() async {
     try {
+      // ✅ FIXED: Log logout activity before signing out
+      await _logLogoutActivityDirect();
+
       // Clear login session
       await _clearLoginSession();
 
