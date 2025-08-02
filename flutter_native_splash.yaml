@@ -1,0 +1,27 @@
+flutter_native_splash:
+  # Background color - matching existing design
+  color: "#F5F5F5"
+
+  # App icon image
+  image: assets/app_icon.png
+
+  # Dark mode settings
+  color_dark: "#121212"
+  image_dark: assets/app_icon.png
+
+  # Platform support
+  android: true
+  ios: true
+  web: true
+
+  # Image positioning
+  android_gravity: center
+  ios_content_mode: center
+  web_image_mode: center
+
+  # Android 12 support
+  android_12:
+    image: assets/app_icon.png
+    color: "#F5F5F5"
+    image_dark: assets/app_icon.png
+    color_dark: "#121212"
