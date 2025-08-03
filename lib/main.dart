@@ -63,7 +63,7 @@ import 'services/download_notification_service.dart';
 import 'models/category_model.dart';
 import 'models/user_model.dart';
 import 'models/document_model.dart';
-import 'core/di/service_locator.dart';
+import 'core/dependency_injection/service_locator.dart';
 import 'core/error_handling/error_handler.dart';
 
 // Global RouteObserver for tracking navigation

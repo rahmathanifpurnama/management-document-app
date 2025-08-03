@@ -46,7 +46,7 @@ import '../../widgets/notification/bell_notification_widget.dart';
 import '../../main.dart' show routeObserver;
 import '../../features/auth/providers/auth_providers.dart';
 import '../../core/interfaces/service_interfaces.dart';
-import '../../core/di/service_locator.dart';
+import '../../core/dependency_injection/service_locator.dart';
 import '../../core/services/navigation_service.dart';
 import '../../core/error_handling/error_handler.dart';
 import '../../core/exceptions/custom_exceptions.dart';
