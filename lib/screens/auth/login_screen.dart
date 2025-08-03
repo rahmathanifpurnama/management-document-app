@@ -11,6 +11,7 @@ import '../../widgets/common/custom_text_field.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/loading_widget.dart';
 import '../../services/email_validation_service.dart';
+import '../../core/services/firebase_service.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -25,7 +26,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
   bool _obscurePassword = true;
-  String? _emailValidationMessage;
+
+  // Email validation states
+  bool _isValidatingEmail = false;
+  bool?
+  _emailExistsInFirestore; // null = not checked, true = exists, false = doesn't exist
 
   @override
   void initState() {
@@ -65,37 +70,77 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  void _validateEmailRealTime(String email) {
+  void _validateEmailRealTime(String email) async {
     if (email.isEmpty) {
       setState(() {
-        _emailValidationMessage = null;
+        _emailExistsInFirestore = null;
+        _isValidatingEmail = false;
       });
       return;
     }
 
     final emailService = EmailValidationService.instance;
 
-    // Check basic email format
+    // Check basic email format first
     if (!emailService.isValidEmailFormat(email)) {
       setState(() {
-        _emailValidationMessage = 'Format email tidak valid';
+        _emailExistsInFirestore = false;
+        _isValidatingEmail = false;
       });
       return;
     }
 
-    // Check domain validation
-    final domainValidation = emailService.validateEmailDomain(email);
-    if (!domainValidation.isValid) {
-      setState(() {
-        _emailValidationMessage = domainValidation.message;
-      });
-      return;
-    }
-
-    // Clear validation message if email is valid
+    // Start validation process
     setState(() {
-      _emailValidationMessage = null;
+      _isValidatingEmail = true;
     });
+
+    try {
+      // Check if email exists in Firestore users collection
+      final firebaseService = FirebaseService.instance;
+      final snapshot = await firebaseService.usersCollection
+          .where('email', isEqualTo: email.toLowerCase())
+          .limit(1)
+          .get();
+
+      if (mounted) {
+        setState(() {
+          _emailExistsInFirestore = snapshot.docs.isNotEmpty;
+          _isValidatingEmail = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _emailExistsInFirestore = false;
+          _isValidatingEmail = false;
+        });
+      }
+    }
+  }
+
+  // Get email validation icon based on current state
+  Widget? _getEmailValidationIcon() {
+    if (_isValidatingEmail) {
+      return const SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+        ),
+      );
+    }
+
+    if (_emailExistsInFirestore == true) {
+      return const Icon(Icons.check_circle, color: AppColors.success, size: 20);
+    }
+
+    if (_emailExistsInFirestore == false && _emailController.text.isNotEmpty) {
+      return const Icon(Icons.cancel, color: AppColors.error, size: 20);
+    }
+
+    return null;
   }
 
   void _showForgotPasswordDialog() {
@@ -262,50 +307,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ],
                         ),
 
-                        // Email Field with real-time validation
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CustomTextField(
-                              controller: _emailController,
-                              label: AppStrings.email,
-                              keyboardType: TextInputType.emailAddress,
-                              prefixIcon: Icons.email_outlined,
-                              onChanged: _validateEmailRealTime,
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return AppStrings.fieldRequired;
-                                }
+                        // Email Field with visual validation feedback
+                        CustomTextField(
+                          controller: _emailController,
+                          label: AppStrings.email,
+                          keyboardType: TextInputType.emailAddress,
+                          prefixIcon: Icons.email_outlined,
+                          suffixIcon: _getEmailValidationIcon(),
+                          onChanged: _validateEmailRealTime,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return AppStrings.fieldRequired;
+                            }
 
-                                // Use comprehensive email validation
-                                final emailService =
-                                    EmailValidationService.instance;
-                                if (!emailService.isValidEmailFormat(value)) {
-                                  return 'Format email tidak valid';
-                                }
+                            // Only check basic email format
+                            final emailService =
+                                EmailValidationService.instance;
+                            if (!emailService.isValidEmailFormat(value)) {
+                              return 'Format email tidak valid';
+                            }
 
-                                final domainValidation = emailService
-                                    .validateEmailDomain(value);
-                                if (!domainValidation.isValid) {
-                                  return domainValidation.message;
-                                }
-
-                                return null;
-                              },
-                            ),
-                            // Real-time validation message
-                            if (_emailValidationMessage != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4, left: 4),
-                                child: Text(
-                                  _emailValidationMessage!,
-                                  style: const TextStyle(
-                                    color: AppColors.error,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                          ],
+                            return null;
+                          },
                         ),
 
                         const SizedBox(height: 20),
