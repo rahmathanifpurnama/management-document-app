@@ -45,12 +45,30 @@ import '../../widgets/statistics/responsive_stats_grid.dart';
 import '../../widgets/notification/bell_notification_widget.dart';
 import '../../main.dart' show routeObserver;
 import '../../features/auth/providers/auth_providers.dart';
+import '../../core/interfaces/service_interfaces.dart';
+import '../../core/di/service_locator.dart';
+import '../../core/services/navigation_service.dart';
+import '../../core/error_handling/error_handler.dart';
+import '../../core/exceptions/custom_exceptions.dart';
+import '../../core/strategies/greeting_strategies.dart';
+
 part 'components/home_greeting_section.dart';
 part 'components/home_search_section.dart';
 part 'components/home_file_list_section.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({super.key});
+  final IGreetingService? greetingService;
+  final IStatisticsService? statisticsService;
+  final IShareService? shareService;
+  final INavigationService? navigationService;
+
+  const HomeScreen({
+    super.key,
+    this.greetingService,
+    this.statisticsService,
+    this.shareService,
+    this.navigationService,
+  });
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -60,16 +78,60 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver, RouteAware {
   bool _dataLoaded = false;
   final TextEditingController _searchController = TextEditingController();
-  final ShareService _shareService = ShareService();
+
+  // Dependency injected services
+  late final IGreetingService _greetingService;
+  late final IStatisticsService _statisticsService;
+  late final IShareService _shareService;
+  late final INavigationService _navigationService;
+
   Timer? _searchTimer;
   Timer? _refreshTimer;
   late GreetingSet _currentGreeting;
   final GlobalKey<_HomeFileListSectionState> _fileListKey =
       GlobalKey<_HomeFileListSectionState>();
 
+  /// Initialize dependency injected services
+  void _initializeServices() {
+    // Initialize service locator if not already done
+    if (!ServiceLocator.instance.isRegistered<IGreetingService>()) {
+      ServiceLocator.instance.initializeServices();
+    }
+
+    // Get services from constructor or service locator
+    _greetingService =
+        widget.greetingService ??
+        ServiceLocator.instance.get<IGreetingService>();
+    _statisticsService =
+        widget.statisticsService ??
+        ServiceLocator.instance.get<IStatisticsService>();
+    _shareService =
+        widget.shareService ?? ServiceLocator.instance.get<IShareService>();
+    _navigationService = widget.navigationService ?? NavigationService.instance;
+
+    // Initialize component factory based on user role
+    final currentUserAsync = ref.read(currentUserProvider);
+    final userRole = currentUserAsync.when(
+      data: (user) => user?.role ?? 'guest',
+      loading: () => 'guest',
+      error: (_, __) => 'guest',
+    );
+
+    // Set navigation context
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_navigationService is NavigationService) {
+        (_navigationService as NavigationService).setContext(context);
+      }
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+
+    // Initialize dependency injected services
+    _initializeServices();
+
     WidgetsBinding.instance.addObserver(this);
     _updateSessionActivity();
     // SEARCH FIX: Remove duplicate listener - HomeSearchSection will handle search events
@@ -149,8 +211,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     try {
       // OPTIMIZED: Client-side cache invalidation only
-      final statisticsService = OptimizedStatisticsService.instance;
-      statisticsService.invalidateCache(reason: 'Returned to home screen');
+      _statisticsService.invalidateCache(reason: 'Returned to home screen');
 
       // Trigger statistics update notification (client-side)
       final notificationService = StatisticsNotificationService.instance;
@@ -193,7 +254,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       loading: () => null,
       error: (_, __) => null,
     );
-    _currentGreeting = GreetingService.instance.getSmartGreeting(userName);
+
+    // Create context for greeting strategy selection
+    final userRole = currentUserAsync.when(
+      data: (user) => user?.role,
+      loading: () => null,
+      error: (_, __) => null,
+    );
+
+    final context = <String, dynamic>{
+      'userRole': userRole,
+      'isBusiness': userRole == 'admin',
+      'isInformal': userRole == 'user',
+    };
+
+    // Use strategy pattern for greeting generation
+    _currentGreeting = GreetingStrategyManager.instance
+        .generateContextualGreeting(userName, context);
   }
 
   Future<void> _refreshData() async {
@@ -218,8 +295,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ]);
 
       // OPTIMIZED: Client-side statistics refresh only
-      final statisticsService = OptimizedStatisticsService.instance;
-      await statisticsService.invalidateCache(reason: 'Pull to refresh');
+      await _statisticsService.invalidateCache(reason: 'Pull to refresh');
 
       // Force refresh real-time statistics widget if it exists (client-side)
       if (mounted) {
@@ -241,9 +317,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       debugPrint(
         '✅ HomeScreen: Refresh completed without re-initializing sync',
       );
-    } catch (e) {
-      // Silently handle refresh errors to avoid disrupting user experience
-      debugPrint('❌ HomeScreen: Refresh error: $e');
+    } catch (e, stackTrace) {
+      // Use enhanced error handling
+      await ErrorHandler.instance.handleErrorWithNotification(
+        e,
+        stackTrace: stackTrace,
+        context: mounted ? context : null,
+        additionalData: {
+          'operation': 'refresh_home_data',
+          'screen': 'home_screen',
+        },
+      );
 
       // If refresh fails due to sync issues, try to reset and re-initialize
       if (e.toString().contains('Real-time sync') ||
@@ -253,7 +337,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           RealTimeSyncInitializer.instance.reset();
           await _initializeRealTimeSync();
         } catch (resetError) {
-          debugPrint('❌ HomeScreen: Reset failed: $resetError');
+          await ErrorHandler.instance.handleError(
+            resetError,
+            context: mounted ? context : null,
+            additionalData: {
+              'operation': 'reset_real_time_sync',
+              'screen': 'home_screen',
+            },
+          );
         }
       }
     }
@@ -326,7 +417,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   /// Build optimized statistics grid using OptimizedStatisticsService
   Widget _buildOptimizedStatsGrid() {
     return FutureBuilder<Map<String, dynamic>>(
-      future: OptimizedStatisticsService.instance.getAggregatedStatistics(),
+      future: _statisticsService.getAggregatedStatistics(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return StatsGrid(
